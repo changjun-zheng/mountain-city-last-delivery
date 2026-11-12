@@ -1,0 +1,52 @@
+{
+  "name": "mountain-city-last-delivery",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Mountain City: Last Delivery shared Web and Windows startup.",
+  "main": "dist-electron/main.js",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc -p tsconfig.core.json && tsc -p tsconfig.json",
+    "build": "npm run typecheck && vite build --no-emptyOutDir",
+    "preview": "vite preview",
+    "electron:compile": "tsc -p tsconfig.electron.json",
+    "electron:dev": "npm run electron:compile && node scripts/electron-dev.mjs",
+    "electron:build": "npm run build && npm run electron:compile && install-electron && electron-builder --win --x64 --dir",
+    "test": "npm run typecheck && npm run electron:compile && node --experimental-strip-types --test tests/*.test.mjs",
+    "test:platform": "npm run electron:compile && node tests/platform-smoke.mjs"
+  },
+  "dependencies": {
+    "phaser": "3.90.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.9.0",
+    "electron": "44.11.1",
+    "electron-builder": "26.18.0",
+    "playwright-core": "1.65.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.7"
+  },
+  "build": {
+    "appId": "io.mountaincity.lastdelivery",
+    "productName": "Mountain City Last Delivery",
+    "asar": true,
+    "electronDist": "node_modules/electron/dist",
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json",
+      "!node_modules/**/*"
+    ],
+    "win": {
+      "signAndEditExecutable": false
+    }
+  }
+}
