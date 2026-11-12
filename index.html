@@ -4,12 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="data:," />
-    <title>山城有路：最后一单</title>
+    <title>叠城大冒险 | Layered City Adventures</title>
   </head>
   <body>
     <main>
+      <label>场景：<select id="scene-select"><option value="graybox">可操作物理灰盒</option><option value="diagnostic">固定步诊断</option></select></label>
       <div id="game" aria-label="游戏画面"></div>
       <pre id="diagnostics" aria-label="模拟诊断"></pre>
+      <button id="reset-graybox" type="button" disabled>重置灰盒（R）</button>
       <button id="restart" type="button" disabled>重新启动</button>
       <p id="error" role="alert" hidden></p>
     </main>

@@ -7,11 +7,13 @@ export type StartupScene = Readonly<{
   milestone: string;
 }>;
 
+// Shared display identity only; package, storage and gameplay identities stay unchanged.
+export const PROJECT_IDENTITY = Object.freeze({ title: '叠城大冒险', subtitle: 'Layered City Adventures' });
+
 // This is the shared entry point. Hosts choose how to present the initial scene.
 export function createGameCore() {
   const startupScene: StartupScene = {
-    title: '山城有路：最后一单',
-    subtitle: 'Mountain City: Last Delivery',
+    ...PROJECT_IDENTITY,
     milestone: 'M1.2.1 · 固定步验证',
   };
   let markerX = 0;

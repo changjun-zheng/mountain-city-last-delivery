@@ -11,7 +11,7 @@ protocol.registerSchemesAsPrivileged([{
 
 const failStartup = (error: unknown) => {
   console.error('Desktop startup failed.', error);
-  dialog.showErrorBox('Mountain City: Last Delivery', '游戏窗口加载失败，请检查应用资源或开发服务。');
+  dialog.showErrorBox('叠城大冒险 | Layered City Adventures', '游戏窗口加载失败，请检查应用资源或开发服务。');
   app.exit(1);
 };
 
@@ -77,7 +77,7 @@ app.whenReady().then(async () => {
   app.setAppUserModelId('io.mountaincity.lastdelivery');
   const createWindow = async () => {
     const window = new BrowserWindow({
-      title: 'Mountain City: Last Delivery',
+      title: '叠城大冒险 | Layered City Adventures',
       width: 1024, height: 720, minWidth: 480, minHeight: 360,
       backgroundColor: '#101921',
       webPreferences: {

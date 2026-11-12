@@ -14,13 +14,14 @@ body {
 }
 
 main {
-  width: min(800px, calc(100% - 32px));
+  width: min(1000px, calc(100% - 32px));
   text-align: center;
 }
 
 #game {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: min(58vw, calc(100vh - 220px));
+  min-height: 280px;
   overflow: hidden;
   background: #162632;
 }
@@ -36,3 +37,6 @@ button {
   font: 13px/1.6 ui-monospace, monospace;
   color: #dce6e9;
 }
+
+label { display: block; margin-bottom: 10px; }
+select { padding: 4px 10px; font: inherit; }

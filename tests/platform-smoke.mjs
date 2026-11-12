@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, cp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, cp, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { appendFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -7,18 +9,70 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
+import {
+  identifyBrowser,
+  parseBrowserSelection,
+  resolveBrowserExecutable,
+} from './browser-selection.mjs';
+import { chooseScene, checkGraybox } from './graybox-browser.mjs';
+import { createPlatformObserver } from './platform-observer.mjs';
 
 const TIMEOUT = 15000; // Same readiness budget as before R1; hidden frames are not polled via RAF.
+const cliArgs = process.argv.slice(2);
+let browserSelection;
+try {
+  browserSelection = parseBrowserSelection(cliArgs);
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
 await mkdir('test-results/platform', { recursive: true });
 const evidenceDir = await mkdtemp(resolve('test-results/platform/run-'));
+const injection = cliArgs.find(arg => arg.startsWith('--inject-interruption='))?.split('=')[1];
+if (injection && !['hidden', 'close'].includes(injection)) throw new Error('Unknown interruption injection');
+const webOnly = cliArgs.includes('--web-only') || Boolean(injection);
+let browserResolution;
+let browserResolutionError;
+try {
+  browserResolution = resolveBrowserExecutable(browserSelection);
+} catch (error) {
+  browserResolutionError = error;
+}
 const report = {
-  task: 'M1.2.1-R1', startedAt: new Date().toISOString(), evidenceDir,
+  task: 'D01-R2', startedAt: new Date().toISOString(), evidenceDir, injection,
+  commandLine: cliArgs,
+  runtime: { node: process.version, platform: process.platform, arch: process.arch },
+  browser: {
+    requested: browserSelection.id,
+    expectedBrand: browserSelection.brand,
+    explicit: browserSelection.explicit,
+    candidates: browserResolution?.candidates ?? browserResolutionError?.candidates ?? [],
+    executablePath: browserResolution?.executablePath ?? null,
+    availability: browserResolution ? 'PASS' : 'BLOCKED',
+    unavailableReason: browserResolutionError?.message,
+  },
   platforms: Object.fromEntries(['web', 'electron-dev', 'electron-packaged'].map(label => [label, { status: 'NOT RUN' }])),
   events: [], processes: [], services: [], cleanupFailures: [],
 };
+report.version = Object.fromEntries(await Promise.all([
+  'tests/platform-smoke.mjs', 'tests/browser-selection.mjs', 'tests/graybox-browser.mjs',
+  'tests/platform-observer.mjs', 'scripts/test.mjs',
+  'tests/foreground-window.ps1',
+  'release/layered-city-adventures/win-unpacked/resources/app.asar',
+].map(async path => [path, createHash('sha256').update(await readFile(path)).digest('hex')])));
 let captureNumber = 0;
-const note = (label, phase, data = {}) => report.events.push({ at: new Date().toISOString(), label, phase, ...data });
-const save = () => writeFile(join(evidenceDir, 'report.json'), JSON.stringify(report, null, 2));
+const started = performance.now();
+const note = (label, phase, data = {}) => {
+  const event = { seq: report.events.length + 1, at: new Date().toISOString(), elapsedMs: performance.now() - started,
+    label, phase, ...data };
+  report.events.push(event);
+  appendFileSync(join(evidenceDir, 'timeline.jsonl'), JSON.stringify(event) + '\n');
+};
+let saveQueue = Promise.resolve();
+const save = () => {
+  const json = JSON.stringify(report, null, 2);
+  return saveQueue = saveQueue.then(() => writeFile(join(evidenceDir, 'report.json'), json));
+};
 
 async function bounded(promise, ms, label) {
   let timer;
@@ -38,12 +92,16 @@ const poll = { timeout: TIMEOUT, polling: 100 };
 
 async function snapshot(ctx, phase, screenshot = false) {
   const state = { stage: ctx.stage, operation: ctx.operation, failure: ctx.failure,
-    pageErrors: [...ctx.errors], navigation: [...ctx.navigation], breadcrumbs: [...ctx.breadcrumbs] };
+    pageErrors: [...ctx.errors], navigation: [...ctx.navigation], breadcrumbs: [...ctx.breadcrumbs],
+    lastObservation: ctx.lastObservation, interruption: ctx.interruption,
+    driverHeld: ctx.monitor?.held, nativeAlive: ctx.native?.alive(), foreground: ctx.foreground };
   if (ctx.page && !ctx.page.isClosed()) {
     try {
       state.page = await bounded(ctx.page.evaluate(() => ({
-        url: location.href, visibility: document.visibilityState, readyState: document.readyState,
+        url: location.href, title: document.title, sceneLabel: document.querySelector('#game')?.getAttribute('aria-label'),
+        visibility: document.visibilityState, readyState: document.readyState,
         focused: document.hasFocus(), diagnostics: { ...document.querySelector('#diagnostics')?.dataset },
+        lifecycleTrace: window.__platformLifecycleTrace,
         diagnosticText: document.querySelector('#diagnostics')?.textContent,
         canvasCount: document.querySelectorAll('#game canvas').length,
         restartDisabled: document.querySelector('#restart')?.disabled,
@@ -77,10 +135,11 @@ async function snapshot(ctx, phase, screenshot = false) {
   return state;
 }
 
-function observe(ctx, page) {
+async function observe(ctx, page) {
   ctx.page = page;
   page.setDefaultTimeout(TIMEOUT);
   page.setDefaultNavigationTimeout(TIMEOUT);
+  await ctx.monitor.attach(page);
   page.on('pageerror', error => ctx.errors.push(error.message));
   page.on('console', message => {
     if (message.type() === 'error') ctx.errors.push(message.text());
@@ -99,6 +158,8 @@ async function loaded(ctx) {
   await ctx.page.waitForFunction(() => document.readyState === 'complete' &&
     document.querySelector('#diagnostics')?.dataset.tick !== undefined, undefined, poll);
   assert.equal(await ctx.page.locator('#error').textContent(), '');
+  assert.equal(await ctx.page.title(), '叠城大冒险 | Layered City Adventures');
+  assert.match(await ctx.page.locator('#game').getAttribute('aria-label'), /^叠城大冒险 · Layered City Adventures/);
 }
 
 async function sceneReady(ctx) {
@@ -127,14 +188,24 @@ async function visibleReady(ctx) {
   await running(ctx);
 }
 
-function launchNative(label, executable, args, env = process.env) {
+function launchNative(ctx, executable, args, env = process.env) {
+  const label = ctx.label;
   const child = spawn(executable, args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
-  const record = { label, pid: child.pid, executable, status: 'NOT RUN', output: '' };
+  const record = {
+    label, pid: child.pid, executable, args: [...args], startedAt: new Date().toISOString(),
+    status: 'NOT RUN', output: '',
+  };
   report.processes.push(record);
+  ctx.monitor.stamp('native-process-spawn', { pid: child.pid, executable, args });
   let failure;
   let finished = false;
   const exit = new Promise(resolveExit => {
-    child.once('exit', (code, signal) => { finished = true; Object.assign(record, { code, signal, exitedAt: new Date().toISOString() }); resolveExit({ code, signal }); });
+    child.once('exit', (code, signal) => {
+      finished = true;
+      Object.assign(record, { code, signal, exitedAt: new Date().toISOString() });
+      ctx.monitor.processExit({ pid: child.pid, code, signal });
+      resolveExit({ code, signal });
+    });
     child.once('error', error => { failure = error; finished = true; record.spawnError = String(error); resolveExit({ spawnError: String(error) }); });
   });
   child.stdout.on('data', chunk => { record.output += chunk; });
@@ -189,24 +260,33 @@ async function inspectMain(endpoint) {
   };
 }
 
-async function stopOwned(native, politeClose) {
+async function stopOwned(ctx, politeClose) {
+  const native = ctx.native;
   if (!native) return;
+  ctx.monitor.close('owned-process-cleanup');
+  ctx.monitor.stamp('cleanup-start', { pid: native.child.pid, alive: native.alive() });
   try {
     if (native.alive()) {
-      try { await bounded(Promise.resolve().then(politeClose), 3000, 'owned process close request'); }
+      try {
+        ctx.monitor.stamp('cleanup-close-request', { pid: native.child.pid });
+        await bounded(Promise.resolve().then(politeClose), 3000, 'owned process close request');
+      }
       catch (error) { native.record.closeRequestError = String(error); }
       try { await bounded(native.exit, 5000, 'owned process exit'); }
       catch {
         // Only the still-live ChildProcess created above is eligible. No name/global process search.
         if (native.alive()) {
           native.record.forcedCleanup = true;
+          ctx.monitor.stamp('cleanup-force-request', { pid: native.child.pid });
           const killer = spawn('taskkill', ['/PID', String(native.child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
           await bounded(once(killer, 'exit'), 5000, 'owned process tree cleanup');
           await bounded(native.exit, 5000, 'owned process exit after cleanup');
         }
       }
     }
-    native.record.status = native.alive() ? 'FAIL' : 'PASS';
+    native.record.cleanupStatus = native.alive() ? 'FAIL' : 'PASS';
+    native.record.status = native.record.code === 0 ? 'PASS' : 'FAIL';
+    ctx.monitor.stamp('cleanup-complete', { pid: native.child.pid, code: native.record.code, alive: native.alive() });
     if (native.alive()) throw new Error('Owned process is still alive: ' + native.child.pid);
   } catch (error) {
     native.record.status = 'FAIL';
@@ -300,6 +380,7 @@ async function checkRestart(ctx, index) {
     observer.observe(document.querySelector('#game'), { childList: true });
     window.addEventListener('beforeunload', () => console.info(tag + ':beforeunload'), { once: true });
   }, tag);
+  await ctx.monitor.navigation('restart-' + index);
   ctx.stage = 'restart-' + index + '-destroy-and-navigation';
   await Promise.all([
     ctx.page.waitForEvent('framenavigated', { predicate: frame => frame === ctx.page.mainFrame() }),
@@ -318,14 +399,15 @@ async function checkRestart(ctx, index) {
 async function checkDesktop(ctx, executablePath, devURL) {
   const env = { ...process.env, MCLD_DEV_URL: devURL ?? 'https://example.invalid/' };
   delete env.ELECTRON_RUN_AS_NODE;
-  ctx.native = launchNative(ctx.label, executablePath,
+  ctx.native = launchNative(ctx, executablePath,
     ['--inspect=0', '--remote-debugging-port=0', ...(devURL ? [resolve('.')] : [])], env);
   try {
+    await ctx.monitor.race(async () => {
     ctx.desktop = await inspectMain(await ctx.native.endpoint('Debugger listening on'));
     ctx.windowState = () => ctx.desktop.evaluate(({ app, BrowserWindow }) => ({
-      packaged: app.isPackaged, pid: process.pid,
+      packaged: app.isPackaged, pid: process.pid, appName: app.getName(), userData: app.getPath('userData'),
       windows: BrowserWindow.getAllWindows().map(window => ({
-        id: window.id, visible: window.isVisible(), minimized: window.isMinimized(), focused: window.isFocused(),
+        id: window.id, title: window.getTitle(), visible: window.isVisible(), minimized: window.isMinimized(), focused: window.isFocused(),
         bounds: window.getBounds(), url: window.webContents.getURL(), loading: window.webContents.isLoading(),
       })),
     }));
@@ -345,13 +427,24 @@ async function checkDesktop(ctx, executablePath, devURL) {
       await ctx.desktop.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].minimize());
       assert.equal((await ctx.windowState()).windows[0].minimized, true);
     };
+    ctx.rawShow = ctx.show;
+    ctx.rawHide = ctx.hide;
+    ctx.show = () => ctx.monitor.show(ctx.rawShow);
+    ctx.hide = () => ctx.monitor.hide(ctx.rawHide);
     ctx.browser = await chromium.connectOverCDP(await ctx.native.endpoint('DevTools listening on'), { noDefaults: true });
     const context = ctx.browser.contexts()[0];
     const page = context.pages()[0] ?? await context.waitForEvent('page', { timeout: TIMEOUT });
-    observe(ctx, page);
+    ctx.monitor.attachBrowser(ctx.browser, context);
+    await observe(ctx, page);
     await page.waitForURL(url => url.searchParams.get('platform') === 'windows', { waitUntil: 'load' });
+    await chooseScene(ctx, 'diagnostic');
     await loaded(ctx);
     await snapshot(ctx, 'initial-load-before-activation', true);
+    const identity = await ctx.windowState();
+    assert.equal(identity.windows[0].title, '叠城大冒险 | Layered City Adventures');
+    assert.equal(identity.appName, 'mountain-city-last-delivery', 'Display rename must preserve the internal app name');
+    assert.equal(identity.userData, join(process.env.APPDATA, 'mountain-city-last-delivery'));
+    note(ctx.label, 'display-and-storage-identity', { status: 'PASS', ...identity });
     const preferences = await ctx.desktop.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences());
     assert.equal(preferences.nodeIntegration, false);
     assert.equal(preferences.contextIsolation, true);
@@ -367,20 +460,27 @@ async function checkDesktop(ctx, executablePath, devURL) {
     await hiddenStartup(ctx);
     for (let i = 1; i <= 2; i++) await checkPause(ctx, i);
     for (let i = 1; i <= 3; i++) await checkRestart(ctx, i);
+    await checkGraybox(ctx, (name, data) => note(ctx.label, 'graybox-' + name, data),
+      (phase, screenshot) => snapshot(ctx, phase, screenshot));
     assert.deepEqual(ctx.errors, []);
     await snapshot(ctx, 'completed', true);
     ctx.stage = 'native-close';
+    ctx.monitor.check();
+    ctx.monitor.close('successful-native-window-close');
+    ctx.monitor.stamp('normal-close-request', { pid: ctx.native.child.pid });
     await ctx.desktop.evaluate(({ BrowserWindow }) => { setTimeout(() => BrowserWindow.getAllWindows()[0].close(), 100); });
     ctx.desktop.close();
     const exit = await bounded(ctx.native.exit, 5000, 'native window close -> exit');
     assert.equal(exit.code, 0);
+    });
   } catch (error) {
     ctx.failure = String(error);
+    await ctx.monitor.settled();
     await snapshot(ctx, 'failure', true);
     throw error;
   } finally {
     try {
-      await stopOwned(ctx.native, async () => {
+      await stopOwned(ctx, async () => {
         try { await ctx.desktop?.evaluate(({ app }) => { setTimeout(() => app.quit(), 100); }); }
         finally { ctx.desktop?.close(); }
       });
@@ -393,16 +493,46 @@ async function checkDesktop(ctx, executablePath, devURL) {
 }
 
 async function checkWeb(ctx, devURL) {
-  const profile = await mkdtemp(join(tmpdir(), 'mountain-city-r1-edge-'));
-  const edge = join(process.env['ProgramFiles(x86)'], 'Microsoft/Edge/Application/msedge.exe');
-  ctx.native = launchNative(ctx.label, edge,
-    ['--remote-debugging-port=0', '--user-data-dir=' + profile, '--no-first-run', 'about:blank']);
+  if (browserResolutionError) throw browserResolutionError;
+  const profile = await mkdtemp(join(tmpdir(), `mountain-city-d01-r2-${browserResolution.id}-`));
+  const browserArgs = [
+    '--remote-debugging-port=0',
+    '--user-data-dir=' + profile,
+    '--no-first-run',
+    'about:blank',
+  ];
+  Object.assign(report.browser, {
+    profileDirectory: profile,
+    args: browserArgs,
+    pid: null,
+  });
+  ctx.native = launchNative(ctx, browserResolution.executablePath, browserArgs);
+  report.browser.pid = ctx.native.child.pid;
   try {
+    await ctx.monitor.race(async () => {
     ctx.browser = await chromium.connectOverCDP(await ctx.native.endpoint('DevTools listening on'), { noDefaults: true });
+    const browserSession = await ctx.browser.newBrowserCDPSession();
+    const browserVersion = await browserSession.send('Browser.getVersion');
+    await browserSession.detach().catch(() => {});
+    const actual = identifyBrowser(browserVersion);
+    Object.assign(report.browser, { actual, verifiedAt: new Date().toISOString() });
+    assert.equal(actual.brand, browserResolution.brand,
+      `Selected ${browserResolution.brand}, but CDP reported ${actual.brand}`);
+    note(ctx.label, 'browser-identity', {
+      status: 'PASS',
+      requested: browserResolution.id,
+      expectedBrand: browserResolution.brand,
+      executablePath: browserResolution.executablePath,
+      pid: ctx.native.child.pid,
+      args: browserArgs,
+      actual,
+    });
     const context = ctx.browser.contexts()[0];
     const page = context.pages()[0] ?? await context.waitForEvent('page', { timeout: TIMEOUT });
-    observe(ctx, page);
+    ctx.monitor.attachBrowser(ctx.browser, context);
+    await observe(ctx, page);
     const other = await context.newPage();
+    await ctx.monitor.attach(other, 'background-tab');
     const session = await context.newCDPSession(page);
     const { windowId } = await session.send('Browser.getWindowForTarget');
     ctx.windowState = () => session.send('Browser.getWindowBounds', { windowId });
@@ -413,44 +543,152 @@ async function checkWeb(ctx, devURL) {
       await page.bringToFront();
     };
     ctx.hide = () => other.bringToFront();
+    ctx.rawShow = ctx.show;
+    ctx.rawHide = ctx.hide;
+    ctx.show = () => ctx.monitor.show(ctx.rawShow);
+    ctx.hide = () => ctx.monitor.hide(ctx.rawHide);
     await page.goto(devURL);
+    if (injection) return injectInterruption(ctx);
+    await chooseScene(ctx, 'diagnostic');
     await loaded(ctx);
     await snapshot(ctx, 'initial-load-before-activation');
     await visibleReady(ctx);
     await hiddenStartup(ctx);
     for (let i = 1; i <= 2; i++) await checkPause(ctx, i);
     for (let i = 1; i <= 3; i++) await checkRestart(ctx, i);
+    await checkGraybox(ctx, (name, data) => note(ctx.label, 'graybox-' + name, data),
+      (phase, screenshot) => snapshot(ctx, phase, screenshot));
     assert.deepEqual(ctx.errors, []);
     await snapshot(ctx, 'completed', true);
+    });
   } catch (error) {
     ctx.failure = String(error);
+    await ctx.monitor.settled();
     await snapshot(ctx, 'failure', true);
+    if (injection) await validateInjection(ctx);
     throw error;
   } finally {
     try {
-      await stopOwned(ctx.native, async () => {
+      await stopOwned(ctx, async () => {
         const session = await ctx.browser?.newBrowserCDPSession();
         await session?.send('Browser.close');
       });
     } finally {
+      ctx.monitor.stamp('driver-connection-close-request', { pid: ctx.native.child.pid });
       await ctx.browser?.close().catch(() => {});
       await save();
     }
+    if (!ctx.failure) assert.equal(ctx.native.record.code, 0, 'Normal browser shutdown must exit 0');
   }
+}
+
+async function injectInterruption(ctx) {
+  await chooseScene(ctx, 'graybox');
+  ctx.operation = 'injected-active-operation';
+  ctx.stage = ctx.operation;
+  await ctx.monitor.key('Space', false);
+  await ctx.monitor.key('Space', true);
+  await ctx.monitor.key('KeyD', true);
+  await ctx.page.waitForTimeout(100);
+  await snapshot(ctx, 'before-injection', true);
+  ctx.monitor.check();
+  ctx.monitor.stamp('fault-injection-request', { kind: injection, pid: ctx.native.child.pid });
+  if (injection === 'hidden') await ctx.rawHide();
+  else {
+    const session = await ctx.browser.newBrowserCDPSession();
+    await session.send('Browser.close').catch(error => ctx.monitor.stamp('injection-close-response', { error: String(error) }));
+  }
+  // The observer must abort the enclosing operation; do not recover, replay or continue.
+  await new Promise(() => {});
+}
+
+async function validateInjection(ctx) {
+  try {
+    assert.ok(ctx.interruption, 'The operation must have been interrupted');
+    assert.equal(ctx.interruption.expected, 'visible');
+    const events = () => report.events.filter(event => event.label === ctx.label);
+    const first = events().find(event => event.phase === 'unexpected-interruption');
+    const request = events().find(event => event.phase === 'fault-injection-request');
+    assert.ok(first);
+    assert.ok(request && request.seq < first.seq, 'Interruption must follow this injection, never precede it');
+    assert.equal(events().some(event => event.seq > first.seq && ['show-request', 'key-request', 'cleanup-start'].includes(event.phase)), false);
+    if (injection === 'hidden') {
+      await ctx.page.waitForFunction(() => {
+        const d = document.querySelector('#diagnostics').dataset;
+        return document.visibilityState === 'hidden' && d.paused === 'true' && d.controlAllowed === 'false';
+      }, undefined, poll);
+      const frozen = await ctx.page.locator('#diagnostics').evaluate(element => ({ ...element.dataset }));
+      await delay(400);
+      assert.deepEqual(await ctx.page.locator('#diagnostics').evaluate(element => ({ ...element.dataset })), frozen);
+      assert.equal(frozen.tokens, '1');
+      assert.equal(frozen.needsRelease, 'true');
+      assert.equal(frozen.buffer, '0');
+      assert.deepEqual(ctx.lastObservation.domHeld, []);
+      note(ctx.label, 'injected-hidden-frozen-input-cleared', { status: 'PASS', frozen, driverHeld: ctx.monitor.held });
+    } else {
+      await bounded(ctx.native.exit, 5000, 'injected browser close -> process exit');
+      for (const phase of ['page-close', 'context-close', 'browser-disconnected', 'native-process-exit']) {
+        assert.ok(events().some(event => event.phase === phase), 'Missing ' + phase);
+      }
+      assert.equal(events().some(event => event.phase === 'cleanup-start'), false, 'Process exited before cleanup began');
+    }
+    report.injectionValidation = { status: 'PASS', kind: injection, interruption: ctx.interruption.kind };
+  } catch (error) {
+    report.injectionValidation = { status: 'FAIL', kind: injection, error: String(error) };
+  }
+  note(ctx.label, 'fault-injection-validation', report.injectionValidation);
 }
 
 async function runCase(label, fn) {
   const ctx = { label, stage: 'launch', operation: 'initial-startup', errors: [], navigation: [], breadcrumbs: [] };
+  ctx.monitor = createPlatformObserver(ctx, note, (phase, screenshot) => snapshot(ctx, phase, screenshot));
   const result = report.platforms[label];
   result.startedAt = new Date().toISOString();
+  if (label === 'web') result.browser = browserSelection.id;
+  const foreground = spawn('powershell.exe', ['-NoProfile', '-File', resolve('tests/foreground-window.ps1')],
+    { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  let partial = '';
+  const foregroundExit = once(foreground, 'exit');
+  foreground.on('error', error => note(label, 'foreground-probe-error', { error: String(error) }));
+  foreground.stderr.on('data', chunk => note(label, 'foreground-probe-error', { error: String(chunk) }));
+  foreground.stdout.on('data', chunk => {
+    partial += chunk;
+    let newline;
+    while ((newline = partial.indexOf('\n')) !== -1) {
+      const line = partial.slice(0, newline).trim(); partial = partial.slice(newline + 1);
+      if (!line) continue;
+      try {
+        ctx.foreground = JSON.parse(line);
+        ctx.monitor.stamp('native-foreground', { ...ctx.foreground, testPid: ctx.native?.child.pid });
+      } catch { note(label, 'foreground-probe-output', { line }); }
+    }
+  });
+  ctx.monitor.stamp('foreground-probe-start', { pid: foreground.pid });
   try {
     await fn(ctx);
     result.status = 'PASS';
-    console.log('PASS', label, 'loaded / scene / running; hidden start; 2 hide cycles; 3 restarts; owned process exited');
+    console.log('PASS', label, 'loaded / scene / running; hidden start; 2 hide cycles; 3 restarts; graybox controls / collisions / pause; owned process exited');
   } catch (error) {
-    Object.assign(result, { status: error.code === 'ENOENT' ? 'BLOCKED' : 'FAIL', stage: ctx.stage, error: String(error), stack: error.stack });
+    Object.assign(result, { status: ['ENOENT', 'ENVIRONMENT_PRECONDITION'].includes(error.code) ? 'BLOCKED' : 'FAIL', stage: ctx.stage,
+      expectedFailure: Boolean(injection), interruption: ctx.interruption, error: String(error), stack: error.stack });
     console.error(result.status, label, ctx.stage, String(error));
   }
+  if (ctx.interruption) {
+    const events = report.events.filter(event => event.label === label);
+    const cleanup = events.find(event => event.phase === 'cleanup-start')?.seq ?? Infinity;
+    const signals = events.filter(event => event.seq < cleanup &&
+      ['renderer-blur', 'renderer-visibilitychange', 'page-close', 'page-crash', 'context-close',
+        'browser-disconnected', 'native-process-exit'].includes(event.phase));
+    result.interruption.classification = signals.some(event =>
+      ['page-close', 'context-close', 'browser-disconnected', 'native-process-exit'].includes(event.phase))
+      ? 'closure-before-cleanup' : 'focus-or-visibility-loss';
+    result.interruption.signalsBeforeCleanup = signals.map(event => ({ seq: event.seq, phase: event.phase }));
+    note(label, 'interruption-classified', result.interruption);
+  }
+  ctx.monitor.stamp('foreground-probe-stop-request', { pid: foreground.pid });
+  foreground.kill(); // Only the read-only helper created for this case, never a foreground app.
+  await bounded(foregroundExit, 3000, 'owned foreground helper exit');
+  ctx.monitor.stamp('foreground-probe-exit', { pid: foreground.pid });
   result.finishedAt = new Date().toISOString();
   await save();
 }
@@ -463,8 +701,10 @@ try {
   const devURL = server.resolvedUrls.local[0];
   report.services.push({ url: devURL, status: 'NOT RUN' });
   await runCase('web', ctx => checkWeb(ctx, devURL));
-  const { default: electron } = await import('electron');
-  await runCase('electron-dev', ctx => checkDesktop(ctx, electron, devURL));
+  if (!webOnly) {
+    const { default: electron } = await import('electron');
+    await runCase('electron-dev', ctx => checkDesktop(ctx, electron, devURL));
+  }
 } finally {
   if (server) {
     try { await bounded(server.close(), 5000, 'test development service shutdown'); report.services[0].status = 'PASS'; }
@@ -472,12 +712,12 @@ try {
   }
   await save();
 }
-if (!process.argv.includes('--dev-only')) {
+if (!webOnly && !process.argv.includes('--dev-only')) {
   await runCase('electron-packaged', async ctx => {
-    const standalone = await mkdtemp(join(tmpdir(), 'mountain-city-r1-standalone-'));
-    await cp(resolve('release/win-unpacked'), standalone, { recursive: true });
+    const standalone = await mkdtemp(join(tmpdir(), 'mountain-city-d01-r2-standalone-'));
+    await cp(resolve('release/layered-city-adventures/win-unpacked'), standalone, { recursive: true });
     note(ctx.label, 'standalone-copy', { path: standalone, developmentServiceStopped: true });
-    await checkDesktop(ctx, join(standalone, 'Mountain City Last Delivery.exe'), undefined);
+    await checkDesktop(ctx, join(standalone, 'Layered City Adventures.exe'), undefined);
   });
 }
 report.finishedAt = new Date().toISOString();

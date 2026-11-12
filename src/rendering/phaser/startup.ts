@@ -8,6 +8,7 @@ export function mountStartupScene(
   now: () => number,
   sampled: () => void,
 ): Promise<{ destroy: () => Promise<void> }> {
+  parent.setAttribute('aria-label', `${core.startupScene.title} · ${core.startupScene.subtitle} · 固定步诊断`);
   return new Promise((resolve) => {
     new Phaser.Game({
       parent,

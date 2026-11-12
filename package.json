@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Mountain City: Last Delivery shared Web and Windows startup.",
+  "description": "Layered City Adventures: a 2D platform exploration adventure in a fictional layered mountain city.",
   "main": "dist-electron/main.js",
   "engines": {
     "node": ">=22.12.0"
@@ -15,8 +15,10 @@
     "preview": "vite preview",
     "electron:compile": "tsc -p tsconfig.electron.json",
     "electron:dev": "npm run electron:compile && node scripts/electron-dev.mjs",
+    "electron": "npm run electron:dev",
     "electron:build": "npm run build && npm run electron:compile && install-electron && electron-builder --win --x64 --dir",
-    "test": "npm run typecheck && npm run electron:compile && node --experimental-strip-types --test tests/*.test.mjs",
+    "test": "node scripts/test.mjs",
+    "test:unit": "npm run typecheck && npm run electron:compile && node --experimental-strip-types --test tests/*.test.mjs",
     "test:platform": "npm run electron:compile && node tests/platform-smoke.mjs"
   },
   "dependencies": {
@@ -32,12 +34,12 @@
   },
   "build": {
     "appId": "io.mountaincity.lastdelivery",
-    "productName": "Mountain City Last Delivery",
+    "productName": "Layered City Adventures",
     "asar": true,
     "electronDist": "node_modules/electron/dist",
     "npmRebuild": false,
     "directories": {
-      "output": "release"
+      "output": "release/layered-city-adventures"
     },
     "files": [
       "dist/**/*",
@@ -46,7 +48,7 @@
       "!node_modules/**/*"
     ],
     "win": {
-      "signAndEditExecutable": false
+      "signExecutable": false
     }
   }
 }
