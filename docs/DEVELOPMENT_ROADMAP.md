@@ -114,11 +114,12 @@
 | D07：统一交互原型（DONE） | 主体交互与 D07-R1 两项补修已由 Work 按当前原型范围收口；历史完整回归及最新定向证据分别保留。 | 不代表正式任务或检查点实现；允许 D08。 |
 | D07-R1：交互提示与重置松键门槛（DONE） | Work 核对 run-LTvqUU、源码／脚本／产物版本及修复，重跑 52/52 测试 PASS。 | 仅限指定缺陷与定向范围；未重跑完整物理长套件。 |
 | D08：永久进度原型（DONE） | Work 核对实现与 run-nlbzAQ 三端版本证据，重跑 59/59 测试 PASS；限运行内测试内容。 | D07 补充回归 run-xHiVwG 仅 Web PASS，Electron 两端 NOT RUN；无跨会话存档或正式任务。 |
-| D09：最小事件与事务协议（分段实施） | 按正式决策接入运行身份、原子事件创建／分发与安全退役，再做命令接收、事务意图与最终反馈。 | 当前只授权第 7 节 D09-B1，不一次实现全部协议。 |
+| D09：最小事件与事务协议（分段实施） | 按正式决策接入运行身份、原子事件创建／分发与安全退役，再做命令接收、事务意图与最终反馈。 | 当前只授权第 7 节 D09-B2，不一次实现全部协议。 |
 | D09-A1：统一事件创建与原子入队（DONE） | Work 核对 3f27478 的原子创建、故障回滚与哈希，并重跑 66/66 测试 PASS；当前纯核心范围收口。 | 不代表宿主、玩法或真实业务事件已接入。 |
 | D09-A2：固定阶段单轮分发与事件防重（DONE） | Work 核对 b6cf8eb 实现、源码／测试哈希及边界，重跑 75/75 测试 PASS，当前纯核心范围收口。 | Accepted 仍仅为测试替身；未接宿主或真实命令事务。 |
 | D09-A3：生产者确认与连续安全退役（DONE） | Work 按 6038571 核对权限、清理及水位线实现和哈希，重跑 81/81 测试 PASS，当前核心范围收口。 | 未接宿主，Accepted 仍为测试替身；不含跨会话保证。 |
-| D09-B1：稳定命令与原子接收意图（DONE，等待 Work 审查） | 独立 Command／Transaction 编号、目标模块幂等接收、事务意图与身份关联原子提交已实现；87/87 测试及生产构建 PASS。 | 仅纯核心，Accepted 不执行业务；未接宿主，四类交付结果联调、Unknown 核查、事务执行及结果事件后续安排。 |
+| D09-B1：稳定命令与原子接收意图（DONE） | Work 按 6ff9d24 核对实现／哈希，重跑 87/87 测试 PASS，纯核心接收范围收口。 | 尚未执行事务或接宿主，不把 Accepted 等同业务成功。 |
+| D09-B2：真实交付分类与 Unknown 核查（DONE，待 Work 审查） | 事件协调器已接真实目标接收模块，覆盖四类结果、Unknown 查询与显式重试；94/94 测试及生产构建 PASS。 | 仅核心联调，不执行游戏事务或接宿主。 |
 | D10：检查点捕获 | 固定登记、完整初始备用快照、单一有效快照、原子提交、局部冻结、批次仲裁／全局单事务及失败保留旧快照。 | D09；分“登记与备用快照 → 捕获事务 → 触发／协调器接入”逐项实施。 |
 | D11：失败与恢复 | 两阶段恢复、永久效果协调、锚点与世界验证、触发器屏蔽同步、淡出淡入及 RecoveryError。 | D10；分“正常恢复 → 锚点与验证 → 异常恢复与手动重试”验收；调试重置不等于恢复实现。 |
 | D12：首关内容整合 | 形成从开始到结束的主线路径，整合玩家、交互、谜题、任务及恢复，先灰盒再补表现。 | D07～D11；先明确虚构世界与旧真实地标／夜景任务的适用性，不能凭更名自行重写故事。 |
@@ -130,11 +131,51 @@
 
 ## 7. 当前任务与持续记录
 
-当前任务：D09-B1 稳定命令与原子接收意图（DONE，等待 Work 审查）。D09-A1～A3 已由 Work 按各自纯核心范围收口。
+当前任务：D09-B2 真实交付分类与 Unknown 核查（DONE，待 Work 审查）。D09-B1 已由 Work 按纯核心接收范围收口。
 
-当前实施窗口：“游戏开发”窗口；仅执行下方 D09-B1 任务卡，不并行实施其他任务。
+当前实施窗口：“游戏开发”窗口；仅执行下方 D09-B2 任务卡，不并行实施其他任务。
 
-当前模式：提交 D09-B1 结果并等待 Work 审查，不自动接入宿主、真实事务执行或其他后续功能。
+当前模式：提交 D09-B2 结果并等待 Work 审查，不自动执行游戏事务、接入宿主或开始其他后续功能。
+
+### 2026-11-13 D09-B1 Work 审查
+
+Work 按 `6ff9d24` 阅读稳定命令、目标幂等接收及原子意图提交／回滚，events／commands 源码与 commands 测试哈希均匹配报告。审查开始时工作区干净，本轮重跑类型检查、Electron Main 编译及 87/87 测试 PASS，未重跑构建或 GUI。重复命令保持原 capability 和事务关联；提交失败回滚记录与意图、已分配事务号保留空洞，符合当前范围。D09-B1 收口，但事件成功分支仍用 Accepted 测试替身；下一段须明确区分真实目标接收与替身合同，不把 not-started 意图当业务成功。
+
+### D09-B2 任务卡：真实交付分类与 Unknown 核查
+
+- 目标：核心层连通“Pending 事件 → 固定阶段 Processing → 原稳定命令 → 真实目标原子接收 → 原事件 Completed”，覆盖四类交付结果与 Unknown 主动查询。真实指调用已有 TargetTransactionModule，不是实际游戏事务或 GUI 端到端。
+- 依据：Command Handoff Failure Classification、Reconciliation Before Retry、Command Handoff = Event Completion、Event-Transaction Lifecycle Separation、Stable Command ID、Single-Command Event Handoff、Atomic Acceptance and Transaction Intent，以及固定阶段／单轮／防重／确认规则。具体接口与异常记录为工程实现，不确认新的事件终态或重试参数。
+- 模块：增量扩展 events／commands 的受控接口，必要时新增小型交付模块，避免无关细节继续堆入事件大文件。旧测试可保留明确的替身模式；真实模式必须使用实际目标 receipt／intent，不能缺省 Accepted 或把真实回执转换为 testCommandReference 冒充联调。两模式配置明确且不意外同时生效，不重构无关模块或新增依赖。
+- 正常路径：合法协调阶段为原事件取得唯一稳定命令并提交原目标。目标返回明确原子接收成功后，协调器验证 runtime／Event／Command／Transaction／target 关联，原事件才 Completed，最终协调结果携带真实关联。事务保持 not-started、业务执行数为 0；Accepted 不等于 Succeeded，不释放事务锁或清除目标记录。
+- 分类：Accepted 仅目标明确接受；Retryable 需证明从未接受且原因暂时；Rejected 为不合法／不支持／违反规则且不自动重试；不能确定是否接受为 Unknown。底层 failed／blocked／rejected 不能机械映射，尤其回滚不确认、调用抛错或回执缺失不能当成未接受。
+- Unknown 核查：保留原事件／命令／去重记录及原目标，阻止同一命令重交。协调器在后续合法协调阶段按原 Command ID 调用原目标权威 query，不直接读写目标 map。found 需身份关联一致才转 Accepted；权威 not-found 还要按实际原因区分 Retryable／Rejected。查询异常、blocked、关联不一致或不明确均保持 Unknown，不能解释成未接受。
+- 恢复与显式重试：已接收但丢失回执，查询确认后只完成原事件，不重跑 handler、不重新创建 Event／Command、不再次 accept 或分配新事务号。不能简单清空 dispatchBlocked 后重放整个批次，也不丢其他 Pending。只有确认 Retryable 后允许显式触发一次交付重试，沿用原 Event／Command；有效 Transaction 身份不变，未形成意图的失败仍按空洞规则处理。不实现自动次数／间隔、退避或无限轮询。
+- 生命周期边界：四类交付结果与事件生命周期独立。Retryable／Rejected／Unknown 的正式事件终态尚未确认，本段保留分类与现场，不假报 Completed、强制退回 Pending 或偷偷新增全套异常枚举。操作遵守单轮、合法阶段、无递归；新事件仍延后。未解决交付不确定性不能自动确认清理，真实 Accepted 完成后仍按生产者确认／退役协议；事件退役不清除命令接收记录。
+- E01：无 Accepted 替身的真实核心成功链，Pending→Processing→Completed、一个 Command／有效 Transaction 意图、生产者可读真实关联，业务执行数始终 0。
+- E02：四类结果有明确依据；非法身份／目标／载荷不误报成功，证明未接受的暂时故障才 Retryable，永久无效请求不自动重试，不确定回滚／调用异常保持 Unknown。
+- E03：故障在真实目标已经提交、但调用方未得到回执处注入。初次 Unknown、恰一份意图；禁止重交，下一阶段按原 Command ID 查询后完成，accept 次数、原 handler 次数、事务编号均不增加。
+- E04：目标接受前中断且权威 not-found，分别按暂时／永久原因分类 Retryable／Rejected；Retryable 显式重试沿用原命令，最多一份有效意图。查询失败、目标 blocked、关联不一致保持 Unknown，重交被拒绝。
+- E05：递归／同阶段重入不重复执行，恢复不重放 Completed 或丢 Pending；确认与退役后命令接收记录仍有效。交付记录有限准入，不无界增长，不自行新增命令／事务退役协议。
+- E06：保留原 87 项有效语义，新增 E01–E05 集成／故障测试，回归原子接收、事件防重、确认及退役。新测试调用真实目标模块和明确故障接缝，不把调用故障模拟声称为实际 IPC 故障；旧替身测试保持标识。
+- 验证报告：类型检查、`npm.cmd test`、适用 Web／Electron 构建与 `git diff --check`；提供逐阶段状态、交付／查询／accept／handler 次数、四套身份、意图数量、错误分类、源码／测试哈希和未完成项。仍未接宿主，GUI／三端业务运行为 NOT RUN，不要求重跑未变物理长套件，不用旧 ASAR／截图证明新链运行。更新 README、路线图和实际受影响的项目概述，不新增大型协议文档。
+- 不做与停止：不执行事务、不产生最终 Transaction Result Event、不接宿主／D08 玩法、检查点、存档或正式任务；不把内部异常当 RecoveryError、不锁玩家或擅自暂停全部事务。无新增依赖、正式决策变更或用户产品决策，不删除文件、不关闭体验窗口、不 Commit／Push／发布。两轮有效修复仍失败或跨模块冲突时交 Work，完成后停止等审查，后续再安排事务执行与最终反馈。
+
+### 2026-11-13 D09-B2 执行结果
+
+D09-B2 已按任务卡完成纯核心真实交付联调，等待 Work 审查。新增 `src/core/delivery.ts`，把 `EventCreationCoordinator` 的真实模式接到已有 `TargetTransactionModule.accept/query`；旧 `commandReceiptTestDouble` 路径保留并明确标为测试替身，两种模式互斥。真实 handler 只执行一次并创建原事件唯一稳定命令，目标返回明确 Accepted 且 Runtime／Event／Command／Transaction／target 关联一致时，原事件才进入 Completed，生产者结果携带真实 `commandId／targetId／transactionId`。事务 intent 保持 `not-started`，业务执行数固定为 `0`。
+
+分类不机械映射底层状态：接收事务确认回滚完成后，临时故障才可经权威 `not-found` 查询成为 Retryable，永久故障成为 Rejected；未知回滚、调用抛错、blocked、查询异常及关联不一致均为 Unknown。Unknown 只允许按原 Command ID 查询，不重跑 handler 或重新 accept；found 一致时直接完成原事件。Retryable 不自动重交，只能在后续合法 `dispatch()` 中通过 `retryDeliveryEventIds` 显式列出，沿用原 Event／Command；未形成 intent 的失败事务号保留空洞。交付记录按 Event 使用有限准入容量，不删除未完成记录。
+
+| 用例 | 状态 | 实际证据 |
+| --- | --- | --- |
+| E01 真实成功链 | PASS | handler／accept 各 `1`，Command `1`、intent `1`、Transaction `1`；事件 Completed，生产者读取真实关联，业务执行 `0`。 |
+| E02 四类结果 | PASS | 同批 Accepted／Retryable／Rejected／Unknown 分类明确；临时与永久故障均在权威 `not-found` 后分类，未分类故障保持 Unknown。 |
+| E03 丢失回执 | PASS | 首轮 Unknown，目标已有唯一意图；下一阶段 query 确认后 Completed，handler／accept／Command／Transaction 均不增加。 |
+| E04 核查与重试 | PASS | 临时故障留下事务号 `1` 空洞，显式重试沿用原 Command 后形成唯一 intent 与事务 `2`；永久故障禁止重试；Accept、查询、blocked、关联异常保持 Unknown。 |
+| E05 单轮、防重与容量 | PASS | 新事件延后、递归拒绝、Completed 不重放、Pending 不丢失；退役不清除命令记录；交付容量满时拒绝新增且保留既有记录。 |
+| E06 回归与隔离 | PASS | 原 87 项语义保留，新增 7 项 D09-B2 测试；旧替身与真实接收路径分离，`delivery.ts` 无平台专属 API。 |
+
+`npm.cmd run typecheck` PASS；`npm.cmd test` 为 `94/94` PASS；`npm.cmd run electron:build` PASS。Chrome Web／Electron 开发版／独立包业务链、真实游戏事务、最终结果事件、宿主、检查点与存档均为 NOT RUN。源码哈希：`events.ts` `8DA6DA0E958137A76A903865B3413A8E2367DD68F7E3FD2C04D7F2B86F7393D7`、`commands.ts` `A577A90C9C6AEE147897B0AB977789BF3DD5FF9BDE67B5EA54C4B4E7197E3E06`、`delivery.ts` `2B1B96ED790612A13A8859282147E10C27D5CAC08C4B38CBE574ACD6F1C7DA86`、`delivery.test.mjs` `8A2223BA2779EFC20144D2073B1CBADA073E0EC68CC9E795305C62FD55F9B4DE`。生产 ASAR 与 EXE 哈希仍为 D09-B1 的 `92999B8A38D5B10DF331314D94F161AC3E2739E37C0E758D773E5A8B4D48CB8B`／`BB578EADD877147171729D3A5EF4D785ABB52B51EA8CE522DA83945869398973`，说明新核心尚未进入宿主入口。详细报告见 [README D09-B2](../README.md#d09-b2真实交付分类与-unknown-核查核心)。
 
 ### 2026-11-13 D09-A3 Work 审查
 

@@ -98,7 +98,8 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `src/core/interaction.ts` | 原型调查／拾取对象、稳定目标选择、单次按键消费、临时反馈及交互自身控制限制；不依赖平台或 Phaser。 |
 | `src/core/progress.ts` | D08 运行内进度仓库：四类稳定业务 ID、幂等登记、显式奖励关系、期望效果状态与只读快照；无平台或存储 API。 |
 | `src/core/events.ts` | D09-A1～A3 运行上下文、单调 Event ID、原子创建、有限 Inbox、固定协调阶段分发、生产者结果／确认与容量受控清理；同时为 D09-B1 提供受控源事件校验和命令协调器创建入口。 |
-| `src/core/commands.ts` | D09-B1 运行实例级独立 Command／Transaction 编号、单事件稳定命令、目标模块幂等接收、事务意图与原子身份关联；不执行业务，不依赖 DOM、Node、Electron 或 Phaser。 |
+| `src/core/commands.ts` | D09-B1 运行实例级独立 Command／Transaction 编号、单事件稳定命令、目标模块幂等接收、事务意图与原子身份关联；提供临时／永久接收故障分类，不执行业务。 |
+| `src/core/delivery.ts` | D09-B2 真实目标交付协调：四类交付结果、原 Command ID 核查、显式重试、有限交付记录与真实关联快照；不执行业务事务。 |
 | `src/physics/matter/graybox-world.ts` | 两端共用 Matter 世界、静态地形、独立脚底区域与实际接触法线判定。 |
 | `src/core/simulation.ts` | 固定步累加器、实际 Tick、有界补算及余量／丢弃统计。 |
 | `src/core/lifecycle.ts` | Owner + Key 去重、Token 所有权、退役与有效暂停集合。 |
@@ -121,6 +122,7 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `tests/events-dispatch.test.mjs` | D09-A2 固定阶段、逐事件转换、后生事件延后、递归拒绝、防重、测试接收替身合同、异常保留及历史容量。 |
 | `tests/events-retirement.test.mjs` | D09-A3 生产者结果能力、显式确认、乱序退役、缺口合并、旧 ID 拒绝、组合容量与清理故障。 |
 | `tests/commands.test.mjs` | D09-B1 三套独立编号、单事件单命令、目标模块隔离、重复接收、身份篡改、事务编号空洞、提交回滚和容量边界。 |
+| `tests/delivery.test.mjs` | D09-B2 真实目标成功链、四类结果、丢失回执核查、查询故障、显式重试、固定批次、退役保留、交付容量及模式隔离。 |
 | `tests/graybox-browser.mjs` | 真实窗口键盘操作、物理暂停、平台、区域、D07 交互及 D08 收藏／目标／奖励／效果断言。 |
 | `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1／D05／D07／D08 定向入口。 |
 | `tests/browser-selection.mjs` | 解析 `--browser`、查找标准安装路径并核验 CDP 实际浏览器身份；缺失时不回退。 |
@@ -1086,12 +1088,61 @@ D01–D06 验收：
 
 ASAR 与 EXE 和 D09-A2／A3 相同，因为命令模块尚未进入宿主入口。结论限纯核心稳定命令、幂等接收和事务意图提交；当前等待 Work 审查，不自动进入下一任务，不 Commit／Push／发布。
 
+## D09-B2：真实交付分类与 Unknown 核查核心
+
+2026-11-13 在 D09-B1 上把事件协调器接入已有 `TargetTransactionModule`。本段仍为纯核心，不执行开门、发奖或其他游戏业务，不接宿主、检查点、存档或正式任务。
+
+实现边界：
+
+1. `EventCreationCoordinator` 同时支持两种互斥模式：旧 `commandReceiptTestDouble` 仅用于测试替身；`realCommandDelivery` 使用 handler 返回的稳定命令请求、实际目标 `accept()` 和权威 `query(Command ID)`。两种模式同时配置或真实模式另配旧 dispatch handler 会明确报错。
+2. 真实模式先执行一次事件 handler 并创建原 Event 的唯一 Command，再调用原目标接收。只有目标明确 Accepted 且 Runtime／Event／Command／Transaction／target／type／payload 关联一致，原事件才从 `processing` 进入 `completed`；生产者读取的最终结果携带真实 `commandId`、`targetId` 和 `transactionId`。
+3. Accepted 只表示目标已原子接收，目标 intent 仍为 `not-started`，业务执行数固定为 `0`。Retryable、Rejected、Unknown 与事件生命周期分开保存；这些结果不假报 Completed，也不新增未经确认的事件终态。
+4. 目标接收事务确认回滚完成时，临时故障返回 Retryable、永久故障返回 Rejected，二者都会先用原 Command ID 查询并取得权威 `not-found`。未知回滚、调用抛错、目标 blocked、查询异常或关联不一致保持 Unknown；普通 `not-found` 若没有可信原因也不会被推断为 Retryable。
+5. Unknown 在后续合法协调阶段只做原目标查询。found 且关联一致时完成原事件，不重跑 handler、不再次 `accept()`、不新建 Command 或 Transaction。Retryable 不会自动重交；调用方必须在合法 `dispatch()` 中显式列出 `retryDeliveryEventIds`，重试沿用原 Event 和 Command，只有成功形成 intent 后才取得新的有效 Transaction ID。
+6. 真实交付记录按 Event 限量，默认原型上限 `1024`；满时拒绝新增记录并保留可检查计数，不删除未完成记录，也不建立命令或事务通用退役协议。
+
+E01–E06 验收：
+
+| 用例 | 状态 | 实际证据 |
+| --- | --- | --- |
+| E01 真实成功链 | PASS | Pending→Processing→Completed；handler／accept 各 `1` 次，一个 Command、一个有效 intent 和 Transaction `1`；生产者读取真实关联，业务执行数 `0`，旧 `testCommandReference` 不参与真实结果。 |
+| E02 四类结果 | PASS | 同批得到 Accepted、Retryable、Rejected、Unknown；回滚完成且查询 `not-found` 后，临时故障为 Retryable、永久故障为 Rejected；未分类故障为 Unknown。仅 Accepted 事件进入 Completed。 |
+| E03 丢失回执 | PASS | 目标已提交但调用方未收到结果时首轮为 Unknown，目标恰有一份 intent 和 Transaction `1`。下一阶段查询确认后完成原事件；handler 仍为 `1`、accept 仍为 `1`、Command／Transaction 下一编号均未变化。 |
+| E04 核查与显式重试 | PASS | 临时故障消耗事务号 `1` 但不形成有效 intent；显式重试沿用原 Command，成功形成唯一 intent 和事务 `2`。永久故障不得重试；Accept 抛错、查询失败、目标 blocked、关联不一致均保持 Unknown。 |
+| E05 单轮、防重与容量 | PASS | handler 内新事件延后到下一轮，递归 dispatch 被拒绝；Completed 不重放、Pending 不丢失。结果确认与安全退役后目标命令记录仍可查询；交付记录达到容量 `1` 时拒绝第 `2` 条且不清理已接受记录。 |
+| E06 回归与隔离 | PASS | 原 87 项测试全部保留通过；旧替身测试继续使用 `testCommandReference`，新测试明确调用真实目标模块和可注入的接收／回执故障接缝。`delivery.ts` 无 DOM／Node／Electron／Phaser 依赖。 |
+
+验证结果：
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `npm.cmd run typecheck` | PASS | 共享核心与 Renderer 类型检查通过。 |
+| `npm.cmd test` | PASS | 类型检查、Electron Main 编译及 `94/94` 测试通过，0 fail、0 skipped；原 87 项保留，新增 7 项 D09-B2 核心／集成和故障测试。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建、Electron Main 编译及 Windows x64 免安装目录构建成功；保留既有 bundle 体积、author 和默认图标警告。 |
+| Chrome Web／Electron 开发版／独立包业务链 | NOT RUN | 事件与交付内核尚未接入宿主；不以纯核心测试替代 GUI 或三端业务运行。 |
+| 真实游戏事务／最终结果事件／宿主／检查点／存档 | NOT RUN | 不在 D09-B2 范围；目标 intent 始终为 `not-started`。 |
+| Edge | NOT RUN | 本段没有 GUI 回归。 |
+| `git diff --check` | PASS | 无空白错误，仅有既有 LF／CRLF 提示。 |
+
+对应版本：
+
+- 基线提交：`6ff9d2400b76c38c9238ef1d3ec4cdb33e586d17`。
+- `src/core/events.ts`：`8DA6DA0E958137A76A903865B3413A8E2367DD68F7E3FD2C04D7F2B86F7393D7`。
+- `src/core/commands.ts`：`A577A90C9C6AEE147897B0AB977789BF3DD5FF9BDE67B5EA54C4B4E7197E3E06`。
+- `src/core/delivery.ts`：`2B1B96ED790612A13A8859282147E10C27D5CAC08C4B38CBE574ACD6F1C7DA86`。
+- `tests/delivery.test.mjs`：`8A2223BA2779EFC20144D2073B1CBADA073E0EC68CC9E795305C62FD55F9B4DE`。
+- 原四份事件／命令测试哈希保持不变。
+- 当前生产 ASAR SHA-256：`92999B8A38D5B10DF331314D94F161AC3E2739E37C0E758D773E5A8B4D48CB8B`。
+- Windows EXE SHA-256：`BB578EADD877147171729D3A5EF4D785ABB52B51EA8CE522DA83945869398973`。
+
+ASAR 与 EXE 和 D09-B1 相同，因为新核心尚未进入宿主入口。结论限真实目标接收分类、Unknown 核查与显式重试；当前等待 Work 审查，不执行事务，不自动进入后续任务，不 Commit／Push／发布。
+
 ## 当前限制
 
-- 最新执行（D09-B1，2026-11-13）：类型检查、Electron Main 编译及 `87/87` 自动化测试 PASS，生产构建 PASS。事件创建、退役、稳定命令和目标事务接收意图内核尚未接入宿主，GUI 与三端业务链均为 NOT RUN；D08 三端报告仍只代表当时的 D08 功能。
+- 最新执行（D09-B2，2026-11-13）：类型检查、Electron Main 编译及 `94/94` 自动化测试 PASS，生产构建 PASS。事件创建、退役、稳定命令、真实目标接收分类与 Unknown 核查内核尚未接入宿主，GUI 与三端业务链均为 NOT RUN；D08 三端报告仍只代表当时的 D08 功能。
 - Web 主包约 332.14 KB gzip，Vite 有体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互及 D08 运行内进度是工程灰盒；共享核心另有 D09-B1 事件基础、稳定命令和目标事务接收意图，但当前页面尚未使用它们。未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、真实事务执行、四类交付结果联调、Unknown 核查、宿主接线、检查点或存档。D08 的“永久”仅限当前页面运行内；D09-B1 的 Accepted、intent 与 Transaction ID 也不等于业务成功或 Checkpoint Recovery。不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 审查，不自动进入后续分段。
+- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互及 D08 运行内进度是工程灰盒；共享核心另有 D09-B2 事件、稳定命令、真实目标接收分类和 Unknown 核查，但当前页面尚未使用它们。未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、真实事务执行、最终结果事件、宿主接线、检查点或存档。D08 的“永久”仅限当前页面运行内；D09-B2 的 Accepted、intent 与 Transaction ID 也不等于业务成功或 Checkpoint Recovery。不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 审查，不自动进入后续分段。

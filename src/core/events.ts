@@ -1,10 +1,22 @@
 import {
   CommandCreationCoordinator,
   RuntimeBusinessIdentityInfrastructure,
+  type CommandCreationRequest,
+  type EventCommand,
+  type TargetTransactionModule,
   type CommandEventSource,
   type CommandSourceEvent,
   type CommandSourceInspection,
 } from './commands.ts';
+import {
+  RealCommandDeliveryCoordinator,
+  type CommandDeliveryOperationResult,
+  type CommandDeliveryRecord,
+  type CommandDeliverySnapshot,
+  type CommandDeliveryStatus,
+  type DeliverySourceEvent,
+  type RealCommandDeliveryOptions as DeliveryCoordinatorOptions,
+} from './delivery.ts';
 
 export interface RuntimeUuidProvider {
   generate(): string;
@@ -36,6 +48,7 @@ export type EventDispatchContext = Readonly<{
   runtimeInstanceId: string;
   simulationTick: number;
   phase: EventDispatchPhase;
+  retryDeliveryEventIds?: readonly number[];
 }>;
 
 export type EventDispatchHandlerContext = Readonly<{
@@ -65,6 +78,18 @@ export type CommandReceiptTestDouble = (
   event: PendingEvent,
   context: EventDispatchHandlerContext,
 ) => TestCommandReceiptResult;
+
+export type RealCommandDeliveryHandler = (
+  event: PendingEvent,
+  context: EventDispatchHandlerContext,
+) => CommandCreationRequest;
+
+export type RealCommandDeliveryOptions = Readonly<{
+  handler: RealCommandDeliveryHandler;
+  targetFor: (targetId: string) => TargetTransactionModule | undefined;
+  capacity?: number;
+  faultInjector?: DeliveryCoordinatorOptions['faultInjector'];
+}>;
 
 export type EventDispatchFaultPoint =
   | 'before-processing-transition'
@@ -98,6 +123,7 @@ export type EventCreationOptions = Readonly<{
   allowedEventTypes?: readonly string[];
   dispatchHandler?: EventDispatchHandler;
   commandReceiptTestDouble?: CommandReceiptTestDouble;
+  realCommandDelivery?: RealCommandDeliveryOptions;
   // Deterministic failure seam for tests. Runtime composition does not supply it.
   faultInjector?: EventCreationFaultInjector;
   // A separate deterministic seam verifies lifecycle transitions without
@@ -153,12 +179,29 @@ export type EventLifecycleRecord = Readonly<{
   acknowledged?: boolean;
   simulationTick?: number;
   testCommandReference?: string;
+  realCommand?: RealCommandAssociation;
+}>;
+
+export type RealCommandAssociation = Readonly<{
+  commandId: number;
+  targetId: string;
+  transactionId: number;
+}>;
+
+export type RealCommandDeliveryProgress = Readonly<{
+  acceptedEventIds: readonly number[];
+  retryableEventIds: readonly number[];
+  rejectedEventIds: readonly number[];
+  unknownEventIds: readonly number[];
+  reconciledEventIds: readonly number[];
+  retriedEventIds: readonly number[];
 }>;
 
 export type EventDispatchProgress = Readonly<{
   processedEventIds: readonly number[];
   completedEventIds: readonly number[];
   pendingEventIds: readonly number[];
+  delivery?: RealCommandDeliveryProgress;
 }>;
 
 export type EventDispatchFailure = Readonly<{
@@ -188,7 +231,8 @@ export type EventDispatchResult =
       | 'runtime-mismatch'
       | 'phase-order'
       | 'recursive-dispatch'
-      | 'dispatch-not-configured';
+      | 'dispatch-not-configured'
+      | 'retry-not-allowed';
     message: string;
   }>
   | Readonly<{
@@ -218,7 +262,8 @@ export type CompletedEventResult = Readonly<{
   runtimeInstanceId: string;
   eventId: number;
   producerId: string;
-  testCommandReference: string;
+  testCommandReference?: string;
+  realCommand?: RealCommandAssociation;
 }>;
 
 export type FinalEventResultRead =
@@ -316,6 +361,7 @@ export type EventKernelSnapshot = Readonly<{
   blocked: boolean;
   lastDispatchTick: number | null;
   dispatchBlocked: boolean;
+  delivery?: CommandDeliverySnapshot;
   lastFailure?: EventCreationFailure;
   dispatchFailure?: EventDispatchFailure;
   retirementFailure?: EventRetirementFailure;
@@ -522,7 +568,11 @@ class EventLifecycleRegistry {
     eventId: number,
     expected: EventLifecycleState,
     next: EventLifecycleState,
-    details: Readonly<{ simulationTick: number; testCommandReference?: string }>,
+    details: Readonly<{
+      simulationTick: number;
+      testCommandReference?: string;
+      realCommand?: RealCommandAssociation;
+    }>,
   ): EventLifecycleRecord {
     const current = this.#records.get(eventId);
     if (!current || current.status !== expected) {
@@ -546,6 +596,7 @@ class EventLifecycleRegistry {
       ...(details.testCommandReference
         ? { testCommandReference: details.testCommandReference }
         : {}),
+      ...(details.realCommand ? { realCommand: details.realCommand } : {}),
       eventFingerprint: current.eventFingerprint,
     });
     this.#records.set(eventId, updated);
@@ -705,6 +756,7 @@ export class EventCreationCoordinator implements CommandEventSource {
   readonly #retirementFaultInjector: EventRetirementFaultInjector | undefined;
   readonly #dispatchHandler: EventDispatchHandler | undefined;
   readonly #commandReceiptTestDouble: CommandReceiptTestDouble | undefined;
+  readonly #realCommandDeliveryOptions: RealCommandDeliveryOptions | undefined;
   readonly #producerHandles = new WeakMap<object, string>();
   readonly #finalResultObjects = new WeakSet<object>();
   readonly #acknowledgedResultObjects = new WeakSet<object>();
@@ -717,6 +769,7 @@ export class EventCreationCoordinator implements CommandEventSource {
   #dispatching = false;
   #nextProducerNumber = 1;
   #commandCoordinator: CommandCreationCoordinator | undefined;
+  #realCommandDelivery: RealCommandDeliveryCoordinator | undefined;
 
   constructor(
     runtimeInstanceId: string,
@@ -740,6 +793,17 @@ export class EventCreationCoordinator implements CommandEventSource {
     this.#retirementFaultInjector = options.retirementFaultInjector;
     this.#dispatchHandler = options.dispatchHandler;
     this.#commandReceiptTestDouble = options.commandReceiptTestDouble;
+    this.#realCommandDeliveryOptions = options.realCommandDelivery;
+    if (this.#commandReceiptTestDouble && this.#realCommandDeliveryOptions) {
+      throw new Error(
+        'Command receipt test-double and real target delivery modes are mutually exclusive.',
+      );
+    }
+    if (this.#realCommandDeliveryOptions && options.dispatchHandler) {
+      throw new Error(
+        'Real target delivery owns event processing; a separate dispatch handler is not allowed.',
+      );
+    }
   }
 
   createCommandCoordinator(
@@ -753,6 +817,12 @@ export class EventCreationCoordinator implements CommandEventSource {
       this,
       options,
     );
+    if (this.#realCommandDeliveryOptions) {
+      this.#realCommandDelivery = new RealCommandDeliveryCoordinator({
+        capacity: this.#realCommandDeliveryOptions.capacity,
+        faultInjector: this.#realCommandDeliveryOptions.faultInjector,
+      });
+    }
     return this.#commandCoordinator;
   }
 
@@ -800,7 +870,8 @@ export class EventCreationCoordinator implements CommandEventSource {
         'Final result is only available to the event producer.',
       );
     }
-    if (record.status !== 'completed' || !record.testCommandReference) {
+    if (record.status !== 'completed' ||
+        (!record.testCommandReference && !record.realCommand)) {
       return rejectedFinalResult(
         'not-completed',
         'Final coordination result does not exist yet.',
@@ -814,7 +885,10 @@ export class EventCreationCoordinator implements CommandEventSource {
         runtimeInstanceId: this.#runtimeInstanceId,
         eventId,
         producerId,
-        testCommandReference: record.testCommandReference,
+        ...(record.testCommandReference
+          ? { testCommandReference: record.testCommandReference }
+          : {}),
+        ...(record.realCommand ? { realCommand: record.realCommand } : {}),
       });
       this.#finalResults.set(eventId, result);
       this.#finalResultObjects.add(result);
@@ -1134,14 +1208,6 @@ export class EventCreationCoordinator implements CommandEventSource {
       );
     }
 
-    const handler = this.#dispatchHandler;
-    const receiptTestDouble = this.#commandReceiptTestDouble;
-    if (!handler || !receiptTestDouble) {
-      return rejectDispatch(
-        'dispatch-not-configured',
-        'A coordination handler and command receipt test double are both required.',
-      );
-    }
     if (this.#dispatchFailure) {
       return blockedDispatch(this.#dispatchFailure);
     }
@@ -1162,11 +1228,379 @@ export class EventCreationCoordinator implements CommandEventSource {
       );
     }
 
+    const realDelivery = this.#realCommandDelivery;
+    const realDeliveryOptions = this.#realCommandDeliveryOptions;
+    if (realDeliveryOptions) {
+      if (!realDelivery || !this.#commandCoordinator) {
+        return rejectDispatch(
+          'dispatch-not-configured',
+          'Real command delivery requires a command coordinator.',
+        );
+      }
+      const retryError = this.#validateRetryRequests(
+        normalized.retryDeliveryEventIds,
+        realDelivery,
+      );
+      if (retryError) return rejectDispatch('retry-not-allowed', retryError);
+
+      this.#lastDispatchTick = normalized.simulationTick;
+      this.#dispatching = true;
+      try {
+        return this.#dispatchReal(
+          normalized,
+          realDeliveryOptions,
+          realDelivery,
+        );
+      } finally {
+        this.#dispatching = false;
+      }
+    }
+
+    const handler = this.#dispatchHandler;
+    const receiptTestDouble = this.#commandReceiptTestDouble;
+    if (!handler || !receiptTestDouble) {
+      return rejectDispatch(
+        'dispatch-not-configured',
+        'A coordination handler and command receipt test double are both required.',
+      );
+    }
+    if (normalized.retryDeliveryEventIds &&
+        normalized.retryDeliveryEventIds.length > 0) {
+      return rejectDispatch(
+        'retry-not-allowed',
+        'Explicit delivery retry requires real target delivery mode.',
+      );
+    }
+
     this.#lastDispatchTick = normalized.simulationTick;
     this.#dispatching = true;
+    try {
+      return this.#dispatchWithTestDouble(
+        normalized,
+        handler,
+        receiptTestDouble,
+      );
+    } finally {
+      this.#dispatching = false;
+    }
+  }
+
+  #dispatchWithTestDouble(
+    normalized: NormalizedDispatchContext & { ok: true },
+    handler: EventDispatchHandler,
+    receiptTestDouble: CommandReceiptTestDouble,
+  ): EventDispatchResult {
     const processedEventIds: number[] = [];
     const completedEventIds: number[] = [];
-    const handlerContext = Object.freeze({
+    const handlerContext = this.#handlerContext(normalized);
+
+    // Snapshot once. Events created by handlers enter the Inbox but cannot
+    // mutate the set selected for this fixed coordination round.
+    const batchEvents = this.#inbox.snapshot;
+    for (const event of batchEvents) {
+      const current = this.#lifecycle.get(event.eventId);
+      let fingerprintMatches = false;
+      try {
+        fingerprintMatches = fingerprintEvent(event) === current?.eventFingerprint;
+      } catch {
+        fingerprintMatches = false;
+      }
+      if (!current ||
+          current.runtimeInstanceId !== this.#runtimeInstanceId ||
+          current.status !== 'pending' ||
+          !fingerprintMatches) {
+        return this.#blockDispatch(
+          'lifecycle-invalid',
+          `Event ${event.eventId} is not eligible for Pending to Processing dispatch.`,
+          event.eventId,
+          processedEventIds,
+          completedEventIds,
+        );
+      }
+
+      try {
+        this.#dispatchFault('before-processing-transition');
+        this.#lifecycle.transition(
+          event.eventId,
+          'pending',
+          'processing',
+          { simulationTick: normalized.simulationTick },
+        );
+        this.#inbox.remove(event.eventId);
+      } catch (error) {
+        return this.#blockDispatch(
+          'lifecycle-invalid',
+          `Pending to Processing transition failed: ${toMessage(error)}`,
+          event.eventId,
+          processedEventIds,
+          completedEventIds,
+        );
+      }
+
+      processedEventIds.push(event.eventId);
+      try {
+        handler(event, handlerContext);
+      } catch (error) {
+        return this.#blockDispatch(
+          'handler-threw',
+          `Event handler ${event.eventId} threw: ${toMessage(error)}`,
+          event.eventId,
+          processedEventIds,
+          completedEventIds,
+        );
+      }
+
+      let normalizedReceipt: NormalizedCommandReceipt;
+      try {
+        normalizedReceipt = normalizeCommandReceipt(
+          receiptTestDouble(event, handlerContext),
+          event.eventId,
+        );
+      } catch (error) {
+        return this.#blockDispatch(
+          'invalid-receipt',
+          `Command receipt test double ${event.eventId} failed: ${toMessage(error)}`,
+          event.eventId,
+          processedEventIds,
+          completedEventIds,
+        );
+      }
+      if (!normalizedReceipt.ok) {
+        return this.#blockDispatch(
+          normalizedReceipt.failureCode,
+          `Event ${event.eventId}: ${normalizedReceipt.message}`,
+          event.eventId,
+          processedEventIds,
+          completedEventIds,
+        );
+      }
+
+      try {
+        this.#dispatchFault('before-completion-transition');
+        this.#lifecycle.transition(
+          event.eventId,
+          'processing',
+          'completed',
+          {
+            simulationTick: normalized.simulationTick,
+            testCommandReference: normalizedReceipt.testCommandReference,
+          },
+        );
+      } catch (error) {
+        return this.#blockDispatch(
+          'lifecycle-invalid',
+          `Processing to Completed transition failed: ${toMessage(error)}`,
+          event.eventId,
+          processedEventIds,
+          completedEventIds,
+        );
+      }
+      completedEventIds.push(event.eventId);
+    }
+
+    return Object.freeze({
+      status: 'completed' as const,
+      simulationTick: normalized.simulationTick,
+      progress: createDispatchProgress(
+        processedEventIds,
+        completedEventIds,
+        this.#inbox.snapshot.map(event => event.eventId),
+      ),
+    });
+  }
+
+  #dispatchReal(
+    normalized: NormalizedDispatchContext & { ok: true },
+    options: RealCommandDeliveryOptions,
+    delivery: RealCommandDeliveryCoordinator,
+  ): EventDispatchResult {
+    const processedEventIds: number[] = [];
+    const completedEventIds: number[] = [];
+    const reconciledEventIds = delivery.snapshot.records
+      .filter(record => record.status === 'unknown')
+      .map(record => record.eventId);
+    const retriedEventIds = [...normalized.retryDeliveryEventIds];
+    const handlerContext = this.#handlerContext(normalized);
+
+    // Reconciliation uses the original target and Command ID only. It never
+    // invokes the event handler or calls target.accept().
+    delivery.reconcileUnknown();
+
+    for (const eventId of normalized.retryDeliveryEventIds) {
+      delivery.retry(eventId);
+    }
+
+    // Fixed batch semantics match the test-double path: follow-up events
+    // created by a real handler remain Pending until the next coordination.
+    const batchEvents = this.#inbox.snapshot;
+    for (const event of batchEvents) {
+      const current = this.#lifecycle.get(event.eventId);
+      let fingerprintMatches = false;
+      try {
+        fingerprintMatches = fingerprintEvent(event) === current?.eventFingerprint;
+      } catch {
+        fingerprintMatches = false;
+      }
+      if (!current ||
+          current.runtimeInstanceId !== this.#runtimeInstanceId ||
+          current.status !== 'pending' ||
+          !fingerprintMatches) {
+        return this.#blockDispatch(
+          'lifecycle-invalid',
+          `Event ${event.eventId} is not eligible for Pending to Processing dispatch.`,
+          event.eventId,
+          processedEventIds,
+          completedEventIds,
+        );
+      }
+
+      try {
+        this.#dispatchFault('before-processing-transition');
+        this.#lifecycle.transition(
+          event.eventId,
+          'pending',
+          'processing',
+          { simulationTick: normalized.simulationTick },
+        );
+        this.#inbox.remove(event.eventId);
+      } catch (error) {
+        return this.#blockDispatch(
+          'lifecycle-invalid',
+          `Pending to Processing transition failed: ${toMessage(error)}`,
+          event.eventId,
+          processedEventIds,
+          completedEventIds,
+        );
+      }
+      processedEventIds.push(event.eventId);
+
+      if (delivery.get(event.eventId)) continue;
+      this.#startRealDelivery(event, handlerContext, options, delivery);
+    }
+
+    const completionFailure = this.#completeAcceptedRealDeliveries(
+      normalized,
+      delivery,
+      completedEventIds,
+    );
+    if (completionFailure) return completionFailure;
+
+    return Object.freeze({
+      status: 'completed' as const,
+      simulationTick: normalized.simulationTick,
+      progress: createDispatchProgress(
+        processedEventIds,
+        completedEventIds,
+        this.#inbox.snapshot.map(event => event.eventId),
+        createRealDeliveryProgress(
+          delivery.snapshot,
+          reconciledEventIds,
+          retriedEventIds,
+        ),
+      ),
+    });
+  }
+
+  #startRealDelivery(
+    event: PendingEvent,
+    handlerContext: EventDispatchHandlerContext,
+    options: RealCommandDeliveryOptions,
+    delivery: RealCommandDeliveryCoordinator,
+  ): void {
+    let request: CommandCreationRequest;
+    try {
+      request = options.handler(event, handlerContext);
+    } catch (error) {
+      delivery.recordPreparationFailure(
+        event as DeliverySourceEvent,
+        'handler-threw',
+        `Real command handler threw: ${toMessage(error)}`,
+      );
+      return;
+    }
+
+    const requestError = validateCommandRequestForEvent(request, event);
+    if (requestError) {
+      delivery.recordPreparationFailure(
+        event as DeliverySourceEvent,
+        'invalid-command-request',
+        requestError,
+      );
+      return;
+    }
+
+    const created = (this.#commandCoordinator as CommandCreationCoordinator)
+      .createCommand(request);
+    if (created.status !== 'created') {
+      delivery.recordPreparationFailure(
+        event as DeliverySourceEvent,
+        `command-${created.reason}`,
+        created.message,
+      );
+      return;
+    }
+
+    const target = options.targetFor(created.command.targetId);
+    if (!target) {
+      delivery.recordCommandRejection(
+        event as DeliverySourceEvent,
+        created.command,
+        'target-unavailable',
+        `No target transaction module is registered for ${created.command.targetId}.`,
+      );
+      return;
+    }
+    delivery.start(event as DeliverySourceEvent, created.command, target);
+  }
+
+  #completeAcceptedRealDeliveries(
+    normalized: NormalizedDispatchContext & { ok: true },
+    delivery: RealCommandDeliveryCoordinator,
+    completedEventIds: number[],
+  ): Extract<EventDispatchResult, { status: 'blocked' }> | undefined {
+    for (const record of delivery.snapshot.records) {
+      if (record.status !== 'accepted' ||
+          record.commandId === undefined ||
+          record.targetId === undefined ||
+          record.transactionId === undefined) {
+        continue;
+      }
+      const lifecycle = this.#lifecycle.get(record.eventId);
+      if (!lifecycle || lifecycle.status !== 'processing') continue;
+      const realCommand: RealCommandAssociation = Object.freeze({
+        commandId: record.commandId,
+        targetId: record.targetId,
+        transactionId: record.transactionId,
+      });
+      try {
+        this.#dispatchFault('before-completion-transition');
+        this.#lifecycle.transition(
+          record.eventId,
+          'processing',
+          'completed',
+          {
+            simulationTick: normalized.simulationTick,
+            realCommand,
+          },
+        );
+      } catch (error) {
+        return this.#blockDispatch(
+          'lifecycle-invalid',
+          `Processing to Completed transition failed: ${toMessage(error)}`,
+          record.eventId,
+          [],
+          completedEventIds,
+        );
+      }
+      completedEventIds.push(record.eventId);
+    }
+    return undefined;
+  }
+
+  #handlerContext(
+    normalized: NormalizedDispatchContext & { ok: true },
+  ): EventDispatchHandlerContext {
+    return Object.freeze({
       runtimeInstanceId: this.#runtimeInstanceId,
       simulationTick: normalized.simulationTick,
       phase: normalized.phase,
@@ -1175,125 +1609,21 @@ export class EventCreationCoordinator implements CommandEventSource {
         producer?: EventProducerHandle,
       ) => this.create(request, producer),
       statusOf: (eventId: number) => this.#lifecycle.statusOf(eventId),
-    }) satisfies EventDispatchHandlerContext;
+    });
+  }
 
-    try {
-      // Snapshot once. Events created by handlers enter the Inbox but cannot
-      // mutate the set selected for this fixed coordination round.
-      const batchEvents = this.#inbox.snapshot;
-      for (const event of batchEvents) {
-        const current = this.#lifecycle.get(event.eventId);
-        let fingerprintMatches = false;
-        try {
-          fingerprintMatches = fingerprintEvent(event) === current?.eventFingerprint;
-        } catch {
-          fingerprintMatches = false;
-        }
-        if (!current ||
-            current.runtimeInstanceId !== this.#runtimeInstanceId ||
-            current.status !== 'pending' ||
-            !fingerprintMatches) {
-          return this.#blockDispatch(
-            'lifecycle-invalid',
-            `Event ${event.eventId} is not eligible for Pending to Processing dispatch.`,
-            event.eventId,
-            processedEventIds,
-            completedEventIds,
-          );
-        }
-
-        try {
-          this.#dispatchFault('before-processing-transition');
-          this.#lifecycle.transition(
-            event.eventId,
-            'pending',
-            'processing',
-            { simulationTick: normalized.simulationTick },
-          );
-          this.#inbox.remove(event.eventId);
-        } catch (error) {
-          return this.#blockDispatch(
-            'lifecycle-invalid',
-            `Pending to Processing transition failed: ${toMessage(error)}`,
-            event.eventId,
-            processedEventIds,
-            completedEventIds,
-          );
-        }
-
-        processedEventIds.push(event.eventId);
-        try {
-          handler(event, handlerContext);
-        } catch (error) {
-          return this.#blockDispatch(
-            'handler-threw',
-            `Event handler ${event.eventId} threw: ${toMessage(error)}`,
-            event.eventId,
-            processedEventIds,
-            completedEventIds,
-          );
-        }
-
-        let normalizedReceipt: NormalizedCommandReceipt;
-        try {
-          normalizedReceipt = normalizeCommandReceipt(
-            receiptTestDouble(event, handlerContext),
-            event.eventId,
-          );
-        } catch (error) {
-          return this.#blockDispatch(
-            'invalid-receipt',
-            `Command receipt test double ${event.eventId} failed: ${toMessage(error)}`,
-            event.eventId,
-            processedEventIds,
-            completedEventIds,
-          );
-        }
-        if (!normalizedReceipt.ok) {
-          return this.#blockDispatch(
-            normalizedReceipt.failureCode,
-            `Event ${event.eventId}: ${normalizedReceipt.message}`,
-            event.eventId,
-            processedEventIds,
-            completedEventIds,
-          );
-        }
-
-        try {
-          this.#dispatchFault('before-completion-transition');
-          this.#lifecycle.transition(
-            event.eventId,
-            'processing',
-            'completed',
-            {
-              simulationTick: normalized.simulationTick,
-              testCommandReference: normalizedReceipt.testCommandReference,
-            },
-          );
-        } catch (error) {
-          return this.#blockDispatch(
-            'lifecycle-invalid',
-            `Processing to Completed transition failed: ${toMessage(error)}`,
-            event.eventId,
-            processedEventIds,
-            completedEventIds,
-          );
-        }
-        completedEventIds.push(event.eventId);
+  #validateRetryRequests(
+    eventIds: readonly number[],
+    delivery: RealCommandDeliveryCoordinator,
+  ): string | undefined {
+    for (const eventId of eventIds) {
+      const record = delivery.get(eventId);
+      if (!record) return `Delivery Event ID ${eventId} does not exist.`;
+      if (record.status !== 'retryable') {
+        return `Delivery Event ID ${eventId} is ${record.status}, not Retryable.`;
       }
-
-      return Object.freeze({
-        status: 'completed' as const,
-        simulationTick: normalized.simulationTick,
-        progress: createDispatchProgress(
-          processedEventIds,
-          completedEventIds,
-          this.#inbox.snapshot.map(event => event.eventId),
-        ),
-      });
-    } finally {
-      this.#dispatching = false;
     }
+    return undefined;
   }
 
   probeRedelivery(event: PendingEvent): EventRedeliveryProbeResult {
@@ -1381,6 +1711,9 @@ export class EventCreationCoordinator implements CommandEventSource {
       blocked: this.#blockedFailure !== undefined,
       lastDispatchTick: this.#lastDispatchTick ?? null,
       dispatchBlocked: this.#dispatchFailure !== undefined,
+      ...(this.#realCommandDelivery
+        ? { delivery: this.#realCommandDelivery.snapshot }
+        : {}),
       ...(this.#lastFailure ? { lastFailure: this.#lastFailure } : {}),
       ...(this.#dispatchFailure ? { dispatchFailure: this.#dispatchFailure } : {}),
       ...(this.#retirementFailure
@@ -1617,6 +1950,7 @@ type NormalizedDispatchContext =
     runtimeInstanceId: string;
     simulationTick: number;
     phase: EventDispatchPhase;
+    retryDeliveryEventIds: readonly number[];
   }>
   | Readonly<{ ok: false; message: string }>;
 
@@ -1695,6 +2029,7 @@ function normalizeDispatchContext(context: EventDispatchContext): NormalizedDisp
   let runtimeInstanceId: unknown;
   let simulationTick: unknown;
   let phase: unknown;
+  let retryDeliveryEventIds: unknown;
   try {
     if (!isPlainRecord(context)) {
       return Object.freeze({
@@ -1705,6 +2040,7 @@ function normalizeDispatchContext(context: EventDispatchContext): NormalizedDisp
     runtimeInstanceId = context.runtimeInstanceId;
     simulationTick = context.simulationTick;
     phase = context.phase;
+    retryDeliveryEventIds = context.retryDeliveryEventIds;
   } catch {
     return Object.freeze({
       ok: false as const,
@@ -1721,11 +2057,27 @@ function normalizeDispatchContext(context: EventDispatchContext): NormalizedDisp
         'Dispatch requires a runtime UUID, positive safe SimulationTick and coordination phase.',
     });
   }
+  if (retryDeliveryEventIds !== undefined &&
+      (!Array.isArray(retryDeliveryEventIds) ||
+       retryDeliveryEventIds.length > 64 ||
+       retryDeliveryEventIds.some((eventId, index, values) =>
+         !Number.isSafeInteger(eventId) ||
+         eventId < 1 ||
+         values.indexOf(eventId) !== index))) {
+    return Object.freeze({
+      ok: false as const,
+      message:
+        'retryDeliveryEventIds must contain unique positive safe Event IDs.',
+    });
+  }
   return Object.freeze({
     ok: true as const,
     runtimeInstanceId,
     simulationTick: simulationTick as number,
     phase,
+    retryDeliveryEventIds: Object.freeze(
+      [...(retryDeliveryEventIds as number[] | undefined ?? [])],
+    ),
   });
 }
 
@@ -1792,11 +2144,33 @@ function createDispatchProgress(
   processedEventIds: readonly number[],
   completedEventIds: readonly number[],
   pendingEventIds: readonly number[],
+  delivery?: RealCommandDeliveryProgress,
 ): EventDispatchProgress {
   return Object.freeze({
     processedEventIds: Object.freeze([...processedEventIds]),
     completedEventIds: Object.freeze([...completedEventIds]),
     pendingEventIds: Object.freeze([...pendingEventIds]),
+    ...(delivery ? { delivery } : {}),
+  });
+}
+
+function createRealDeliveryProgress(
+  snapshot: CommandDeliverySnapshot,
+  reconciledEventIds: readonly number[],
+  retriedEventIds: readonly number[],
+): RealCommandDeliveryProgress {
+  const eventIdsWithStatus = (
+    status: CommandDeliveryStatus,
+  ): readonly number[] => Object.freeze(snapshot.records
+    .filter(record => record.status === status)
+    .map(record => record.eventId));
+  return Object.freeze({
+    acceptedEventIds: eventIdsWithStatus('accepted'),
+    retryableEventIds: eventIdsWithStatus('retryable'),
+    rejectedEventIds: eventIdsWithStatus('rejected'),
+    unknownEventIds: eventIdsWithStatus('unknown'),
+    reconciledEventIds: Object.freeze([...reconciledEventIds]),
+    retriedEventIds: Object.freeze([...retriedEventIds]),
   });
 }
 
@@ -1806,7 +2180,8 @@ function rejectDispatch(
     | 'runtime-mismatch'
     | 'phase-order'
     | 'recursive-dispatch'
-    | 'dispatch-not-configured',
+    | 'dispatch-not-configured'
+    | 'retry-not-allowed',
   message: string,
 ): Readonly<{
   status: 'rejected';
@@ -1815,10 +2190,32 @@ function rejectDispatch(
     | 'runtime-mismatch'
     | 'phase-order'
     | 'recursive-dispatch'
-    | 'dispatch-not-configured';
+    | 'dispatch-not-configured'
+    | 'retry-not-allowed';
   message: string;
 }> {
   return Object.freeze({ status: 'rejected' as const, reason, message });
+}
+
+function validateCommandRequestForEvent(
+  request: CommandCreationRequest,
+  event: PendingEvent,
+): string | undefined {
+  if (!isPlainRecord(request)) return 'Real command handler must return a command request.';
+  const source = request.sourceEvent;
+  if (!isPlainRecord(source) ||
+      source.runtimeInstanceId !== event.runtimeInstanceId ||
+      source.eventId !== event.eventId ||
+      source.status !== 'pending') {
+    return 'Real command request must reference the Processing event envelope unchanged.';
+  }
+  try {
+    return fingerprintEvent(source) === fingerprintEvent(event)
+      ? undefined
+      : 'Real command request changed the source event type or payload.';
+  } catch (error) {
+    return `Real command request has an invalid source event: ${toMessage(error)}`;
+  }
 }
 
 function blockedDispatch(
@@ -1857,6 +2254,9 @@ function publicLifecycleRecord(record: StoredLifecycleRecord): EventLifecycleRec
     ...(record.testCommandReference === undefined
       ? {}
       : { testCommandReference: record.testCommandReference }),
+    ...(record.realCommand === undefined
+      ? {}
+      : { realCommand: record.realCommand }),
   });
 }
 

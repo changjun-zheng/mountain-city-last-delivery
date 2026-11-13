@@ -202,6 +202,18 @@ C01–C06 全部 PASS，原 75 项语义保留；`npm.cmd test` 为 `81/81` PASS
 
 D01–D06 全部 PASS，原 81 项语义保留；`npm.cmd test` 为 `87/87` PASS，类型检查、Electron Main 编译和生产构建成功。Accepted 只表示接收意图提交成功，不表示事务启动、执行或业务成功；业务执行次数固定为 `0`。当前 Web／Electron 宿主仍未使用事件或命令内核，因此 GUI／三端业务链、Edge、四类交付结果联调、Unknown 核查、真实事务、结果事件、检查点和存档均为 NOT RUN。Matter 仍是候选，详见 [README](../README.md#d09-b1稳定命令与原子事务接收意图核心)和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-b1-执行结果)。当前等待 Work 审查，不进入后续任务。
 
+### D09-B1 Work 审查与 D09-B2 任务
+
+2026-11-13：Work 按 `6ff9d24` 核对稳定命令、目标幂等接收和原子意图提交／事务编号空洞，events／commands 源码及 commands 测试哈希与报告一致，本轮重跑类型检查、Electron Main 编译及 87/87 单测 PASS，未重跑构建或 GUI。D09-B1 在纯核心接收范围收口，事务尚未启动，事件成功分支仍用 Accepted 测试替身。
+
+下一项 D09-B2 将事件协调器接到真实接收模块，验证四类交付结果及 Unknown 按原 Command ID 核查：已接受不重交，确认未接受后按原因区分可重试或拒绝，不明确继续 Unknown。仍只做核心模块联调，不执行游戏业务、不接宿主，不提前实现事务最终反馈或检查点。范围与 E01–E06 验收见[路线图当前任务](DEVELOPMENT_ROADMAP.md#7-当前任务与持续记录)，不擅自确认异常事件终态或自动重试参数。
+
+### D09-B2 执行结果
+
+2026-11-13：真实事件交付核心已接通现有目标事务接收模块。Accepted 只在目标原子接收且四套身份关联验证一致时完成原事件；Retryable 只在确认未接收并具有临时故障证据时成立；永久故障为 Rejected；回滚不确定、调用异常、目标 blocked、查询失败及关联不一致保持 Unknown。Unknown 后续只按原 Command ID 查询，不重跑 handler 或重新接收；Retryable 只在合法协调阶段显式触发，沿用原 Event／Command，未形成意图的失败仍保留事务编号空洞。
+
+旧测试接收替身与真实交付路径互斥并保持明确区分。E01–E06 全部 PASS，原 87 项测试保留，`npm.cmd test` 为 `94/94` PASS，类型检查与生产构建通过。Accepted 仍只表示目标接收，intent 保持 `not-started`，业务执行数为 `0`；真实游戏事务、最终结果事件、宿主接线、检查点、存档和 GUI／三端业务链均不属于本段，仍为 NOT RUN。详细证据见 [README](../README.md#d09-b2真实交付分类与-unknown-核查核心)和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-b2-执行结果)。当前等待 Work 审查，不进入后续任务。
+
 ## 已确认的游戏设计方向
 
 确认日期：2026-11-06；依据：项目负责人本次明确指示。

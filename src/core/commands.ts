@@ -127,13 +127,36 @@ export type CommandAcceptanceFaultInjector =
 export type CommandRollbackFaultInjector =
   (point: CommandRollbackFaultPoint) => void;
 
+export type CommandAcceptanceRetryability =
+  | 'temporary'
+  | 'permanent'
+  | 'unknown';
+
 export type CommandAcceptanceFailure = Readonly<{
   code: 'acceptance-aborted' | 'rollback-unconfirmed';
   point: CommandAcceptanceFaultPoint;
   transactionId: number;
   rollback: 'complete' | 'unconfirmed';
+  retryability: CommandAcceptanceRetryability;
   message: string;
 }>;
+
+// Explicit error types let a target distinguish a temporary acceptance
+// failure from a permanent invalid request. The delivery coordinator still
+// queries the target before classifying the command as Retryable.
+export class TemporaryCommandAcceptanceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TemporaryCommandAcceptanceError';
+  }
+}
+
+export class PermanentCommandAcceptanceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PermanentCommandAcceptanceError';
+  }
+}
 
 export type CommandAcceptanceResult =
   | Readonly<{
@@ -651,6 +674,7 @@ export class TargetTransactionModule {
         point,
         transactionId,
         rollback: 'unconfirmed' as const,
+        retryability: 'unknown' as const,
         message:
           `Acceptance failed at ${point}: ${toMessage(cause)}; ` +
           `rollback could not be confirmed: ${toMessage(rollbackError)}`,
@@ -664,6 +688,7 @@ export class TargetTransactionModule {
       point,
       transactionId,
       rollback: 'complete' as const,
+      retryability: classifyAcceptanceFailure(cause),
       message: `Acceptance failed at ${point}: ${toMessage(cause)}`,
     });
     this.#lastFailure = failure;
@@ -813,6 +838,14 @@ function blockedAcceptance(
     status: 'blocked' as const,
     failure,
   });
+}
+
+function classifyAcceptanceFailure(
+  cause: unknown,
+): CommandAcceptanceRetryability {
+  if (cause instanceof TemporaryCommandAcceptanceError) return 'temporary';
+  if (cause instanceof PermanentCommandAcceptanceError) return 'permanent';
+  return 'unknown';
 }
 
 function normalizeCapacity(value: number, label: string): number {
