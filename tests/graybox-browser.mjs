@@ -8,6 +8,7 @@ const parseSample = data => ({ tick: +data.tick, x: +data.x, y: +data.y, vx: +da
   physicsSteps: +data.physicsSteps, physicsTime: +data.physicsTime, discarded: +data.discarded, resets: +data.resets,
   paused: data.paused === 'true', tokens: +data.tokens, control: data.controlAllowed === 'true',
   needsRelease: data.needsRelease === 'true', oneWayCollision: data.oneWayCollision === 'true',
+  progressRouteOpen: data.progressRouteOpen === 'true',
   platformClock: +data.platformClock,
   movingHX: +data.movingHX, movingHY: +data.movingHY, movingHVx: +data.movingHVx,
   movingHDirection: +data.movingHDirection, movingHPhase: +data.movingHPhase, movingHCycle: +data.movingHCycle,
@@ -23,7 +24,30 @@ const parseSample = data => ({ tick: +data.tick, x: +data.x, y: +data.y, vx: +da
   zoneBOccupied: data.zoneBOccupied === 'true', zoneBOccupiedSteps: +data.zoneBOccupiedSteps,
   zoneBLastOccupiedSteps: +data.zoneBLastOccupiedSteps,
   zoneBEnter: +data.zoneBEnter, zoneBExit: +data.zoneBExit, zoneBLastTick: +data.zoneBLastTick,
-  zoneBTransitions: data.zoneBTransitions || '' });
+  zoneBTransitions: data.zoneBTransitions || '',
+  interactionMode: data.interactionMode || '',
+  interactionSelected: data.interactionSelected || '',
+  interactionActive: data.interactionActive || '',
+  interactionPrompt: data.interactionPrompt || '',
+  interactionTitle: data.interactionTitle || '',
+  interactionContent: data.interactionContent || '',
+  interactionFeedback: data.interactionFeedback || '',
+  interactionFeedbackRemaining: +(data.interactionFeedbackRemaining || 0),
+  interactionConsumed: +(data.interactionConsumed || 0),
+  interactionStarts: +(data.interactionStarts || 0),
+  interactionFeedbackCount: +(data.interactionFeedbackCount || 0),
+  interactionCandidates: +(data.interactionCandidates || 0),
+  interactionFacing: +(data.interactionFacing || 1),
+  interactionNeedsRelease: data.interactionNeedsRelease === 'true',
+  interactionControlBlocked: data.interactionControlBlocked === 'true',
+  progressCollectionCount: +(data.progressCollectionCount || 0),
+  progressGoalCount: +(data.progressGoalCount || 0),
+  progressRewardCount: +(data.progressRewardCount || 0),
+  progressEffectCount: +(data.progressEffectCount || 0),
+  progressCollectionIds: data.progressCollectionIds || '',
+  progressGoalIds: data.progressGoalIds || '',
+  progressRewardIds: data.progressRewardIds || '',
+  progressEffects: data.progressEffects || '' });
 const sample = async page => parseSample(await rawSample(page));
 
 export async function chooseScene(ctx, mode) {
@@ -46,7 +70,7 @@ export async function checkGraybox(ctx, record, capture) {
   const key = (code, down) => ctx.monitor.key(code, down);
   await chooseScene(ctx, 'graybox');
   await ctx.show();
-  const up = async () => { for (const code of ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space']) await key(code, false); };
+  const up = async () => { for (const code of ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'Escape']) await key(code, false); };
   const reset = async () => {
     await ctx.show();
     await up();
@@ -562,7 +586,10 @@ export async function checkGraybox(ctx, record, capture) {
     const tickBeforeReset = held.tick;
     await reset();
     const resetState = await sample(page);
-    assert.equal(resetState.tick, tickBeforeReset);
+    assert.ok(
+      resetState.tick >= tickBeforeReset,
+      'Debug reset must not move the global Tick backwards',
+    );
     assert.equal(resetState.x, 80);
     assert.ok(resetState.platformClock < 700);
     assert.ok(resetState.movingHX >= 1710 && resetState.movingHX < 1735);
@@ -617,13 +644,458 @@ export async function checkGraybox(ctx, record, capture) {
   await capture('graybox-completed', true);
 }
 
+// D07 intentionally verifies only the unified interaction loop. It uses the
+// same production input, coordinator and fixed-step world as the full suite.
+export async function checkInteractions(ctx, record, capture) {
+  const page = ctx.page;
+  const key = (code, down) => ctx.monitor.key(code, down);
+  const up = async () => {
+    for (const code of ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'Escape']) {
+      await key(code, false);
+    }
+  };
+  const reset = async () => {
+    await ctx.show();
+    await up();
+    const before = await sample(page);
+    await page.locator('#reset-graybox').click();
+    await page.waitForFunction(({ resets, tick }) => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return Number(data?.resets) !== resets && Number(data?.tick) >= tick &&
+        data?.interactionMode === 'idle' && data?.interactionActive === '' &&
+        data?.interactionSelected === '' && data?.interactionConsumed === '0' &&
+        data?.interactionStarts === '0' && data?.interactionFeedbackCount === '0' &&
+        data?.grounded === 'true' && data?.controlAllowed === 'true';
+    }, { resets: before.resets, tick: before.tick }, poll);
+  };
+  const moveToOverlap = async () => {
+    await key('KeyD', true);
+    await page.waitForFunction(() => +document.querySelector('#diagnostics').dataset.x > 245, undefined, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.interactionSelected === 'prototype-investigation-b' &&
+        data.interactionCandidates === '2' && data.interactionFacing === '1';
+    }, undefined, poll);
+  };
+  const moveToPickup = async () => {
+    await key('KeyD', true);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return +data.x > 300 && data.interactionSelected === 'prototype-pickup-c';
+    }, undefined, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionSelected === 'prototype-pickup-c',
+    undefined, poll);
+  };
+  const waitStablePausedSample = async () => {
+    let previous;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(100);
+      const current = await sample(page);
+      if (previous && JSON.stringify(current) === JSON.stringify(previous)) return current;
+      previous = current;
+    }
+    throw new Error('Paused interaction diagnostics did not settle');
+  };
+  const installResumeProbe = () => page.evaluate(() => {
+    window.__d07Resume = new Promise(resolve => {
+      const changed = () => {
+        if (document.visibilityState !== 'visible') return;
+        document.removeEventListener('visibilitychange', changed);
+        requestAnimationFrame(() => resolve({ ...document.querySelector('#diagnostics').dataset }));
+      };
+      document.addEventListener('visibilitychange', changed);
+    });
+  });
+  const run = async (name, fn) => {
+    ctx.operation = 'graybox-' + name;
+    ctx.stage = ctx.operation;
+    await ctx.show();
+    await page.waitForFunction(() => document.visibilityState === 'visible' && document.hasFocus(), undefined, poll);
+    const result = await ctx.monitor.race(fn);
+    record(name, { status: 'PASS', ...result });
+    console.log('PASS', ctx.label, 'graybox', name, JSON.stringify(result));
+  };
+
+  await run('D07-I01-I02-range-facing-and-single-target', async () => {
+    await reset();
+    const outside = await sample(page);
+    assert.equal(outside.interactionSelected, '');
+    assert.equal(outside.interactionPrompt, '');
+    await key('KeyE', true);
+    await key('KeyE', false);
+    await page.waitForTimeout(120);
+    const ignored = await sample(page);
+    assert.equal(ignored.interactionConsumed, 0, 'E outside every range must not be buffered');
+    assert.equal(ignored.interactionMode, 'idle');
+
+    await moveToOverlap();
+    const facingRight = await sample(page);
+    assert.equal(facingRight.interactionCandidates, 2);
+    assert.equal(facingRight.interactionSelected, 'prototype-investigation-b');
+    assert.match(facingRight.interactionPrompt, /调查 B/);
+    await capture('D07-overlap-facing-right', true);
+
+    await key('KeyA', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionFacing === '-1' &&
+      document.querySelector('#diagnostics').dataset.interactionSelected === 'prototype-investigation-a',
+    undefined, poll);
+    await key('KeyA', false);
+    const facingLeft = await sample(page);
+    assert.equal(facingLeft.interactionCandidates, 2);
+    assert.equal(facingLeft.interactionSelected, 'prototype-investigation-a');
+    assert.match(facingLeft.interactionPrompt, /调查 A/);
+
+    await key('KeyD', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionFacing === '1' &&
+      document.querySelector('#diagnostics').dataset.interactionSelected === 'prototype-investigation-b',
+    undefined, poll);
+    await key('KeyD', false);
+    const restoredFacing = await sample(page);
+    assert.equal(restoredFacing.interactionConsumed, 0, 'Showing a prompt must not auto-interact');
+    return {
+      outside: { selected: outside.interactionSelected, prompt: outside.interactionPrompt },
+      ignoredConsumeCount: ignored.interactionConsumed,
+      facingRight: { candidates: facingRight.interactionCandidates, selected: facingRight.interactionSelected },
+      facingLeft: { candidates: facingLeft.interactionCandidates, selected: facingLeft.interactionSelected },
+    };
+  });
+
+  await run('D07-R1-prompt-availability-across-hidden-and-restore', async () => {
+    await reset();
+    await moveToOverlap();
+    const ready = await sample(page);
+    assert.equal(ready.interactionSelected, 'prototype-investigation-b');
+    assert.match(ready.interactionPrompt, /调查 B/);
+
+    ctx.stage = 'D07-R1-prompt-wait-hidden';
+    await ctx.hide();
+    await page.waitForFunction(() => document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics').dataset.paused === 'true', undefined, { polling: 100 });
+    const frozen = await waitStablePausedSample();
+    assert.equal(frozen.control, false);
+    assert.equal(frozen.interactionSelected, 'prototype-investigation-b');
+    assert.equal(frozen.interactionPrompt, '',
+      'Unavailable or paused input must not advertise an actionable prompt');
+    if (ctx.windowState) await ctx.windowState();
+    await capture('D07-R1-prompt-hidden-frozen', true);
+    await page.waitForTimeout(1200);
+    assert.deepEqual(await sample(page), frozen,
+      'Prompt availability must remain unavailable for the hidden interval');
+
+    await installResumeProbe();
+    ctx.stage = 'D07-R1-prompt-restore';
+    await ctx.show();
+    const resumedAtVisibility = parseSample(await page.evaluate(() => window.__d07Resume));
+    assert.equal(resumedAtVisibility.paused, false);
+    assert.equal(resumedAtVisibility.interactionSelected, 'prototype-investigation-b');
+    if (!resumedAtVisibility.control) {
+      assert.equal(resumedAtVisibility.interactionPrompt, '',
+        'Prompt must stay unavailable until the restored window actually has focus');
+    }
+    await page.waitForFunction(() => document.visibilityState === 'visible' &&
+      document.hasFocus() &&
+      document.querySelector('#diagnostics').dataset.paused === 'false' &&
+      document.querySelector('#diagnostics').dataset.controlAllowed === 'true' &&
+      /调查 B/.test(document.querySelector('#diagnostics').dataset.interactionPrompt || ''),
+    undefined, poll);
+    const resumed = await sample(page);
+    assert.equal(resumed.control, true);
+    assert.equal(resumed.interactionSelected, 'prototype-investigation-b');
+    assert.match(resumed.interactionPrompt, /调查 B/,
+      'Prompt must return only after the input becomes available again');
+    if (ctx.windowState) await ctx.windowState();
+    await capture('D07-R1-prompt-restored', true);
+    return {
+      ready: { selected: ready.interactionSelected, prompt: ready.interactionPrompt },
+      frozen: { prompt: frozen.interactionPrompt, control: frozen.control, paused: frozen.paused },
+      resumedAtVisibility: {
+        prompt: resumedAtVisibility.interactionPrompt,
+        control: resumedAtVisibility.control,
+        paused: resumedAtVisibility.paused,
+      },
+      resumedAvailable: { prompt: resumed.interactionPrompt, control: resumed.control, paused: resumed.paused },
+    };
+  });
+
+  await run('D07-R1-reset-preserves-release-gate', async () => {
+    await reset();
+    await moveToOverlap();
+    await key('KeyE', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionMode === 'investigation',
+    undefined, poll);
+    await key('Escape', true);
+    await key('Escape', false);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionMode === 'idle',
+    undefined, poll);
+
+    ctx.stage = 'D07-R1-release-gate-wait-hidden';
+    await ctx.hide();
+    await page.waitForFunction(() => document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics').dataset.paused === 'true', undefined, { polling: 100 });
+    const frozen = await waitStablePausedSample();
+    assert.equal(frozen.interactionNeedsRelease, true);
+    assert.equal(frozen.interactionPrompt, '');
+    await capture('D07-R1-release-gate-hidden-frozen', true);
+
+    ctx.stage = 'D07-R1-release-gate-restore-reset';
+    await ctx.show();
+    await page.waitForFunction(() => document.visibilityState === 'visible' &&
+      document.hasFocus() &&
+      document.querySelector('#diagnostics').dataset.paused === 'false' &&
+      document.querySelector('#diagnostics').dataset.interactionNeedsRelease === 'true',
+    undefined, poll);
+    const resumed = await sample(page);
+    assert.equal(resumed.control, true);
+    assert.equal(resumed.interactionNeedsRelease, true);
+    assert.equal(resumed.interactionPrompt, '', 'A held E must keep the prompt unavailable');
+
+    const beforeReset = await sample(page);
+    await page.locator('#reset-graybox').click();
+    await page.waitForFunction(value =>
+      document.querySelector('#diagnostics').dataset.resets !== value,
+    String(beforeReset.resets), poll);
+    const resetHeld = await sample(page);
+    assert.equal(resetHeld.interactionMode, 'idle');
+    assert.equal(resetHeld.interactionNeedsRelease, true,
+      'Reset must not clear a pending E release gate');
+    assert.equal(resetHeld.interactionPrompt, '');
+
+    await moveToOverlap();
+    const atTargetWithGate = await sample(page);
+    assert.equal(atTargetWithGate.interactionSelected, 'prototype-investigation-b');
+    assert.equal(atTargetWithGate.interactionNeedsRelease, true);
+    assert.equal(atTargetWithGate.interactionPrompt, '');
+
+    await key('KeyE', true);
+    await page.waitForTimeout(150);
+    const ignored = await sample(page);
+    assert.equal(ignored.interactionMode, 'idle');
+    assert.equal(ignored.interactionConsumed, 0);
+    assert.equal(ignored.interactionStarts, 0);
+    await capture('D07-R1-release-gate-reset-held', true);
+
+    await key('KeyE', false);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionNeedsRelease === 'false' &&
+      /调查 B/.test(document.querySelector('#diagnostics').dataset.interactionPrompt || ''),
+    undefined, poll);
+    const released = await sample(page);
+    assert.match(released.interactionPrompt, /调查 B/);
+
+    await key('KeyE', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionMode === 'investigation',
+    undefined, poll);
+    const triggered = await sample(page);
+    assert.equal(triggered.interactionConsumed, 1);
+    assert.equal(triggered.interactionStarts, 1);
+    await key('KeyE', false);
+    await key('Escape', true);
+    await key('Escape', false);
+    return {
+      frozen: { needsRelease: frozen.interactionNeedsRelease, prompt: frozen.interactionPrompt },
+      resumed: { needsRelease: resumed.interactionNeedsRelease, prompt: resumed.interactionPrompt },
+      resetHeld: { needsRelease: resetHeld.interactionNeedsRelease, prompt: resetHeld.interactionPrompt },
+      ignored: { mode: ignored.interactionMode, starts: ignored.interactionStarts },
+      released: { needsRelease: released.interactionNeedsRelease, prompt: released.interactionPrompt },
+      triggered: { starts: triggered.interactionStarts, consumed: triggered.interactionConsumed },
+    };
+  });
+
+  await run('D07-I03-I04-control-lock-hold-and-pause', async () => {
+    await reset();
+    await moveToOverlap();
+    await key('KeyE', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionMode === 'investigation',
+    undefined, poll);
+    const opened = await sample(page);
+    assert.equal(opened.interactionActive, 'prototype-investigation-b');
+    assert.equal(opened.interactionStarts, 1);
+    assert.equal(opened.interactionConsumed, 1);
+    assert.equal(opened.control, false);
+    assert.equal(opened.interactionPrompt, '');
+    await capture('D07-investigation-open', true);
+
+    await key('KeyE', true); // Repeats while held must not begin another investigation.
+    await key('KeyD', true);
+    await key('Space', true);
+    await page.waitForTimeout(350);
+    const locked = await sample(page);
+    assert.ok(locked.tick > opened.tick, 'Physics/fixed steps continue behind the investigation panel');
+    assert.equal(locked.interactionStarts, 1);
+    assert.equal(locked.interactionConsumed, 1);
+    assert.equal(locked.jumps, opened.jumps);
+    assert.ok(Math.abs(locked.vx) < 0.1, 'Locked input must decelerate the existing velocity to zero');
+    await key('KeyD', false);
+    await page.waitForTimeout(250);
+    const stationary = await sample(page);
+    assert.ok(Math.abs(stationary.x - locked.x) < 0.5,
+      'After the prototype deceleration, locked movement must remain stationary');
+
+    ctx.stage = 'D07-investigation-wait-hidden';
+    await ctx.hide();
+    await page.waitForFunction(() => document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics').dataset.paused === 'true', undefined, { polling: 100 });
+    const frozen = await waitStablePausedSample();
+    assert.equal(frozen.tokens, 1);
+    assert.equal(frozen.control, false);
+    assert.equal(frozen.interactionMode, 'investigation');
+    assert.equal(frozen.interactionActive, 'prototype-investigation-b');
+    assert.equal(frozen.interactionNeedsRelease, true);
+    assert.equal(frozen.needsRelease, true);
+    if (ctx.windowState) await ctx.windowState();
+    await capture('D07-investigation-hidden-frozen', true);
+    await page.waitForTimeout(1200);
+    assert.deepEqual(await sample(page), frozen, 'Interaction content and physics must freeze while hidden');
+
+    await installResumeProbe();
+    ctx.stage = 'D07-investigation-restore';
+    await ctx.show();
+    const resumed = parseSample(await page.evaluate(() => window.__d07Resume));
+    assert.equal(resumed.paused, false);
+    assert.equal(resumed.tokens, 0);
+    assert.ok(resumed.tick - frozen.tick <= 5, 'Resume must not catch up background time');
+    assert.equal(resumed.discarded, frozen.discarded);
+    assert.equal(resumed.interactionStarts, frozen.interactionStarts);
+    assert.equal(resumed.interactionConsumed, frozen.interactionConsumed);
+    assert.equal(resumed.interactionActive, 'prototype-investigation-b');
+    assert.equal(resumed.control, false, 'Interaction owner must keep control locked after focus returns');
+    assert.equal(resumed.interactionNeedsRelease, true);
+    if (ctx.windowState) await ctx.windowState();
+    await capture('D07-investigation-restored', true);
+    await page.waitForTimeout(450);
+    const heldAfterResume = await sample(page);
+    assert.equal(heldAfterResume.interactionStarts, frozen.interactionStarts);
+    assert.equal(heldAfterResume.jumps, frozen.jumps);
+    assert.equal(heldAfterResume.interactionMode, 'investigation');
+
+    await key('KeyE', false);
+    await key('Space', false);
+    await key('Escape', true);
+    await key('Escape', false);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.interactionMode === 'idle' && data.controlAllowed === 'true';
+    }, undefined, poll);
+    const closed = await sample(page);
+    const unlockedX = closed.x;
+    await key('KeyD', true);
+    await page.waitForFunction(x => +document.querySelector('#diagnostics').dataset.x > x + 5,
+      unlockedX, poll);
+    await key('KeyD', false);
+    return {
+      opened: { active: opened.interactionActive, tick: opened.tick, control: opened.control },
+      lockedTick: locked.tick, lockedVx: locked.vx, decelerationDistance: locked.x - opened.x,
+      lockedJumpCount: locked.jumps, stationaryX: stationary.x,
+      frozen: { tick: frozen.tick, mode: frozen.interactionMode, needsRelease: frozen.interactionNeedsRelease },
+      resumed: { tick: resumed.tick, mode: resumed.interactionMode, control: resumed.control },
+      closed: { tick: closed.tick, control: closed.control },
+    };
+  });
+
+  await run('D07-I05-pickup-feedback-without-lock', async () => {
+    await reset();
+    await moveToPickup();
+    const before = await sample(page);
+    await key('KeyE', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionMode === 'feedback',
+    undefined, poll);
+    const feedback = await sample(page);
+    assert.equal(feedback.interactionFeedbackCount, 1);
+    assert.equal(feedback.interactionConsumed, 1);
+    assert.equal(feedback.control, true);
+    assert.ok(feedback.interactionFeedbackRemaining > 0);
+    await capture('D07-pickup-feedback', true);
+
+    await key('KeyD', true);
+    await page.waitForFunction(x => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return +data.x > x + 15 && data.interactionMode === 'feedback' && data.controlAllowed === 'true';
+    }, before.x, poll);
+    await key('KeyD', false);
+    await key('KeyE', false);
+    const moving = await sample(page);
+    assert.ok(moving.x > before.x + 15, 'Pickup feedback must not lock movement');
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.interactionMode === 'idle' && data.interactionFeedbackRemaining === '0';
+    }, undefined, { polling: 100, timeout: 5000 });
+    const expired = await sample(page);
+    assert.equal(expired.control, true);
+    assert.equal(expired.interactionStarts, 0);
+    await reset();
+    const resetState = await sample(page);
+    assert.equal(resetState.interactionFeedbackCount, 0);
+    return {
+      feedback: { count: feedback.interactionFeedbackCount, remainingMs: feedback.interactionFeedbackRemaining },
+      movingX: moving.x, controlDuringFeedback: feedback.control, expiredMode: expired.interactionMode,
+      resetFeedbackCount: resetState.interactionFeedbackCount,
+    };
+  });
+
+  await run('D07-I06-reset-and-scene-cleanup', async () => {
+    await reset();
+    await moveToOverlap();
+    await key('KeyE', true);
+    await key('KeyE', false);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionMode === 'investigation',
+    undefined, poll);
+    await reset();
+    const afterReset = await sample(page);
+    assert.equal(afterReset.x, 80);
+    assert.equal(afterReset.interactionMode, 'idle');
+    assert.equal(afterReset.interactionActive, '');
+    assert.equal(afterReset.interactionStarts, 0);
+    assert.equal(afterReset.control, true);
+    await capture('D07-reset-clean', true);
+
+    await moveToOverlap();
+    await key('KeyE', true);
+    await key('KeyE', false);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionMode === 'investigation',
+    undefined, poll);
+    await chooseScene(ctx, 'diagnostic');
+    await capture('D07-scene-switch-diagnostic', true);
+    await chooseScene(ctx, 'graybox');
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.interactionMode === 'idle' && data.interactionActive === '' &&
+        data.interactionSelected === '' && data.interactionStarts === '0' &&
+        data.interactionConsumed === '0' && data.controlAllowed === 'true';
+    }, undefined, poll);
+    const switched = await sample(page);
+    await page.waitForTimeout(250);
+    const stable = await sample(page);
+    assert.equal(stable.interactionMode, 'idle');
+    assert.equal(stable.interactionStarts, 0);
+    assert.equal(stable.control, true);
+    await capture('D07-scene-switch-clean', true);
+    await up();
+    return {
+      reset: { x: afterReset.x, mode: afterReset.interactionMode, starts: afterReset.interactionStarts },
+      switched: { tick: switched.tick, mode: switched.interactionMode, control: switched.control },
+    };
+  });
+}
+
 // D04-R1 intentionally runs only the moving-platform lifecycle path. It reuses the
 // production greybox and the platform runner's real tab/window operations.
 export async function checkMovingPlatformLifecycle(ctx, record, capture) {
   const page = ctx.page;
   const key = (code, down) => ctx.monitor.key(code, down);
   const up = async () => {
-    for (const code of ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space']) await key(code, false);
+    for (const code of ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'Escape']) await key(code, false);
   };
   const reset = async () => {
     await ctx.show();
@@ -846,7 +1318,7 @@ export async function checkDiagnosticZones(ctx, record, capture) {
   const page = ctx.page;
   const key = (code, down) => ctx.monitor.key(code, down);
   const up = async () => {
-    for (const code of ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space']) await key(code, false);
+    for (const code of ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'Escape']) await key(code, false);
   };
   const reset = async () => {
     await ctx.show();
@@ -1049,4 +1521,290 @@ export async function checkDiagnosticZones(ctx, record, capture) {
   record('D05-diagnostic-zones', { status: 'PASS', ...result });
   console.log('PASS', ctx.label, 'D05 diagnostic-zones', JSON.stringify(result));
   await capture('D05-diagnostic-zones-completed', true);
+}
+
+// D08 intentionally exercises only the in-memory progress prototype through the
+// production E interaction entry and the real Web/Electron lifecycle signals.
+export async function checkInMemoryProgress(ctx, record, capture) {
+  const page = ctx.page;
+  const key = (code, down) => ctx.monitor.key(code, down);
+  const up = async () => {
+    for (const code of ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'Escape', 'KeyR']) {
+      await key(code, false);
+    }
+  };
+  const resetViaR = async () => {
+    await ctx.show();
+    await up();
+    const before = await sample(page);
+    await key('KeyR', true);
+    await key('KeyR', false);
+    await page.waitForFunction(({ resets, tick }) => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return Number(data?.resets) !== resets && Number(data?.tick) >= tick &&
+        Number(data?.x) <= 81 && data?.interactionMode === 'idle' &&
+        data?.interactionActive === '' && data?.interactionConsumed === '0' &&
+        data?.interactionStarts === '0' && data?.interactionFeedbackCount === '0' &&
+        data?.grounded === 'true' && data?.controlAllowed === 'true';
+    }, { resets: before.resets, tick: before.tick }, poll);
+  };
+  const moveUntilSelected = async (id, code = 'KeyD') => {
+    await key(code, true);
+    await page.waitForFunction(id =>
+      document.querySelector('#diagnostics')?.dataset.interactionSelected === id,
+    id, poll);
+    await key(code, false);
+    await page.waitForFunction(id =>
+      document.querySelector('#diagnostics')?.dataset.interactionSelected === id,
+    id, poll);
+  };
+  const interact = async () => {
+    await key('KeyE', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.interactionMode === 'feedback',
+    undefined, poll);
+    await key('KeyE', false);
+  };
+  const waitStablePausedSample = async () => {
+    let previous;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(100);
+      const current = await sample(page);
+      if (previous && JSON.stringify(current) === JSON.stringify(previous)) return current;
+      previous = current;
+    }
+    throw new Error('Paused D08 diagnostics did not settle');
+  };
+  const installResumeProbe = () => page.evaluate(() => {
+    window.__d08Resume = new Promise(resolve => {
+      const changed = () => {
+        if (document.visibilityState !== 'visible') return;
+        document.removeEventListener('visibilitychange', changed);
+        requestAnimationFrame(() => resolve({ ...document.querySelector('#diagnostics').dataset }));
+      };
+      document.addEventListener('visibilitychange', changed);
+    });
+  });
+  const run = async (name, fn) => {
+    ctx.operation = 'graybox-' + name;
+    ctx.stage = ctx.operation;
+    await ctx.show();
+    await page.waitForFunction(() => document.visibilityState === 'visible' && document.hasFocus(), undefined, poll);
+    const result = await ctx.monitor.race(fn);
+    record(name, { status: 'PASS', ...result });
+    console.log('PASS', ctx.label, 'graybox', name, JSON.stringify(result));
+  };
+
+  await run('D08-P01-initial-run-progress-empty', async () => {
+    await resetViaR();
+    const initial = await sample(page);
+    assert.deepEqual({
+      collections: initial.progressCollectionCount,
+      goals: initial.progressGoalCount,
+      rewards: initial.progressRewardCount,
+      effects: initial.progressEffectCount,
+    }, { collections: 0, goals: 0, rewards: 0, effects: 0 });
+    assert.equal(initial.progressCollectionIds, '');
+    assert.equal(initial.progressGoalIds, '');
+    assert.equal(initial.progressRewardIds, '');
+    assert.equal(initial.progressEffects, '');
+    assert.equal(initial.progressRouteOpen, false);
+    return {
+      counts: [0, 0, 0, 0], routeGateOpen: initial.progressRouteOpen,
+      resets: initial.resets,
+    };
+  });
+
+  await run('D08-P02-collection-idempotent-repeat-reentry', async () => {
+    await resetViaR();
+    await moveUntilSelected('prototype-collection-d');
+    const before = await sample(page);
+    assert.match(before.interactionPrompt, /收藏 D/);
+    await interact();
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.progressCollectionCount === '1',
+    undefined, poll);
+    const first = await sample(page);
+    assert.equal(first.progressCollectionIds, 'collection.prototype.travel-token');
+    assert.equal(first.progressGoalCount, 0);
+    assert.match(first.interactionFeedback, /测试收藏 \+1/);
+    await capture('D08-collection-first', true);
+
+    await interact();
+    assert.equal((await sample(page)).progressCollectionCount, 1);
+
+    await key('KeyA', true);
+    await page.waitForFunction(() =>
+      +document.querySelector('#diagnostics').dataset.x < 350 &&
+      document.querySelector('#diagnostics').dataset.interactionSelected !== 'prototype-collection-d',
+    undefined, poll);
+    await key('KeyA', false);
+    await moveUntilSelected('prototype-collection-d');
+    const consumedBeforeRepeat = (await sample(page)).interactionConsumed;
+    await interact();
+    const repeated = await sample(page);
+    assert.equal(repeated.progressCollectionCount, 1);
+    assert.equal(repeated.interactionConsumed, consumedBeforeRepeat + 1);
+    assert.match(repeated.interactionFeedback, /重复请求未新增/);
+    return {
+      collectionCount: repeated.progressCollectionCount,
+      collectionId: repeated.progressCollectionIds,
+      consumedInteractions: repeated.interactionConsumed,
+      goalCount: repeated.progressGoalCount,
+    };
+  });
+
+  await run('D08-P03-goal-reward-and-effect-single-award', async () => {
+    await resetViaR();
+    await moveUntilSelected('prototype-goal-e');
+    const before = await sample(page);
+    assert.match(before.interactionPrompt, /完成目标 E/);
+    await interact();
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return data.progressGoalCount === '1' && data.progressRewardCount === '1' &&
+        data.progressEffectCount === '1' && data.progressRouteOpen === 'true';
+    }, undefined, poll);
+    const completed = await sample(page);
+    assert.equal(completed.progressGoalIds, 'goal.prototype.open-test-route');
+    assert.equal(completed.progressRewardIds, 'reward.prototype.open-test-route');
+    assert.equal(completed.progressEffects, 'effect.prototype.open-test-route:active');
+    assert.match(completed.interactionFeedback, /测试奖励 \+1/);
+    await capture('D08-goal-route-open', true);
+
+    await interact();
+    progressReplayCheck: {
+      const repeated = await sample(page);
+      assert.equal(repeated.progressGoalCount, 1);
+      assert.equal(repeated.progressRewardCount, 1);
+      assert.equal(repeated.progressEffectCount, 1);
+      assert.equal(repeated.progressRouteOpen, true);
+      break progressReplayCheck;
+    }
+    return {
+      counts: {
+        collection: completed.progressCollectionCount,
+        goal: completed.progressGoalCount,
+        reward: completed.progressRewardCount,
+        effect: completed.progressEffectCount,
+      },
+      ids: {
+        goal: completed.progressGoalIds,
+        reward: completed.progressRewardIds,
+        effect: completed.progressEffects,
+      },
+      routeGateOpen: completed.progressRouteOpen,
+      feedback: completed.interactionFeedback,
+    };
+  });
+
+  await run('D08-P04-effect-remains-open-without-toggle', async () => {
+    const before = await sample(page);
+    assert.equal(before.progressRouteOpen, true);
+    await interact();
+    const replay = await sample(page);
+    assert.equal(replay.progressRouteOpen, true);
+    assert.equal(replay.progressRewardCount, 1);
+    assert.equal(replay.progressEffectCount, 1);
+    assert.equal(replay.progressEffects, 'effect.prototype.open-test-route:active');
+    await capture('D08-effect-replayed-still-open', true);
+    return {
+      routeGateOpen: replay.progressRouteOpen,
+      rewardCount: replay.progressRewardCount,
+      effectCount: replay.progressEffectCount,
+      effectState: replay.progressEffects,
+    };
+  });
+
+  await run('D08-P05-reset-preserves-progress-and-reapplies-effect', async () => {
+    const beforeReset = await sample(page);
+    await resetViaR();
+    const reset = await sample(page);
+    assert.ok(reset.resets > beforeReset.resets);
+    assert.equal(reset.x, 80);
+    assert.equal(reset.interactionMode, 'idle');
+    assert.equal(reset.interactionConsumed, 0);
+    assert.equal(reset.interactionFeedbackCount, 0);
+    assert.equal(reset.progressCollectionCount, 1);
+    assert.equal(reset.progressGoalCount, 1);
+    assert.equal(reset.progressRewardCount, 1);
+    assert.equal(reset.progressEffectCount, 1);
+    assert.equal(reset.progressRouteOpen, true,
+      'Reset clears transient state, then reconciles the retained permanent effect');
+    assert.ok(reset.platformClock < 700);
+    await capture('D08-reset-progress-retained', true);
+    return {
+      x: reset.x, interactionConsumed: reset.interactionConsumed,
+      progressCounts: [reset.progressCollectionCount, reset.progressGoalCount,
+        reset.progressRewardCount, reset.progressEffectCount],
+      routeGateOpen: reset.progressRouteOpen, platformClockMs: reset.platformClock,
+    };
+  });
+
+  await run('D08-P06-hidden-minimized-freeze-and-no-auto-interaction', async () => {
+    await moveUntilSelected('prototype-goal-e');
+    await key('KeyE', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.interactionMode === 'feedback',
+    undefined, poll);
+    const beforeHide = await sample(page);
+    assert.equal(beforeHide.progressRewardCount, 1);
+
+    ctx.stage = 'D08-lifecycle-wait-hidden';
+    await ctx.hide();
+    await page.waitForFunction(() => document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics').dataset.paused === 'true', undefined, { polling: 100 });
+    const frozen = await waitStablePausedSample();
+    assert.equal(frozen.control, false);
+    assert.equal(frozen.interactionNeedsRelease, true);
+    assert.equal(frozen.progressCollectionCount, beforeHide.progressCollectionCount);
+    assert.equal(frozen.progressGoalCount, beforeHide.progressGoalCount);
+    assert.equal(frozen.progressRewardCount, beforeHide.progressRewardCount);
+    assert.equal(frozen.progressEffectCount, beforeHide.progressEffectCount);
+    assert.equal(frozen.interactionConsumed, beforeHide.interactionConsumed);
+    await capture('D08-hidden-frozen', true);
+    await page.waitForTimeout(1200);
+    assert.deepEqual(await sample(page), frozen,
+      'Hidden/minimized progress and interaction diagnostics must remain frozen');
+
+    await installResumeProbe();
+    ctx.stage = 'D08-lifecycle-wait-restore';
+    await ctx.show();
+    const resumedAtVisibility = parseSample(await page.evaluate(() => window.__d08Resume));
+    assert.equal(resumedAtVisibility.paused, false);
+    assert.equal(resumedAtVisibility.progressRewardCount, 1);
+    if (!resumedAtVisibility.control) assert.equal(resumedAtVisibility.interactionPrompt, '');
+    await page.waitForFunction(() => document.visibilityState === 'visible' &&
+      document.hasFocus() && document.querySelector('#diagnostics').dataset.paused === 'false' &&
+      document.querySelector('#diagnostics').dataset.controlAllowed === 'true',
+    undefined, poll);
+    const resumed = await sample(page);
+    assert.equal(resumed.progressCollectionCount, frozen.progressCollectionCount);
+    assert.equal(resumed.progressGoalCount, frozen.progressGoalCount);
+    assert.equal(resumed.progressRewardCount, frozen.progressRewardCount);
+    assert.equal(resumed.progressEffectCount, frozen.progressEffectCount);
+    assert.equal(resumed.interactionConsumed, frozen.interactionConsumed);
+    assert.equal(resumed.interactionNeedsRelease, true);
+    assert.equal(resumed.interactionPrompt, '');
+    await capture('D08-restored-no-auto-interaction', true);
+
+    await key('KeyE', false);
+    await page.waitForTimeout(200);
+    const released = await sample(page);
+    assert.equal(released.progressRewardCount, 1);
+    assert.equal(released.interactionConsumed, frozen.interactionConsumed);
+    return {
+      frozen: {
+        tick: frozen.tick, progress: [frozen.progressCollectionCount, frozen.progressGoalCount,
+          frozen.progressRewardCount, frozen.progressEffectCount],
+        consumed: frozen.interactionConsumed, needsRelease: frozen.interactionNeedsRelease,
+      },
+      resumed: {
+        tick: resumed.tick, visibilityDelayTicks: resumed.tick - frozen.tick,
+        consumed: resumed.interactionConsumed, control: resumed.control,
+        needsRelease: resumed.interactionNeedsRelease,
+      },
+      afterRelease: { consumed: released.interactionConsumed, prompt: released.interactionPrompt },
+    };
+  });
 }

@@ -4,11 +4,11 @@
 
 《叠城大冒险》（Layered City Adventures）是一款以具有山城特色的虚构立体城市为舞台的 2D 横版平台探索冒险游戏，核心体验是跳跃、探索、解谜与发现（CONFIRMED，2026-11-12）。
 
-当前默认打开已加入 D04 水平／垂直移动平台和 D05 非实体诊断区域的 M1.2.2 可操作物理灰盒，Web 与 Windows 使用同一份角色、地形与模拟代码。顶部「场景」可切回原固定步诊断场景。「重新启动」先销毁 Phaser 实例，再重新加载原页面并创建新实例；「重置灰盒」只重置原型角色、移动平台与诊断区域基线，不是检查点恢复。
+当前默认打开已加入 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互原型和 D08 运行内进度原型的 M1.2.2 可操作物理灰盒，Web 与 Windows 使用同一份角色、地形、交互、进度与模拟代码。顶部「场景」可切回原固定步诊断场景。「重新启动」先销毁 Phaser 实例，再重新加载原页面并创建新实例；「重置灰盒」只重置原型角色、移动平台、诊断区域与临时交互状态，不清除 D08 的本次运行内记录，也不是检查点恢复。
 
 Mountain City: Last Delivery／山城有路：最后一单为历史名称。下文旧里程碑的日志、截图及证据保留当时名称，不改写为新名执行过的测试。真实地标资料与旧首关方案保留参考，其虚构世界叙事尚待适配；本次不新增玩法、不重写任务或通关条件。内部包名、appId、用户数据身份及项目目录不变。
 
-操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；R 或「重置灰盒」回到出生点。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过，并从上方落地行走；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。出生点右侧的蓝色 A 与粉色 B 是局部重叠的非实体诊断区域，只显示占用和进入／离开记录，不阻挡、不提供支撑。沿右侧跨过墙壁和间隙，再经连续坡面可到达两条移动平台；掉出间隙后按 R。窗口失焦会清理输入，恢复后先松开 Space 再按，持续按住不会自动起跳。
+操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；靠近调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束；R 或「重置灰盒」回到出生点。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过，并从上方落地行走；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。调查 A／B 的范围局部重叠，界面始终只选一个主要目标；拾取 C 只提供短暂反馈，不发放奖励。D08 的 D／E 分别登记一次测试收藏和一次目标／奖励／永久效果；右上 HUD 与 D08 测试路线门显示记录数和 OPEN／CLOSED 状态。R 保留本次页面运行内的 D08 记录并重新应用 OPEN；整页刷新或场景重载会创建新的运行内仓库。出生点右侧的蓝色 A 与粉色 B 是局部重叠的非实体诊断区域，只显示占用和进入／离开记录，不阻挡、不提供支撑。沿右侧跨过墙壁和间隙，再经连续坡面可到达两条移动平台；掉出间隙后按 R。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
 
 ## 技术栈与安装
 
@@ -95,6 +95,8 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `src/core/game.ts` | 共享入口，装配模拟与生命周期控制器，维护诊断标记状态。 |
 | `src/core/graybox.ts` | 共享灰盒入口，装配角色、固定步、物理端口与生命周期。 |
 | `src/core/player.ts` | 原型参数、PC-01 输入许可、PC-02 请求及移动／跳跃规则；不依赖平台或 Phaser。 |
+| `src/core/interaction.ts` | 原型调查／拾取对象、稳定目标选择、单次按键消费、临时反馈及交互自身控制限制；不依赖平台或 Phaser。 |
+| `src/core/progress.ts` | D08 运行内进度仓库：四类稳定业务 ID、幂等登记、显式奖励关系、期望效果状态与只读快照；无平台或存储 API。 |
 | `src/physics/matter/graybox-world.ts` | 两端共用 Matter 世界、静态地形、独立脚底区域与实际接触法线判定。 |
 | `src/core/simulation.ts` | 固定步累加器、实际 Tick、有界补算及余量／丢弃统计。 |
 | `src/core/lifecycle.ts` | Owner + Key 去重、Token 所有权、退役与有效暂停集合。 |
@@ -110,9 +112,11 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `tests/local-resources.test.mjs` | 本地协议路径及开发地址白名单测试。 |
 | `tests/simulation.test.mjs` | 可控时间下的固定步与暂停协议测试。 |
 | `tests/visibility.test.mjs` | 可见性适配的隐藏启动、重复通知与解绑测试；不代替实机测试。 |
-| `tests/player-physics.test.mjs` | 受控时间运行 Phaser 内置的真实 Matter，验证控制、接触与重置。 |
-| `tests/graybox-browser.mjs` | 真实窗口键盘操作、跳高／缓冲／跨隙／坡面、物理暂停、移动平台生命周期及 D05 诊断区域断言。 |
-| `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1／D05 定向入口。 |
+| `tests/player-physics.test.mjs` | 受控时间运行 Phaser 内置的真实 Matter，验证控制、接触、平台、区域及 D08 进度／效果协调。 |
+| `tests/interaction.test.mjs` | D07 交互目标、单次消费、控制锁、提示资格与生命周期门槛。 |
+| `tests/progress.test.mjs` | D08 四类记录、非法请求、只读快照、目标／奖励幂等及永久效果期望状态。 |
+| `tests/graybox-browser.mjs` | 真实窗口键盘操作、物理暂停、平台、区域、D07 交互及 D08 收藏／目标／奖励／效果断言。 |
+| `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1／D05／D07／D08 定向入口。 |
 | `tests/browser-selection.mjs` | 解析 `--browser`、查找标准安装路径并核验 CDP 实际浏览器身份；缺失时不回退。 |
 | `scripts/test.mjs` | 无参数时运行自动化单测，有参数时把平台测试参数原样转发给 `test:platform`。 |
 | `docs/` | 策划、决策与赛事原始材料。 |
@@ -137,6 +141,12 @@ npm.cmd run test:d04-r1
 
 # D05 诊断区域三端定向验收；不执行既有完整长流程
 npm.cmd run test:d05
+
+# D07 调查／拾取交互三端定向验收；不执行既有完整长流程
+npm.cmd run test:d07
+
+# D08 运行内进度、幂等奖励与效果重建三端定向验收
+npm.cmd run test:d08
 ```
 
 平台测试只接受 `chrome`、`edge`，使用每次新建的临时用户配置目录，并通过 CDP `Browser.getVersion` 核对实际品牌。`report.json` 记录候选／实际路径、品牌、版本、进程 PID、启动参数、临时配置目录、页面与进程时间线，以及测试脚本和 ASAR 的 SHA-256。所选浏览器缺失时结果为 `BLOCKED`，不会静默切换浏览器、安装软件或使用个人资料。
@@ -313,7 +323,7 @@ Electron 两个测试进程正常退出 0。Edge 本轮关闭请求后仍驻留�
 
 最终脚本及关键源文件／ASAR 的 SHA-256 见 [版本记录](test-results/platform/run-LYLeed/verified-version.json)。自动化结束后，另以无调试参数的正常 EXE 启动体验窗口，保留至用户自行关闭，不归测试清理管理；[启动记录](test-results/platform/run-LYLeed/experience-launch.json) 与 [实际窗口截图](test-results/platform/run-LYLeed/experience-window.png) 已保存。再次体验可执行上文 Windows 应用运行命令。
 
-按具体用例记录 T01–T06；以下 PASS 仅限列出的覆盖，不把整个分组或最终 Matter 选型判为通过：
+以下表保留 M1.2.2 当时的 T01–T06 子项记录；D03–D05 后续实现及当前状态统一见 [D06 灰盒阶段回归](#d06物理灰盒阶段回归)。表中的 PASS 仍只限当时列出的覆盖，不把整个分组或最终 Matter 选型判为通过：
 
 | 测试目标 | 前置条件（平台） | 操作步骤 | 预期结果 | 实际结果 | 状态 | 问题／边界 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -436,7 +446,7 @@ Chrome 与 Edge 使用同一版测试脚本和同一套用例，两次报告中�
 
 [Chrome 单向平台实际截图](test-results/d03-20261113/one-way-platform-browser.png)展示角色站在紫色单向平台上，诊断支撑为 `one-way-platform-a`；[Electron 开发窗口截图](test-results/d03-20261113/electron-dev-platforms.png)保存了保留窗口的实际界面。Computer Use 可以读取并重启窗口，但无法可靠产生符合游戏帧采样的持续按键，因此独立人工走跳仍记 BLOCKED／NOT RUN；不据此替代三端真实键盘自动化证据。
 
-T02 实体／单向平台及受影响的 T01、T05、T06 子项按上表为 PASS；T03 动态／升降平台、T04 触发器和检查点事件仍为 NOT RUN。Matter 仍只是物理验证候选，不宣称完整 T01–T06 或最终物理选型通过。
+在 D03 当时，T02 实体／单向平台及受影响的 T01、T05、T06 子项按上表为 PASS；T03 动态／升降平台、T04 触发器和检查点事件为 NOT RUN。后续 D04／D05 已补齐各自专项，当前状态以 [D06 子项矩阵](#d06物理灰盒阶段回归)为准。Matter 仍只是物理验证候选，不宣称完整 T01–T06 或最终物理选型通过。
 
 ### D03 Work 复核（2026-11-13）
 
@@ -577,12 +587,292 @@ Electron 两种模式均真实记录最小化时 `visible=false`、`minimized=tr
 
 报告内当前脚本 SHA-256：`tests/platform-smoke.mjs` 为 `CC47D0B962FB52C947A73D5710EC2802E449D3ED853EB4E4EA6D36D099E498CD`，`tests/graybox-browser.mjs` 为 `B74DE2A82F68DA6DDF67B80B3077C387954B784E6E47C8F26E1CC22E01924FB0`，`tests/player-physics.test.mjs` 为 `2EF42457740C448707A091A3BE5DB79373876FC12C132E1BBC9B1CF73A46FE0E`。D05 只关闭诊断区域生命周期子项，不表示完整 T04、触发器业务、检查点、T01–T06 或首关 MVP 已全部通过；Matter 仍是验证候选。
 
+## D06：物理灰盒阶段回归
+
+2026-11-13 对同一版灰盒执行阶段回归。本次没有新增玩法、依赖或平台类型，没有修改玩家运动、输入、物理、暂停或构建配置，也没有实现检查点、任务、NPC 或事件事务。应用源码与 D05 构建同版；测试层只修正了 M06 浏览器断言，并新增本轮证据记录。
+
+首轮完整套件 [run-KRssuy](test-results/platform/run-KRssuy/report.json) 三端均在同一既有子项 `graybox-D04-M05-M06-platform-pause-reset` FAIL。调用调试重置后，从返回至下一次采样之间页面继续执行固定步，Web、Electron 开发版和独立包分别从 Tick `4033 / 4021 / 4012` 前进到 `4046 / 4035 / 4026`。任务要求是重置不能回退全局 Tick，真实 Matter 同步单测也已验证 Reset 调用本身不改变 Tick；原测试错误地要求采样时严格相等。现改为断言 `resetState.tick >= tickBeforeReset`，仍验证不倒退，同时允许重置返回后的正常固定步推进。原始 FAIL 报告保留，未重写。
+
+执行命令与结果：
+
+| 命令／检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `npm.cmd test` | PASS | 共享核心／Renderer 类型检查、Electron Main 编译及 `44/44` 自动化测试通过，0 fail、0 skipped。 |
+| `npm.cmd run electron:build` | PASS | Web 生产构建及 Windows x64 免安装目录成功；沿用既有体积和发行元数据警告，无构建错误。 |
+| `npm.cmd run test -- --browser=chrome` | PASS | [run-Wo3C3j](test-results/platform/run-Wo3C3j/report.json)：Chrome Web、Electron 开发版和仓库外独立生产包均 PASS。 |
+| `npm.cmd run test:d04-r1` | PASS | [run-JY8AVr](test-results/platform/run-JY8AVr/report.json)：三端移动平台真实隐藏／最小化生命周期均 PASS。 |
+| `npm.cmd run test:d05` | PASS | [run-twh8V6](test-results/platform/run-twh8V6/report.json)：三端诊断区域进入／占用／离开、重置和场景切换均 PASS。 |
+| `npm.cmd run electron` | PASS | 正常开发体验窗口继续运行；PID `47016`、HWND `27723594`，标题为“叠城大冒险 | Layered City Adventures”。 |
+| Edge 全套回归 | NOT RUN | 本轮按已确认的 Chrome 默认入口验证，不以 Chrome 结果推导 Edge。 |
+| 独立人工走跳 | BLOCKED | Computer Use 可读取窗口和截图，但不能可靠产生跨越游戏帧的持续按键；不把自动键盘验证冒充人工体验。 |
+
+三份成功报告均为三端正常退出码 `0`，`cleanupFailures`、非预期中断和页面错误均为 `0`。完整套件中，Web、Electron 开发版和独立包的隐藏恢复 Tick 分别为 `3998→3998`、`3985→3985`、`3989→3989`，平台时钟分别保持 `8766.667 ms`；三次重启、隐藏启动和持键恢复门槛同时通过。D04-R1 的水平平台 Tick／物理步／平台时钟在三端分别为 `551 / 572 / 566`，隐藏与恢复首帧完全相同；垂直平台分别为 `1312 / 1331 / 1324`，平台时钟同样不变。D05 的冻结与恢复首帧 Tick 分别为 `316→316`、`321→321`、`318→318`，诊断区域 A 的 `enterCount` 均保持 `1`。
+
+当前版本证据：
+
+- ASAR SHA-256：`C1C3C9B366B1A88F885DF1FE917A898BA6143BADC8C0DDF33FA6F6710F01A3F2`。
+- Windows EXE：`release/layered-city-adventures/win-unpacked/Layered City Adventures.exe`，SHA-256 `D89CF19C2F36376B0DB3C03EAEE506E1203A45E705E66C87E626261C8DEB470B`。
+- 成功报告脚本哈希：`tests/graybox-browser.mjs` 为 `3BE983D0CD04B70077681028886D7254305F1700426524455D68CD1CC0772242`，`tests/platform-smoke.mjs` 为 `CC47D0B962FB52C947A73D5710EC2802E449D3ED853EB4E4EA6D36D099E498CD`，`tests/player-physics.test.mjs` 为 `2EF42457740C448707A091A3BE5DB79373876FC12C132E1BBC9B1CF73A46FE0E`。
+- Chrome 实际身份：Google Chrome `156.0.8078.74`；Electron 为锁定的 `44.11.1`。
+- 当前代码基线为 `92cc389`，工作区中的 D06 测试与文档尚未提交。
+
+T01–T06 当前子项矩阵如下。“真实 Matter 单测”“三端真实键盘／窗口自动化”和“独立人工操作”分别记录，不能用一种证据替代另一种。
+
+| 分组／子项 | 条件与步骤 | 预期／实际结果 | 状态 | 边界与证据 |
+| --- | --- | --- | --- | --- |
+| T01 平滑加减速、反向和空中控制 | 三端灰盒；D 加速、A 反向、起跳后 D | 渐变且可反向、空中可转向；实际 `movingX=157.33`、`reversedVx=-220`、`airVx=100` | PASS | 当前原型参数；[run-Wo3C3j](test-results/platform/run-Wo3C3j/report.json) |
+| T01 短跳、长跳和单次消费 | 三端出生点；短按／长按 Space，并持续按住落地 | 长按更高且不自动连跳；实际峰值 `428.95 / 382.11`，持续按键仅 `1` 次 | PASS | 不改最终手感参数；[run-Wo3C3j](test-results/platform/run-Wo3C3j/report.json) |
+| T01 土狼时间与输入缓冲 | 三端跨隙及落地前按键 | 离边后可跳一次，缓冲仅消费一次，过期不补发；三端断言通过 | PASS | 精确边界另由真实 Matter 单测覆盖 |
+| T01 侧碰不能恢复跳跃资格 | 真实 Matter 单测；悬空贴墙后申请跳跃 | 侧向接触不授予支撑或第二次空中跳跃 | PASS | 仅单测层，尚无单独三端 UI 用例 |
+| T02 地面、墙、低顶和连续坡面 | 三端同一静态世界；行走、顶墙、顶头跳、上下坡和停留 | 无穿透；实际低顶最小 Y `451.95`、墙边约 `506.11`；坡面通过且静止漂移 `0` | PASS | 仅当前几何与速度 |
+| T02 实体平台与单向平台 | 三端平台区；实体顶底、单向上下穿越、站立、边缘和短跳 | 实体双向阻挡；单向自下穿越、自上承载，无假落地 | PASS | P01–P06 真实 Matter 单测 + 三端；不支持主动下落穿透 |
+| T03 水平与垂直平台承载 | 三端真实键盘登台并随动；覆盖多个反向周期 | 得到 `moving-horizontal-a` / `moving-vertical-a`，无掉穿或累计漂移 | PASS | [run-Wo3C3j](test-results/platform/run-Wo3C3j/report.json) |
+| T03 平台行走、起跳、落回和离开 | 平台运动时走、停、反向、起跳和走出边缘 | 自主运动与平台位移只施加一次；跳跃后落回或自然脱离 | PASS | 起跳不继承额外速度是原型策略 |
+| T03 暂停、最小化与重置 | 平台上真实隐藏／原生最小化；持 Space；随后调试重置 | Tick、物理步和平台时钟冻结；恢复不追赶、不自动跳跃；重置不回退 Tick | PASS | [run-JY8AVr](test-results/platform/run-JY8AVr/report.json)；Windows 两种 Electron 模式均有原生窗口状态 |
+| T03 移动单向、旋转与挤压平台 | 本轮未实现 | 后续专项验证 | NOT RUN | 不属于 D04／D06 当前范围 |
+| T04 区域 enter／sustain／exit／re-entry | 三端从区域外真实走入、停留、离开并再次进入 | 每次转换只记录一次，持续步数和真实 Tick 正确 | PASS | [run-twh8V6](test-results/platform/run-twh8V6/report.json) |
+| T04 重叠区域独立性 | 三端进入 A、B-only、A+B 重叠和 A-only | A／B 占用状态、无事件和计数独立变化 | PASS | G01–G02 真实 Matter + 三端 |
+| T04 非实体语义 | 穿行、在区域内跳跃，并单独重叠脚底 sensor | 不阻挡、不承载、不改变跳跃资格；仅 sensor 不触发区域 | PASS | G03 真实 Matter + 三端支撑断言 |
+| T04 暂停、重置与场景切换 | 区域占用时隐藏／最小化，恢复后重置并切换场景 | 恢复不产生虚假 enter；重置同步基线；切换后旧状态为 0 | PASS | [run-twh8V6](test-results/platform/run-twh8V6/report.json) |
+| T04 正式业务触发器、Event Inbox 与检查点 | 尚未实现 | 后续阶段验证事务与恢复边界 | NOT RUN | 诊断记录不是业务 Event |
+| T05 Chrome Web、Electron 开发版与独立包一致性 | 同一核心和配置执行完整套件及两项定向套件 | 三端结果一致；允许调度造成 Tick 与浮点轨迹不同 | PASS | 三份成功报告；Windows 默认包含开发版和仓库外生产包 |
+| T05 共享核心平台隔离 | 独立核心类型检查及模块引用检查 | 核心不加载 DOM／Node 平台 API，运行同一个 Renderer 核心 | PASS | `npm.cmd test` |
+| T05 Edge 兼容性 | 用 Edge 显式入口执行对照 | 本轮未执行 | NOT RUN | Chrome 通过不推导 Edge |
+| T05 绝对 Tick／浮点轨迹逐位一致 | 三端渲染调度不同 | 不作为验收条件；比较规则、支撑和容差内结果 | NOT RUN | 任务明确不要求逐位一致 |
+| T06 隐藏启动、两轮隐藏恢复和三次重启 | 三端真实页面／原生窗口生命周期 | 隐藏启动允许 Tick 0；恢复后继续；三端三次重启和原生关闭均通过 | PASS | [run-Wo3C3j](test-results/platform/run-Wo3C3j/report.json) |
+| T06 无后台追赶和持键恢复 | Web 隐藏、Windows 原生最小化至少 1200 ms；恢复首帧采样 | Tick、物理步、平台时钟和区域状态冻结；不补算、不自动跳跃 | PASS | 完整套件、D04-R1、D05 三份报告 |
+| T06 调试重置边界 | 角色、平台和区域状态变化后使用 R／按钮 | 重置原型状态，不重置全局 Tick，不称检查点恢复 | PASS | 真实 Matter M06／G05 + 三端 |
+| T06 完整检查点与 RecoveryError | 尚未实现捕获、永久进度协调和两阶段恢复 | 后续专项验证 | NOT RUN | 不得用调试重置或最小化恢复冒充 |
+
+现有正常体验入口：
+
+```powershell
+npm.cmd run electron
+& '.\release\layered-city-adventures\win-unpacked\Layered City Adventures.exe'
+```
+
+推荐操作路线：从出生点练习 A/D、短按／长按 Space → 进入蓝色／粉色诊断区域 → 跨越间隙和坡面 → 登上有标记的实体与单向平台 → 到达橙色水平平台和青色升降平台 → 分别隐藏标签页或最小化窗口，恢复后检查暂停、输入门槛和继续承载。按 R 可重置当前原型状态，但这不是检查点恢复。
+
+本轮重新截取的正常开发体验窗口见 [D06 实际截图](test-results/d06-20261113/electron-dev-experience.png)，启动与 SHA-256 记录见 [experience-launch.json](test-results/d06-20261113/experience-launch.json)。三端自动化截图分别见 [完整套件](test-results/platform/run-Wo3C3j/005-web-graybox-completed.png)、[移动平台生命周期](test-results/platform/run-JY8AVr/016-electron-dev-D04-R1-moving-platform-lifecycle-completed.png)和[诊断区域](test-results/platform/run-twh8V6/027-electron-packaged-zone-a-restored.png)。
+
+结论：当前已实现的物理灰盒子项和三项定向回归均通过，没有已知且未报告的阻断玩法缺陷。当前版本的既有完整长套件最终证据为 PASS；运行中曾出现的失焦类历史 FAIL、首轮 M06 测试断言 FAIL、Edge 未测、独立人工操作 BLOCKED 和检查点相关 NOT RUN 均继续保留。因此只能认为 D06 的“已实现灰盒范围”具备进入 D07 的工程条件，不能宣布完整 T01–T06、完整恢复架构或 Matter 最终选型通过。
+
+## D07：统一交互原型
+
+2026-11-13 在现有灰盒交付“进入范围显示提示 → 主动按 E → 展示调查面板或短暂拾取反馈 → 结束后继续移动”的最小闭环。未新增正式任务、NPC、对白、奖励、永久进度、收藏品、业务事件或检查点；本次对象、键位、范围、选择和反馈时长均为可调整原型。
+
+原型对象与规则：
+
+- `prototype-investigation-a`：`x=200`、范围 `80×110`，显示临时调查 A。
+- `prototype-investigation-b`：`x=260`、范围 `80×110`，与 A 局部重叠，显示临时调查 B。
+- `prototype-pickup-c`：`x=335`、范围 `70×110`，只显示 `1200 ms` 短暂反馈，不持有长时间移动锁。
+- 目标选择仅考虑有效范围，依次按朝向、距离平方和稳定对象 ID 排序；反向或位置变化可以切换目标，任何时刻只显示一个主要提示。
+- E 只在新的有效按下时消费一次；键盘 repeat、按住、暂停、失焦及补算不缓存触发。Escape 或面板「关闭」按钮只关闭当前调查。失焦、暂停、其他控制来源阻塞或 E 尚未释放时不显示可操作提示；恢复可交互后提示按实际候选重新显示。
+- 调查开始通过现有 `PlayerControlCoordinator` 使用交互自身 owner 申请移动／跳跃限制；关闭只撤销该 owner。物理、重力和支撑继续按固定步运行，没有暂停整个世界。
+- 交互状态和拾取反馈计时只在真实 SimulationTick 推进。隐藏或最小化时由现有生命周期暂停，恢复不会自动关闭、重开或再次交互；调试重置和场景切换清除交互状态、反馈及自身限制。
+
+固定步内顺序为：读取上一 Tick 的玩家状态 → 解析本 Tick 输入与固定步动作 → 唯一一次 Matter 求解和支撑刷新 → 刷新交互候选与主目标 → 按固定 Delta 推进短反馈计时。平台和既有诊断区域逻辑未改成由渲染帧驱动。
+
+执行结果：
+
+| 命令／检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `npm.cmd test` | PASS | 共享核心／Renderer 类型检查、Electron Main 编译及 `50/50` 自动化测试通过，0 fail、0 skipped。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建成功，主包约 `1,226.48 kB`，gzip 约 `330.17 kB`；Windows x64 免安装目录生成成功。 |
+| `npm.cmd run test:d07` | PASS | [run-obVH8m](test-results/platform/run-obVH8m/report.json)：Chrome Web、Electron 开发版和仓库外独立包均 PASS，清理失败、页面错误和非预期中断均为 `0`。 |
+| `npm.cmd run test -- --browser=chrome` | PASS | [run-HAkFWZ](test-results/platform/run-HAkFWZ/report.json)：当前源码和产物的完整三端回归 PASS。通用入口报告中的 `task` 字段沿用历史 `D04` 标签，本轮按执行范围归入 D07。 |
+| `npm.cmd run electron` | PASS | 正常开发体验窗口已启动并保留；PID `30952`、HWND `13896118`，标题为“叠城大冒险 | Layered City Adventures”。 |
+| Edge 交互定向 | NOT RUN | 本轮未重测 Edge；Chrome 结果不推导 Edge。 |
+| 独立人工走跳／交互 | BLOCKED | Computer Use 可读取窗口并截图，但不能可靠保持跨游戏帧的按键；不把自动键盘测试冒充独立人工体验。 |
+
+首轮 D07 定向 [run-ALZnzH](test-results/platform/run-ALZnzH/report.json) 三端均为真实 FAIL，保留原报告。失败用例要求调查打开后角色位置立即严格不变；实际既有速度按减速曲线继续滑行约 `2.67–7.22 px`，随后 `vx=0`。调查 owner 已限制新移动／跳跃输入且没有发生跳跃，因此原断言把正常惯性当成错误。断言改为验证速度最终归零、减速完成后位置稳定、控制锁与暂停语义没有放宽；最终定向和完整回归报告单独记录，未改写首轮 FAIL。
+
+I01–I07 验收：
+
+| 用例 | 状态 | 实际证据 |
+| --- | --- | --- |
+| I01 范围提示与主动交互 | PASS | 范围外无提示和消费；进入后仅一个主要提示；未按 E 不自动打开；离开后提示消失。 |
+| I02 重叠目标选择 | PASS | A／B 局部重叠；面向、距离及稳定 ID 决定唯一目标；反向可切换；一次 E 不同时操作多个对象。 |
+| I03 调查与协调器控制 | PASS | 调查打开后移动输入、跳跃和再次交互受限，Matter 与固定步继续；Escape／关闭按钮只释放交互自身限制。 |
+| I04 按住、repeat、失焦与暂停 | PASS | 按住 E 和 repeat 不重复消费；关闭后仍按住不重开；Web hidden 与 Windows 原生 minimized 后消费数／开始数不增加，恢复仍要求释放再按。 |
+| I05 拾取短反馈 | PASS | 拾取 C 显示短暂反馈，`controlAllowed=true`，可继续移动；没有奖励或永久记录。 |
+| I06 重置与场景切换 | PASS | 调试重置后回到 idle、计数清零并释放自身限制；切换诊断场景后无旧面板、计数或锁残留。 |
+| I07 回归与双端边界 | PASS | `50/50` 单测；D07 三端专项及完整三端回归 PASS；共享核心未新增 DOM／Node／Phaser 平台 API。 |
+
+D07 三端调查冻结／恢复首帧：
+
+| 环境 | 调查打开 Tick | 隐藏冻结 Tick | 恢复 Tick | 恢复后控制 |
+| --- | ---: | ---: | ---: | --- |
+| Chrome Web | 171 | 225 | 226 | LOCKED |
+| Electron 开发版 | 173 | 220 | 222 | LOCKED |
+| 仓库外独立包 | 165 | 214 | 216 | LOCKED |
+
+三端恢复后调查内容仍打开，消费数和开始数没有增加；Escape 关闭后控制恢复。实际隐藏持续超过 `1200 ms`，Tick 仅在恢复后的首次有效采样继续。自动化无法消除各渲染调度的 Tick 差异，因此只比较规则、冻结语义和容差内结果。
+
+当前版本证据：
+
+- ASAR SHA-256：`9FAE0259711801B3CD57DB71381F8A343C0C17C0E44B2A7B5218DFF70E1BE641`。
+- Windows EXE SHA-256：`25B604AD000A6CEF4A1B9A2BCCD285F4C85DE78E6B27C2BDB68575C56DD96046`。
+- `tests/platform-smoke.mjs`：`098ED363C85D73C0AFB919DB6D9871F243A0D91F67A016C83AFF95FC64D13EAF`。
+- `tests/graybox-browser.mjs`：`42B92673A3E9D493583492852D494D69AE4FC7F097BF1F439CAD3AEA65FBC5BA`。
+- `src/core/interaction.ts`：`0A89F1A196B09DCA5D0643D4D8B9632057B273CE33BBFB31719F539BB2F684BF`。
+- Chrome 实际身份：Google Chrome `156.0.8078.74`；Electron `44.11.1`。
+- 当前代码基线：`92cc389`；D07 修改尚未提交。
+
+真实截图：
+
+- [Web 调查面板](test-results/platform/run-obVH8m/002-web-D07-investigation-open.png)
+- [Web 调查隐藏冻结](test-results/platform/run-obVH8m/003-web-D07-investigation-hidden-frozen.png)
+- [Web 拾取反馈](test-results/platform/run-obVH8m/005-web-D07-pickup-feedback.png)
+- [Electron 开发版调查面板](test-results/platform/run-obVH8m/012-electron-dev-D07-investigation-open.png)
+- [独立生产包调查面板](test-results/platform/run-obVH8m/022-electron-packaged-D07-investigation-open.png)
+- [正常开发体验窗口](test-results/d07-20261113/electron-dev-experience.png)，启动信息见 [experience-launch.json](test-results/d07-20261113/experience-launch.json)。
+
+体验入口与操作：
+
+```powershell
+npm.cmd run electron
+& '.\release\layered-city-adventures\win-unpacked\Layered City Adventures.exe'
+```
+
+从出生点向右靠近调查 A／B；在重叠区反向观察主要提示切换，按 E 打开面板，按 Escape 或点击「关闭」结束。继续向右靠近拾取 C，按 E 触发短反馈并在反馈未结束时继续移动。最后按 R 检查交互状态与计数清空。该路线只验证原型交互，不代表正式内容、奖励或任务流程。
+
+### D07-R1：提示可用性与重置松键门槛
+
+2026-11-13 的 Work 审查发现两项核心边界缺口，D07-R1 只修复这两项，不修改物理手感、暂停协议、正式键位或其他正式规则：
+
+1. `snapshot.prompt` 原先只判断候选和活动调查，外部控制 owner 阻塞、输入不可用或暂停时仍返回 `E 调查 B`。现在提示还要求输入可用、模拟未暂停、控制协调器允许交互、E 没有待释放门槛且当前没有按住 E。恢复后只依据这些真实条件重新显示。
+2. 重置原先根据 `held` 集合重写松键门槛；输入失焦已清空 `held`、但 `needsRelease=true` 时，重置会把门槛错误清除。现在重置使用 `needsRelease || held.has(E)` 保留既有门槛，直到真实 E keyup 才解除。
+
+平台适配层只增加一个最小同步回调：`bindPlayerInput` 在焦点／可见性状态变化并调用 `setAvailable` 后通知诊断刷新，使隐藏、暂停或失焦时的提示状态立即落入实时 DOM 数据。应用状态仍由共享交互控制器决定，没有在平台层直接修改交互或模拟。
+
+D07-R1 执行结果：
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| 新增 R01／R02 测试在修复前 | FAIL | R01 在外部 owner 阻塞时仍得到 `E 调查 B`；R02 在原始失焦、重置、无 keyup 顺序中把 `needsRelease` 从 `true` 错误改为 `false`。失败仅用于先失败后通过验证，不覆盖历史 PASS。 |
+| `npm.cmd test` | PASS | 原 50 项加 2 项回归共 `52/52` PASS；类型检查、Electron Main 编译、0 fail、0 skipped。 |
+| `npm.cmd run electron:build` | PASS | Vite 17 个模块及 Windows x64 免安装目录构建成功；主包约 `1,226.59 kB`，gzip 约 `330.20 kB`。 |
+| `npm.cmd run test:d07 -- --browser=chrome` 首轮 | FAIL | [run-PkdgnR](test-results/platform/run-PkdgnR/report.json) 保留：Chrome Web PASS；Electron 开发版和独立包在 visibility 已恢复、但真实焦点尚未回归的首个采样中，提示和控制仍正确保持不可用，测试却过早要求 `controlAllowed=true`。 |
+| `npm.cmd run test:d07 -- --browser=chrome` 最终 | PASS | [run-LTvqUU](test-results/platform/run-LTvqUU/report.json)：Chrome Web、Electron 开发版和仓库外独立包全部 PASS；清理失败、页面错误和非预期中断均为 `0`。 |
+| 完整物理长套件 | NOT RUN | D07-R1 只改交互可用性与输入门槛；按任务范围复用 D07 定向入口，没有理由重跑全部物理流程。 |
+| Edge | NOT RUN | 本轮未重测 Edge。 |
+| 独立人工长按体验 | BLOCKED | 继续保留工具限制，不以自动键盘测试冒充人工体验。 |
+
+三端 D07-R1 实时结果：
+
+| 环境 | 隐藏期间 | 可见但尚未聚焦 | 聚焦且可交互 | 重置后不 keyup |
+| --- | --- | --- | --- | --- |
+| Chrome Web | `prompt=""`, `control=false` | 未形成该中间态 | `prompt="E 调查 B"`, `control=true` | `needsRelease=true`, `prompt=""`, 不触发 |
+| Electron 开发版 | `prompt=""`, `control=false` | `prompt=""`, `control=false` | `prompt="E 调查 B"`, `control=true` | `needsRelease=true`, `prompt=""`, 不触发 |
+| 仓库外独立包 | `prompt=""`, `control=false` | `prompt=""`, `control=false` | `prompt="E 调查 B"`, `control=true` | `needsRelease=true`, `prompt=""`, 不触发 |
+
+三端均验证：隐藏前提示可见；隐藏或最小化期间提示消失；窗口可见但尚未取得焦点时仍不可操作；真实焦点恢复后才重新显示。调查打开后隐藏／恢复仍保留原面板和控制 owner。原始复现顺序中，E 未释放时关闭调查、失焦、重置、返回目标范围并再次收到 E down，仍未触发；只有收到 E keyup 后提示恢复，下一次按下才消费一次并打开调查。
+
+D07-R1 当前证据：
+
+- ASAR SHA-256：`958B8B18379FD2E5FEF83F3401F686CB0CD694FDAFD3255DBF1733E7FB99848C`。
+- Windows EXE SHA-256：`763FC4C078A8D66CAD8D2E7B115FFA336710ADE65283FBBF8004788F4D1CA390`。
+- `src/core/interaction.ts`：`F707047FA612BB8BB33DE7674CD8622BA5FE346C4B3B740054FDFED9624C298A`。
+- `src/platform/web/player-input.ts`：`95D499A22943A32A9E5926FE23AA32A1BC48DB26B1F0D0D9547FA36D702FAB08`。
+- `tests/graybox-browser.mjs`：`D675FB197392A328326099EA139A35986235CB88092DA3391491B1D9F92F696D`。
+- `tests/platform-smoke.mjs`：`86C3477A85F12DB81992C430E236AB0A801B9A59C169F1D065D7D38DDA38F4FB`。
+
+D07-R1 截图：
+
+- [Web 隐藏期间提示消失](test-results/platform/run-LTvqUU/002-web-D07-R1-prompt-hidden-frozen.png)
+- [Web 恢复后提示重新显示](test-results/platform/run-LTvqUU/003-web-D07-R1-prompt-restored.png)
+- [Electron 开发版重置后仍保持松键门槛](test-results/platform/run-LTvqUU/019-electron-dev-D07-R1-release-gate-reset-held.png)
+- [独立包恢复后提示重新显示](test-results/platform/run-LTvqUU/031-electron-packaged-D07-R1-prompt-restored.png)
+
+结论：D07 主体和 D07-R1 两项缺口在当前原型范围内已经修复并通过三端定向验证。历史 `run-ALZnzH` 与 D07-R1 首轮 `run-PkdgnR` FAIL 均保留；Edge NOT RUN、独立人工长期按键 BLOCKED 和未实现业务能力继续保留。Matter 仍为验证候选，当前等待 Work 审查，不进入 D08。
+
+## D08：运行内进度与幂等应用原型
+
+2026-11-13 按路线图 D08 交付“测试收藏 D／测试目标 E → 目标与奖励只登记一次 → 永久效果打开测试路线门 → R 重建临时世界后保留记录并重开门”的最小闭环。这里的“永久”只指同一页面运行内，未使用 `localStorage`、`sessionStorage`、文件或远端存储；整页刷新、场景重载和应用退出都会创建新的空进度仓库。
+
+共享核心新增 `InMemoryRunProgress`，以私有集合分别管理收藏、目标、奖励和永久效果，并通过只读快照向 Renderer 展示。D08 测试 ID 保持独立且显式关联：
+
+| 类型 | 稳定 ID |
+| --- | --- |
+| 收藏 | `collection.prototype.travel-token` |
+| 目标 | `goal.prototype.open-test-route` |
+| 奖励 | `reward.prototype.open-test-route` |
+| 永久效果 | `effect.prototype.open-test-route` |
+
+E 交互仍由 D07 的主动输入入口消费。收藏和目标重复操作会生成可见“已存在／未新增”反馈，新增次数不增加；目标首次完成才登记关联奖励并设置 `expectedActive=true`。效果采用显式期望状态，reconcile 不会 toggle，也不会增加奖励。D08 测试路线门是真实 Matter 静态碰撞体：CLOSED 时以玩家碰撞类别阻挡，OPEN 后将碰撞 mask 置零并同步颜色、状态文字与诊断数据。R 先恢复角色、交互、平台和区域临时状态，再由同一进度仓库重新协调永久效果。
+
+实现顺序与边界：
+
+1. 临时世界／交互对象初始化。
+2. 进度仓库按稳定 ID 提供只读记录。
+3. 玩家主动 E 交互触发受控登记。
+4. 目标、关联奖励和期望效果分别幂等写入。
+5. 效果协调器读取期望状态并设置 Matter 碰撞资格。
+6. R 重建临时初始状态，保留仓库，再重新应用效果。
+
+P01–P06 验收：
+
+| 用例 | 状态 | 实际证据 |
+| --- | --- | --- |
+| P01 初始空、四类 ID 独立、非法请求 | PASS | 纯核心测试验证 4 类空记录、4 个不同稳定 ID、只读快照、未知类别与错误关系均被拒绝且不污染集合。 |
+| P02 收藏去重与对象重建 | PASS | 真实 Matter 的按键、重复按键、离开再进入及同一仓库注入新世界均保持收藏数 `1`；浏览器三端实际消费 3 次，收藏仍为 `1`。 |
+| P03 目标与奖励只记一次 | PASS | 重复交互、重复调用目标完成和重复效果协调后，目标／奖励／效果均保持 `1`，未生成第二份奖励。 |
+| P04 永久效果不 toggle 并可重建 | PASS | 期望状态连续设为 `true` 仍为 OPEN；临时关闭世界效果后 R／新世界协调重新打开，碰撞 mask 与实际显示一致。 |
+| P05 R 保留永久记录、清理临时状态 | PASS | 三端 R 后玩家回到 `x=80`、交互消费／反馈计数归零、平台时钟重置，四类记录仍为 `1/1/1/1` 且测试门保持 OPEN。 |
+| P06 隐藏／最小化冻结 | PASS | 三端真实隐藏或原生最小化超过 `1200 ms` 时记录和 E 消费数不变；恢复后不自动交互，仍要求释放 E，保留 D07 控制门槛。 |
+
+D08 三端定向与趋势性状态：
+
+| 环境 | 结果 | 完成前 | 完成后 | R 后 | 隐藏冻结 Tick → 恢复首帧 Tick | 隐藏期间 E 消费 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Chrome Web | PASS | `0/0/0/0` | `1/1/1/1` | `1/1/1/1`，OPEN | `488 → 489` | `1 → 1` |
+| Electron 开发版 | PASS | `0/0/0/0` | `1/1/1/1` | `1/1/1/1`，OPEN | `459 → 462` | `1 → 1` |
+| 仓库外独立包 | PASS | `0/0/0/0` | `1/1/1/1` | `1/1/1/1`，OPEN | `472 → 475` | `1 → 1` |
+
+表中 `0/0/0/0` 和 `1/1/1/1` 依次为收藏／目标／奖励／效果记录数。各端 Tick 差值来自真实窗口恢复调度，规则比较不要求跨端逐位相同。
+
+实际执行：
+
+| 检查 | 状态 | 结果 |
+| --- | --- | --- |
+| `npm.cmd test` | PASS | 类型检查、Electron Main 编译及 `59/59` 自动化测试 PASS，0 fail、0 skipped。 |
+| `npm.cmd run electron:build` | PASS | Vite 18 个模块与 Windows x64 免安装目录构建成功；仅保留主包体积、缺少 author 和默认图标警告。 |
+| `npm.cmd run test:d08 -- --browser=chrome` | PASS | [run-nlbzAQ](test-results/platform/run-nlbzAQ/report.json)：Chrome Web、Electron 开发版和仓库外独立包全部 PASS；页面错误、非预期中断及清理失败均为 `0`。 |
+| `npm.cmd run test:d07 -- --web-only --browser=chrome` | PASS | [run-xHiVwG](test-results/platform/run-xHiVwG/report.json)：原 A／B／C、提示资格、松键门槛、控制锁、拾取反馈和场景清理定向回归 PASS。 |
+| 完整物理长套件 | NOT RUN | D08 复用既有输入、固定步和平台，未改物理手感；按任务范围不重跑全部物理流程。 |
+| Edge | NOT RUN | 本轮使用 Chrome 三端回归，不声称 Edge 已通过。 |
+| 独立人工长按 | BLOCKED | 既有 Computer Use 无法可靠跨游戏帧持续按键；自动键盘结果不替代人工体验声明。 |
+
+当前证据：
+
+- ASAR SHA-256：`92999B8A38D5B10DF331314D94F161AC3E2739E37C0E758D773E5A8B4D48CB8B`。
+- Windows EXE SHA-256：`BB578EADD877147171729D3A5EF4D785ABB52B51EA8CE522DA83945869398973`。
+- `src/core/progress.ts`：`A0DF39377B0DC2EDD2399F4AE7A9A54542E79060E05770D3E78A9CC882DEB5F6`。
+- `src/core/graybox.ts`：`CDA9392A9FFB2B6F9E72AB4E2571A94C29F8A41A0AA7745BB668D65795B6FB7C`。
+- `src/core/interaction.ts`：`5449AAF18CC9DA8A9D4D8CB29641A75477A7AC3618A8115017D5EA8A4F02FE43`。
+- `src/physics/matter/graybox-world.ts`：`7A8D3CBCED2E7B70ED77EBB3A8ED41C4FFB329486B04B7B92EF392C0D01F5B6E`。
+- `tests/graybox-browser.mjs`：`2F7715A4BBF945FE6E37A3F85599E60A4F2AD967A16B762B92C67042B7D7FA35`。
+- `tests/platform-smoke.mjs`：`AA193E3C3E56CCBDA62C592319376703011C3BCFD6E3E6183C1ADDC73A8E8973`。
+
+真实截图：
+
+- [Web 收藏首次登记](test-results/platform/run-nlbzAQ/001-web-D08-collection-first.png)
+- [Web 目标／奖励完成，测试路线门 OPEN](test-results/platform/run-nlbzAQ/002-web-D08-goal-route-open.png)
+- [Web R 后记录保留并重新应用效果](test-results/platform/run-nlbzAQ/004-web-D08-reset-progress-retained.png)
+- [Web 隐藏期间冻结](test-results/platform/run-nlbzAQ/005-web-D08-hidden-frozen.png)
+- [Electron 开发版目标与 OPEN 门](test-results/platform/run-nlbzAQ/010-electron-dev-D08-goal-route-open.png)
+- [仓库外独立包目标与 OPEN 门](test-results/platform/run-nlbzAQ/018-electron-packaged-D08-goal-route-open.png)
+- [正常开发体验窗口（D08 源码已加载）](test-results/d08-20261113/electron-dev-experience.png)，启动信息见 [experience-launch.json](test-results/d08-20261113/experience-launch.json)。
+
+现有正常开发体验窗口继续保留，PID `30952`、HWND `13896118`、标题“叠城大冒险 | Layered City Adventures”；本轮未关闭或将其交给测试清理。结论限 D08 运行内原型：正式跨会话存档、正式任务／收藏册、奖励内容、Event／Command／Transaction、检查点及 RecoveryError 均未实现，Matter 仍未成为最终物理方案。当前等待 Work 审查，不进入 D09，不 Commit／Push／发布。
+
 ## 当前限制
 
-- 最新执行（D05，2026-11-13）：[run-2Ch7Xr](test-results/platform/run-2Ch7Xr/report.json) 的 Chrome Web、Electron 开发版和仓库外独立包均 PASS，区域状态、暂停冻结、恢复、重置与场景切换符合本任务断言；完整平台长套件的早期 FAIL 保留，Edge 为 NOT RUN。
+- 最新执行（D08，2026-11-13）：[run-nlbzAQ](test-results/platform/run-nlbzAQ/report.json) 的 Chrome Web、Electron 开发版和仓库外独立包均 PASS；D07 定向回归 [run-xHiVwG](test-results/platform/run-xHiVwG/report.json) PASS，Edge 为 NOT RUN。
 - Web 主包约 325 KB gzip，Vite 有体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台和非实体诊断区域是工程灰盒；未实现移动单向平台、旋转／挤压、触发器业务、主动下落穿透、任务、NPC、收藏品、事件事务或检查点。调试重置与最小化恢复都不等于 Checkpoint Recovery；不代表完整 T01–T06 或 MVP-G01–G06 已通过。D05 执行完成并等待 Work 审查，不自动进入 D06。
+- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互及 D08 运行内进度是工程灰盒；未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、事件事务或检查点。D08 的“永久”仅限当前页面运行内；调试重置、最小化恢复、运行内进度和交互原型都不等于 Checkpoint Recovery；不代表完整 T01–T06 或 MVP-G01–G06 已通过。D08 已完成当前原型范围的实现和验证，等待 Work 审查，不自动进入 D09。

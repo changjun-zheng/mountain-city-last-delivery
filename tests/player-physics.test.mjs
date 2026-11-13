@@ -3,15 +3,19 @@ import { createRequire } from 'node:module';
 import { test } from 'node:test';
 import { createGrayboxCore } from '../src/core/graybox.ts';
 import { PLAYER_PROTOTYPE, PlayerMotor } from '../src/core/player.ts';
+import {
+  InMemoryRunProgress,
+  PROTOTYPE_PROGRESS_CONTENT,
+} from '../src/core/progress.ts';
 import { MatterGrayboxWorld } from '../src/physics/matter/graybox-world.ts';
 
 // The same Matter 0.20.0 implementation bundled by Phaser, without a second dependency.
 const M = createRequire(import.meta.url)('../node_modules/phaser/src/physics/matter-js/CustomMain.js');
-function fixture(x = 80, y = 472, settle = 30) {
+function fixture(x = 80, y = 472, settle = 30, progress) {
   const engine = M.Engine.create();
   const world = new MatterGrayboxWorld(M, engine, dt => M.Engine.update(engine, dt));
   M.Body.setPosition(world.player, { x, y });
-  const core = createGrayboxCore(world);
+  const core = createGrayboxCore(world, progress);
   let frame = 0;
   const step = (n = 1) => { for (let i = 0; i < n; i++) core.frame(frame++ * core.config.fixedDeltaMs); };
   const until = (condition, max = 300) => {
@@ -20,6 +24,19 @@ function fixture(x = 80, y = 472, settle = 30) {
   };
   step(settle);
   return { core, world, step, until };
+}
+
+function placePlayer(instance, x, y = 478) {
+  M.Body.setPosition(instance.world.player, { x, y });
+  M.Body.setVelocity(instance.world.player, { x: 0, y: 0 });
+  instance.step(3);
+}
+
+function pressKey(instance, code) {
+  instance.core.key(code, true);
+  instance.step();
+  instance.core.key(code, false);
+  instance.step();
 }
 
 function placeOnMovingPlatform(label) {
@@ -718,4 +735,171 @@ test('D05 G06 bounded catch-up checks actual steps only and discarded time creat
   assert.equal(advanced.occupiedSteps, occupiedSteps + instance.core.config.maxStepsPerFrame);
   assert.ok(instance.core.snapshot.discardedMs > discardedBefore);
   assert.equal(instance.core.snapshot.physicsSteps, instance.core.snapshot.tick);
+});
+
+test('D07 interaction selection, coordinator lock and reset use the same live Matter world', () => {
+  const instance = fixture(240, 478, 0);
+  instance.step(2);
+  assert.equal(instance.core.snapshot.interaction.candidateCount, 2);
+  assert.equal(instance.core.snapshot.interaction.selectedId, 'prototype-investigation-b');
+  instance.core.key('KeyE', true);
+  assert.equal(instance.core.snapshot.interaction.mode, 'investigation');
+  assert.equal(instance.core.snapshot.player.controlAllowed, false);
+  const tick = instance.core.snapshot.tick;
+  const x = instance.core.snapshot.player.x;
+  const jumps = instance.core.snapshot.player.jumps;
+  instance.core.key('KeyD', true);
+  instance.core.key('Space', true);
+  instance.step(40);
+  assert.ok(instance.core.snapshot.tick > tick, 'Matter simulation must continue during investigation');
+  assert.equal(instance.core.snapshot.player.jumps, jumps);
+  assert.ok(Math.abs(instance.core.snapshot.player.x - x) < 2, 'Locked movement must not walk');
+  instance.core.key('KeyE', false);
+  instance.core.key('Space', false);
+  instance.core.key('KeyD', false);
+  instance.core.key('Escape', true);
+  instance.core.key('Escape', false);
+  assert.equal(instance.core.snapshot.interaction.mode, 'idle');
+  assert.equal(instance.core.snapshot.player.controlAllowed, true);
+  const unlockedX = instance.core.snapshot.player.x;
+  instance.core.key('KeyD', true);
+  instance.step(8);
+  instance.core.key('KeyD', false);
+  assert.ok(instance.core.snapshot.player.x > unlockedX + 5);
+
+  instance.core.key('KeyE', true);
+  assert.equal(instance.core.snapshot.interaction.mode, 'investigation');
+  instance.core.reset();
+  assert.equal(instance.core.snapshot.interaction.mode, 'idle');
+  assert.equal(instance.core.snapshot.interaction.investigationStarts, 0);
+  assert.equal(instance.core.snapshot.player.controlAllowed, true);
+});
+
+test('D08 P02 collection interaction is idempotent across repeat, re-entry and object rebuild', () => {
+  const progress = new InMemoryRunProgress();
+  const first = fixture(80, 472, 30, progress);
+  placePlayer(first, 390);
+  assert.equal(first.core.snapshot.interaction.selectedId,
+    PROTOTYPE_PROGRESS_CONTENT.collection.interactionId);
+
+  pressKey(first, 'KeyE');
+  assert.deepEqual(first.core.snapshot.progress.collections,
+    [PROTOTYPE_PROGRESS_CONTENT.collection.businessId]);
+  assert.match(first.core.snapshot.interaction.feedbackText, /\+1/);
+  pressKey(first, 'KeyE');
+  assert.equal(first.core.snapshot.progress.counts.collections, 1);
+  assert.match(first.core.snapshot.interaction.feedbackText, /重复请求未新增/);
+
+  placePlayer(first, 330);
+  assert.notEqual(first.core.snapshot.interaction.selectedId,
+    PROTOTYPE_PROGRESS_CONTENT.collection.interactionId);
+  placePlayer(first, 390);
+  pressKey(first, 'KeyE');
+  assert.equal(first.core.snapshot.progress.counts.collections, 1);
+
+  // A new temporary interaction/world object sees the same run progress by ID.
+  const rebuilt = fixture(80, 472, 30, progress);
+  placePlayer(rebuilt, 390);
+  assert.equal(rebuilt.core.snapshot.progress.counts.collections, 1);
+  pressKey(rebuilt, 'KeyE');
+  assert.equal(rebuilt.core.snapshot.progress.counts.collections, 1);
+});
+
+test('D08 P03 goal and reward are recorded once; world effect is explicitly reconciled', () => {
+  const progress = new InMemoryRunProgress();
+  const instance = fixture(80, 472, 30, progress);
+  placePlayer(instance, 460);
+  assert.equal(instance.core.snapshot.interaction.selectedId,
+    PROTOTYPE_PROGRESS_CONTENT.goal.interactionId);
+  assert.equal(instance.world.progressRouteGate.collisionFilter.mask, 0x0002,
+    'The test route gate starts with a real player collision mask');
+
+  pressKey(instance, 'KeyE');
+  assert.deepEqual(instance.core.snapshot.progress.goals,
+    [PROTOTYPE_PROGRESS_CONTENT.goal.businessId]);
+  assert.deepEqual(instance.core.snapshot.progress.rewards,
+    [PROTOTYPE_PROGRESS_CONTENT.goal.rewardId]);
+  assert.deepEqual(instance.core.snapshot.progress.effects,
+    [{ id: PROTOTYPE_PROGRESS_CONTENT.goal.effectId, expectedActive: true }]);
+  assert.equal(instance.world.progressRouteOpen, true);
+  assert.equal(instance.world.progressRouteGate.collisionFilter.mask, 0,
+    'The permanent effect opens the route by disabling the real collision mask');
+  assert.match(instance.core.snapshot.interaction.feedbackText, /测试奖励 \+1/);
+
+  pressKey(instance, 'KeyE');
+  progress.completeGoal(PROTOTYPE_PROGRESS_CONTENT.goal.businessId);
+  instance.core.reset();
+  assert.deepEqual(instance.core.snapshot.progress.counts, {
+    collections: 0, goals: 1, rewards: 1, effects: 1,
+  });
+  assert.equal(instance.core.snapshot.progress.rewards.filter(id =>
+    id === PROTOTYPE_PROGRESS_CONTENT.goal.rewardId).length, 1);
+  assert.equal(instance.world.progressRouteOpen, true);
+});
+
+test('D08 P04 P05 permanent effect survives closed world reset and temporary object rebuild', () => {
+  const progress = new InMemoryRunProgress();
+  const first = fixture(80, 472, 30, progress);
+  placePlayer(first, 460);
+  pressKey(first, 'KeyE');
+  assert.equal(first.world.progressRouteOpen, true);
+
+  // Simulate a rebuilt temporary world starting with its initial closed effect.
+  first.world.setPermanentEffect(PROTOTYPE_PROGRESS_CONTENT.goal.effectId, false);
+  assert.equal(first.world.progressRouteOpen, false);
+  assert.equal(first.world.progressRouteGate.collisionFilter.mask, 0x0002);
+  first.core.reset();
+  assert.equal(first.world.progressRouteOpen, true);
+  assert.equal(first.world.progressRouteGate.collisionFilter.mask, 0);
+  assert.deepEqual(first.core.snapshot.progress.counts, {
+    collections: 0, goals: 1, rewards: 1, effects: 1,
+  });
+  assert.equal(first.core.snapshot.player.x, 80);
+  assert.equal(first.core.snapshot.interaction.consumedCount, 0);
+
+  const rebuilt = fixture(80, 472, 30, progress);
+  assert.equal(rebuilt.world.progressRouteOpen, true);
+  assert.deepEqual(rebuilt.core.snapshot.progress.rewards,
+    [PROTOTYPE_PROGRESS_CONTENT.goal.rewardId]);
+
+  const empty = fixture(80, 472, 30, new InMemoryRunProgress());
+  assert.equal(empty.world.progressRouteOpen, false,
+    'A fresh runtime fixture must not inherit another progress repository');
+  assert.deepEqual(empty.core.snapshot.progress.counts, {
+    collections: 0, goals: 0, rewards: 0, effects: 0,
+  });
+});
+
+test('D08 P06 pause freezes progress and a held E does not replay interaction after resume', () => {
+  const progress = new InMemoryRunProgress();
+  const instance = fixture(80, 472, 30, progress);
+  placePlayer(instance, 460);
+  instance.core.key('KeyE', true);
+  instance.step(2);
+  const completed = instance.core.snapshot;
+  assert.deepEqual(completed.progress.counts, {
+    collections: 0, goals: 1, rewards: 1, effects: 1,
+  });
+  assert.equal(completed.interaction.consumedCount, 1);
+  assert.equal(completed.interaction.needsRelease, false);
+
+  const owner = Symbol('test-pause-owner');
+  instance.core.setAvailable(false);
+  const token = instance.core.lifecycle.acquire(owner, Symbol('test-pause-request'));
+  assert.ok(token);
+  instance.core.frame(60000);
+  assert.deepEqual(instance.core.snapshot.progress, completed.progress);
+  assert.equal(instance.core.snapshot.interaction.consumedCount, 1);
+  assert.equal(instance.core.snapshot.tick, completed.tick);
+  assert.equal(instance.world.progressRouteOpen, true);
+
+  assert.equal(instance.core.lifecycle.release(owner, token), 'released');
+  instance.core.setAvailable(true);
+  instance.core.frame(120000);
+  instance.core.frame(120000 + instance.core.config.fixedDeltaMs);
+  assert.deepEqual(instance.core.snapshot.progress, completed.progress);
+  assert.equal(instance.core.snapshot.interaction.consumedCount, 1);
+  assert.equal(instance.core.snapshot.interaction.needsRelease, true);
+  assert.ok(instance.core.snapshot.tick <= completed.tick + 1);
+  instance.core.key('KeyE', false);
 });

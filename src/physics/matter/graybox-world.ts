@@ -1,6 +1,7 @@
 import type {} from 'phaser';
 import { PLAYER_PROTOTYPE, type PlayerState } from '../../core/player.ts';
 import type { GrayboxPhysics } from '../../core/graybox.ts';
+import { PROTOTYPE_PROGRESS_CONTENT } from '../../core/progress.ts';
 
 // Uses Phaser's bundled Matter, injected so the identical world can run in deterministic tests.
 export type MatterLibrary = {
@@ -14,6 +15,15 @@ export const GRAYBOX_SIZE = { width: 2000, height: 680 };
 export const ONE_WAY_PLATFORM: Readonly<{
   label: string; x: number; y: number; width: number; height: number;
 }> = Object.freeze({ label: 'one-way-platform-a', x: 1075, y: 419, width: 70, height: 18 });
+export const PROGRESS_TEST_ROUTE_GATE: Readonly<{
+  label: string; x: number; y: number; width: number; height: number;
+}> = Object.freeze({
+  label: 'progress-test-route-gate',
+  x: 620,
+  y: 290,
+  width: 18,
+  height: 90,
+});
 export const DIAGNOSTIC_ZONE_PROTOTYPES = Object.freeze([
   Object.freeze({ label: 'diagnostic-zone-a', x: 400, y: 462, width: 120, height: 76 }),
   Object.freeze({ label: 'diagnostic-zone-b', x: 450, y: 462, width: 120, height: 76 }),
@@ -34,6 +44,7 @@ export type DiagnosticZoneSnapshot = Readonly<{
 }>;
 export type MatterGrayboxDiagnostics = Readonly<{
   oneWayCollisionEnabled: boolean;
+  progressRouteOpen: boolean;
   platformClockMs: number;
   movingPlatforms: readonly MovingPlatformSnapshot[];
   supportRelativeX: number | null;
@@ -46,6 +57,7 @@ export type MatterGrayboxDiagnostics = Readonly<{
 const PLAYER_CATEGORY = 0x0002;
 const ONE_WAY_CATEGORY = 0x0004;
 const DIAGNOSTIC_ZONE_CATEGORY = 0x0008;
+const TEST_ROUTE_GATE_CATEGORY = 0x0010;
 // Matter contact slop can leave the body about 2 px inside the top face on the first supported tick.
 const TOP_TOLERANCE_PX = 4;
 const MOTION_EPSILON = 0.01;
@@ -94,6 +106,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   readonly player: MatterJS.BodyType;
   readonly foot: MatterJS.BodyType;
   readonly oneWayPlatform: MatterJS.BodyType;
+  readonly progressRouteGate: MatterJS.BodyType;
   readonly diagnosticZoneBodies: MatterJS.BodyType[] = [];
   readonly #matter: MatterLibrary;
   readonly #engine: MatterJS.Engine;
@@ -105,6 +118,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   readonly #diagnosticZones: DiagnosticZoneRuntime[];
   readonly #diagnosticZoneByLabel: Map<string, DiagnosticZoneRuntime>;
   #platformClockMs = 0;
+  #progressRouteOpen = false;
   #diagnosticBaselineTick = 0;
   #diagnosticBaselineCount = 0;
   #diagnosticOrdinal = 0;
@@ -135,6 +149,19 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     rectangle(1970, 250, 20, 500, 'right-boundary');
     rectangle(535, 455, 30, 90, 'wall');
     rectangle(290, 415, 200, 30, 'low-ceiling');
+    this.progressRouteGate = matter.Bodies.rectangle(
+      PROGRESS_TEST_ROUTE_GATE.x,
+      PROGRESS_TEST_ROUTE_GATE.y,
+      PROGRESS_TEST_ROUTE_GATE.width,
+      PROGRESS_TEST_ROUTE_GATE.height,
+      {
+        isStatic: true,
+        friction: 1,
+        label: PROGRESS_TEST_ROUTE_GATE.label,
+        collisionFilter: { category: TEST_ROUTE_GATE_CATEGORY, mask: PLAYER_CATEGORY, group: 0 },
+      },
+    );
+    this.terrain.push(this.progressRouteGate);
     rectangle(745, 409, 90, 18, 'solid-platform-a');
     rectangle(1155, 399, 90, 18, 'solid-platform-b');
     this.oneWayPlatform = matter.Bodies.rectangle(
@@ -212,6 +239,11 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     }
   }
 
+  setPermanentEffect(effectId: string, expectedActive: boolean): void {
+    if (effectId !== PROTOTYPE_PROGRESS_CONTENT.goal.effectId) return;
+    this.#setProgressRouteOpen(expectedActive);
+  }
+
   step(deltaMs: number, tick: number): void {
     this.#lastSimulationTick = tick;
     const previousSupport = this.#movingByLabel.get(this.#state.support);
@@ -282,6 +314,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     m.Composite.setModified(this.#engine.world as unknown as MatterJS.CompositeType, true, false, true);
     this.#oneWay.passThrough = false;
     this.#setOneWayCollision(false);
+    this.#setProgressRouteOpen(false);
     this.#platformClockMs = 0;
     this.#driveVelocity = { x: 0, y: 0 };
     this.#carriedBy = undefined;
@@ -308,6 +341,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   get steps(): number { return this.#steps; }
   get timestamp(): number { return this.#engine.timing.timestamp; }
   get oneWayCollisionEnabled(): boolean { return this.#oneWay.collisionEnabled; }
+  get progressRouteOpen(): boolean { return this.#progressRouteOpen; }
   get platformClockMs(): number { return this.#platformClockMs; }
   get movingPlatforms(): readonly MovingPlatformSnapshot[] {
     return this.#movingPlatforms.map(platform => ({
@@ -344,6 +378,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     const support = this.#movingByLabel.get(this.#state.support);
     return {
       oneWayCollisionEnabled: this.#oneWay.collisionEnabled,
+      progressRouteOpen: this.#progressRouteOpen,
       platformClockMs: this.#platformClockMs,
       movingPlatforms: this.movingPlatforms,
       supportRelativeX: support ? this.#state.x - support.body.position.x : null,
@@ -424,6 +459,15 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     if (this.#oneWay.collisionEnabled === enabled) return;
     this.#oneWay.collisionEnabled = enabled;
     this.#oneWay.body.collisionFilter.mask = enabled ? PLAYER_CATEGORY : 0;
+    this.#matter.Composite.setModified(
+      this.#engine.world as unknown as MatterJS.CompositeType, true, false, true,
+    );
+  }
+
+  #setProgressRouteOpen(open: boolean): void {
+    if (this.#progressRouteOpen === open) return;
+    this.#progressRouteOpen = open;
+    this.progressRouteGate.collisionFilter.mask = open ? 0 : PLAYER_CATEGORY;
     this.#matter.Composite.setModified(
       this.#engine.world as unknown as MatterJS.CompositeType, true, false, true,
     );

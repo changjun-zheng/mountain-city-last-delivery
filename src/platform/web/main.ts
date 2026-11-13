@@ -54,6 +54,18 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       );
     }
     common.push(`Matter steps ${sample.physicsSteps} | Input ${p.controlAllowed ? 'ON' : 'LOCKED'} | ${p.needsRelease ? '请先松开 Space' : 'Space READY'}${p.y > 700 ? ' | 已掉出场景，请按 R 重置' : ''}`);
+    const interaction = sample.interaction;
+    common.push(
+      `Interaction ${interaction.mode.toUpperCase()} | target ${interaction.activeId ?? interaction.selectedId ?? 'NONE'}` +
+      ` | E consumed ${interaction.consumedCount} | starts ${interaction.investigationStarts}` +
+      ` | feedback ${interaction.feedbackCount}${interaction.feedbackRemainingMs > 0 ? ` (${interaction.feedbackRemainingMs.toFixed(0)} ms)` : ''}`,
+    );
+    const progress = sample.progress;
+    common.push(
+      `Progress C${progress.counts.collections} G${progress.counts.goals}` +
+      ` R${progress.counts.rewards} F${progress.counts.effects}` +
+      ` | Gate ${grayboxDiagnostics?.progressRouteOpen ? 'OPEN' : 'CLOSED'}`,
+    );
     const horizontal = grayboxDiagnostics?.movingPlatforms.find(platform => platform.axis === 'horizontal');
     const vertical = grayboxDiagnostics?.movingPlatforms.find(platform => platform.axis === 'vertical');
     const zoneA = grayboxDiagnostics?.diagnosticZones.find(zone => zone.label === 'diagnostic-zone-a');
@@ -68,6 +80,7 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       buffer: String(p.bufferMs), coyote: String(p.coyoteMs), nx: String(p.normalX), ny: String(p.normalY),
       physicsSteps: String(sample.physicsSteps), physicsTime: String(sample.physicsTimestamp), resets: String(sample.resets),
       oneWayCollision: grayboxDiagnostics === undefined ? '' : String(grayboxDiagnostics.oneWayCollisionEnabled),
+      progressRouteOpen: grayboxDiagnostics ? String(grayboxDiagnostics.progressRouteOpen) : '',
       platformClock: grayboxDiagnostics ? String(grayboxDiagnostics.platformClockMs) : '',
       movingHX: horizontal ? String(horizontal.x) : '', movingHY: horizontal ? String(horizontal.y) : '',
       movingHVx: horizontal ? String(horizontal.vx) : '', movingHDirection: horizontal ? String(horizontal.direction) : '',
@@ -93,6 +106,30 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       zoneBExit: zoneB ? String(zoneB.exitCount) : '',
       zoneBLastTick: zoneB?.lastTransitionTick == null ? '' : String(zoneB.lastTransitionTick),
       zoneBTransitions: zoneB ? zoneB.recentTransitions.map(record => `${record.kind}:${record.tick}:${record.diagnosticOrdinal}`).join(',') : '',
+      interactionMode: interaction.mode,
+      interactionSelected: interaction.selectedId ?? '',
+      interactionActive: interaction.activeId ?? '',
+      interactionPrompt: interaction.prompt ?? '',
+      interactionTitle: interaction.title ?? '',
+      interactionContent: interaction.content ?? '',
+      interactionFeedback: interaction.feedbackText ?? '',
+      interactionFeedbackRemaining: String(interaction.feedbackRemainingMs),
+      interactionConsumed: String(interaction.consumedCount),
+      interactionStarts: String(interaction.investigationStarts),
+      interactionFeedbackCount: String(interaction.feedbackCount),
+      interactionCandidates: String(interaction.candidateCount),
+      interactionFacing: String(interaction.facing),
+      interactionNeedsRelease: String(interaction.needsRelease),
+      interactionControlBlocked: String(interaction.controlBlocked),
+      progressCollectionCount: String(progress.counts.collections),
+      progressGoalCount: String(progress.counts.goals),
+      progressRewardCount: String(progress.counts.rewards),
+      progressEffectCount: String(progress.counts.effects),
+      progressCollectionIds: progress.collections.join(','),
+      progressGoalIds: progress.goals.join(','),
+      progressRewardIds: progress.rewards.join(','),
+      progressEffects: progress.effects.map(effect =>
+        `${effect.id}:${effect.expectedActive ? 'active' : 'inactive'}`).join(','),
     });
   }
   diagnostics.textContent = common.join('\n');
@@ -106,7 +143,7 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
 const wire = (next: GameCore | GrayboxCore) => {
   core = next;
   const visibility = bindVisibilityPause(next.lifecycle, showDiagnostics);
-  const input = 'key' in next ? bindPlayerInput(next) : () => {};
+  const input = 'key' in next ? bindPlayerInput(next, showDiagnostics) : () => {};
   unbind = () => { input(); visibility(); };
   showDiagnostics();
 };

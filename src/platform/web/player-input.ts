@@ -1,9 +1,12 @@
 import type { GrayboxCore } from '../../core/graybox.ts';
 
-export function bindPlayerInput(core: GrayboxCore) {
-  const availability = () => core.setAvailable(document.visibilityState === 'visible' && document.hasFocus());
+export function bindPlayerInput(core: GrayboxCore, changed: () => void = () => {}) {
+  const availability = () => {
+    core.setAvailable(document.visibilityState === 'visible' && document.hasFocus());
+    changed();
+  };
   const keydown = (event: KeyboardEvent) => {
-    if (['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyR'].includes(event.code)) {
+    if (['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'Escape', 'KeyR'].includes(event.code)) {
       if ((event.target as HTMLElement)?.tagName === 'SELECT') return;
       event.preventDefault();
       if (event.code === 'KeyR' && !event.repeat) core.reset();
