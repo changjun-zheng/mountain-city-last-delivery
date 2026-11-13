@@ -1,3 +1,11 @@
+import {
+  CommandCreationCoordinator,
+  RuntimeBusinessIdentityInfrastructure,
+  type CommandEventSource,
+  type CommandSourceEvent,
+  type CommandSourceInspection,
+} from './commands.ts';
+
 export interface RuntimeUuidProvider {
   generate(): string;
 }
@@ -100,6 +108,8 @@ export type EventCreationOptions = Readonly<{
 
 export type RuntimeEventContextOptions = Readonly<{
   initialNextEventId?: number;
+  initialNextCommandId?: number;
+  initialNextTransactionId?: number;
 }>;
 
 export type EventCreationRejectionReason =
@@ -641,6 +651,7 @@ export class RuntimeEventContext {
   readonly runtimeInstanceId: string;
   readonly #eventIds: EventIdSequence;
   readonly #initialNextEventId: number;
+  readonly #businessIdentities: RuntimeBusinessIdentityInfrastructure;
   #coordinator: EventCreationCoordinator | undefined;
 
   constructor(
@@ -654,6 +665,13 @@ export class RuntimeEventContext {
     this.runtimeInstanceId = runtimeInstanceId;
     this.#initialNextEventId = options.initialNextEventId ?? 1;
     this.#eventIds = new EventIdSequence(this.#initialNextEventId);
+    this.#businessIdentities = new RuntimeBusinessIdentityInfrastructure(
+      runtimeInstanceId,
+      {
+        initialNextCommandId: options.initialNextCommandId,
+        initialNextTransactionId: options.initialNextTransactionId,
+      },
+    );
   }
 
   createCoordinator(options: EventCreationOptions): EventCreationCoordinator {
@@ -664,6 +682,7 @@ export class RuntimeEventContext {
       this.runtimeInstanceId,
       this.#eventIds,
       this.#initialNextEventId,
+      this.#businessIdentities,
       options,
     );
     return this.#coordinator;
@@ -672,9 +691,10 @@ export class RuntimeEventContext {
 
 // This is the only public event creation entry. Generator, lifecycle registry
 // and Inbox retain their own state while the coordinator controls the commit.
-export class EventCreationCoordinator {
+export class EventCreationCoordinator implements CommandEventSource {
   readonly #runtimeInstanceId: string;
   readonly #eventIds: EventIdSequence;
+  readonly #businessIdentities: RuntimeBusinessIdentityInfrastructure;
   readonly #lifecycle: EventLifecycleRegistry;
   readonly #retirement: EventRetirementLedger;
   readonly #inbox: EventInbox;
@@ -696,15 +716,18 @@ export class EventCreationCoordinator {
   #retirementFailure: EventRetirementFailure | undefined;
   #dispatching = false;
   #nextProducerNumber = 1;
+  #commandCoordinator: CommandCreationCoordinator | undefined;
 
   constructor(
     runtimeInstanceId: string,
     eventIds: EventIdSequence,
     initialNextEventId: number,
+    businessIdentities: RuntimeBusinessIdentityInfrastructure,
     options: EventCreationOptions,
   ) {
     this.#runtimeInstanceId = runtimeInstanceId;
     this.#eventIds = eventIds;
+    this.#businessIdentities = businessIdentities;
     this.#resourceCapacity = options.historyCapacity ?? DEFAULT_HISTORY_CAPACITY;
     this.#lifecycle = new EventLifecycleRegistry(this.#resourceCapacity);
     this.#retirement = new EventRetirementLedger(initialNextEventId);
@@ -717,6 +740,37 @@ export class EventCreationCoordinator {
     this.#retirementFaultInjector = options.retirementFaultInjector;
     this.#dispatchHandler = options.dispatchHandler;
     this.#commandReceiptTestDouble = options.commandReceiptTestDouble;
+  }
+
+  createCommandCoordinator(
+    options: Readonly<{ capacity?: number }> = {},
+  ): CommandCreationCoordinator {
+    if (this.#commandCoordinator) {
+      throw new Error('A runtime context can only own one command coordinator.');
+    }
+    this.#commandCoordinator = new CommandCreationCoordinator(
+      this.#businessIdentities,
+      this,
+      options,
+    );
+    return this.#commandCoordinator;
+  }
+
+  inspectCommandSource(event: CommandSourceEvent): CommandSourceInspection {
+    const inspection = this.probeRedelivery(event as PendingEvent);
+    if (inspection.status === 'duplicate') {
+      return Object.freeze({
+        status: 'registered' as const,
+        lifecycle: inspection.lifecycle,
+      });
+    }
+    return Object.freeze({
+      status: 'rejected' as const,
+      reason: inspection.reason === 'invalid-context'
+        ? 'invalid-source-event' as const
+        : inspection.reason,
+      message: inspection.message,
+    });
   }
 
   createProducer(): EventProducerHandle {

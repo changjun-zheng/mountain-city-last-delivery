@@ -190,6 +190,18 @@ B01–B05 核心／模块集成测试及原 A01–A05 均 PASS，`npm.cmd test` 
 
 C01–C06 全部 PASS，原 75 项语义保留；`npm.cmd test` 为 `81/81` PASS，类型检查、Electron Main 编译和生产构建成功。当前 Web／Electron 宿主仍未使用事件协调器，因此 GUI／三端业务事件、Edge、真实命令接收、事务、结果事件、检查点和存档均为 NOT RUN；Accepted 仍是测试替身。这里的旧 ID 永久拒绝仅指同一 Runtime Event Context 运行内，不表示跨会话存档或持久化保证。Matter 仍是候选，详见 [README](../README.md#d09-a3生产者确认与连续安全退役核心)和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-a3-执行结果)。当前等待 Work 审查，不进入后续任务。
 
+### D09-A3 Work 审查与 D09-B1 任务
+
+2026-11-13：Work 按 `6038571` 核对生产者／结果 capability、确认、退役水位线、组合容量和清理故障处理，源码与三份事件测试哈希匹配交付报告，本轮重跑类型检查、Electron Main 编译及 81/81 单测 PASS，未重跑构建或 GUI。D09-A3 在纯核心范围收口，旧 ID 拒绝仅在所属运行上下文内有效，Accepted 仍为测试替身，现有可玩包没有接入事件内核。
+
+下一项 D09-B1 实现运行实例级独立 Command／Transaction 编号、稳定命令、目标模块幂等接收，以及接收记录／事务创建意图／身份关联的原子提交。Accepted 不代表事务执行成功，失败事务编号不回收；真实业务执行、四类交付联调／Unknown 核查、结果事件、宿主与检查点仍后续安排。具体范围与 D01–D06 验收见[路线图当前任务](DEVELOPMENT_ROADMAP.md#7-当前任务与持续记录)，工程接口和数据结构不升级正式决策。
+
+### D09-B1 工程执行状态
+
+2026-11-13：D09-B1 已在纯核心完成稳定命令与目标事务模块的原子接收意图。运行上下文独立维护 Event、Command、Transaction 三套序列；命令协调器以受控源事件校验保证单事件最多一条稳定命令，目标模块以不可伪造 command capability 校验 runtime 与 target。首次接收在容量检查后分配 Transaction ID，并原子提交 Accepted receipt、`intent-created` intent 及四套身份关联；重复命令返回原关联，篡改身份拒绝。提交失败回滚 receipt／intent，但已分配 Transaction ID 不回收、不补洞；无法确认回滚时目标模块保守阻断。
+
+D01–D06 全部 PASS，原 81 项语义保留；`npm.cmd test` 为 `87/87` PASS，类型检查、Electron Main 编译和生产构建成功。Accepted 只表示接收意图提交成功，不表示事务启动、执行或业务成功；业务执行次数固定为 `0`。当前 Web／Electron 宿主仍未使用事件或命令内核，因此 GUI／三端业务链、Edge、四类交付结果联调、Unknown 核查、真实事务、结果事件、检查点和存档均为 NOT RUN。Matter 仍是候选，详见 [README](../README.md#d09-b1稳定命令与原子事务接收意图核心)和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-b1-执行结果)。当前等待 Work 审查，不进入后续任务。
+
 ## 已确认的游戏设计方向
 
 确认日期：2026-11-06；依据：项目负责人本次明确指示。
