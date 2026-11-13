@@ -5,7 +5,7 @@ const rawSample = page => page.locator('#diagnostics').evaluate(element => ({ ..
 const parseSample = data => ({ tick: +data.tick, x: +data.x, y: +data.y, vx: +data.vx, vy: +data.vy,
   worldVx: +data.worldVx, worldVy: +data.worldVy, supportVx: +data.supportVx, supportVy: +data.supportVy,
   grounded: data.grounded === 'true', jumps: +data.jumps, support: data.support,
-  physicsSteps: +data.physicsSteps, physicsTime: +data.physicsTime, discarded: +data.discarded,
+  physicsSteps: +data.physicsSteps, physicsTime: +data.physicsTime, discarded: +data.discarded, resets: +data.resets,
   paused: data.paused === 'true', tokens: +data.tokens, control: data.controlAllowed === 'true',
   needsRelease: data.needsRelease === 'true', oneWayCollision: data.oneWayCollision === 'true',
   platformClock: +data.platformClock,
@@ -14,7 +14,16 @@ const parseSample = data => ({ tick: +data.tick, x: +data.x, y: +data.y, vx: +da
   movingVX: +data.movingVX, movingVY: +data.movingVY, movingVVy: +data.movingVVy,
   movingVDirection: +data.movingVDirection, movingVPhase: +data.movingVPhase, movingVCycle: +data.movingVCycle,
   supportRelativeX: data.supportRelativeX === '' ? null : +data.supportRelativeX,
-  supportRelativeY: data.supportRelativeY === '' ? null : +data.supportRelativeY });
+  supportRelativeY: data.supportRelativeY === '' ? null : +data.supportRelativeY,
+  zoneBaselineTick: +data.zoneBaselineTick, zoneBaselineCount: +data.zoneBaselineCount,
+  zoneAOccupied: data.zoneAOccupied === 'true', zoneAOccupiedSteps: +data.zoneAOccupiedSteps,
+  zoneALastOccupiedSteps: +data.zoneALastOccupiedSteps,
+  zoneAEnter: +data.zoneAEnter, zoneAExit: +data.zoneAExit, zoneALastTick: +data.zoneALastTick,
+  zoneATransitions: data.zoneATransitions || '',
+  zoneBOccupied: data.zoneBOccupied === 'true', zoneBOccupiedSteps: +data.zoneBOccupiedSteps,
+  zoneBLastOccupiedSteps: +data.zoneBLastOccupiedSteps,
+  zoneBEnter: +data.zoneBEnter, zoneBExit: +data.zoneBExit, zoneBLastTick: +data.zoneBLastTick,
+  zoneBTransitions: data.zoneBTransitions || '' });
 const sample = async page => parseSample(await rawSample(page));
 
 export async function chooseScene(ctx, mode) {
@@ -829,4 +838,215 @@ export async function checkMovingPlatformLifecycle(ctx, record, capture) {
   record('D04-R1-moving-platform-lifecycle', { status: 'PASS', ...result });
   console.log('PASS', ctx.label, 'D04-R1 moving-platform-lifecycle', JSON.stringify(result));
   await capture('D04-R1-moving-platform-lifecycle-completed', true);
+}
+
+// D05 uses a short, independently selectable path so trigger diagnostics can be
+// verified without requiring the historical all-purpose platform suite to pass first.
+export async function checkDiagnosticZones(ctx, record, capture) {
+  const page = ctx.page;
+  const key = (code, down) => ctx.monitor.key(code, down);
+  const up = async () => {
+    for (const code of ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space']) await key(code, false);
+  };
+  const reset = async () => {
+    await ctx.show();
+    await up();
+    const before = await sample(page);
+    await page.locator('#reset-graybox').click();
+    await page.waitForFunction(({ resets, baseline }) => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return data?.resets !== resets && Number(data?.zoneBaselineCount) === baseline + 1 &&
+        data?.zoneAOccupied === 'false' && data?.zoneBOccupied === 'false' &&
+        data?.grounded === 'true' && data.controlAllowed === 'true';
+    }, { resets: String(before.resets), baseline: before.zoneBaselineCount }, poll);
+  };
+  const waitStablePausedSample = async () => {
+    let previous;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(100);
+      const current = await sample(page);
+      if (previous && JSON.stringify(current) === JSON.stringify(previous)) return current;
+      previous = current;
+    }
+    throw new Error('Paused diagnostic-zone state did not settle');
+  };
+  const installResumeProbe = () => page.evaluate(() => {
+    window.__d05Resume = new Promise(resolve => {
+      const changed = () => {
+        if (document.visibilityState !== 'visible') return;
+        document.removeEventListener('visibilitychange', changed);
+        requestAnimationFrame(() => resolve({ ...document.querySelector('#diagnostics').dataset }));
+      };
+      document.addEventListener('visibilitychange', changed);
+    });
+  });
+
+  ctx.operation = 'D05-diagnostic-zones';
+  ctx.stage = 'graybox-preparation';
+  const result = await ctx.monitor.race(async () => {
+    await chooseScene(ctx, 'graybox');
+    await ctx.show();
+    await reset();
+    const initial = await sample(page);
+    assert.equal(initial.zoneBaselineCount, 1);
+    assert.equal(initial.zoneAOccupied, false);
+    assert.equal(initial.zoneBOccupied, false);
+    assert.equal(initial.zoneAEnter, 0);
+    assert.equal(initial.zoneBEnter, 0);
+
+    // G01/G03: enter through real movement, sustain occupancy, and jump using ground support.
+    await key('KeyD', true);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.zoneAOccupied === 'true' && data.grounded === 'true' && data.support === 'ground-a';
+    }, undefined, poll);
+    const firstA = await sample(page);
+    await key('KeyD', false);
+    assert.equal(firstA.zoneAEnter, 1);
+    assert.equal(firstA.zoneAExit, 0);
+    const jumpBefore = firstA.jumps;
+    await key('Space', true);
+    await page.waitForFunction(({ jumps, tick }) => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return +data.jumps > jumps && data.grounded === 'false' && +data.tick > tick;
+    }, { jumps: jumpBefore, tick: firstA.tick }, poll);
+    await key('Space', false);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.grounded === 'true' && data.support === 'ground-a' && data.zoneAOccupied === 'true';
+    }, undefined, poll);
+    const sustainedA = await sample(page);
+    assert.equal(sustainedA.zoneAEnter, 1, 'Overlap and landing must not duplicate enter');
+    assert.ok(sustainedA.zoneAOccupiedSteps > firstA.zoneAOccupiedSteps);
+    await capture('zone-a-enter-sustained', true);
+
+    // G02: cross the overlap, then isolate each zone independently.
+    await key('KeyD', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.zoneAOccupied === 'false' &&
+      document.querySelector('#diagnostics').dataset.zoneBOccupied === 'true', undefined, poll);
+    const bOnly = await sample(page);
+    assert.equal(bOnly.zoneAExit, 1);
+    assert.equal(bOnly.zoneBEnter, 1);
+    await key('KeyD', false);
+    await key('KeyA', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.zoneAOccupied === 'true' &&
+      document.querySelector('#diagnostics').dataset.zoneBOccupied === 'true', undefined, poll);
+    const overlap = await sample(page);
+    assert.ok(overlap.zoneAEnter >= 2);
+    assert.equal(overlap.zoneBExit, 0);
+    await capture('zones-overlap-independent', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.zoneAOccupied === 'true' &&
+      document.querySelector('#diagnostics').dataset.zoneBOccupied === 'false', undefined, poll);
+    await key('KeyA', false);
+    const aOnly = await sample(page);
+    assert.equal(aOnly.zoneBExit, 1);
+
+    // G05: reset from inside a zone establishes a new baseline without fake walk events.
+    const tickBeforeReset = aOnly.tick;
+    await reset();
+    const resetState = await sample(page);
+    assert.ok(resetState.tick >= tickBeforeReset, 'Debug reset must not reset global Tick');
+    assert.equal(resetState.zoneBaselineCount, 2);
+    assert.ok(resetState.zoneBaselineTick <= resetState.tick);
+    assert.equal(resetState.zoneAOccupied, false);
+    assert.equal(resetState.zoneBOccupied, false);
+    assert.equal(resetState.zoneAEnter, 0);
+    assert.equal(resetState.zoneAExit, 0);
+    assert.equal(resetState.zoneBEnter, 0);
+    assert.equal(resetState.zoneBExit, 0);
+    await capture('zones-reset-baseline', true);
+
+    // G04: hidden/minimized interval freezes state and resume does not repeat enter.
+    await key('KeyD', true);
+    await page.waitForFunction(() => document.querySelector('#diagnostics').dataset.zoneAOccupied === 'true',
+      undefined, poll);
+    await key('KeyD', false);
+    const beforePause = await sample(page);
+    ctx.stage = 'zone-a-wait-hidden';
+    await ctx.hide();
+    await page.waitForFunction(() => document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics').dataset.paused === 'true', undefined, { polling: 100 });
+    const frozen = await waitStablePausedSample();
+    assert.equal(frozen.control, false);
+    assert.equal(frozen.zoneAOccupied, true);
+    assert.equal(frozen.zoneAEnter, 1);
+    assert.equal(frozen.zoneAExit, 0);
+    const hiddenWindow = await ctx.windowState?.();
+    await capture('zone-a-hidden-frozen', true);
+    await page.waitForTimeout(1200);
+    assert.deepEqual(await sample(page), frozen, 'Diagnostic zones must freeze while hidden/minimized');
+
+    await installResumeProbe();
+    ctx.stage = 'zone-a-restore';
+    await ctx.show();
+    const resumed = parseSample(await page.evaluate(() => window.__d05Resume));
+    assert.equal(resumed.paused, false);
+    assert.equal(resumed.tokens, 0);
+    assert.ok(resumed.tick - frozen.tick <= 5);
+    assert.equal(resumed.discarded, frozen.discarded);
+    assert.deepEqual({
+      a: [resumed.zoneAOccupied, resumed.zoneAEnter, resumed.zoneAExit],
+      b: [resumed.zoneBOccupied, resumed.zoneBEnter, resumed.zoneBExit],
+    }, {
+      a: [frozen.zoneAOccupied, frozen.zoneAEnter, frozen.zoneAExit],
+      b: [frozen.zoneBOccupied, frozen.zoneBEnter, frozen.zoneBExit],
+    });
+    const resumedWindow = await ctx.windowState?.();
+    await capture('zone-a-restored', true);
+    await page.waitForTimeout(250);
+    assert.equal((await sample(page)).zoneAEnter, resumed.zoneAEnter);
+
+    // A real post-resume exit and re-entry must still record normally.
+    await key('KeyA', true);
+    await page.waitForFunction(exitCount =>
+      +document.querySelector('#diagnostics').dataset.zoneAExit > exitCount,
+    frozen.zoneAExit, poll);
+    await key('KeyA', false);
+    await key('KeyD', true);
+    await page.waitForFunction(enterCount =>
+      +document.querySelector('#diagnostics').dataset.zoneAEnter > enterCount,
+    frozen.zoneAEnter, poll);
+    await key('KeyD', false);
+    const postResumeReentry = await sample(page);
+    await capture('zone-a-post-resume-reentry', true);
+
+    // G05: a scene switch creates a fresh world with no old occupancy, counters or listeners.
+    await chooseScene(ctx, 'diagnostic');
+    await capture('diagnostic-scene', true);
+    await chooseScene(ctx, 'graybox');
+    await ctx.show();
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.zoneBaselineCount === '0' && data.zoneAOccupied === 'false' &&
+        data.zoneBOccupied === 'false' && data.zoneAEnter === '0' && data.zoneBEnter === '0';
+    }, undefined, poll);
+    const switched = await sample(page);
+    await page.waitForTimeout(300);
+    const switchedStable = await sample(page);
+    assert.equal(switchedStable.zoneAEnter, 0);
+    assert.equal(switchedStable.zoneBEnter, 0);
+    assert.equal(switchedStable.zoneAOccupied, false);
+    assert.equal(switchedStable.zoneBOccupied, false);
+    await capture('scene-switch-zones-clean', true);
+
+    // G06 regression smoke: existing moving platforms remain live on the fresh scene.
+    assert.ok(switchedStable.movingHX >= 1710 && switchedStable.movingHX <= 1780);
+    assert.ok(switchedStable.movingVY >= 220 && switchedStable.movingVY <= 310);
+    await page.waitForFunction(clock => +document.querySelector('#diagnostics').dataset.platformClock > clock,
+      switchedStable.platformClock, poll);
+    const platformsAlive = await sample(page);
+    assert.equal(platformsAlive.physicsSteps, platformsAlive.tick);
+    await up();
+    assert.deepEqual(ctx.errors, []);
+    return {
+      initial, firstA, sustainedA, bOnly, overlap, aOnly, resetState, frozen, resumed,
+      postResumeReentry, switched: switchedStable, platformsAlive, hiddenWindow, resumedWindow,
+    };
+  });
+  record('D05-diagnostic-zones', { status: 'PASS', ...result });
+  console.log('PASS', ctx.label, 'D05 diagnostic-zones', JSON.stringify(result));
+  await capture('D05-diagnostic-zones-completed', true);
 }

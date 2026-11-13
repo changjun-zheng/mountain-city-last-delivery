@@ -4,11 +4,11 @@
 
 《叠城大冒险》（Layered City Adventures）是一款以具有山城特色的虚构立体城市为舞台的 2D 横版平台探索冒险游戏，核心体验是跳跃、探索、解谜与发现（CONFIRMED，2026-11-12）。
 
-当前默认打开已加入 D04 水平／垂直移动平台的 M1.2.2 可操作物理灰盒，Web 与 Windows 使用同一份角色、地形与模拟代码。顶部「场景」可切回原固定步诊断场景。「重新启动」先销毁 Phaser 实例，再重新加载原页面并创建新实例；「重置灰盒」只重置原型角色与移动平台，不是检查点恢复。
+当前默认打开已加入 D04 水平／垂直移动平台和 D05 非实体诊断区域的 M1.2.2 可操作物理灰盒，Web 与 Windows 使用同一份角色、地形与模拟代码。顶部「场景」可切回原固定步诊断场景。「重新启动」先销毁 Phaser 实例，再重新加载原页面并创建新实例；「重置灰盒」只重置原型角色、移动平台与诊断区域基线，不是检查点恢复。
 
 Mountain City: Last Delivery／山城有路：最后一单为历史名称。下文旧里程碑的日志、截图及证据保留当时名称，不改写为新名执行过的测试。真实地标资料与旧首关方案保留参考，其虚构世界叙事尚待适配；本次不新增玩法、不重写任务或通关条件。内部包名、appId、用户数据身份及项目目录不变。
 
-操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；R 或「重置灰盒」回到出生点。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过，并从上方落地行走；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。沿右侧跨过墙壁和间隙，再经连续坡面可到达两条移动平台；掉出间隙后按 R。窗口失焦会清理输入，恢复后先松开 Space 再按，持续按住不会自动起跳。
+操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；R 或「重置灰盒」回到出生点。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过，并从上方落地行走；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。出生点右侧的蓝色 A 与粉色 B 是局部重叠的非实体诊断区域，只显示占用和进入／离开记录，不阻挡、不提供支撑。沿右侧跨过墙壁和间隙，再经连续坡面可到达两条移动平台；掉出间隙后按 R。窗口失焦会清理输入，恢复后先松开 Space 再按，持续按住不会自动起跳。
 
 ## 技术栈与安装
 
@@ -111,8 +111,8 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `tests/simulation.test.mjs` | 可控时间下的固定步与暂停协议测试。 |
 | `tests/visibility.test.mjs` | 可见性适配的隐藏启动、重复通知与解绑测试；不代替实机测试。 |
 | `tests/player-physics.test.mjs` | 受控时间运行 Phaser 内置的真实 Matter，验证控制、接触与重置。 |
-| `tests/graybox-browser.mjs` | 真实窗口键盘操作、跳高／缓冲／跨隙／坡面、物理暂停与 D04-R1 移动平台生命周期断言。 |
-| `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1 定向入口。 |
+| `tests/graybox-browser.mjs` | 真实窗口键盘操作、跳高／缓冲／跨隙／坡面、物理暂停、移动平台生命周期及 D05 诊断区域断言。 |
+| `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1／D05 定向入口。 |
 | `tests/browser-selection.mjs` | 解析 `--browser`、查找标准安装路径并核验 CDP 实际浏览器身份；缺失时不回退。 |
 | `scripts/test.mjs` | 无参数时运行自动化单测，有参数时把平台测试参数原样转发给 `test:platform`。 |
 | `docs/` | 策划、决策与赛事原始材料。 |
@@ -134,6 +134,9 @@ npm.cmd run test -- --browser=chrome
 
 # D04-R1 移动平台生命周期定向验收；不执行既有完整长流程
 npm.cmd run test:d04-r1
+
+# D05 诊断区域三端定向验收；不执行既有完整长流程
+npm.cmd run test:d05
 ```
 
 平台测试只接受 `chrome`、`edge`，使用每次新建的临时用户配置目录，并通过 CDP `Browser.getVersion` 核对实际品牌。`report.json` 记录候选／实际路径、品牌、版本、进程 PID、启动参数、临时配置目录、页面与进程时间线，以及测试脚本和 ASAR 的 SHA-256。所选浏览器缺失时结果为 `BLOCKED`，不会静默切换浏览器、安装软件或使用个人资料。
@@ -520,14 +523,66 @@ Electron 两种模式均真实记录最小化时 `visible=false`、`minimized=tr
 - [Electron 开发版水平平台隐藏冻结](test-results/platform/run-KPoUKj/010-electron-dev-horizontal-support-hidden-frozen.png)、[持 Space 隐藏冻结](test-results/platform/run-KPoUKj/012-electron-dev-horizontal-held-space-hidden-frozen.png)、[垂直平台隐藏冻结](test-results/platform/run-KPoUKj/014-electron-dev-vertical-support-hidden-frozen.png)。
 - [独立生产包水平平台隐藏冻结](test-results/platform/run-KPoUKj/019-electron-packaged-horizontal-support-hidden-frozen.png)、[持 Space 隐藏冻结](test-results/platform/run-KPoUKj/021-electron-packaged-horizontal-held-space-hidden-frozen.png)、[垂直平台隐藏冻结](test-results/platform/run-KPoUKj/023-electron-packaged-vertical-support-hidden-frozen.png)。
 
-本专项之前的 `run-PmBECe`（错误沿用诊断场景像素断言）、`run-LnHbxW`（准备阶段 blur 与暂停转换首帧）、`run-rtWcfh`（暂停快照被清空）和 `run-xyDdSD`（首次真实 keyup 前错误尝试新按下）均保持 FAIL，未删除或改写。D04-R1 PASS 仅证明上述移动平台生命周期范围；不表示完整平台长套件、完整 T01–T06、D04、Edge、人工体验或 Matter 最终选型已经通过。D04 仍等待 Work 审查，不自动进入 D05。
+本专项之前的 `run-PmBECe`（错误沿用诊断场景像素断言）、`run-LnHbxW`（准备阶段 blur 与暂停转换首帧）、`run-rtWcfh`（暂停快照被清空）和 `run-xyDdSD`（首次真实 keyup 前错误尝试新按下）均保持 FAIL，未删除或改写。D04-R1 PASS 仅证明上述移动平台生命周期范围；不表示完整平台长套件、完整 T01–T06、Edge、人工体验或 Matter 最终选型已经通过。D04 已由 Work 按该专项范围收口。
+
+## D05：物理诊断区域与生命周期
+
+2026-11-13 执行，只增加固定步驱动的非实体诊断区域。没有实现 CheckpointCoordinator、Event Inbox、业务 ID、捕获事务、检查点恢复、永久进度、NPC、任务、机关或正式美术；没有新增依赖，也没有把诊断记录升级为正式业务 Event。
+
+- `diagnostic-zone-a`：中心 `x=400, y=462`，尺寸 `120 × 76`，蓝色显示。
+- `diagnostic-zone-b`：中心 `x=450, y=462`，尺寸 `120 × 76`，粉色显示；与 A 在横向局部重叠。
+- 两区域均为 Matter sensor，只通过 `Query.collides` 检测玩家主体与区域几何重叠。它们不在可支撑地形集合中，不阻挡、不承载，也不改变质量、速度或跳跃资格。
+- 每个实际固定步只查询并归并一次区域结果。外到内记录一次 enter，持续占用累加实际步数，内到外记录一次 exit；真正离开后可再次 enter。每个区域独立维护状态和最多 8 条带 `SimulationTick` 的历史。
+- `diagnosticOrdinal` 只用于本机诊断显示顺序，不冒充 Event ID、Command ID、Transaction ID 或永久业务 ID。
+- 调试重置会按传送后的真实位置重建占用基线，不生成伪 enter／exit，不重置全局 Tick；场景切换会销毁旧世界和监听，不继承旧计数或占用。
+
+真实 Matter 单测由原 38 项增至 44 项，G01–G06 六组全部 PASS：
+
+| 用例 | 状态 | 实际覆盖 |
+| --- | --- | --- |
+| G01 | PASS | 真实走进、停留多个 Tick、离开及再进入；持续检测不重复 enter。 |
+| G02 | PASS | A／B 重叠区域的占用和计数独立变化；同一步变化使用真实 Tick。 |
+| G03 | PASS | 穿行无阻挡、区域内仍由 `ground-a` 支撑；脚底 sensor 不触发区域，空中重叠不授予跳跃资格。 |
+| G04 | PASS | 隐藏／最小化至少 1200 ms 时状态、计数、Tick 与平台时钟冻结；恢复不重复 enter、不追赶。 |
+| G05 | PASS | 区域内／外调试重置按实际位置建立基线；无伪事件、不重置 Tick；场景切换后无旧状态。 |
+| G06 | PASS | 有界补算只按实际步检测，丢弃时间不生成记录；D05 定向场景回归移动平台时钟和物理步一致性。仅覆盖本任务范围。 |
+
+`npm.cmd run test:d05` 一次完成 Chrome Web、Electron 开发版与仓库外独立生产包，报告为 [run-2Ch7Xr](test-results/platform/run-2Ch7Xr/report.json)，三端均 PASS，非预期中断、页面错误和清理失败均为 0。Chrome 为 `156.0.8078.74`；Electron 两种模式均真实记录最小化时 `visible=false / minimized=true`，恢复时 `visible=true / minimized=false / focused=true`。
+
+| 环境 | A 首次 enter Tick／持续步数 | B-only 状态与计数 | 重叠状态 | 隐藏／恢复首帧 Tick、物理步与平台时钟 | A 恢复后再次进入 |
+| --- | --- | --- | --- | --- | --- |
+| Chrome Web | `99 / 21` | `A OFF X1；B ON E1` | A ON E2；B ON E1 | `317 / 317 / 1516.667 → 317 / 317 / 1516.667` | Tick `368`，E2 X1 |
+| Electron 开发版 | `105 / 20` | `A OFF X1；B ON E1` | A ON E2；B ON E1 | `311 / 311 / 1466.667 → 311 / 311 / 1466.667` | Tick `362`，E2 X1 |
+| 仓库外独立生产包 | `113 / 20` | `A OFF X1；B ON E1` | A ON E2；B ON E1 | `325 / 325 / 1533.333 → 325 / 325 / 1533.333` | Tick `375`，E2 X1 |
+
+三端隐藏／恢复前后 A 的 `enterCount=1 / exitCount=0`、占用步数和平台时钟均保持不变；继续运行后才正常记录退出与再次进入。每端区域内跳跃后支撑仍为 `ground-a`。测试自有 Chrome、Electron 开发版和独立包 PID `14068 / 23080 / 33388` 均退出码 0，清理 PASS。
+
+主要截图位于 [run-2Ch7Xr](test-results/platform/run-2Ch7Xr/)：
+
+- Web：[区域占用](test-results/platform/run-2Ch7Xr/001-web-zone-a-enter-sustained.png)、[A／B 独立重叠](test-results/platform/run-2Ch7Xr/002-web-zones-overlap-independent.png)、[隐藏冻结](test-results/platform/run-2Ch7Xr/004-web-zone-a-hidden-frozen.png)、[恢复](test-results/platform/run-2Ch7Xr/005-web-zone-a-restored.png)、[场景切换清理](test-results/platform/run-2Ch7Xr/008-web-scene-switch-zones-clean.png)。
+- Electron 开发版：[A／B 独立重叠](test-results/platform/run-2Ch7Xr/013-electron-dev-zones-overlap-independent.png)、[最小化冻结](test-results/platform/run-2Ch7Xr/015-electron-dev-zone-a-hidden-frozen.png)、[恢复](test-results/platform/run-2Ch7Xr/016-electron-dev-zone-a-restored.png)、[场景切换清理](test-results/platform/run-2Ch7Xr/019-electron-dev-scene-switch-zones-clean.png)。
+- 仓库外独立生产包：[A／B 独立重叠](test-results/platform/run-2Ch7Xr/024-electron-packaged-zones-overlap-independent.png)、[最小化冻结](test-results/platform/run-2Ch7Xr/026-electron-packaged-zone-a-hidden-frozen.png)、[恢复](test-results/platform/run-2Ch7Xr/027-electron-packaged-zone-a-restored.png)、[场景切换清理](test-results/platform/run-2Ch7Xr/030-electron-packaged-scene-switch-zones-clean.png)。
+
+执行结果：
+
+| 命令／检查 | 状态 | 证据 |
+| --- | --- | --- |
+| `npm.cmd test` | PASS | TypeScript 核心／Renderer 检查、Electron Main 编译及 44/44 自动化测试通过。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建与 Windows x64 免安装目录成功；ASAR SHA-256 为 `C1C3C9B366B1A88F885DF1FE917A898BA6143BADC8C0DDF33FA6F6710F01A3F2`。 |
+| `npm.cmd run test:d05` | PASS | [run-2Ch7Xr](test-results/platform/run-2Ch7Xr/report.json)：Chrome Web、Electron 开发版和仓库外独立生产包均通过，清理失败为空。 |
+| `npm.cmd run electron` | PASS | 正常开发窗口保留给用户体验：PID `47016`、HWND `27723594`，标题“叠城大冒险 | Layered City Adventures”。[实际截图](test-results/d05-20261113/electron-dev-experience.png)及[启动记录](test-results/d05-20261113/experience-launch.json)。 |
+| 既有完整平台长套件 | FAIL（历史保留） | `run-1rk8KM`、`run-4xEAdj`、`run-cYdmZk` 的原始 FAIL 不因 D05 定向 PASS 改写。 |
+| Edge | NOT RUN | 本任务只要求 Chrome 定向三端，不以 Chrome 结果推导 Edge。 |
+| `git diff --check` | PASS | 实际退出 0；仅有 Git 的 LF／CRLF 提示，没有空白错误。 |
+
+报告内当前脚本 SHA-256：`tests/platform-smoke.mjs` 为 `CC47D0B962FB52C947A73D5710EC2802E449D3ED853EB4E4EA6D36D099E498CD`，`tests/graybox-browser.mjs` 为 `B74DE2A82F68DA6DDF67B80B3077C387954B784E6E47C8F26E1CC22E01924FB0`，`tests/player-physics.test.mjs` 为 `2EF42457740C448707A091A3BE5DB79373876FC12C132E1BBC9B1CF73A46FE0E`。D05 只关闭诊断区域生命周期子项，不表示完整 T04、触发器业务、检查点、T01–T06 或首关 MVP 已全部通过；Matter 仍是验证候选。
 
 ## 当前限制
 
-- 最新审查（D01-R3，2026-11-12）：[run-w2kthX](test-results/platform/run-w2kthX/report.json) 的 Chrome Web、Electron 开发及独立包自动化均 PASS，无非预期中断、异常退出或清理失败；Work 已核对当前脚本与 ASAR 哈希。NAME-05 按当前自动化范围通过，早期 FAIL 原样保留。普通窗口独立人工操作因工具定位限制仍 BLOCKED／NOT RUN，Edge 未重测；不宣称 D01-R3 全部完成。当时下一项为 [D03 实体／单向平台](docs/DEVELOPMENT_ROADMAP.md#7-当前任务与持续记录)。
+- 最新执行（D05，2026-11-13）：[run-2Ch7Xr](test-results/platform/run-2Ch7Xr/report.json) 的 Chrome Web、Electron 开发版和仓库外独立包均 PASS，区域状态、暂停冻结、恢复、重置与场景切换符合本任务断言；完整平台长套件的早期 FAIL 保留，Edge 为 NOT RUN。
 - Web 主包约 325 KB gzip，Vite 有体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前角色、静态实体平台、单向平台、水平移动平台和垂直升降平台是工程灰盒；未实现移动单向平台、旋转／挤压、触发器业务、主动下落穿透、任务、NPC、收藏品、事件事务或检查点。调试重置与最小化恢复都不等于 Checkpoint Recovery；不代表完整 T01–T06 或 MVP-G01–G06 已通过。D04-R1 的三端定向 M05 范围已 PASS，但 D04 仍等待 Work 审查，既有完整平台长套件保持 FAIL，Edge 为 NOT RUN，不自动进入 D05。
+- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台和非实体诊断区域是工程灰盒；未实现移动单向平台、旋转／挤压、触发器业务、主动下落穿透、任务、NPC、收藏品、事件事务或检查点。调试重置与最小化恢复都不等于 Checkpoint Recovery；不代表完整 T01–T06 或 MVP-G01–G06 已通过。D05 执行完成并等待 Work 审查，不自动进入 D06。

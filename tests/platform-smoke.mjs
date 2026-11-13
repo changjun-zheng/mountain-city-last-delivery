@@ -14,7 +14,9 @@ import {
   parseBrowserSelection,
   resolveBrowserExecutable,
 } from './browser-selection.mjs';
-import { chooseScene, checkGraybox, checkMovingPlatformLifecycle } from './graybox-browser.mjs';
+import {
+  chooseScene, checkDiagnosticZones, checkGraybox, checkMovingPlatformLifecycle,
+} from './graybox-browser.mjs';
 import { createPlatformObserver } from './platform-observer.mjs';
 
 const TIMEOUT = 15000; // Same readiness budget as before R1; hidden frames are not polled via RAF.
@@ -31,6 +33,9 @@ const evidenceDir = await mkdtemp(resolve('test-results/platform/run-'));
 const injection = cliArgs.find(arg => arg.startsWith('--inject-interruption='))?.split('=')[1];
 if (injection && !['hidden', 'close'].includes(injection)) throw new Error('Unknown interruption injection');
 const focusedD04R1 = cliArgs.includes('--d04-r1');
+const focusedD05 = cliArgs.includes('--d05');
+if (focusedD04R1 && focusedD05) throw new Error('Select only one focused platform scenario');
+const focused = focusedD04R1 || focusedD05;
 const webOnly = cliArgs.includes('--web-only') || Boolean(injection);
 let browserResolution;
 let browserResolutionError;
@@ -40,8 +45,9 @@ try {
   browserResolutionError = error;
 }
 const report = {
-  task: focusedD04R1 ? 'D04-R1' : 'D04',
-  scope: focusedD04R1 ? 'moving-platform-lifecycle' : 'full-platform-regression',
+  task: focusedD04R1 ? 'D04-R1' : focusedD05 ? 'D05' : 'D04',
+  scope: focusedD04R1 ? 'moving-platform-lifecycle'
+    : focusedD05 ? 'diagnostic-zones' : 'full-platform-regression',
   startedAt: new Date().toISOString(), evidenceDir, injection,
   commandLine: cliArgs,
   runtime: { node: process.version, platform: process.platform, arch: process.arch },
@@ -451,7 +457,7 @@ async function checkDesktop(ctx, executablePath, devURL) {
     ctx.monitor.attachBrowser(ctx.browser, context);
     await observe(ctx, page);
     await page.waitForURL(url => url.searchParams.get('platform') === 'windows', { waitUntil: 'load' });
-    await chooseScene(ctx, focusedD04R1 ? 'graybox' : 'diagnostic');
+    await chooseScene(ctx, focused ? 'graybox' : 'diagnostic');
     await loaded(ctx);
     await snapshot(ctx, 'initial-load-before-activation', true);
     const identity = await ctx.windowState();
@@ -469,10 +475,13 @@ async function checkDesktop(ctx, executablePath, devURL) {
       assert.equal((await ctx.windowState()).packaged, true);
       assert.ok(page.url().startsWith('app://game/'));
     }
-    await (focusedD04R1 ? activeSceneReady(ctx) : visibleReady(ctx));
+    await (focused ? activeSceneReady(ctx) : visibleReady(ctx));
     await snapshot(ctx, 'initial-visible-running');
     if (focusedD04R1) {
       await checkMovingPlatformLifecycle(ctx, (name, data) => note(ctx.label, 'd04-r1-' + name, data),
+        (phase, screenshot) => snapshot(ctx, phase, screenshot));
+    } else if (focusedD05) {
+      await checkDiagnosticZones(ctx, (name, data) => note(ctx.label, 'd05-' + name, data),
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else {
       await hiddenStartup(ctx);
@@ -568,12 +577,15 @@ async function checkWeb(ctx, devURL) {
     ctx.hide = () => ctx.monitor.hide(ctx.rawHide);
     await page.goto(devURL);
     if (injection) return injectInterruption(ctx);
-    await chooseScene(ctx, focusedD04R1 ? 'graybox' : 'diagnostic');
+    await chooseScene(ctx, focused ? 'graybox' : 'diagnostic');
     await loaded(ctx);
     await snapshot(ctx, 'initial-load-before-activation');
-    await (focusedD04R1 ? activeSceneReady(ctx) : visibleReady(ctx));
+    await (focused ? activeSceneReady(ctx) : visibleReady(ctx));
     if (focusedD04R1) {
       await checkMovingPlatformLifecycle(ctx, (name, data) => note(ctx.label, 'd04-r1-' + name, data),
+        (phase, screenshot) => snapshot(ctx, phase, screenshot));
+    } else if (focusedD05) {
+      await checkDiagnosticZones(ctx, (name, data) => note(ctx.label, 'd05-' + name, data),
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else {
       await hiddenStartup(ctx);
@@ -693,7 +705,9 @@ async function runCase(label, fn) {
     result.status = 'PASS';
     console.log('PASS', label, focusedD04R1
       ? 'D04-R1 moving-platform hidden/minimized lifecycle; owned process exited'
-      : 'loaded / scene / running; hidden start; 2 hide cycles; 3 restarts; graybox controls / collisions / pause; owned process exited');
+      : focusedD05
+        ? 'D05 diagnostic-zone enter/occupancy/exit lifecycle; owned process exited'
+        : 'loaded / scene / running; hidden start; 2 hide cycles; 3 restarts; graybox controls / collisions / pause; owned process exited');
   } catch (error) {
     Object.assign(result, { status: ['ENOENT', 'ENVIRONMENT_PRECONDITION'].includes(error.code) ? 'BLOCKED' : 'FAIL', stage: ctx.stage,
       expectedFailure: Boolean(injection), interruption: ctx.interruption, error: String(error), stack: error.stack });

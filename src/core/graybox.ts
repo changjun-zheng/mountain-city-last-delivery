@@ -8,7 +8,7 @@ export type GrayboxPhysics = {
   readonly steps: number;
   readonly timestamp: number;
   drive(vx: number, vy: number): void;
-  step(deltaMs: number): void;
+  step(deltaMs: number, tick: number): void;
   reset(): void;
 };
 
@@ -16,10 +16,10 @@ export function createGrayboxCore(physics: GrayboxPhysics) {
   const motor = new PlayerMotor();
   const availabilityOwner = Symbol('input-availability');
   let resets = 0;
-  const simulation = new FixedStepSimulation(GRAYBOX_SIMULATION, deltaMs => {
+  const simulation = new FixedStepSimulation(GRAYBOX_SIMULATION, (deltaMs, tick) => {
     const velocity = motor.beforeStep(physics.state, deltaMs);
     physics.drive(velocity.vx, velocity.vy);
-    physics.step(deltaMs); // Exactly one Matter update per actual SimulationTick.
+    physics.step(deltaMs, tick); // Exactly one Matter update per actual SimulationTick.
     motor.afterStep(physics.state, deltaMs);
   });
   const lifecycle = new RuntimeLifecycleController(simulation);

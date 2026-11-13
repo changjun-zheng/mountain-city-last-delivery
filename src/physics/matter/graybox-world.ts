@@ -14,10 +14,23 @@ export const GRAYBOX_SIZE = { width: 2000, height: 680 };
 export const ONE_WAY_PLATFORM: Readonly<{
   label: string; x: number; y: number; width: number; height: number;
 }> = Object.freeze({ label: 'one-way-platform-a', x: 1075, y: 419, width: 70, height: 18 });
+export const DIAGNOSTIC_ZONE_PROTOTYPES = Object.freeze([
+  Object.freeze({ label: 'diagnostic-zone-a', x: 400, y: 462, width: 120, height: 76 }),
+  Object.freeze({ label: 'diagnostic-zone-b', x: 450, y: 462, width: 120, height: 76 }),
+]);
 export type MovingPlatformSnapshot = Readonly<{
   label: string; axis: 'horizontal' | 'vertical';
   x: number; y: number; width: number; height: number;
   vx: number; vy: number; direction: -1 | 1; phase: number; cycle: number;
+}>;
+export type DiagnosticZoneTransition = Readonly<{
+  kind: 'enter' | 'exit'; tick: number; diagnosticOrdinal: number;
+}>;
+export type DiagnosticZoneSnapshot = Readonly<{
+  label: string; x: number; y: number; width: number; height: number;
+  occupied: boolean; occupiedSteps: number; lastOccupiedSteps: number;
+  enterCount: number; exitCount: number; lastTransitionTick: number | null;
+  recentTransitions: readonly DiagnosticZoneTransition[];
 }>;
 export type MatterGrayboxDiagnostics = Readonly<{
   oneWayCollisionEnabled: boolean;
@@ -25,10 +38,14 @@ export type MatterGrayboxDiagnostics = Readonly<{
   movingPlatforms: readonly MovingPlatformSnapshot[];
   supportRelativeX: number | null;
   supportRelativeY: number | null;
+  diagnosticZones: readonly DiagnosticZoneSnapshot[];
+  diagnosticBaselineTick: number;
+  diagnosticBaselineCount: number;
 }>;
 
 const PLAYER_CATEGORY = 0x0002;
 const ONE_WAY_CATEGORY = 0x0004;
+const DIAGNOSTIC_ZONE_CATEGORY = 0x0008;
 // Matter contact slop can leave the body about 2 px inside the top face on the first supported tick.
 const TOP_TOLERANCE_PX = 4;
 const MOTION_EPSILON = 0.01;
@@ -60,12 +77,24 @@ type MovingPlatformRuntime = {
   phase: number;
   cycle: number;
 };
+type DiagnosticZoneRuntime = {
+  readonly definition: (typeof DIAGNOSTIC_ZONE_PROTOTYPES)[number];
+  readonly body: MatterJS.BodyType;
+  occupied: boolean;
+  occupiedSteps: number;
+  lastOccupiedSteps: number;
+  enterCount: number;
+  exitCount: number;
+  lastTransitionTick: number | null;
+  readonly recentTransitions: DiagnosticZoneTransition[];
+};
 
 export class MatterGrayboxWorld implements GrayboxPhysics {
   readonly terrain: MatterJS.BodyType[] = [];
   readonly player: MatterJS.BodyType;
   readonly foot: MatterJS.BodyType;
   readonly oneWayPlatform: MatterJS.BodyType;
+  readonly diagnosticZoneBodies: MatterJS.BodyType[] = [];
   readonly #matter: MatterLibrary;
   readonly #engine: MatterJS.Engine;
   readonly #advance: (deltaMs: number) => void;
@@ -73,7 +102,13 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   readonly #oneWay: OneWayState;
   readonly #movingPlatforms: MovingPlatformRuntime[];
   readonly #movingByLabel: Map<string, MovingPlatformRuntime>;
+  readonly #diagnosticZones: DiagnosticZoneRuntime[];
+  readonly #diagnosticZoneByLabel: Map<string, DiagnosticZoneRuntime>;
   #platformClockMs = 0;
+  #diagnosticBaselineTick = 0;
+  #diagnosticBaselineCount = 0;
+  #diagnosticOrdinal = 0;
+  #lastSimulationTick = 0;
   #driveVelocity = { x: 0, y: 0 };
   #carriedBy?: MovingPlatformRuntime;
   #state: PlayerState = { x: 80, y: 472, vx: 0, vy: 0, grounded: false,
@@ -127,6 +162,23 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       };
     });
     this.#movingByLabel = new Map(this.#movingPlatforms.map(platform => [platform.definition.label, platform]));
+    this.#diagnosticZones = DIAGNOSTIC_ZONE_PROTOTYPES.map(definition => {
+      const body = matter.Bodies.rectangle(
+        definition.x, definition.y, definition.width, definition.height,
+        {
+          isStatic: true, isSensor: true, label: definition.label,
+          collisionFilter: { category: DIAGNOSTIC_ZONE_CATEGORY, mask: PLAYER_CATEGORY, group: 0 },
+        },
+      );
+      this.diagnosticZoneBodies.push(body);
+      return {
+        definition, body, occupied: false, occupiedSteps: 0, lastOccupiedSteps: 0,
+        enterCount: 0, exitCount: 0, lastTransitionTick: null, recentTransitions: [],
+      };
+    });
+    this.#diagnosticZoneByLabel = new Map(
+      this.#diagnosticZones.map(zone => [zone.definition.label, zone]),
+    );
     const slope = matter.Bodies.fromVertices(0, 0, [[
       { x: 0, y: 120 }, { x: 300, y: 0 }, { x: 300, y: 180 }, { x: 0, y: 180 },
     ]], { isStatic: true, friction: 1, label: 'continuous-slope' });
@@ -142,7 +194,10 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       collisionFilter: { category: PLAYER_CATEGORY, mask: -1, group: 0 },
     });
     // The sensor is a query-only independent region: it never blocks or changes player mass.
-    for (const body of [...this.terrain, ...this.#movingPlatforms.map(platform => platform.body), this.player]) {
+    for (const body of [
+      ...this.terrain, ...this.#movingPlatforms.map(platform => platform.body),
+      ...this.diagnosticZoneBodies, this.player,
+    ]) {
       matter.Composite.add(engine.world as unknown as MatterJS.CompositeType, body);
     }
   }
@@ -157,7 +212,8 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     }
   }
 
-  step(deltaMs: number): void {
+  step(deltaMs: number, tick: number): void {
+    this.#lastSimulationTick = tick;
     const previousSupport = this.#movingByLabel.get(this.#state.support);
     this.#advanceMovingPlatforms(deltaMs);
     this.#matter.Body.setVelocity(this.player, {
@@ -209,6 +265,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     this.#state = { x: body.position.x, y: body.position.y, vx, vy,
       worldVx: vx + carriedVx, worldVy: vy + carriedVy,
       supportVx, supportVy, grounded: Boolean(support), normalX, normalY, support, wall, ceiling };
+    this.#updateDiagnosticZones(tick);
   }
 
   reset(): void {
@@ -245,6 +302,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     this.#state = { x: 80, y: 472, vx: 0, vy: 0,
       worldVx: 0, worldVy: 0, supportVx: 0, supportVy: 0, grounded: false,
       normalX: 0, normalY: -1, support: '', wall: false, ceiling: false };
+    this.#synchronizeDiagnosticBaseline();
   }
   get state(): PlayerState { return this.#state; }
   get steps(): number { return this.#steps; }
@@ -266,6 +324,22 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       cycle: platform.cycle,
     }));
   }
+  get diagnosticZones(): readonly DiagnosticZoneSnapshot[] {
+    return this.#diagnosticZones.map(zone => ({
+      label: zone.definition.label,
+      x: zone.definition.x,
+      y: zone.definition.y,
+      width: zone.definition.width,
+      height: zone.definition.height,
+      occupied: zone.occupied,
+      occupiedSteps: zone.occupiedSteps,
+      lastOccupiedSteps: zone.lastOccupiedSteps,
+      enterCount: zone.enterCount,
+      exitCount: zone.exitCount,
+      lastTransitionTick: zone.lastTransitionTick,
+      recentTransitions: zone.recentTransitions.map(transition => ({ ...transition })),
+    }));
+  }
   get diagnostics(): MatterGrayboxDiagnostics {
     const support = this.#movingByLabel.get(this.#state.support);
     return {
@@ -274,7 +348,57 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       movingPlatforms: this.movingPlatforms,
       supportRelativeX: support ? this.#state.x - support.body.position.x : null,
       supportRelativeY: support ? this.#state.y - support.body.position.y : null,
+      diagnosticZones: this.diagnosticZones,
+      diagnosticBaselineTick: this.#diagnosticBaselineTick,
+      diagnosticBaselineCount: this.#diagnosticBaselineCount,
     };
+  }
+
+  #updateDiagnosticZones(tick: number): void {
+    const occupiedLabels = new Set(this.#matter.Query.collides(
+      this.player, this.diagnosticZoneBodies,
+    ).map(collision => collision.bodyA === this.player ? collision.bodyB.label : collision.bodyA.label));
+    for (const zone of this.#diagnosticZones) {
+      const occupied = occupiedLabels.has(zone.definition.label);
+      if (occupied === zone.occupied) {
+        if (occupied) zone.occupiedSteps++;
+        continue;
+      }
+      zone.occupied = occupied;
+      zone.lastTransitionTick = tick;
+      if (occupied) {
+        zone.enterCount++;
+        zone.occupiedSteps = 1;
+        zone.lastOccupiedSteps = 0;
+      } else {
+        zone.exitCount++;
+        zone.lastOccupiedSteps = zone.occupiedSteps;
+        zone.occupiedSteps = 0;
+      }
+      zone.recentTransitions.push({
+        kind: occupied ? 'enter' : 'exit',
+        tick,
+        diagnosticOrdinal: ++this.#diagnosticOrdinal,
+      });
+      if (zone.recentTransitions.length > 8) zone.recentTransitions.shift();
+    }
+  }
+
+  #synchronizeDiagnosticBaseline(): void {
+    const occupiedLabels = new Set(this.#matter.Query.collides(
+      this.player, this.diagnosticZoneBodies,
+    ).map(collision => collision.bodyA === this.player ? collision.bodyB.label : collision.bodyA.label));
+    for (const zone of this.#diagnosticZones) {
+      zone.occupied = occupiedLabels.has(zone.definition.label);
+      zone.occupiedSteps = zone.occupied ? 1 : 0;
+      zone.lastOccupiedSteps = 0;
+      zone.enterCount = 0;
+      zone.exitCount = 0;
+      zone.lastTransitionTick = null;
+      zone.recentTransitions.length = 0;
+    }
+    this.#diagnosticBaselineTick = this.#lastSimulationTick;
+    this.#diagnosticBaselineCount++;
   }
 
   #updateOneWayCollision(): void {

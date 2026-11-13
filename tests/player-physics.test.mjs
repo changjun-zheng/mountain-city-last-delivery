@@ -36,6 +36,20 @@ function placeOnMovingPlatform(label) {
   return { ...instance, platform };
 }
 
+function diagnosticZone(world, suffix) {
+  const zone = world.diagnostics.diagnosticZones.find(item => item.label === `diagnostic-zone-${suffix}`);
+  assert.ok(zone, `Missing diagnostic zone ${suffix}`);
+  return zone;
+}
+
+function untilZone(instance, predicate, max = 300) {
+  for (let i = 0; i < max; i++) {
+    if (predicate()) return;
+    instance.step();
+  }
+  assert.fail('Diagnostic zone condition not reached: ' + JSON.stringify(instance.world.diagnostics.diagnosticZones));
+}
+
 test('Matter is stepped exactly once per fixed tick; ground supports the body', () => {
   const { core, step } = fixture();
   step(120);
@@ -539,4 +553,169 @@ test('D04 M06 reset restores platform origin and clears carry state without rese
   });
   moving.step(2);
   assert.equal(moving.core.snapshot.player.support, 'moving-horizontal-a');
+});
+
+test('D05 G01 zone enter, sustained occupancy, exit and re-entry are edge-triggered', () => {
+  const instance = fixture();
+  assert.equal(diagnosticZone(instance.world, 'a').occupied, false);
+  instance.core.key('KeyD', true);
+  untilZone(instance, () => diagnosticZone(instance.world, 'a').occupied);
+  const entered = diagnosticZone(instance.world, 'a');
+  assert.equal(entered.enterCount, 1);
+  assert.equal(entered.exitCount, 0);
+  instance.step(30);
+  const sustained = diagnosticZone(instance.world, 'a');
+  assert.equal(sustained.occupied, true);
+  assert.equal(sustained.enterCount, 1);
+  assert.ok(sustained.occupiedSteps > entered.occupiedSteps);
+  untilZone(instance, () => !diagnosticZone(instance.world, 'a').occupied);
+  assert.equal(diagnosticZone(instance.world, 'a').exitCount, 1);
+  instance.core.key('KeyD', false);
+  instance.core.key('KeyA', true);
+  untilZone(instance, () => diagnosticZone(instance.world, 'a').occupied);
+  const reentered = diagnosticZone(instance.world, 'a');
+  assert.equal(reentered.enterCount, 2);
+  assert.equal(reentered.exitCount, 1);
+});
+
+test('D05 G02 overlapping zones change independently and share the real transition Tick', () => {
+  const instance = fixture(430, 478, 0);
+  instance.step(); // Establish the simulation time baseline.
+  untilZone(instance, () =>
+    diagnosticZone(instance.world, 'a').occupied && diagnosticZone(instance.world, 'b').occupied);
+  const enteredA = diagnosticZone(instance.world, 'a');
+  const enteredB = diagnosticZone(instance.world, 'b');
+  assert.equal(enteredA.enterCount, 1);
+  assert.equal(enteredB.enterCount, 1);
+  assert.equal(enteredA.lastTransitionTick, instance.core.snapshot.tick);
+  assert.equal(enteredB.lastTransitionTick, enteredA.lastTransitionTick);
+  instance.step(20);
+  assert.equal(diagnosticZone(instance.world, 'a').enterCount, 1);
+  assert.equal(diagnosticZone(instance.world, 'b').enterCount, 1);
+
+  M.Body.setPosition(instance.world.player, { x: 430, y: 100 });
+  M.Body.setVelocity(instance.world.player, { x: 0, y: 0 });
+  instance.step();
+  const exitedA = diagnosticZone(instance.world, 'a');
+  const exitedB = diagnosticZone(instance.world, 'b');
+  assert.equal(exitedA.occupied, false);
+  assert.equal(exitedB.occupied, false);
+  assert.equal(exitedA.exitCount, 1);
+  assert.equal(exitedB.exitCount, 1);
+  assert.equal(exitedA.lastTransitionTick, instance.core.snapshot.tick);
+  assert.equal(exitedB.lastTransitionTick, exitedA.lastTransitionTick);
+});
+
+test('D05 G03 zone sensors neither block nor support and the foot region cannot trigger occupancy', () => {
+  const standing = fixture(430);
+  standing.step(10);
+  assert.equal(diagnosticZone(standing.world, 'a').occupied, true);
+  assert.equal(standing.core.snapshot.player.support, 'ground-a');
+  assert.equal(standing.core.snapshot.player.grounded, true);
+  for (const body of standing.world.diagnosticZoneBodies) {
+    assert.equal(body.isSensor, true);
+    assert.equal(standing.world.terrain.includes(body), false);
+  }
+  const beforeX = standing.core.snapshot.player.x;
+  standing.core.key('KeyD', true);
+  standing.step(5);
+  assert.ok(standing.core.snapshot.player.x > beforeX, 'Diagnostic zones must not block horizontal movement');
+  assert.equal(standing.core.snapshot.player.support, 'ground-a');
+
+  const airborne = fixture(405, 398, 0);
+  airborne.step();
+  airborne.step();
+  assert.equal(diagnosticZone(airborne.world, 'a').occupied, false);
+  assert.equal(diagnosticZone(airborne.world, 'b').occupied, false);
+  assert.equal(airborne.core.snapshot.player.grounded, false);
+  airborne.core.key('Space', true);
+  airborne.step();
+  assert.equal(airborne.core.snapshot.player.jumps, 0,
+    'Foot-region proximity without player-body overlap cannot grant jump eligibility');
+});
+
+test('D05 G04 pause freezes zone state; resume neither repeats enter nor catches up', () => {
+  const instance = fixture();
+  instance.core.key('KeyD', true);
+  untilZone(instance, () => diagnosticZone(instance.world, 'a').occupied);
+  instance.core.key('KeyD', false);
+  const frozenZones = instance.world.diagnostics.diagnosticZones;
+  const frozenTick = instance.core.snapshot.tick;
+  const owner = Symbol(), token = instance.core.lifecycle.acquire(owner, Symbol());
+  instance.core.frame(60000);
+  assert.equal(instance.core.snapshot.tick, frozenTick);
+  assert.deepEqual(instance.world.diagnostics.diagnosticZones, frozenZones);
+  instance.core.lifecycle.release(owner, token);
+  instance.core.frame(120000);
+  assert.deepEqual(instance.world.diagnostics.diagnosticZones, frozenZones);
+  instance.core.frame(120000 + instance.core.config.fixedDeltaMs);
+  const resumedA = diagnosticZone(instance.world, 'a');
+  assert.equal(resumedA.enterCount, 1);
+  assert.equal(resumedA.occupied, true);
+  assert.equal(resumedA.occupiedSteps, frozenZones.find(zone => zone.label === 'diagnostic-zone-a').occupiedSteps + 1);
+
+  M.Body.setPosition(instance.world.player, { x: 600, y: 478 });
+  M.Body.setVelocity(instance.world.player, { x: 0, y: 0 });
+  instance.core.frame(120000 + instance.core.config.fixedDeltaMs * 2);
+  assert.equal(diagnosticZone(instance.world, 'a').exitCount, 1);
+  M.Body.setPosition(instance.world.player, { x: 400, y: 478 });
+  M.Body.setVelocity(instance.world.player, { x: 0, y: 0 });
+  instance.core.frame(120000 + instance.core.config.fixedDeltaMs * 3);
+  assert.equal(diagnosticZone(instance.world, 'a').enterCount, 2);
+});
+
+test('D05 G05 reset synchronizes zone baseline without fake walk events or Tick reset', () => {
+  const instance = fixture(430);
+  instance.step(5);
+  const before = diagnosticZone(instance.world, 'a');
+  assert.equal(before.occupied, true);
+  const priorOrdinal = before.recentTransitions.at(-1).diagnosticOrdinal;
+  const tickBeforeReset = instance.core.snapshot.tick;
+  instance.core.reset();
+  const resetA = diagnosticZone(instance.world, 'a');
+  const resetB = diagnosticZone(instance.world, 'b');
+  assert.equal(instance.core.snapshot.tick, tickBeforeReset);
+  assert.equal(instance.core.snapshot.player.x, 80);
+  assert.equal(resetA.occupied, false);
+  assert.equal(resetB.occupied, false);
+  assert.equal(resetA.enterCount, 0);
+  assert.equal(resetA.exitCount, 0);
+  assert.deepEqual(resetA.recentTransitions, []);
+  assert.equal(instance.world.diagnostics.diagnosticBaselineCount, 1);
+  assert.equal(instance.world.diagnostics.diagnosticBaselineTick, tickBeforeReset);
+  instance.step(30);
+  assert.equal(diagnosticZone(instance.world, 'a').occupied, false);
+  instance.core.key('KeyD', true);
+  untilZone(instance, () => diagnosticZone(instance.world, 'a').occupied);
+  const reentered = diagnosticZone(instance.world, 'a');
+  assert.equal(reentered.enterCount, 1);
+  assert.equal(reentered.exitCount, 0);
+  assert.ok(reentered.recentTransitions.at(-1).diagnosticOrdinal > priorOrdinal,
+    'Diagnostic ordinals remain monotonic across a debug baseline reset');
+});
+
+test('D05 G06 bounded catch-up checks actual steps only and discarded time creates no zone records', () => {
+  const instance = fixture(325, 478, 0);
+  instance.core.frame(0);
+  instance.core.key('KeyD', true);
+  instance.core.frame(300);
+  const entered = diagnosticZone(instance.world, 'a');
+  assert.equal(entered.enterCount, 1);
+  assert.equal(instance.core.snapshot.tick, instance.core.config.maxStepsPerFrame);
+  assert.equal(instance.core.snapshot.physicsSteps, instance.core.snapshot.tick);
+  assert.ok(entered.recentTransitions[0].tick >= 1);
+  assert.ok(entered.recentTransitions[0].tick <= instance.core.snapshot.tick);
+  assert.ok(instance.core.snapshot.discardedMs > 0);
+
+  const enterCount = entered.enterCount;
+  const transitionCount = entered.recentTransitions.length;
+  const occupiedSteps = entered.occupiedSteps;
+  const discardedBefore = instance.core.snapshot.discardedMs;
+  instance.core.frame(300 + 10000);
+  const advanced = diagnosticZone(instance.world, 'a');
+  assert.equal(advanced.enterCount, enterCount);
+  assert.equal(advanced.recentTransitions.length, transitionCount);
+  assert.equal(advanced.occupiedSteps, occupiedSteps + instance.core.config.maxStepsPerFrame);
+  assert.ok(instance.core.snapshot.discardedMs > discardedBefore);
+  assert.equal(instance.core.snapshot.physicsSteps, instance.core.snapshot.tick);
 });

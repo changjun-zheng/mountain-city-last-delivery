@@ -41,6 +41,18 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
           label(1350, 350, '连续坡面');
           label(1618, 266, '水平移动平台 ↔');
           label(1848, 190, '垂直升降平台 ↕');
+          const zoneVisuals = new Map(world.diagnostics.diagnosticZones.map((zone, index) => {
+            const color = index === 0 ? 0x4fc3f7 : 0xf06292;
+            const rectangle = this.add.rectangle(
+              zone.x, zone.y, zone.width, zone.height, color, 0.06,
+            ).setStrokeStyle(2, color);
+            const text = this.add.text(
+              zone.x - zone.width / 2 + 5, zone.y - zone.height / 2 + 4 + index * 18,
+              `${zone.label}\nOFF E0 X0`,
+              { fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '13px', color: '#eef8fb' },
+            );
+            return [zone.label, { rectangle, text, color }];
+          }));
           const movingVisuals = new Map(world.movingPlatforms.map(platformState => {
             const horizontal = platformState.axis === 'horizontal';
             return [platformState.label, this.add.rectangle(
@@ -54,7 +66,7 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
           const camera = this.cameras.main;
           camera.setBounds(0, 0, 2000, 680);
           camera.startFollow(player, true, 0.15, 0.15);
-          this.add.text(20, 16, `${PROJECT_IDENTITY.title} · ${PROJECT_IDENTITY.subtitle}\nM1.2.2 物理灰盒  /  ${platform}\nA/D 或 ←/→ 移动 · Space 跳跃（短按低跳／长按高跳）\n右侧坡面上方：橙色水平往返／青色垂直升降 · R 重置\nR /「重置灰盒」回到出生点 · 失焦恢复后先松开 Space 再按\nMatter 优先验证中；非最终物理方案。所有数值为原型。`, {
+          this.add.text(20, 16, `${PROJECT_IDENTITY.title} · ${PROJECT_IDENTITY.subtitle}\nM1.2.2 物理灰盒  /  ${platform}\nA/D 或 ←/→ 移动 · Space 跳跃（短按低跳／长按高跳）\n蓝色 A／粉色 B 诊断区域局部重叠：只记录，不阻挡／不提供支撑\n右侧坡面上方：橙色水平往返／青色垂直升降 · R 重置\nR /「重置灰盒」回到出生点 · 失焦恢复后先松开 Space 再按\nMatter 优先验证中；非最终物理方案。所有数值为原型。`, {
             fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '17px', color: '#f4eddc',
             backgroundColor: '#152632', padding: { x: 8, y: 6 },
           }).setScrollFactor(0).setDepth(5);
@@ -63,6 +75,15 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
             const state = core.snapshot.player;
             for (const platformState of world.movingPlatforms) {
               movingVisuals.get(platformState.label)?.setPosition(platformState.x, platformState.y);
+            }
+            for (const zone of world.diagnostics.diagnosticZones) {
+              const visual = zoneVisuals.get(zone.label);
+              visual?.rectangle.setFillStyle(visual.color, zone.occupied ? 0.18 : 0.06);
+              visual?.rectangle.setStrokeStyle(zone.occupied ? 4 : 2, visual.color);
+              visual?.text.setText(
+                `${zone.label}\n${zone.occupied ? 'ON' : 'OFF'} E${zone.enterCount} X${zone.exitCount} ` +
+                `${zone.occupied ? zone.occupiedSteps : zone.lastOccupiedSteps}t`,
+              );
             }
             player.setPosition(state.x, state.y);
             player.setFillStyle(state.controlAllowed ? 0xf0bd71 : 0xa5adb3);

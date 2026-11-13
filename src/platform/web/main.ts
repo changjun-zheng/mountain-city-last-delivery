@@ -45,10 +45,19 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       if (horizontal && vertical) common.push(
         `Platforms ${grayboxDiagnostics.platformClockMs.toFixed(1)} ms | H x ${horizontal.x.toFixed(1)} phase ${horizontal.phase.toFixed(2)} ${horizontal.direction > 0 ? '→' : '←'} | V y ${vertical.y.toFixed(1)} phase ${vertical.phase.toFixed(2)} ${vertical.direction > 0 ? '↓' : '↑'}`,
       );
+      const zones = ['diagnostic-zone-a', 'diagnostic-zone-b']
+        .map(label => grayboxDiagnostics.diagnosticZones.find(zone => zone.label === label))
+        .filter(zone => zone !== undefined);
+      if (zones.length) common.push(
+        `Zones baseline #${grayboxDiagnostics.diagnosticBaselineCount} @Tick ${grayboxDiagnostics.diagnosticBaselineTick} | ` +
+        zones.map(zone => `${zone.label.endsWith('-a') ? 'A' : 'B'} ${zone.occupied ? 'ON' : 'OFF'} ${zone.occupied ? zone.occupiedSteps : zone.lastOccupiedSteps}t E${zone.enterCount} X${zone.exitCount}`).join(' | '),
+      );
     }
     common.push(`Matter steps ${sample.physicsSteps} | Input ${p.controlAllowed ? 'ON' : 'LOCKED'} | ${p.needsRelease ? '请先松开 Space' : 'Space READY'}${p.y > 700 ? ' | 已掉出场景，请按 R 重置' : ''}`);
     const horizontal = grayboxDiagnostics?.movingPlatforms.find(platform => platform.axis === 'horizontal');
     const vertical = grayboxDiagnostics?.movingPlatforms.find(platform => platform.axis === 'vertical');
+    const zoneA = grayboxDiagnostics?.diagnosticZones.find(zone => zone.label === 'diagnostic-zone-a');
+    const zoneB = grayboxDiagnostics?.diagnosticZones.find(zone => zone.label === 'diagnostic-zone-b');
     Object.assign(diagnostics.dataset, {
       x: String(p.x), y: String(p.y), vx: String(p.vx), vy: String(p.vy),
       worldVx: String(p.worldVx), worldVy: String(p.worldVy),
@@ -68,6 +77,22 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       movingVPhase: vertical ? String(vertical.phase) : '', movingVCycle: vertical ? String(vertical.cycle) : '',
       supportRelativeX: grayboxDiagnostics?.supportRelativeX == null ? '' : String(grayboxDiagnostics.supportRelativeX),
       supportRelativeY: grayboxDiagnostics?.supportRelativeY == null ? '' : String(grayboxDiagnostics.supportRelativeY),
+      zoneBaselineTick: grayboxDiagnostics ? String(grayboxDiagnostics.diagnosticBaselineTick) : '',
+      zoneBaselineCount: grayboxDiagnostics ? String(grayboxDiagnostics.diagnosticBaselineCount) : '',
+      zoneAOccupied: zoneA ? String(zoneA.occupied) : '',
+      zoneAOccupiedSteps: zoneA ? String(zoneA.occupiedSteps) : '',
+      zoneALastOccupiedSteps: zoneA ? String(zoneA.lastOccupiedSteps) : '',
+      zoneAEnter: zoneA ? String(zoneA.enterCount) : '',
+      zoneAExit: zoneA ? String(zoneA.exitCount) : '',
+      zoneALastTick: zoneA?.lastTransitionTick == null ? '' : String(zoneA.lastTransitionTick),
+      zoneATransitions: zoneA ? zoneA.recentTransitions.map(record => `${record.kind}:${record.tick}:${record.diagnosticOrdinal}`).join(',') : '',
+      zoneBOccupied: zoneB ? String(zoneB.occupied) : '',
+      zoneBOccupiedSteps: zoneB ? String(zoneB.occupiedSteps) : '',
+      zoneBLastOccupiedSteps: zoneB ? String(zoneB.lastOccupiedSteps) : '',
+      zoneBEnter: zoneB ? String(zoneB.enterCount) : '',
+      zoneBExit: zoneB ? String(zoneB.exitCount) : '',
+      zoneBLastTick: zoneB?.lastTransitionTick == null ? '' : String(zoneB.lastTransitionTick),
+      zoneBTransitions: zoneB ? zoneB.recentTransitions.map(record => `${record.kind}:${record.tick}:${record.diagnosticOrdinal}`).join(',') : '',
     });
   }
   diagnostics.textContent = common.join('\n');
