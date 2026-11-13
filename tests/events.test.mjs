@@ -265,7 +265,7 @@ test('D09-A1 A04 safe integer boundary rejects exhaustion without wrapping or re
   assert.throws(() => contextWithUuid(UUID_A, max + 1), RangeError);
 });
 
-test('D09-A1 A05 created events remain Pending; later lifecycle and processing stay absent', () => {
+test('D09-A1 A05 creation remains Pending and has no automatic dispatch side effect', () => {
   const { coordinator } = coordinatorWithUuid(UUID_A);
   const created = coordinator.create(request());
   assert.equal(created.status, 'created');
@@ -275,6 +275,8 @@ test('D09-A1 A05 created events remain Pending; later lifecycle and processing s
   assert.deepEqual(snapshot.inboxEvents.map(event => event.status), ['pending']);
   assert.equal(snapshot.lastFailure, undefined);
   assert.equal('process' in coordinator, false);
-  assert.equal('dispatch' in coordinator, false);
+  assert.equal(typeof coordinator.dispatch, 'function');
   assert.equal('acknowledge' in coordinator, false);
+  assert.equal(snapshot.lastDispatchTick, null);
+  assert.equal(snapshot.dispatchBlocked, false);
 });

@@ -164,6 +164,20 @@ M1.1.2 交付时结构为 src/core/game.ts（启动数据与共享入口）、sr
 
 故障注入覆盖校验、候选准备、登记准备、Inbox 准备及三个提交点。可确认失败会回滚编号、登记和队列，下一次创建仍使用未消耗编号；无法确认回滚时后续创建被阻断，快照提供 `rollback-unconfirmed` 错误。A01–A05 全部 PASS，`npm.cmd test` 为 `66/66` PASS，生产构建成功。该模块尚未接入宿主，GUI／三端事件运行、分发、Processing／Completed、Producer Acknowledgement、水位线、命令、事务、检查点和存档均为 NOT RUN。设计中的 CONFIRMED 规则未被工程数据结构改写；Matter 仍是候选，当前等待 Work 审查，不进入 D09 后续分段。
 
+### D09-A1 Work 审查与 D09-A2 任务
+
+2026-11-13：Work 按当前 `3f27478` 核对事件创建、生命周期登记、有限 Inbox、故障回滚和安全整数测试，源码／测试哈希与报告一致，本轮重跑类型检查、Electron Main 编译及 66/66 单测 PASS，未重跑 GUI 或生产构建。D09-A1 在纯核心范围收口，模块尚未进入现有玩法包入口，ASAR 与 D08 一致并非宿主事件运行通过。
+
+下一项 D09-A2 只增量实现固定阶段单轮分发、Pending 实际分发前转 Processing、原事件防重及异常保留。Accepted → Completed 仅用明确标注的命令接收测试替身验证，不等于真实命令／事务已接入；生产者确认、退役水位线、实际业务接线与检查点仍后续实施。范围与 B01–B05 验收见[路线图当前任务](DEVELOPMENT_ROADMAP.md#7-当前任务与持续记录)，不改正式规则或最终技术选型。
+
+### D09-A2 工程执行状态
+
+2026-11-13：D09-A2 已在现有创建内核上完成纯核心固定阶段分发。`EventCreationCoordinator.dispatch()` 只接受与运行上下文一致的 `coordination` 阶段和严格递增的实际 SimulationTick；阶段进入时固定 Inbox 批次，逐事件在实际调用 handler 前执行 Pending → Processing。handler 产生的后生事件只进入 Inbox，下一合法阶段才处理；递归分发与重复／倒退阶段不新增轮次。
+
+只有 handler 正常结束且明确注入的测试命令接收替身返回 Accepted 后才执行 Processing → Completed，测试命令引用与 Event ID 独立。`probeRedelivery()` 校验 Event ID、Runtime Instance UUID、type、payload 和当前生命周期，Processing／Completed 后不会因 Inbox 移出而再次执行；其他 runtime、载荷篡改与未知事件均拒绝。handler、状态转换或接收失败会保留当前事件与未处理项、记录可检查失败并阻断后续分发，不自动重试。Pending／Processing／Completed 记录不再自动清理，有限历史容量达到上限时拒绝新建且不消耗 Event ID。
+
+B01–B05 核心／模块集成测试及原 A01–A05 均 PASS，`npm.cmd test` 为 `75/75` PASS，类型检查、Electron Main 编译和生产构建成功。当前 Web／Electron 宿主仍未接入事件协调器，因此 Chrome／Electron 业务事件三端运行、Edge、真实 Command ID Generator、命令接收、事务意图／结果事件、生产者确认、水位线清理、检查点和存档均为 NOT RUN。测试替身不升级为正式事务设计，CONFIRMED 决策与 Matter 候选状态不变。详见 [README](../README.md#d09-a2固定阶段单轮分发与事件防重核心) 和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-a2-执行结果)；当前等待 Work 审查，不进入后续任务。
+
 ## 已确认的游戏设计方向
 
 确认日期：2026-11-06；依据：项目负责人本次明确指示。
