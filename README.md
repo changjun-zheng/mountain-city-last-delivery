@@ -111,8 +111,8 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `tests/simulation.test.mjs` | 可控时间下的固定步与暂停协议测试。 |
 | `tests/visibility.test.mjs` | 可见性适配的隐藏启动、重复通知与解绑测试；不代替实机测试。 |
 | `tests/player-physics.test.mjs` | 受控时间运行 Phaser 内置的真实 Matter，验证控制、接触与重置。 |
-| `tests/graybox-browser.mjs` | 真实窗口键盘操作、跳高／缓冲／跨隙／坡面与物理暂停断言。 |
-| `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包和重启回归。 |
+| `tests/graybox-browser.mjs` | 真实窗口键盘操作、跳高／缓冲／跨隙／坡面、物理暂停与 D04-R1 移动平台生命周期断言。 |
+| `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1 定向入口。 |
 | `tests/browser-selection.mjs` | 解析 `--browser`、查找标准安装路径并核验 CDP 实际浏览器身份；缺失时不回退。 |
 | `scripts/test.mjs` | 无参数时运行自动化单测，有参数时把平台测试参数原样转发给 `test:platform`。 |
 | `docs/` | 策划、决策与赛事原始材料。 |
@@ -131,6 +131,9 @@ npm.cmd run test -- --web-only --browser=edge
 
 # Chrome Web + Electron 开发版 + 仓库外生产包完整回归
 npm.cmd run test -- --browser=chrome
+
+# D04-R1 移动平台生命周期定向验收；不执行既有完整长流程
+npm.cmd run test:d04-r1
 ```
 
 平台测试只接受 `chrome`、`edge`，使用每次新建的临时用户配置目录，并通过 CDP `Browser.getVersion` 核对实际品牌。`report.json` 记录候选／实际路径、品牌、版本、进程 PID、启动参数、临时配置目录、页面与进程时间线，以及测试脚本和 ASAR 的 SHA-256。所选浏览器缺失时结果为 `BLOCKED`，不会静默切换浏览器、安装软件或使用个人资料。
@@ -477,6 +480,48 @@ Work 已审查代码、真实 Matter 测试及平台截图，并重新执行 `np
 
 D04 的平台实现和 M01–M04、M06 当前自动化范围通过；M05 的暂停、丢弃时间和重置逻辑由真实 Matter 单测通过，但 Windows 原生最小化专项仍为 BLOCKED。完整三端平台脚本因焦点环境中断保留 FAIL，不能改写成 PASS。T03 只记录本次承载子项，完整检查点恢复及 T04 均未实现；Matter 仍是验证候选。
 
+## D04-R1：移动平台生命周期定向验收
+
+2026-11-13 执行。该专项只补齐 D04 中水平与垂直移动平台的真实隐藏／原生最小化生命周期证据；没有重新实现移动平台、修改正式暂停规则、重跑既有完整长流程或开发 D05。
+
+定向入口复用现有 Vite 服务、CDP、原生窗口状态读取、中断锁存、截图和自有进程清理能力：
+
+```powershell
+npm.cmd run test:d04-r1
+```
+
+入口内部使用 `tests/platform-smoke.mjs --d04-r1`，跳过原有隐藏启动、两轮普通暂停、三次重启和整段灰盒长流程。Chrome Web 通过真实后台标签页建立 `hidden → visible`；Electron 开发版和仓库外独立生产包通过真实 `BrowserWindow.minimize()`／`restore()` 建立原生最小化与恢复。三端都先用真实物理和键盘登上平台，再断言有效支撑、Tick、物理步数、平台路径时钟、阶段、方向、输入和承载状态。
+
+每端后台至少停留 1200 ms。下表箭头两侧分别为完整冻结后的采样与恢复首帧；冻结时暂停 Token 为 1，恢复首帧为 0：
+
+| 环境 | 水平平台 Tick／物理步／平台时钟 | 垂直平台 Tick／物理步／平台时钟 | 结果 |
+| --- | --- | --- | --- |
+| Chrome Web | `554 / 554 / 8866.667 → 554 / 554 / 8866.667` | `1311 / 1311 / 11283.333 → 1311 / 1311 / 11283.333` | PASS |
+| Electron 开发版 | `566 / 566 / 8850.000 → 566 / 566 / 8850.000` | `1320 / 1320 / 11266.667 → 1320 / 1320 / 11266.667` | PASS |
+| 仓库外独立生产包 | `559 / 559 / 8866.667 → 559 / 559 / 8866.667` | `1313 / 1313 / 11283.333 → 1313 / 1313 / 11283.333` | PASS |
+
+水平平台有效支撑下的相对 X 分别为 `42.236`、`45.347`、`42.236 px`，垂直平台相对 Y 均约 `-30.95 px`。恢复后继续承载，世界速度与平台速度保持一致；没有后台 Tick 追赶、额外平台路程、旧速度或自动跳跃。三端另覆盖一次在水平平台上按住 Space 后暂停：恢复前后跳跃计数均为 `4`，保持 `needsRelease=true`；松开后重新按下才变为 `5`。
+
+Electron 两种模式均真实记录最小化时 `visible=false`、`minimized=true`、`focused=false`，恢复时 `visible=true`、`minimized=false`、`focused=true`。Web 浏览器为 Google Chrome `156.0.8078.74`。测试自有进程 PID `796`（Web）、`27776`（Electron 开发版）、`36672`（独立包）均正常退出 0，清理状态为 PASS；非预期中断、页面错误和清理失败均为 0。
+
+专项同时修复了一个诊断呈现缺陷：页面在 `visibilitychange` 时刷新诊断若未携带新平台快照，会清空平台位置、阶段、方向和时钟字段，造成暂停冻结采样无法核对。`src/platform/web/main.ts` 现在只缓存最近一次真实灰盒平台诊断并在暂停刷新时复用；共享模拟、暂停令牌、输入和物理规则未改。应用源码变化后已重新构建，当前生产 ASAR SHA-256 为 `9239B4673ADA2FA0D4B012F3D58B28E2C051096352604B0BCF66AF9361E14DB5`。成功报告所用 `tests/platform-smoke.mjs`、`tests/graybox-browser.mjs`、`src/platform/web/main.ts` SHA-256 分别为 `A128A6D1BA9CFD250D0E20FC38C69ECABF15F4E21BC22B05895CE8F832ECCDBE`、`BFC016A882A7A36921537A33534D3C4C0B1FCE2FBEE7FC5188A9E64B5B697B9D`、`08FCEBCC3FD746133B2F17D7691000E9B2FADF4A4CB88C17E09EC2F302D9DA65`。
+
+| 命令／检查 | 状态 | 证据 |
+| --- | --- | --- |
+| `npm.cmd test` | PASS | 类型检查、Electron Main 编译及 38/38 自动化测试通过。 |
+| `npm.cmd run electron:build` | PASS | 应用诊断修复后重新生成 Windows x64 免安装目录，当前 ASAR 哈希与成功报告一致。 |
+| `npm.cmd run test:d04-r1` | PASS | [run-KPoUKj](test-results/platform/run-KPoUKj/report.json) 的 Chrome Web、Electron 开发版和仓库外独立生产包全部 PASS。 |
+| 既有完整平台长套件 | FAIL（历史保留） | [run-1rk8KM](test-results/platform/run-1rk8KM/report.json)、[run-4xEAdj](test-results/platform/run-4xEAdj/report.json)、[run-cYdmZk](test-results/platform/run-cYdmZk/report.json) 保持原 FAIL；定向 PASS 不覆盖这些结果。 |
+| Edge | NOT RUN | 本任务未要求重测 Edge，不以 Chrome 结果推导 Edge。 |
+
+成功截图均位于 [run-KPoUKj](test-results/platform/run-KPoUKj/)：
+
+- [Web 水平平台隐藏冻结](test-results/platform/run-KPoUKj/001-web-horizontal-support-hidden-frozen.png)、[Web 持 Space 隐藏冻结](test-results/platform/run-KPoUKj/003-web-horizontal-held-space-hidden-frozen.png)、[Web 垂直平台隐藏冻结](test-results/platform/run-KPoUKj/005-web-vertical-support-hidden-frozen.png)。
+- [Electron 开发版水平平台隐藏冻结](test-results/platform/run-KPoUKj/010-electron-dev-horizontal-support-hidden-frozen.png)、[持 Space 隐藏冻结](test-results/platform/run-KPoUKj/012-electron-dev-horizontal-held-space-hidden-frozen.png)、[垂直平台隐藏冻结](test-results/platform/run-KPoUKj/014-electron-dev-vertical-support-hidden-frozen.png)。
+- [独立生产包水平平台隐藏冻结](test-results/platform/run-KPoUKj/019-electron-packaged-horizontal-support-hidden-frozen.png)、[持 Space 隐藏冻结](test-results/platform/run-KPoUKj/021-electron-packaged-horizontal-held-space-hidden-frozen.png)、[垂直平台隐藏冻结](test-results/platform/run-KPoUKj/023-electron-packaged-vertical-support-hidden-frozen.png)。
+
+本专项之前的 `run-PmBECe`（错误沿用诊断场景像素断言）、`run-LnHbxW`（准备阶段 blur 与暂停转换首帧）、`run-rtWcfh`（暂停快照被清空）和 `run-xyDdSD`（首次真实 keyup 前错误尝试新按下）均保持 FAIL，未删除或改写。D04-R1 PASS 仅证明上述移动平台生命周期范围；不表示完整平台长套件、完整 T01–T06、D04、Edge、人工体验或 Matter 最终选型已经通过。D04 仍等待 Work 审查，不自动进入 D05。
+
 ## 当前限制
 
 - 最新审查（D01-R3，2026-11-12）：[run-w2kthX](test-results/platform/run-w2kthX/report.json) 的 Chrome Web、Electron 开发及独立包自动化均 PASS，无非预期中断、异常退出或清理失败；Work 已核对当前脚本与 ASAR 哈希。NAME-05 按当前自动化范围通过，早期 FAIL 原样保留。普通窗口独立人工操作因工具定位限制仍 BLOCKED／NOT RUN，Edge 未重测；不宣称 D01-R3 全部完成。当时下一项为 [D03 实体／单向平台](docs/DEVELOPMENT_ROADMAP.md#7-当前任务与持续记录)。
@@ -485,4 +530,4 @@ D04 的平台实现和 M01–M04、M06 当前自动化范围通过；M05 的暂�
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前角色、静态实体平台、单向平台、水平移动平台和垂直升降平台是工程灰盒；未实现移动单向平台、旋转／挤压、触发器业务、主动下落穿透、任务、NPC、收藏品、事件事务或检查点。调试重置与最小化恢复都不等于 Checkpoint Recovery；不代表完整 T01–T06 或 MVP-G01–G06 已通过。D04 已报告等待 Work 审查；完整三端平台套件仍受焦点中断影响，Windows 原生最小化专项 BLOCKED，不自动进入 D05。
+- 当前角色、静态实体平台、单向平台、水平移动平台和垂直升降平台是工程灰盒；未实现移动单向平台、旋转／挤压、触发器业务、主动下落穿透、任务、NPC、收藏品、事件事务或检查点。调试重置与最小化恢复都不等于 Checkpoint Recovery；不代表完整 T01–T06 或 MVP-G01–G06 已通过。D04-R1 的三端定向 M05 范围已 PASS，但 D04 仍等待 Work 审查，既有完整平台长套件保持 FAIL，Edge 为 NOT RUN，不自动进入 D05。

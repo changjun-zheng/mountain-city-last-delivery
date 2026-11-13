@@ -19,7 +19,8 @@
     "electron:build": "npm run build && npm run electron:compile && install-electron && electron-builder --win --x64 --dir",
     "test": "node scripts/test.mjs",
     "test:unit": "npm run typecheck && npm run electron:compile && node --experimental-strip-types --test tests/*.test.mjs",
-    "test:platform": "npm run electron:compile && node tests/platform-smoke.mjs"
+    "test:platform": "npm run electron:compile && node tests/platform-smoke.mjs",
+    "test:d04-r1": "npm run electron:compile && node tests/platform-smoke.mjs --d04-r1"
   },
   "dependencies": {
     "phaser": "3.90.0"

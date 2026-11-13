@@ -1,22 +1,21 @@
 import assert from 'node:assert/strict';
 
 const poll = { polling: 'raf', timeout: 12000 };
-const sample = page => page.locator('#diagnostics').evaluate(element => {
-  const data = element.dataset;
-  return { tick: +data.tick, x: +data.x, y: +data.y, vx: +data.vx, vy: +data.vy,
-    worldVx: +data.worldVx, worldVy: +data.worldVy, supportVx: +data.supportVx, supportVy: +data.supportVy,
-    grounded: data.grounded === 'true', jumps: +data.jumps, support: data.support,
-    physicsSteps: +data.physicsSteps, physicsTime: +data.physicsTime, discarded: +data.discarded,
-    paused: data.paused === 'true', tokens: +data.tokens, control: data.controlAllowed === 'true',
-    needsRelease: data.needsRelease === 'true', oneWayCollision: data.oneWayCollision === 'true',
-    platformClock: +data.platformClock,
-    movingHX: +data.movingHX, movingHY: +data.movingHY, movingHVx: +data.movingHVx,
-    movingHDirection: +data.movingHDirection, movingHPhase: +data.movingHPhase, movingHCycle: +data.movingHCycle,
-    movingVX: +data.movingVX, movingVY: +data.movingVY, movingVVy: +data.movingVVy,
-    movingVDirection: +data.movingVDirection, movingVPhase: +data.movingVPhase, movingVCycle: +data.movingVCycle,
-    supportRelativeX: data.supportRelativeX === '' ? null : +data.supportRelativeX,
-    supportRelativeY: data.supportRelativeY === '' ? null : +data.supportRelativeY };
-});
+const rawSample = page => page.locator('#diagnostics').evaluate(element => ({ ...element.dataset }));
+const parseSample = data => ({ tick: +data.tick, x: +data.x, y: +data.y, vx: +data.vx, vy: +data.vy,
+  worldVx: +data.worldVx, worldVy: +data.worldVy, supportVx: +data.supportVx, supportVy: +data.supportVy,
+  grounded: data.grounded === 'true', jumps: +data.jumps, support: data.support,
+  physicsSteps: +data.physicsSteps, physicsTime: +data.physicsTime, discarded: +data.discarded,
+  paused: data.paused === 'true', tokens: +data.tokens, control: data.controlAllowed === 'true',
+  needsRelease: data.needsRelease === 'true', oneWayCollision: data.oneWayCollision === 'true',
+  platformClock: +data.platformClock,
+  movingHX: +data.movingHX, movingHY: +data.movingHY, movingHVx: +data.movingHVx,
+  movingHDirection: +data.movingHDirection, movingHPhase: +data.movingHPhase, movingHCycle: +data.movingHCycle,
+  movingVX: +data.movingVX, movingVY: +data.movingVY, movingVVy: +data.movingVVy,
+  movingVDirection: +data.movingVDirection, movingVPhase: +data.movingVPhase, movingVCycle: +data.movingVCycle,
+  supportRelativeX: data.supportRelativeX === '' ? null : +data.supportRelativeX,
+  supportRelativeY: data.supportRelativeY === '' ? null : +data.supportRelativeY });
+const sample = async page => parseSample(await rawSample(page));
 
 export async function chooseScene(ctx, mode) {
   await ctx.show();
@@ -607,4 +606,227 @@ export async function checkGraybox(ctx, record, capture) {
   });
   await up();
   await capture('graybox-completed', true);
+}
+
+// D04-R1 intentionally runs only the moving-platform lifecycle path. It reuses the
+// production greybox and the platform runner's real tab/window operations.
+export async function checkMovingPlatformLifecycle(ctx, record, capture) {
+  const page = ctx.page;
+  const key = (code, down) => ctx.monitor.key(code, down);
+  const up = async () => {
+    for (const code of ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space']) await key(code, false);
+  };
+  const reset = async () => {
+    await ctx.show();
+    await up();
+    const before = await page.locator('#diagnostics').getAttribute('data-resets');
+    await page.locator('#reset-graybox').click();
+    await page.waitForFunction(value => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return data?.resets !== value && data?.grounded === 'true' && data.controlAllowed === 'true';
+    }, before, poll);
+  };
+  const navigateToUpperGroundAt = async targetX => {
+    await reset();
+    await key('KeyD', true);
+    await page.waitForFunction(() => +document.querySelector('#diagnostics').dataset.x > 425, undefined, poll);
+    await key('Space', true);
+    await page.waitForFunction(() => +document.querySelector('#diagnostics').dataset.x > 600, undefined, poll);
+    await key('Space', false);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return +data.x > 880 && data.grounded === 'false';
+    }, undefined, poll);
+    const edgeJumps = (await sample(page)).jumps;
+    await key('Space', true);
+    await page.waitForFunction(jumps => +document.querySelector('#diagnostics').dataset.jumps > jumps,
+      edgeJumps, poll);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return +data.x > 1030 && data.grounded === 'true';
+    }, undefined, poll);
+    await key('Space', false);
+    await page.waitForFunction(x => +document.querySelector('#diagnostics').dataset.x > x, targetX, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.grounded === 'true' && data.support === 'upper-ground';
+    }, undefined, poll);
+  };
+  const boardHorizontal = async () => {
+    await navigateToUpperGroundAt(1835);
+    await page.waitForFunction(() => +document.querySelector('#diagnostics').dataset.movingHX < 1765,
+      undefined, poll);
+    await key('KeyA', true);
+    await key('Space', true);
+    await page.waitForTimeout(450);
+    await key('KeyA', false);
+    await page.waitForFunction(() => document.querySelector('#diagnostics').dataset.support === 'moving-horizontal-a',
+      undefined, poll);
+    await key('Space', false);
+    await page.waitForFunction(() => document.querySelector('#diagnostics').dataset.grounded === 'true' &&
+      Math.abs(+document.querySelector('#diagnostics').dataset.vx) < 1, undefined, poll);
+  };
+  const boardVertical = async () => {
+    await navigateToUpperGroundAt(1835);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return +data.movingVY > 302 && +data.movingVDirection === 1;
+    }, undefined, poll);
+    await key('KeyD', true);
+    await key('Space', true);
+    await page.waitForTimeout(500);
+    await key('KeyD', false);
+    await page.waitForFunction(() => document.querySelector('#diagnostics').dataset.support === 'moving-vertical-a',
+      undefined, poll);
+    await key('Space', false);
+    await page.waitForFunction(() => document.querySelector('#diagnostics').dataset.grounded === 'true' &&
+      Math.abs(+document.querySelector('#diagnostics').dataset.vx) < 1, undefined, poll);
+  };
+  const installResumeProbe = () => page.evaluate(() => {
+    window.__d04r1Resume = new Promise(resolve => {
+      const changed = () => {
+        if (document.visibilityState !== 'visible') return;
+        document.removeEventListener('visibilitychange', changed);
+        requestAnimationFrame(() => resolve({ ...document.querySelector('#diagnostics').dataset }));
+      };
+      document.addEventListener('visibilitychange', changed);
+    });
+  });
+  const waitForStablePausedSample = async () => {
+    let previous;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(100);
+      const current = await sample(page);
+      if (previous && JSON.stringify(current) === JSON.stringify(previous)) return current;
+      previous = current;
+    }
+    throw new Error('Paused diagnostics did not settle after visibility/window transition');
+  };
+  const freezeAtSupport = async (name, support) => {
+    await ctx.monitor.assertVisible();
+    const before = await sample(page);
+    assert.equal(before.support, support);
+    assert.equal(before.grounded, true);
+    ctx.operation = `D04-R1-${name}`;
+    ctx.stage = `${name}-wait-hidden`;
+    await ctx.hide();
+    await page.waitForFunction(() => document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics').dataset.paused === 'true', undefined, { polling: 100 });
+    const frozen = await waitForStablePausedSample();
+    assert.equal(frozen.tokens, 1);
+    assert.equal(frozen.control, false);
+    assert.equal(frozen.support, support);
+    const hiddenWindow = await ctx.windowState?.();
+    await capture(`${name}-hidden-frozen`, true);
+    await page.waitForTimeout(1200);
+    assert.deepEqual(await sample(page), frozen, `${name} must freeze for the full hidden interval`);
+
+    await installResumeProbe();
+    ctx.stage = `${name}-restore`;
+    await ctx.show();
+    const resumed = parseSample(await page.evaluate(() => window.__d04r1Resume));
+    assert.equal(resumed.paused, false);
+    assert.equal(resumed.tokens, 0);
+    assert.ok(resumed.tick - frozen.tick <= 5, `${name} resumed with a background tick catch-up`);
+    assert.equal(resumed.discarded, frozen.discarded);
+    assert.ok(Math.abs(
+      resumed.platformClock - frozen.platformClock -
+      (resumed.physicsSteps - frozen.physicsSteps) * (1000 / 60),
+    ) < 0.01, `${name} platform clock did not follow actual simulation steps`);
+    assert.equal(resumed.support, support);
+    const resumedWindow = await ctx.windowState?.();
+    await capture(`${name}-restored`, true);
+    await page.waitForTimeout(250);
+    const carried = await sample(page);
+    assert.equal(carried.support, support);
+    assert.ok(carried.tick > resumed.tick);
+    if (support === 'moving-horizontal-a') {
+      assert.ok(Math.abs(carried.supportRelativeX - resumed.supportRelativeX) < 1);
+      assert.ok(Math.abs(carried.worldVx - carried.supportVx) < 1);
+    } else {
+      assert.ok(Math.abs(carried.supportRelativeY - resumed.supportRelativeY) < 1);
+      assert.ok(Math.abs(carried.worldVy - carried.supportVy) < 1);
+    }
+    return {
+      support, beforeTick: before.tick, frozenTick: frozen.tick, resumedTick: resumed.tick,
+      frozenPhysicsSteps: frozen.physicsSteps, resumedPhysicsSteps: resumed.physicsSteps,
+      frozenPlatformClock: frozen.platformClock, resumedPlatformClock: resumed.platformClock,
+      relativeX: support === 'moving-horizontal-a' ? resumed.supportRelativeX : null,
+      relativeY: support === 'moving-vertical-a' ? resumed.supportRelativeY : null,
+      platform: support === 'moving-horizontal-a'
+        ? { x: frozen.movingHX, y: frozen.movingHY, phase: frozen.movingHPhase,
+          direction: frozen.movingHDirection, cycle: frozen.movingHCycle }
+        : { x: frozen.movingVX, y: frozen.movingVY, phase: frozen.movingVPhase,
+          direction: frozen.movingVDirection, cycle: frozen.movingVCycle },
+      hiddenWindow, resumedWindow,
+    };
+  };
+  const heldSpaceFreeze = async () => {
+    await ctx.monitor.assertVisible();
+    await key('Space', false);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.needsRelease === 'false' && data.controlAllowed === 'true';
+    }, undefined, poll);
+    const jumpCount = (await sample(page)).jumps;
+    await key('Space', true);
+    await page.waitForFunction(count => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return +data.jumps > count && data.grounded === 'false';
+    }, jumpCount, poll);
+    const before = await sample(page);
+    ctx.operation = 'D04-R1-horizontal-held-space';
+    ctx.stage = 'horizontal-held-space-wait-hidden';
+    await ctx.hide();
+    await page.waitForFunction(() => document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics').dataset.paused === 'true', undefined, { polling: 100 });
+    const frozen = await waitForStablePausedSample();
+    assert.equal(frozen.jumps, before.jumps);
+    assert.equal(frozen.control, false);
+    const hiddenWindow = await ctx.windowState?.();
+    await capture('horizontal-held-space-hidden-frozen', true);
+    await page.waitForTimeout(1200);
+    assert.deepEqual(await sample(page), frozen);
+
+    await installResumeProbe();
+    ctx.stage = 'horizontal-held-space-restore';
+    await ctx.show();
+    const resumed = parseSample(await page.evaluate(() => window.__d04r1Resume));
+    assert.equal(resumed.jumps, frozen.jumps, 'Holding Space across resume must not request another jump');
+    assert.equal(resumed.needsRelease, true);
+    assert.ok(resumed.tick - frozen.tick <= 5);
+    const resumedWindow = await ctx.windowState?.();
+    await capture('horizontal-held-space-restored', true);
+    await page.waitForTimeout(500);
+    assert.equal((await sample(page)).jumps, frozen.jumps);
+    await key('Space', false);
+    await page.waitForFunction(() => document.querySelector('#diagnostics').dataset.support === 'moving-horizontal-a',
+      undefined, poll);
+    await key('Space', true);
+    await page.waitForFunction(count => +document.querySelector('#diagnostics').dataset.jumps > count,
+      frozen.jumps, poll);
+    await key('Space', false);
+    await up();
+    return { frozenTick: frozen.tick, resumedTick: resumed.tick, heldJumpCount: frozen.jumps,
+      freshPressJumpCount: (await sample(page)).jumps, hiddenWindow, resumedWindow };
+  };
+
+  ctx.operation = 'D04-R1-moving-platform-lifecycle';
+  ctx.stage = 'graybox-preparation';
+  const result = await ctx.monitor.race(async () => {
+    await chooseScene(ctx, 'graybox');
+    await ctx.show();
+    await boardHorizontal();
+    const horizontal = await freezeAtSupport('horizontal-support', 'moving-horizontal-a');
+    const heldSpace = await heldSpaceFreeze();
+    await boardVertical();
+    const vertical = await freezeAtSupport('vertical-support', 'moving-vertical-a');
+    await up();
+    assert.deepEqual(ctx.errors, []);
+    return { horizontal, heldSpace, vertical };
+  });
+  record('D04-R1-moving-platform-lifecycle', { status: 'PASS', ...result });
+  console.log('PASS', ctx.label, 'D04-R1 moving-platform-lifecycle', JSON.stringify(result));
+  await capture('D04-R1-moving-platform-lifecycle-completed', true);
 }
