@@ -17,9 +17,9 @@ export class PlayerControlCoordinator {
   readonly #blocks = new Set<symbol>();
   readonly #onBlocked: () => void;
   constructor(onBlocked: () => void) { this.#onBlocked = onBlocked; }
-  request(owner: symbol, blocked: boolean): void {
+  request(owner: symbol, blocked: boolean, clearInputOnFirstBlock = true): void {
     if (blocked) {
-      if (!this.#blocks.has(owner)) this.#onBlocked();
+      if (!this.#blocks.has(owner) && clearInputOnFirstBlock) this.#onBlocked();
       this.#blocks.add(owner);
     } else this.#blocks.delete(owner);
   }

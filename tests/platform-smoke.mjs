@@ -17,6 +17,7 @@ import {
 import {
   chooseScene, checkDiagnosticZones, checkGraybox, checkInMemoryProgress,
   checkInteractions, checkMovingPlatformLifecycle, checkGoalRouteRuntime,
+  checkInitialSnapshot,
 } from './graybox-browser.mjs';
 import { createPlatformObserver } from './platform-observer.mjs';
 
@@ -38,10 +39,13 @@ const focusedD05 = cliArgs.includes('--d05');
 const focusedD07 = cliArgs.includes('--d07');
 const focusedD08 = cliArgs.includes('--d08');
 const focusedD09D1 = cliArgs.includes('--d09-d1');
-if ([focusedD04R1, focusedD05, focusedD07, focusedD08, focusedD09D1].filter(Boolean).length > 1) {
+const focusedD10A1 = cliArgs.includes('--d10-a1');
+if ([focusedD04R1, focusedD05, focusedD07, focusedD08, focusedD09D1, focusedD10A1]
+  .filter(Boolean).length > 1) {
   throw new Error('Select only one focused platform scenario');
 }
-const focused = focusedD04R1 || focusedD05 || focusedD07 || focusedD08 || focusedD09D1;
+const focused = focusedD04R1 || focusedD05 || focusedD07 || focusedD08 ||
+  focusedD09D1 || focusedD10A1;
 const webOnly = cliArgs.includes('--web-only') || Boolean(injection);
 let browserResolution;
 let browserResolutionError;
@@ -53,13 +57,14 @@ try {
 const report = {
   task: focusedD04R1 ? 'D04-R1' : focusedD05 ? 'D05'
     : focusedD07 ? 'D07-R1' : focusedD08 ? 'D08'
-      : focusedD09D1 ? 'D09-D1' : 'D04',
+      : focusedD09D1 ? 'D09-D1' : focusedD10A1 ? 'D10-A1' : 'D04',
   scope: focusedD04R1 ? 'moving-platform-lifecycle'
     : focusedD05 ? 'diagnostic-zones'
       : focusedD07 ? 'interaction-prompt-and-release-gate'
         : focusedD08 ? 'in-memory-progress-idempotency'
           : focusedD09D1 ? 'goal-route-real-event-command-transaction-result'
-            : 'full-platform-regression',
+            : focusedD10A1 ? 'initial-snapshot-registry-and-atomic-capture'
+              : 'full-platform-regression',
   startedAt: new Date().toISOString(), evidenceDir, injection,
   commandLine: cliArgs,
   runtime: { node: process.version, platform: process.platform, arch: process.arch },
@@ -79,12 +84,14 @@ report.version = Object.fromEntries(await Promise.all([
   'tests/platform-smoke.mjs', 'tests/browser-selection.mjs', 'tests/graybox-browser.mjs',
   'tests/platform-observer.mjs', 'scripts/test.mjs',
   'tests/foreground-window.ps1',
-  'src/core/player.ts', 'src/core/graybox.ts', 'src/physics/matter/graybox-world.ts',
+  'src/core/player.ts', 'src/core/graybox.ts', 'src/core/snapshot.ts',
+  'src/physics/matter/graybox-world.ts',
   'src/core/interaction.ts', 'src/core/progress.ts', 'src/platform/web/player-input.ts',
   'src/core/goal-route-runtime.ts', 'src/core/events.ts', 'src/core/commands.ts',
   'src/core/delivery.ts', 'src/core/transactions.ts', 'src/core/transaction-results.ts',
   'src/rendering/phaser/graybox.ts', 'src/platform/web/main.ts',
-  'tests/goal-route-runtime.test.mjs', 'package.json',
+  'tests/goal-route-runtime.test.mjs', 'tests/snapshot.test.mjs',
+  'tests/player-physics.test.mjs', 'package.json',
   'release/layered-city-adventures/win-unpacked/resources/app.asar',
 ].map(async path => [path, createHash('sha256').update(await readFile(path)).digest('hex')])));
 let captureNumber = 0;
@@ -508,6 +515,9 @@ async function checkDesktop(ctx, executablePath, devURL) {
     } else if (focusedD09D1) {
       await checkGoalRouteRuntime(ctx, (name, data) => note(ctx.label, 'd09-d1-' + name, data),
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
+    } else if (focusedD10A1) {
+      await checkInitialSnapshot(ctx, (name, data) => note(ctx.label, 'd10-a1-' + name, data),
+        (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else {
       await hiddenStartup(ctx);
       for (let i = 1; i <= 2; i++) await checkPause(ctx, i);
@@ -620,6 +630,9 @@ async function checkWeb(ctx, devURL) {
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else if (focusedD09D1) {
       await checkGoalRouteRuntime(ctx, (name, data) => note(ctx.label, 'd09-d1-' + name, data),
+        (phase, screenshot) => snapshot(ctx, phase, screenshot));
+    } else if (focusedD10A1) {
+      await checkInitialSnapshot(ctx, (name, data) => note(ctx.label, 'd10-a1-' + name, data),
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else {
       await hiddenStartup(ctx);
@@ -747,7 +760,9 @@ async function runCase(label, fn) {
             ? 'D08 in-memory progress idempotency; owned process exited'
             : focusedD09D1
               ? 'D09-D1 Event -> Command -> Transaction -> Result -> confirmation/retirement; owned process exited'
-              : 'loaded / scene / running; hidden start; 2 hide cycles; 3 restarts; graybox controls / collisions / pause; owned process exited');
+              : focusedD10A1
+                ? 'D10-A1 initial snapshot READY, lifecycle/reload stability and goal E; owned process exited'
+                : 'loaded / scene / running; hidden start; 2 hide cycles; 3 restarts; graybox controls / collisions / pause; owned process exited');
   } catch (error) {
     Object.assign(result, { status: ['ENOENT', 'ENVIRONMENT_PRECONDITION'].includes(error.code) ? 'BLOCKED' : 'FAIL', stage: ctx.stage,
       expectedFailure: Boolean(injection), interruption: ctx.interruption, error: String(error), stack: error.stack });

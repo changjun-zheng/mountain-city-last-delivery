@@ -284,7 +284,23 @@ R01 覆盖无 producer／普通 owned producer、显式白名单／无白名单�
 
 原 112 项测试保留，`npm.cmd test` 为 `118/118` PASS；D07 `run-SAhfNN`、D08 `run-ERvFKU` 及 D09-D1 三端定向 PASS。D08 的 `run-MTYI1g`／`run-JmR87w` 两次旧同步测试等待失败保留。生产构建 PASS，当前 ASAR／EXE 为 `AB0EA7E9798BB872F9B784BF8F827A287F80213CA137C5C1CADEEAB20D53E850`／`7A6F271FA22D55A8CCA88D2BD919F9CC29C9973FA462F60702E78C919CC73674`。
 
-收藏 D 仍是 D08 直接原型；正式任务、磁盘存档、检查点、Checkpoint Recovery、同实例场景连续性、Edge 和完整人工手感不在本段或未通过。Matter 仍为候选。D09-D1 当前等待 Work 审查，不自动进入 D10，不 Commit／Push／发布。实际截图、H01–H06 和版本证据见 [README](../README.md#d09-d1测试目标-e-的共享宿主真实业务闭环)与[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-d1-执行结果)。
+收藏 D 仍是 D08 直接原型；正式任务、磁盘存档、检查点、Checkpoint Recovery、同实例场景连续性、Edge 和完整人工手感不在本段或未通过。Matter 仍为候选。该次报告后，Work 已按 `d3210cb` 收口 D09-D1；后续 D10-A1 状态见下节。实际截图、H01–H06 和版本证据见 [README](../README.md#d09-d1测试目标-e-的共享宿主真实业务闭环)与[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-d1-执行结果)。
+
+### D09-D1 Work 审查与 D10-A1 任务
+
+2026-11-13：Work 核对 `d3210cb` 的目标 E 宿主组合、固定步顺序、确认退役和重置／暂停测试，重跑类型检查、Electron Main 编译及 118/118 自动化测试 PASS，未另跑构建或 GUI。`run-2FGMG5` 与 D08 `run-ERvFKU` 全部 23 项版本记录匹配当前文件，三端退出码均为 0、清理失败为 0；D07 `run-SAhfNN` 应用与产物一致，测试脚本后有 D08 等待修正，保留为较早脚本的回归证据，不宣称当前全部脚本均重跑。D09-D1 按目标 E 原型范围收口，未迁移收藏 D、正式任务、同实例场景切换或存档。
+
+实际业务在 apply Tick 登记目标／奖励／效果并协调门体，后续 verify 确定事务终态，结果消费只完成通知，不再执行业务。此前交付文字“业务只在终态与结果消费后出现”不代表代码时序；本次同步说明，不改正式事件与事务生命周期规则。
+
+下一项 D10-A1 实现固定快照对象登记、严格整体／对象版本和完整初始备用快照，并在初始化成功之前通过既有控制协调器阻止正常探索。以现有水平／垂直平台的可重建临时逻辑与出生锚点验证，永久进度、业务身份、输入／交互会话与暂停令牌不放入快照；R 仍是调试重置，不重新捕获或冒称恢复。本轮不实现正式检查点触发、运行中捕获仲裁／锁、坠落传送、两阶段恢复、RecoveryError 或存档。范围与 CP01–CP06 见[路线图当前任务](DEVELOPMENT_ROADMAP.md#7-当前任务与持续记录)，只实施这一任务后等待 Work 审查。
+
+### D10-A1 工程执行状态
+
+2026-11-13：新增共享核心 `src/core/snapshot.ts`，为水平／垂直平台建立封闭固定登记和严格 `schemaVersion`／`stateVersion` 校验。初始记录包含 Runtime UUID、检查点／关卡身份、出生锚点 `80,472,1` 和两条平台的可重建逻辑状态；永久进度、业务 ID／序列、输入、交互会话、Pause Token、Matter 对象及接触缓存均不进入快照。完整候选校验后深冻结，并原子提交为唯一当前记录。
+
+真实灰盒在初始化安全边界先应用已有永久效果，再捕获并提交完整备用快照，成功后只释放独立初始化控制 owner。捕获、校验或提交失败不会留下半记录，移动、跳跃、交互和 R 仍受限；R 不重新捕获或覆盖备份，也不重置 Runtime UUID、D08 进度和 D09-D1 身份。本段未实现正式检查点触发、坠落传送、快照替换、完整 Checkpoint Recovery、RecoveryError 或存档。
+
+`npm.cmd test` 为 `126/126` PASS，原 118 项保留并新增 8 项；生产构建 PASS。`run-KTqUQ0` 的 Chrome Web、Electron 开发版和仓库外独立生产包全部 PASS：三端均为 READY、2 对象、对象版本 `1/1`、捕获次数 `1`，真实隐藏／最小化不重捕，目标 E 均完成 Event／Command／Transaction／Result `1／1／1／2`，R 保留原载荷和身份，完整重载生成新 Runtime UUID。三进程退出码 `0`、清理失败为空。实际截图、哈希和体验入口见 [README D10-A1](../README.md#d10-a1固定快照登记与初始备用快照)，逐项证据见[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d10-a1-执行结果)。Edge 与独立人工手感仍 NOT RUN／BLOCKED，Matter 仍为候选；D10-A1 完成后等待 Work 审查，不自动进入正式捕获事务或 D11。
 
 ## 已确认的游戏设计方向
 

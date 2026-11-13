@@ -2,6 +2,10 @@ import type {} from 'phaser';
 import { PLAYER_PROTOTYPE, type PlayerState } from '../../core/player.ts';
 import type { GrayboxPhysics } from '../../core/graybox.ts';
 import { PROTOTYPE_PROGRESS_CONTENT } from '../../core/progress.ts';
+import type {
+  MovingPlatformLogicalState,
+  SnapshotAnchor,
+} from '../../core/snapshot.ts';
 
 // Uses Phaser's bundled Matter, injected so the identical world can run in deterministic tests.
 export type MatterLibrary = {
@@ -117,6 +121,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   readonly #movingByLabel: Map<string, MovingPlatformRuntime>;
   readonly #diagnosticZones: DiagnosticZoneRuntime[];
   readonly #diagnosticZoneByLabel: Map<string, DiagnosticZoneRuntime>;
+  readonly spawnAnchor: SnapshotAnchor = Object.freeze({ x: 80, y: 472, facing: 1 });
   #platformClockMs = 0;
   #progressRouteOpen = false;
   #diagnosticBaselineTick = 0;
@@ -183,9 +188,15 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
         definition.fromX, definition.fromY, definition.width, definition.height,
         { isStatic: true, friction: 1, label: definition.label },
       );
+      const phase = (definition.phaseOffsetMs % definition.periodMs) / definition.periodMs;
+      const outwardDirection = definition.axis === 'horizontal'
+        ? Math.sign(definition.toX - definition.fromX)
+        : Math.sign(definition.toY - definition.fromY);
       return {
         definition, body, deltaX: 0, deltaY: 0, vx: 0, vy: 0,
-        direction: 1, phase: 0, cycle: 0,
+        direction: (phase < 0.5 ? outwardDirection : -outwardDirection) as -1 | 1,
+        phase,
+        cycle: Math.floor(definition.phaseOffsetMs / definition.periodMs),
       };
     });
     this.#movingByLabel = new Map(this.#movingPlatforms.map(platform => [platform.definition.label, platform]));
@@ -242,6 +253,22 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   setPermanentEffect(effectId: string, expectedActive: boolean): void {
     if (effectId !== PROTOTYPE_PROGRESS_CONTENT.goal.effectId) return;
     this.#setProgressRouteOpen(expectedActive);
+  }
+
+  captureTemporaryObject(objectId: string): MovingPlatformLogicalState {
+    const platform = this.#movingByLabel.get(objectId);
+    if (!platform) throw new Error(`Unknown temporary snapshot object: ${objectId}.`);
+    return Object.freeze({
+      axis: platform.definition.axis,
+      clockMs: this.#platformClockMs,
+      position: Object.freeze({
+        x: platform.body.position.x,
+        y: platform.body.position.y,
+      }),
+      direction: platform.direction,
+      phase: platform.phase,
+      cycle: platform.cycle,
+    });
   }
 
   step(deltaMs: number, tick: number): void {

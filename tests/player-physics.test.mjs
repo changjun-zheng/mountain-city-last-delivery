@@ -16,13 +16,14 @@ function fixtureRuntimeId() {
   fixtureRuntimeNumber++;
   return `70000000-0000-4000-8000-${String(fixtureRuntimeNumber).padStart(12, '0')}`;
 }
-function fixture(x = 80, y = 472, settle = 30, progress) {
+function fixture(x = 80, y = 472, settle = 30, progress, options = {}) {
   const engine = M.Engine.create();
   const world = new MatterGrayboxWorld(M, engine, dt => M.Engine.update(engine, dt));
   M.Body.setPosition(world.player, { x, y });
   const core = createGrayboxCore(world, {
     progress,
     uuidProvider: { generate: fixtureRuntimeId },
+    ...options,
   });
   let frame = 0;
   const step = (n = 1) => { for (let i = 0; i < n; i++) core.frame(frame++ * core.config.fixedDeltaMs); };
@@ -1090,4 +1091,150 @@ test('D09-D1 H04 debug reset preserves Pending identities and a completed run id
     rewards: 1,
     effects: 1,
   });
+});
+
+test('D10-A1 CP02 real graybox captures both platforms after permanent reconciliation before Tick 1', () => {
+  const progress = new InMemoryRunProgress();
+  progress.completeGoal(PROTOTYPE_PROGRESS_CONTENT.goal.businessId);
+  const engine = M.Engine.create();
+  const world = new MatterGrayboxWorld(M, engine, dt => M.Engine.update(engine, dt));
+  const originalCapture = world.captureTemporaryObject.bind(world);
+  const captureObservations = [];
+  world.captureTemporaryObject = objectId => {
+    captureObservations.push({
+      objectId,
+      routeOpen: world.progressRouteOpen,
+      matterSteps: world.steps,
+    });
+    return originalCapture(objectId);
+  };
+  const core = createGrayboxCore(world, {
+    progress,
+    uuidProvider: { generate: fixtureRuntimeId },
+  });
+  const initial = core.snapshot;
+  const record = initial.checkpointSnapshot.current;
+
+  assert.equal(initial.tick, 0);
+  assert.equal(initial.physicsSteps, 0);
+  assert.equal(initial.checkpointSnapshot.status, 'READY');
+  assert.equal(initial.checkpointSnapshot.captureAttempts, 1);
+  assert.equal(initial.checkpointSnapshot.capturedAtTick, 0);
+  assert.ok(record);
+  assert.equal(record.runtimeInstanceId, initial.goalRoute.runtimeInstanceId);
+  assert.equal(record.schemaVersion, 1);
+  assert.deepEqual(record.anchor, { x: 80, y: 472, facing: 1 });
+  assert.deepEqual(record.objects.map(object => object.objectId), [
+    'moving-horizontal-a',
+    'moving-vertical-a',
+  ]);
+  assert.deepEqual(record.objects.map(object => object.stateVersion), [1, 1]);
+  assert.deepEqual(captureObservations, [
+    { objectId: 'moving-horizontal-a', routeOpen: true, matterSteps: 0 },
+    { objectId: 'moving-vertical-a', routeOpen: true, matterSteps: 0 },
+  ]);
+  assert.equal(world.progressRouteOpen, true);
+  assert.deepEqual(initial.progress.counts, {
+    collections: 0,
+    goals: 1,
+    rewards: 1,
+    effects: 1,
+  });
+  const serialized = JSON.stringify(record);
+  assert.equal(serialized.includes(PROTOTYPE_PROGRESS_CONTENT.goal.businessId), false);
+  assert.equal(serialized.includes(PROTOTYPE_PROGRESS_CONTENT.goal.rewardId), false);
+  assert.equal(serialized.includes(PROTOTYPE_PROGRESS_CONTENT.goal.effectId), false);
+
+  let frame = 0;
+  for (let index = 0; index < 40; index++) core.frame(frame++ * core.config.fixedDeltaMs);
+  assert.equal(JSON.stringify(core.snapshot.checkpointSnapshot.current), serialized,
+    'Captured data must not track later platform motion');
+});
+
+test('D10-A1 CP05 failed initialization keeps movement, jump, interaction and debug reset locked', () => {
+  let firstCaptureCount = 0;
+  const instance = fixture(80, 472, 0, undefined, {
+    snapshotFaultInjector: (phase, details) => {
+      if (phase === 'capture' && details.objectId === 'moving-vertical-a') {
+        throw new Error('injected second-object capture failure');
+      }
+      if (phase === 'capture') firstCaptureCount++;
+    },
+  });
+  const failed = instance.core.snapshot;
+  assert.equal(failed.checkpointSnapshot.status, 'FAILED');
+  assert.equal(failed.checkpointSnapshot.current, null);
+  assert.match(failed.checkpointSnapshot.error, /injected second-object/);
+  assert.equal(failed.checkpointSnapshot.captureAttempts, 1);
+  assert.equal(failed.player.controlAllowed, false);
+  assert.equal(failed.player.x, 80);
+  assert.equal(failed.interaction.consumedCount, 0);
+  assert.equal(firstCaptureCount, 1);
+
+  instance.core.setAvailable(true);
+  instance.core.key('KeyD', true);
+  instance.core.key('Space', true);
+  instance.core.key('KeyE', true);
+  instance.step(12);
+  let locked = instance.core.snapshot;
+  assert.equal(locked.player.controlAllowed, false);
+  assert.ok(Math.abs(locked.player.x - 80) < 0.1);
+  assert.equal(locked.player.jumps, 0);
+  assert.equal(locked.interaction.consumedCount, 0);
+
+  instance.core.reset();
+  locked = instance.core.snapshot;
+  assert.equal(locked.player.controlAllowed, false);
+  assert.equal(locked.checkpointSnapshot.captureAttempts, 1);
+  assert.equal(locked.checkpointSnapshot.status, 'FAILED');
+  assert.equal(locked.checkpointSnapshot.current, null);
+});
+
+test('D10-A1 CP05 successful owner release composes with other locks; R and goal E preserve the backup', () => {
+  const instance = fixture();
+  const initial = instance.core.snapshot;
+  const initialPayload = JSON.stringify(initial.checkpointSnapshot.current);
+  const runtimeInstanceId = initial.goalRoute.runtimeInstanceId;
+  assert.equal(initial.checkpointSnapshot.status, 'READY');
+  assert.equal(initial.player.controlAllowed, true);
+
+  instance.core.setAvailable(false);
+  assert.equal(instance.core.snapshot.player.controlAllowed, false);
+  instance.core.setAvailable(true);
+  assert.equal(instance.core.snapshot.player.controlAllowed, true);
+
+  instance.core.reset();
+  const afterReset = instance.core.snapshot;
+  assert.equal(afterReset.checkpointSnapshot.captureAttempts, 1);
+  assert.equal(JSON.stringify(afterReset.checkpointSnapshot.current), initialPayload);
+  assert.equal(afterReset.goalRoute.runtimeInstanceId, runtimeInstanceId);
+
+  placePlayer(instance, 460);
+  assert.equal(instance.core.snapshot.interaction.selectedId,
+    PROTOTYPE_PROGRESS_CONTENT.goal.interactionId);
+  pressKey(instance, 'KeyE');
+  instance.until(state => state.goalRoute.phase === 'succeeded');
+  const completed = instance.core.snapshot;
+  assert.deepEqual(completed.progress.counts, {
+    collections: 0,
+    goals: 1,
+    rewards: 1,
+    effects: 1,
+  });
+  assert.equal(instance.world.progressRouteOpen, true);
+  assert.equal(completed.checkpointSnapshot.captureAttempts, 1);
+  assert.equal(JSON.stringify(completed.checkpointSnapshot.current), initialPayload);
+
+  instance.core.reset();
+  const resetAfterCompletion = instance.core.snapshot;
+  assert.equal(resetAfterCompletion.checkpointSnapshot.captureAttempts, 1);
+  assert.equal(JSON.stringify(resetAfterCompletion.checkpointSnapshot.current), initialPayload);
+  assert.equal(resetAfterCompletion.goalRoute.runtimeInstanceId, runtimeInstanceId);
+  assert.deepEqual(resetAfterCompletion.progress.counts, {
+    collections: 0,
+    goals: 1,
+    rewards: 1,
+    effects: 1,
+  });
+  assert.equal(instance.world.progressRouteOpen, true);
 });

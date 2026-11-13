@@ -108,6 +108,11 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
             backgroundColor: '#142b2d', padding: { x: 8, y: 6 }, align: 'right',
             wordWrap: { width: 390, useAdvancedWrap: true },
           }).setOrigin(1, 0).setScrollFactor(0).setDepth(20);
+          const checkpointFailure = this.add.text(20, 170, '', {
+            fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '17px', color: '#ffd4d4',
+            backgroundColor: '#4a2025', padding: { x: 10, y: 7 },
+            wordWrap: { width: 720, useAdvancedWrap: true },
+          }).setScrollFactor(0).setDepth(50).setVisible(false);
           const interactionPanel = this.add.rectangle(760, 126, 420, 190, 0x172832, 0.97)
             .setStrokeStyle(4, 0xb888de).setScrollFactor(0).setDepth(40).setVisible(false);
           const interactionTitle = this.add.text(570, 52, '', {
@@ -141,6 +146,7 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
             const interaction = snapshot.interaction;
             const progress = snapshot.progress;
             const goalRoute = snapshot.goalRoute;
+            const checkpointSnapshot = snapshot.checkpointSnapshot;
             for (const platformState of world.movingPlatforms) {
               movingVisuals.get(platformState.label)?.setPosition(platformState.x, platformState.y);
             }
@@ -186,6 +192,10 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
             feedback.setText(interaction.feedbackText ?? '').setVisible(interaction.mode === 'feedback');
             const investigationOpen = interaction.mode === 'investigation';
             progressHud.setText(
+              `D10-A1 初始快照 ${checkpointSnapshot.status}` +
+              ` · schema ${checkpointSnapshot.current?.schemaVersion ?? '-'}` +
+              ` · ${checkpointSnapshot.current?.objects.length ?? 0} objects` +
+              ` · ${checkpointSnapshot.captureAttempts} capture\n` +
               `D08 / D09-D1 运行进度\n` +
               `收藏 ${PROTOTYPE_PROGRESS_CONTENT.collection.label} ${progress.counts.collections}/1  ` +
               `目标 ${PROTOTYPE_PROGRESS_CONTENT.goal.label} ${progress.counts.goals}/1\n` +
@@ -198,6 +208,11 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
               `Verify ${goalRoute.verifyTick ?? '-'} · Consume ${goalRoute.resultConsumedTick ?? '-'}\n` +
               goalRoute.message,
             ).setVisible(!investigationOpen);
+            checkpointFailure
+              .setText(checkpointSnapshot.status === 'FAILED'
+                ? `快照初始化失败／探索未开放：${checkpointSnapshot.error ?? 'unknown error'}`
+                : '')
+              .setVisible(checkpointSnapshot.status === 'FAILED');
             interactionPanel.setVisible(investigationOpen);
             interactionTitle.setText(interaction.title ?? '').setVisible(investigationOpen);
             interactionContent.setText(interaction.content ?? '').setVisible(investigationOpen);

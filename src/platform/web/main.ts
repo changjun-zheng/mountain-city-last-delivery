@@ -75,6 +75,17 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       ` Verify ${goalRoute.verifyTick ?? '-'} Consume ${goalRoute.resultConsumedTick ?? '-'}` +
       ` | ${goalRoute.message}`,
     );
+    const checkpointSnapshot = sample.checkpointSnapshot;
+    const checkpointRecord = checkpointSnapshot.current;
+    common.push(
+      `D10-A1 initial snapshot ${checkpointSnapshot.status}` +
+      ` | attempts ${checkpointSnapshot.captureAttempts}` +
+      ` | capture Tick ${checkpointSnapshot.capturedAtTick ?? '-'}` +
+      ` | schema ${checkpointRecord?.schemaVersion ?? '-'}` +
+      ` | objects ${checkpointRecord?.objects.length ?? 0}` +
+      ` | anchor ${checkpointRecord ? `${checkpointRecord.anchor.x},${checkpointRecord.anchor.y},${checkpointRecord.anchor.facing}` : '-'}` +
+      (checkpointSnapshot.error ? ` | ${checkpointSnapshot.error}` : ''),
+    );
     const horizontal = grayboxDiagnostics?.movingPlatforms.find(platform => platform.axis === 'horizontal');
     const vertical = grayboxDiagnostics?.movingPlatforms.find(platform => platform.axis === 'vertical');
     const zoneA = grayboxDiagnostics?.diagnosticZones.find(zone => zone.label === 'diagnostic-zone-a');
@@ -182,6 +193,23 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       goalTransactions: String(goalRoute.counts.transactions),
       goalResultEvents: String(goalRoute.counts.resultEvents),
       goalLastError: goalRoute.lastError ?? '',
+      checkpointStatus: checkpointSnapshot.status,
+      checkpointError: checkpointSnapshot.error ?? '',
+      checkpointCaptureAttempts: String(checkpointSnapshot.captureAttempts),
+      checkpointCapturedAtTick: checkpointSnapshot.capturedAtTick == null
+        ? '' : String(checkpointSnapshot.capturedAtTick),
+      checkpointSchemaVersion: checkpointRecord ? String(checkpointRecord.schemaVersion) : '',
+      checkpointRuntimeInstanceId: checkpointRecord?.runtimeInstanceId ?? '',
+      checkpointId: checkpointRecord?.checkpointId ?? '',
+      checkpointLevelId: checkpointRecord?.levelId ?? '',
+      checkpointAnchor: checkpointRecord
+        ? `${checkpointRecord.anchor.x},${checkpointRecord.anchor.y},${checkpointRecord.anchor.facing}`
+        : '',
+      checkpointObjectIds: checkpointRecord?.objects.map(object => object.objectId).join(',') ?? '',
+      checkpointStateVersions: checkpointRecord?.objects
+        .map(object => `${object.objectId}:${object.stateVersion}`).join(',') ?? '',
+      checkpointObjectCount: checkpointRecord ? String(checkpointRecord.objects.length) : '0',
+      checkpointPayload: checkpointRecord ? JSON.stringify(checkpointRecord) : '',
     });
   }
   diagnostics.textContent = common.join('\n');

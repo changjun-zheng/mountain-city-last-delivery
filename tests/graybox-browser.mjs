@@ -88,7 +88,22 @@ const parseSample = data => ({ tick: +data.tick, x: +data.x, y: +data.y, vx: +da
   goalTransactionIntents: +(data.goalTransactionIntents || 0),
   goalTransactions: +(data.goalTransactions || 0),
   goalResultEvents: +(data.goalResultEvents || 0),
-  goalLastError: data.goalLastError || '' });
+  goalLastError: data.goalLastError || '',
+  checkpointStatus: data.checkpointStatus || '',
+  checkpointError: data.checkpointError || '',
+  checkpointCaptureAttempts: +(data.checkpointCaptureAttempts || 0),
+  checkpointCapturedAtTick: data.checkpointCapturedAtTick === ''
+    ? null : +data.checkpointCapturedAtTick,
+  checkpointSchemaVersion: data.checkpointSchemaVersion === ''
+    ? null : +data.checkpointSchemaVersion,
+  checkpointRuntimeInstanceId: data.checkpointRuntimeInstanceId || '',
+  checkpointId: data.checkpointId || '',
+  checkpointLevelId: data.checkpointLevelId || '',
+  checkpointAnchor: data.checkpointAnchor || '',
+  checkpointObjectIds: data.checkpointObjectIds || '',
+  checkpointStateVersions: data.checkpointStateVersions || '',
+  checkpointObjectCount: +(data.checkpointObjectCount || 0),
+  checkpointPayload: data.checkpointPayload || '' });
 const sample = async page => parseSample(await rawSample(page));
 
 export async function chooseScene(ctx, mode) {
@@ -2133,4 +2148,239 @@ export async function checkGoalRouteRuntime(ctx, record, capture) {
 
   await up();
   assert.deepEqual(ctx.errors, []);
+}
+
+// D10-A1 keeps the check focused on initialization, lifecycle stability and
+// the existing goal-E chain instead of rerunning the historical physics suite.
+export async function checkInitialSnapshot(ctx, record, capture) {
+  const page = ctx.page;
+  const key = (code, down) => ctx.monitor.key(code, down);
+  const up = async () => {
+    for (const code of ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'Escape', 'KeyR']) {
+      await key(code, false);
+    }
+  };
+  const waitStablePausedSample = async () => {
+    let previous;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(100);
+      const current = await sample(page);
+      if (previous && JSON.stringify(current) === JSON.stringify(previous)) return current;
+      previous = current;
+    }
+    throw new Error('Paused D10-A1 diagnostics did not settle');
+  };
+  const resetViaR = async () => {
+    await ctx.show();
+    await up();
+    const before = await sample(page);
+    await key('KeyR', true);
+    await key('KeyR', false);
+    await page.waitForFunction(({ resets, tick }) => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return Number(data?.resets) > resets && Number(data?.tick) >= tick &&
+        Number(data?.x) <= 81 && data?.interactionMode === 'idle' &&
+        data?.interactionConsumed === '0' && data?.grounded === 'true' &&
+        data?.controlAllowed === 'true';
+    }, { resets: before.resets, tick: before.tick }, poll);
+    return sample(page);
+  };
+  const moveUntilGoalSelected = async () => {
+    await key('KeyD', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.interactionSelected === 'prototype-goal-e',
+    undefined, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.interactionSelected === 'prototype-goal-e',
+    undefined, poll);
+  };
+
+  ctx.operation = 'D10-A1-initial-snapshot';
+  ctx.stage = 'graybox-preparation';
+  const result = await ctx.monitor.race(async () => {
+    await chooseScene(ctx, 'graybox');
+    await ctx.show();
+    const initial = await sample(page);
+    assert.equal(initial.checkpointStatus, 'READY');
+    assert.equal(initial.checkpointError, '');
+    assert.equal(initial.checkpointCaptureAttempts, 1);
+    assert.equal(initial.checkpointCapturedAtTick, 0);
+    assert.equal(initial.checkpointSchemaVersion, 1);
+    assert.equal(initial.checkpointObjectCount, 2);
+    assert.equal(initial.checkpointObjectIds, 'moving-horizontal-a,moving-vertical-a');
+    assert.equal(initial.checkpointStateVersions,
+      'moving-horizontal-a:1,moving-vertical-a:1');
+    assert.equal(initial.checkpointAnchor, '80,472,1');
+    assert.equal(initial.checkpointRuntimeInstanceId, initial.goalRuntimeInstanceId);
+    assert.ok(initial.checkpointPayload);
+    assert.equal(initial.control, true);
+    await capture('D10-A1-initial-snapshot-ready', true);
+
+    // Input held at the lifecycle boundary is cleared; a restore must not replay
+    // either the jump or interaction request, and the backup must not be recaptured.
+    await key('Space', true);
+    await key('KeyE', true);
+    await page.waitForTimeout(100);
+    ctx.stage = 'D10-A1-lifecycle-wait-hidden';
+    await ctx.hide();
+    await page.waitForFunction(() => document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics').dataset.paused === 'true', undefined,
+    { polling: 100 });
+    const frozen = await waitStablePausedSample();
+    assert.equal(frozen.control, false);
+    assert.equal(frozen.needsRelease, true);
+    assert.equal(frozen.interactionNeedsRelease, true);
+    assert.equal(frozen.checkpointCaptureAttempts, 1);
+    assert.equal(frozen.checkpointPayload, initial.checkpointPayload);
+    await page.waitForTimeout(1200);
+    assert.deepEqual(await sample(page), frozen,
+      'Initial snapshot and simulation state must freeze while hidden/minimized');
+    await capture('D10-A1-hidden-frozen', true);
+
+    ctx.stage = 'D10-A1-lifecycle-wait-restore';
+    await ctx.show();
+    await page.waitForFunction(() => document.visibilityState === 'visible' &&
+      document.hasFocus() && document.querySelector('#diagnostics').dataset.paused === 'false' &&
+      document.querySelector('#diagnostics').dataset.controlAllowed === 'true', undefined, poll);
+    const resumed = await sample(page);
+    assert.ok(resumed.tick - frozen.tick <= 5);
+    assert.equal(resumed.discarded, frozen.discarded);
+    assert.equal(resumed.checkpointCaptureAttempts, 1);
+    assert.equal(resumed.checkpointPayload, frozen.checkpointPayload);
+    assert.equal(resumed.checkpointRuntimeInstanceId, initial.checkpointRuntimeInstanceId);
+    assert.equal(resumed.jumps, frozen.jumps);
+    assert.equal(resumed.interactionConsumed, frozen.interactionConsumed);
+    assert.equal(resumed.interactionNeedsRelease, true);
+    assert.equal(resumed.interactionPrompt, '');
+    await capture('D10-A1-restored-held-inputs-no-replay', true);
+    await up();
+
+    const reset = await resetViaR();
+    assert.equal(reset.checkpointCaptureAttempts, 1);
+    assert.equal(reset.checkpointPayload, initial.checkpointPayload);
+    assert.equal(reset.goalRuntimeInstanceId, initial.goalRuntimeInstanceId);
+    await capture('D10-A1-reset-preserves-backup', true);
+
+    // Existing target-E host chain remains functional on the same snapshot run.
+    await moveUntilGoalSelected();
+    const beforeGoal = await sample(page);
+    assert.match(beforeGoal.interactionPrompt, /完成目标 E/);
+    await key('KeyE', true);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return data.goalPhase === 'succeeded' && data.progressGoalCount === '1' &&
+        data.progressRewardCount === '1' && data.progressEffectCount === '1' &&
+        data.progressRouteOpen === 'true';
+    }, undefined, poll);
+    await key('KeyE', false);
+    const completed = await sample(page);
+    assert.equal(completed.checkpointCaptureAttempts, 1);
+    assert.equal(completed.checkpointPayload, initial.checkpointPayload);
+    assert.equal(completed.checkpointRuntimeInstanceId, initial.checkpointRuntimeInstanceId);
+    assert.equal(completed.goalResultLifecycle, 'retired');
+    assert.equal(completed.goalResultConsumptionCount, 1);
+    await capture('D10-A1-goal-e-succeeded-snapshot-unchanged', true);
+
+    const afterCompletionReset = await resetViaR();
+    assert.equal(afterCompletionReset.progressGoalCount, 1);
+    assert.equal(afterCompletionReset.progressRewardCount, 1);
+    assert.equal(afterCompletionReset.progressEffectCount, 1);
+    assert.equal(afterCompletionReset.progressRouteOpen, true);
+    assert.equal(afterCompletionReset.checkpointCaptureAttempts, 1);
+    assert.equal(afterCompletionReset.checkpointPayload, initial.checkpointPayload);
+    assert.deepEqual({
+      runtime: afterCompletionReset.goalRuntimeInstanceId,
+      event: afterCompletionReset.goalEventId,
+      command: afterCompletionReset.goalCommandId,
+      transaction: afterCompletionReset.goalTransactionId,
+      result: afterCompletionReset.goalResultEventId,
+    }, {
+      runtime: completed.goalRuntimeInstanceId,
+      event: completed.goalEventId,
+      command: completed.goalCommandId,
+      transaction: completed.goalTransactionId,
+      result: completed.goalResultEventId,
+    });
+    await capture('D10-A1-reset-preserves-progress-and-backup', true);
+
+    await up();
+    ctx.monitor.navigation('D10-A1-full-runtime-restart');
+    await Promise.all([
+      page.waitForEvent('framenavigated', { predicate: frame => frame === page.mainFrame() }),
+      page.locator('#restart').click(),
+    ]);
+    await page.waitForFunction(oldId => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return Boolean(data?.goalRuntimeInstanceId) &&
+        data.goalRuntimeInstanceId !== oldId && data.checkpointStatus === 'READY' &&
+        document.querySelector('#restart')?.disabled === false;
+    }, initial.goalRuntimeInstanceId, { timeout: 15000, polling: 100 });
+    await ctx.show();
+    await chooseScene(ctx, 'graybox');
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.checkpointStatus === 'READY',
+    undefined, poll);
+    const fresh = await sample(page);
+    assert.notEqual(fresh.goalRuntimeInstanceId, initial.goalRuntimeInstanceId);
+    assert.notEqual(fresh.checkpointRuntimeInstanceId, initial.checkpointRuntimeInstanceId);
+    assert.notEqual(fresh.checkpointPayload, initial.checkpointPayload);
+    assert.equal(fresh.checkpointCaptureAttempts, 1);
+    assert.equal(fresh.checkpointObjectCount, 2);
+    assert.equal(fresh.checkpointCapturedAtTick, 0);
+    assert.equal(fresh.progressGoalCount, 0);
+    assert.equal(fresh.progressRewardCount, 0);
+    assert.equal(fresh.progressEffectCount, 0);
+    await capture('D10-A1-full-runtime-new-backup', true);
+
+    assert.deepEqual(ctx.errors, []);
+    return {
+      initial: {
+        runtimeInstanceId: initial.goalRuntimeInstanceId,
+        checkpointRuntimeInstanceId: initial.checkpointRuntimeInstanceId,
+        captureAttempts: initial.checkpointCaptureAttempts,
+        capturedAtTick: initial.checkpointCapturedAtTick,
+        schemaVersion: initial.checkpointSchemaVersion,
+        objectIds: initial.checkpointObjectIds,
+        stateVersions: initial.checkpointStateVersions,
+        anchor: initial.checkpointAnchor,
+      },
+      lifecycle: {
+        frozenTick: frozen.tick,
+        resumedTick: resumed.tick,
+        jumps: [frozen.jumps, resumed.jumps],
+        interactionConsumed: [frozen.interactionConsumed, resumed.interactionConsumed],
+        captureAttempts: resumed.checkpointCaptureAttempts,
+      },
+      goalE: {
+        eventId: completed.goalEventId,
+        commandId: completed.goalCommandId,
+        transactionId: completed.goalTransactionId,
+        resultEventId: completed.goalResultEventId,
+        resultLifecycle: completed.goalResultLifecycle,
+        progress: [
+          completed.progressGoalCount,
+          completed.progressRewardCount,
+          completed.progressEffectCount,
+        ],
+        routeOpen: completed.progressRouteOpen,
+        checkpointPayloadStable:
+          completed.checkpointPayload === initial.checkpointPayload,
+      },
+      reset: {
+        captureAttempts: afterCompletionReset.checkpointCaptureAttempts,
+        payloadStable: afterCompletionReset.checkpointPayload === initial.checkpointPayload,
+        runtimeStable:
+          afterCompletionReset.goalRuntimeInstanceId === completed.goalRuntimeInstanceId,
+      },
+      fullRestart: {
+        runtimeInstanceId: fresh.goalRuntimeInstanceId,
+        checkpointRuntimeInstanceId: fresh.checkpointRuntimeInstanceId,
+        captureAttempts: fresh.checkpointCaptureAttempts,
+        capturedAtTick: fresh.checkpointCapturedAtTick,
+      },
+    };
+  });
+  record('D10-A1-initial-snapshot', { status: 'PASS', ...result });
+  console.log('PASS', ctx.label, 'D10-A1 initial-snapshot', JSON.stringify(result));
 }
