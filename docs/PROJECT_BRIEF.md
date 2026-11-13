@@ -242,6 +242,20 @@ D09-C1 暂不整体验收。下一项 D09-C1-R1 只修终态元数据登记失�
 
 `npm.cmd test` 为 `104/104` PASS，类型检查与 Windows 生产构建 PASS。修复尚未接宿主，GUI／三端事务、最终结果事件、检查点、存档和 Edge 均为 NOT RUN；ASAR／EXE 不变不能解释为宿主运行。D09-C1 与 R1 当前等待 Work 审查，不自动进入后续任务，不 Commit／Push／发布。详细证据见 [README](../README.md#d09-c1-r1终态提交失败的有界恢复)和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-c1-r1-执行结果)。
 
+### D09-C1-R1 Work 复审与 D09-C2 任务
+
+2026-11-13：Work 按 `c94a797` 复核终态登记有界返回、pendingTerminal 与显式后续恢复，源码／测试哈希匹配报告，本轮重跑类型检查、Electron Main 编译及 104/104 测试 PASS，未重跑构建或 GUI。R1 递归缺口关闭，D09-C1 在当前核心原型范围收口；terminal-pending 尚非正式业务终态，不能据此发布最终结果。
+
+下一项 D09-C2 实现事务终态经协调器创建唯一最终结果事件、完整身份关联、固定阶段幂等消费及 producer 确认／安全退役。结果创建或处理失败不能重跑原事务；已提交但返回丢失、结果事件已退役后重复反馈等情况都须复用原结果身份。仍只做核心链收尾，不接宿主、检查点或存档；受控结果通知完成路径不冒充命令 Accepted，也不泛化为任意无命令事件 API。范围与 G01–G06 见[路线图当前任务](DEVELOPMENT_ROADMAP.md#7-当前任务与持续记录)。
+
+### D09-C2 工程执行状态
+
+2026-11-13：唯一最终结果事件核心已实现。只有 Transaction Manager 正式登记的 Succeeded／Failed 能经受控 authority 向协调器请求结果；结果事件拥有新的 Event ID，并显式携带原 Runtime／Event／Command／Transaction／target 关联。事件登记、Inbox 入队和事务到结果绑定原子提交，准备／提交故障完整回滚；提交后回执丢失或结果已退役时，重复请求仍复用原 Result Event ID。
+
+结果事件在固定协调阶段独立消费，不创建 Command／Transaction、不重跑原事务，也不调用业务 `apply`。消费成功后才 Completed；完成登记失败以同一 Pending 身份恢复，并由结果 source 的 producer 独立确认和安全退役。原事件与结果事件生命周期互不代表，原命令 Unknown 也不能替代事务最终结果。
+
+G01–G06 全部 PASS，原 104 项测试保留，`npm.cmd test` 为 `110/110` PASS；类型检查、D09-C2 专项 `6/6` 与 Windows 生产构建 PASS。结果核心尚未接宿主，GUI／三端事务结果、检查点、RecoveryError、存档和 Edge 均为 NOT RUN；ASAR／EXE 未变化不能解释为宿主已运行。D09-C2 当前状态为 DONE（待 Work 审查），不自动进入后续任务，不 Commit／Push／发布。详细证据见 [README](../README.md#d09-c2唯一最终结果事件核心)和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-c2-执行结果)。
+
 ## 已确认的游戏设计方向
 
 确认日期：2026-11-06；依据：项目负责人本次明确指示。

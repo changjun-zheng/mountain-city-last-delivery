@@ -1220,12 +1220,61 @@ R01–R04：
 
 ASAR／EXE 未变化是因为修复尚未进入宿主入口。D09-C1-R1 当前等待 Work 审查，不进入最终结果事件、宿主、检查点或其他后续任务，不 Commit／Push／发布。
 
+## D09-C2：唯一最终结果事件核心
+
+2026-11-13 在现有事件、命令接收、事务执行和退役内核上补齐最终结果事件闭环。该结果通知路径仍只在共享核心与测试组合中启用，未接 Web／Electron 宿主、当前灰盒或 D08 交互，也没有新增用户可见业务。
+
+实现边界：
+
+1. `TransactionFinalResult` 只接受已经由 Transaction Manager 正式登记的 `succeeded` 或 `failed`。running、retry-pending、recovery-pending、terminal-pending 与终态元数据缺失均不能请求结果；Manager 通过受控 authority 读取自己的执行记录，调用方不能提交任意终态冒充来源。
+2. 协调器创建新的 `transaction.result` 事件并分配新的 Event ID。结果载荷同时携带原 Runtime Instance ID、Event ID、Command ID、Transaction ID、target ID、正式终态和自身 Result Event ID；它不是原事件重放，也不分配新 Command 或 Transaction。
+3. 每个目标使用对象身份受控的 Transaction Result source capability。结果事件 Pending 登记、Inbox 入队、Event ID 提交和 `transactionId → resultEventId` 唯一绑定在同一受控创建流程中完成；准备或提交失败会回滚完整记录、队列项与绑定，不消耗正式 Event ID。
+4. `after-result-commit` 表示事件与绑定已经提交但返回回执丢失。此时返回 Unknown；后续请求先复用协调器内的原绑定，并取得原 Result Event ID。发送方是否收到首次响应不参与唯一性判断。
+5. 结果事件沿用固定阶段和单轮快照。Pending 在实际通知前转 Processing，并走独立的 result consumer 分支；该分支不调用命令 handler、不创建 Command／Transaction，也不执行原事务的 `apply`。结果事件在命令链或独立结果消费模式中都会先于普通事件分流。
+6. 通知成功或报告 `already-consumed` 后才能登记 Completed。完成登记故障会把同一事件恢复为 Pending，保留原 Event ID、事务绑定与可查诊断；后续合法阶段再次通知时必须由受控消费者按事务／结果身份幂等处理。
+7. 结果事件拥有独立 producer。通知 Completed 后，该 producer 通过既有最终结果 capability 显式确认，再满足安全条件后退役。原事件与结果事件分别确认和退役；结果绑定及退役水位线在完整事件记录删除后继续阻止旧事件重放和第二个结果身份。
+8. 创建或消费持续失败均按单次显式调用有界返回，不递归补发、不自动重试、不重开正式终态。结果通知失败只保留待恢复通知，不重新调用已完成事务的业务 apply。
+
+G01–G06 验收：
+
+| 用例 | 状态 | 实际证据 |
+| --- | --- | --- |
+| G01 终态与身份绑定 | PASS | 成功事务与业务失败事务分别在 Tick `4／3` 创建 Result Event ID `2`；完整 Runtime／Event／Command／Transaction／target／terminal 关联一致。running 和 terminal-pending 请求均返回 not-terminal，不创建事件、不消耗 Event ID，业务新增保持 `1/1/1` 或 `0/0/0`。 |
+| G02 原子创建与故障 | PASS | 依次注入 candidate-prepared、registration-prepared、inbox-prepared、event-id-committed、registration-committed、inbox-committed、before-result-binding-commit 七类故障，全部完整回滚；Inbox 满不消耗 Event ID。提交后回执丢失返回 Unknown，下一次请求仍得到 Result Event ID `2`，正式结果数保持 `1`。 |
+| G03 固定阶段幂等消费 | PASS | 创建后事件保持 Pending，consumer 调用数为 `0`；显式 Tick 才进入消费。完成登记故障把同一事件恢复 Pending，下一次通知得到 already-consumed 并完成；Command／Transaction 数量、编号和业务新增均不增加，Completed 后再次 dispatch 不重放。 |
+| G04 独立反馈与身份拒绝 | PASS | 原事件先读取、确认、退役后事务仍可完成并创建结果；原命令接收为 Unknown 时事务结果仍独立成立。伪造 source capability、错误 runtime／target、非法 terminal 与关联篡改均被拒绝，不能借结果路径绕过创建规则。 |
+| G05 producer 确认、退役与容量 | PASS | 结果 Completed 后错误 producer 不能读取或确认；正确 producer 确认后才可退役，验证的是结果事件而非原事件。退役后旧 envelope 重投为 retired-event，重复请求仍返回原 Result Event ID；结果绑定容量 `1` 时第二条结果被拒绝且不消耗 Event ID、已有绑定仍可查询。 |
+| G06 有界故障与业务隔离 | PASS | 连续两轮创建故障、连续两轮消费故障均每次有界返回；原目标／奖励／效果保持 `1/1/1`，原 Command `1`、Transaction `1`、intent `1`、consumer 尝试 `2`。Manager 记录 `resultRequestAttempts=3`、Result Event ID `2`、正式结果数 `1`；原事务终态保持 Succeeded。 |
+
+验证结果：
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `npm.cmd run typecheck` | PASS | 共享核心、Renderer 类型检查及 Electron Main 独立编译入口通过。 |
+| `node --experimental-strip-types --test tests/transaction-results.test.mjs` | PASS | D09-C2 专项 `6/6`，0 fail、0 skipped。 |
+| `npm.cmd test` | PASS | 类型检查、Electron Main 编译及 `110/110` 测试通过，0 fail、0 skipped；原 104 项保留，新增 G01–G06 六项。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建（18 modules）、Electron Main 编译及 Windows x64 免安装目录构建成功；保留既有 bundle 体积、author 和默认图标警告。 |
+| Chrome Web／Electron 开发版／独立包事务结果运行 | NOT RUN | 新核心尚未接宿主；纯核心与测试组合不能冒充 GUI 或三端事务端到端验证。 |
+| 宿主接线／检查点／RecoveryError／存档／Edge | NOT RUN | 明确不在 D09-C2 范围。 |
+
+对应版本：
+
+- 基线提交：`c94a797bb77da38d4ad57c9881b0fdd70204045c`。
+- `src/core/events.ts`：`790AC1D04FCED62A052E17700E43128C7D53B24EDAD40A4B41088318D1BB1F75`。
+- `src/core/transactions.ts`：`ABEFDB5E1990C897B5AF3483025ED66E41140F746A1B445D505A6B2887DDF7BD`。
+- `src/core/transaction-results.ts`：`4BF518631115B2AA8A3C83299EC816ECA30138298F2E071ADEE07E951ACAF5A8`。
+- `tests/transaction-results.test.mjs`：`6F8DC1561F8E20343E20500745C7958BC358269BFC34F380E12995031B2C50FC`。
+- 生产 ASAR SHA-256：`92999B8A38D5B10DF331314D94F161AC3E2739E37C0E758D773E5A8B4D48CB8B`。
+- Windows EXE SHA-256：`BB578EADD877147171729D3A5EF4D785ABB52B51EA8CE522DA83945869398973`。
+
+ASAR／EXE 与 D09-C1-R1 相同，因为结果内核尚未进入宿主入口。D09-C2 在当前纯核心范围完成，等待 Work 审查；不自动进入宿主、检查点、存档或下一任务，不 Commit／Push／发布。
+
 ## 当前限制
 
-- 最新执行（D09-C1-R1，2026-11-13）：类型检查、Electron Main 编译及 `104/104` 自动化测试 PASS，生产构建 PASS。终态登记失败可跨合法 Tick 有界恢复；事件创建、退役、稳定命令、真实目标接收分类、Unknown 核查与最小事务执行内核仍未接入宿主，GUI 与三端业务链均为 NOT RUN。
+- 最新执行（D09-C2，2026-11-13）：类型检查、Electron Main 编译及 `110/110` 自动化测试 PASS，生产构建 PASS。正式 Succeeded／Failed 可经协调器创建唯一结果事件并在固定阶段幂等消费、确认和安全退役；结果内核与既有事件、命令和事务内核仍未接入宿主，GUI 与三端业务链均为 NOT RUN。
 - Web 主包约 332.14 KB gzip，Vite 有体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互及 D08 运行内进度是工程灰盒；共享核心另有 D09 事件、稳定命令、真实目标接收分类、Unknown 核查和带终态登记恢复的最小事务执行，但当前页面尚未使用它们。未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、最终结果事件、宿主接线、检查点或存储。D08 的“永久”仅限当前页面运行内；D09 的 Accepted、intent、Transaction ID 或核心测试 Succeeded 也不等于 GUI 业务成功或 Checkpoint Recovery。不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 审查，不自动进入后续分段。
+- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互及 D08 运行内进度是工程灰盒；共享核心另有 D09 事件、稳定命令、真实目标接收分类、Unknown 核查、带终态登记恢复的最小事务执行及唯一最终结果事件，但当前页面尚未使用它们。未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、宿主接线、检查点或存储。D08 的“永久”仅限当前页面运行内；D09 的 Accepted、intent、Transaction ID、核心测试 Succeeded 或结果事件 Completed 也不等于 GUI 业务成功或 Checkpoint Recovery。不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 对 D09-C2 的审查，不自动进入后续分段。

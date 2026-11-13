@@ -9,6 +9,16 @@ import {
   PROTOTYPE_PROGRESS_CONTENT,
   type RunProgressSnapshot,
 } from './progress.ts';
+import {
+  type TransactionFinalResult,
+  type TransactionResultAssociation,
+  type TransactionResultCreationResult,
+  type TransactionResultEventPort,
+  type TransactionResultLifecycle,
+  type TransactionResultQuery,
+  type TransactionResultRequest,
+  type TransactionResultSourceHandle,
+} from './transaction-results.ts';
 
 export type TransactionExecutionStatus =
   | 'not-started'
@@ -31,6 +41,12 @@ export type TransactionExecutionContext = Readonly<{
   runtimeInstanceId: string;
   simulationTick: number;
   phase: 'transaction';
+}>;
+
+export type TransactionResultRequestContext = Readonly<{
+  runtimeInstanceId: string;
+  simulationTick: number;
+  phase: 'result';
 }>;
 
 export type TransactionExecutorRequest = Readonly<{
@@ -100,6 +116,8 @@ export type TransactionExecutionRecord = Readonly<{
   retryAttempts: number;
   recoveryAttempts: number;
   terminalCommitAttempts: number;
+  resultRequestAttempts: number;
+  lastResultRequestTick: number | null;
   businessAdditions: TransactionProgressAddition;
   remainingPaths: Readonly<{
     retries: number;
@@ -108,6 +126,9 @@ export type TransactionExecutionRecord = Readonly<{
   errors: readonly TransactionErrorHistoryEntry[];
   pendingTerminal?: TransactionTerminalResult;
   terminal?: TransactionTerminalResult;
+  resultEventId?: number;
+  resultEventLifecycle?: TransactionResultLifecycle;
+  resultRequestError?: string;
 }>;
 
 export type TransactionExecutionSnapshot = Readonly<{
@@ -123,6 +144,8 @@ export type TransactionExecutionSnapshot = Readonly<{
     terminalPending: number;
     succeeded: number;
     failed: number;
+    resultEvents: number;
+    retiredResultEvents: number;
   }>;
 }>;
 
@@ -174,6 +197,37 @@ export type TransactionOperationResult =
     message: string;
   }>;
 
+export type TransactionResultRequestResult =
+  | Readonly<{
+    status: 'created' | 'existing';
+    record: TransactionExecutionRecord;
+    association: TransactionResultAssociation;
+  }>
+  | Readonly<{
+    status: 'unknown';
+    record: TransactionExecutionRecord;
+    message: string;
+  }>
+  | Readonly<{
+    status: 'rejected';
+    reason:
+      | 'invalid-input'
+      | 'runtime-mismatch'
+      | 'unknown-transaction'
+      | 'not-configured'
+      | 'not-terminal'
+      | 'phase-order'
+      | 'recursive-operation'
+      | 'association-mismatch'
+      | 'result-capacity'
+      | 'inbox-capacity'
+      | 'history-capacity'
+      | 'event-id-exhausted'
+      | 'transaction-aborted'
+      | 'blocked';
+    message: string;
+  }>;
+
 export type TransactionExecutionFaultPoint = 'before-terminal-commit';
 export type TransactionExecutionFaultInjector =
   (point: TransactionExecutionFaultPoint) => void;
@@ -183,6 +237,10 @@ export type RuntimeTransactionExecutionManagerOptions = Readonly<{
   retryBudget?: number;
   recoveryBudget?: number;
   faultInjector?: TransactionExecutionFaultInjector;
+  transactionResults?: Readonly<{
+    port: TransactionResultEventPort;
+    source: TransactionResultSourceHandle;
+  }>;
 }>;
 
 type InternalRecord = Readonly<{
@@ -216,9 +274,12 @@ export class RuntimeTransactionExecutionManager {
   readonly #initialRetryBudget: number;
   readonly #initialRecoveryBudget: number;
   readonly #faultInjector: TransactionExecutionFaultInjector | undefined;
+  readonly #transactionResultPort: TransactionResultEventPort | undefined;
+  readonly #transactionResultSource: TransactionResultSourceHandle | undefined;
   readonly #recordsByTransactionId = new Map<number, InternalRecord>();
   readonly #transactionIdByCommandId = new Map<number, number>();
   #operating = false;
+  #requestingResult = false;
 
   constructor(
     target: TargetTransactionModule,
@@ -253,6 +314,48 @@ export class RuntimeTransactionExecutionManager {
     this.#progress = progress;
     this.#executor = executor;
     this.#faultInjector = options.faultInjector;
+    const transactionResults = options.transactionResults;
+    if (transactionResults &&
+        (transactionResults.source.runtimeInstanceId !== runtimeInstanceId ||
+          transactionResults.source.targetId !== target.targetId)) {
+      throw new Error(
+        'Transaction result source must belong to the manager runtime and target.',
+      );
+    }
+    this.#transactionResultPort = transactionResults?.port;
+    this.#transactionResultSource = transactionResults?.source;
+    if (transactionResults) {
+      const registered =
+        transactionResults.port.registerTransactionResultAuthority(
+          transactionResults.source,
+          transactionId => {
+            const record = this.#recordsByTransactionId.get(transactionId)?.publicRecord;
+            if (!record) {
+              return {
+                status: 'not-found' as const,
+                transactionId,
+                message: 'Transaction execution record does not exist.',
+              };
+            }
+            if ((record.status !== 'succeeded' && record.status !== 'failed') ||
+                !record.terminal) {
+              return {
+                status: 'not-terminal' as const,
+                transactionId,
+                message:
+                  `Transaction status ${record.status} is not a registered terminal.`,
+              };
+            }
+            return {
+              status: 'found' as const,
+              request: transactionResultRequestForRecord(record),
+            };
+          },
+        );
+      if (registered.status !== 'registered') {
+        throw new Error(`Transaction result source registration failed: ${registered.message}`);
+      }
+    }
     OWNED_TARGET_MODULES.add(target);
   }
 
@@ -345,6 +448,160 @@ export class RuntimeTransactionExecutionManager {
     return transactionId === undefined ? undefined : this.read(transactionId);
   }
 
+  requestResultEvent(
+    transactionId: number,
+    context: TransactionResultRequestContext,
+  ): TransactionResultRequestResult {
+    if (this.#requestingResult) {
+      return rejectedTransactionResultRequest(
+        'recursive-operation',
+        'Transaction result creation cannot be re-entered.',
+      );
+    }
+    if (!Number.isSafeInteger(transactionId) || transactionId < 1) {
+      return rejectedTransactionResultRequest(
+        'invalid-input',
+        'Transaction ID must be a positive safe integer.',
+      );
+    }
+    const normalized = normalizeTransactionResultContext(context);
+    if (!normalized.ok) {
+      return rejectedTransactionResultRequest('invalid-input', normalized.message);
+    }
+    if (normalized.runtimeInstanceId !== this.runtimeInstanceId) {
+      return rejectedTransactionResultRequest(
+        'runtime-mismatch',
+        'Result request context belongs to another runtime instance.',
+      );
+    }
+    const stored = this.#recordsByTransactionId.get(transactionId);
+    if (!stored) {
+      return rejectedTransactionResultRequest(
+        'unknown-transaction',
+        'Transaction record does not exist.',
+      );
+    }
+    const record = stored.publicRecord;
+    if (record.status !== 'succeeded' &&
+        record.status !== 'failed') {
+      return rejectedTransactionResultRequest(
+        'not-terminal',
+        `Transaction status ${record.status} cannot publish a final result event.`,
+      );
+    }
+    if (!record.terminal) {
+      return rejectedTransactionResultRequest(
+        'not-terminal',
+        'Registered terminal result is missing from the transaction record.',
+      );
+    }
+    const port = this.#transactionResultPort;
+    const source = this.#transactionResultSource;
+    if (!port || !source) {
+      return rejectedTransactionResultRequest(
+        'not-configured',
+        'Transaction result event creation is not configured for this manager.',
+      );
+    }
+    if (record.lastResultRequestTick !== null &&
+        normalized.simulationTick <= record.lastResultRequestTick) {
+      return rejectedTransactionResultRequest(
+        'phase-order',
+        'Transaction result creation requires a strictly increasing Result phase Tick.',
+      );
+    }
+
+    const attempted: TransactionExecutionRecord = Object.freeze({
+      ...record,
+      resultRequestAttempts: record.resultRequestAttempts + 1,
+      lastResultRequestTick: normalized.simulationTick,
+    });
+    this.#replaceRecord(stored, attempted);
+    this.#requestingResult = true;
+    try {
+      let created: TransactionResultCreationResult;
+      try {
+        created = port.requestTransactionResult(source, transactionId);
+      } catch (error) {
+        const message = `Transaction result creation threw: ${toMessage(error)}`;
+        const unknownRecord = Object.freeze({
+          ...attempted,
+          resultRequestError: message,
+        });
+        this.#replaceRecord(stored, unknownRecord);
+        return Object.freeze({
+          status: 'unknown' as const,
+          record: unknownRecord,
+          message,
+        });
+      }
+
+      if (created.status === 'created' || created.status === 'existing') {
+        const updated: TransactionExecutionRecord = Object.freeze({
+          ...attempted,
+          resultEventId: created.association.resultEventId,
+          resultEventLifecycle: created.lifecycle,
+          resultRequestError: undefined,
+        });
+        this.#replaceRecord(stored, updated);
+        return Object.freeze({
+          status: created.status,
+          record: updated,
+          association: created.association,
+        });
+      }
+      if (created.status === 'unknown') {
+        const unknownRecord: TransactionExecutionRecord = Object.freeze({
+          ...attempted,
+          resultEventId: created.resultEventId,
+          resultEventLifecycle: undefined,
+          resultRequestError: created.message,
+        });
+        this.#replaceRecord(stored, unknownRecord);
+        return Object.freeze({
+          status: 'unknown' as const,
+          record: unknownRecord,
+          message: created.message,
+        });
+      }
+
+      if (created.status === 'rejected') {
+        const rejectedRecord: TransactionExecutionRecord = Object.freeze({
+          ...attempted,
+          resultRequestError: created.message,
+        });
+        this.#replaceRecord(stored, rejectedRecord);
+        return rejectedTransactionResultRequest(
+          mapTransactionResultRejection(created.reason),
+          created.message,
+        );
+      }
+      return rejectedTransactionResultRequest(
+        'transaction-aborted',
+        'Transaction result creation returned an unsupported status.',
+      );
+    } finally {
+      this.#requestingResult = false;
+    }
+  }
+
+  readResultEvent(transactionId: number): TransactionResultQuery {
+    const port = this.#transactionResultPort;
+    const source = this.#transactionResultSource;
+    if (!port || !source) {
+      return Object.freeze({
+        status: 'rejected' as const,
+        reason: 'invalid-source' as const,
+        message: 'Transaction result event creation is not configured.',
+      });
+    }
+    return port.queryTransactionResult(source, transactionId);
+  }
+
+  get resultProducer(): TransactionResultSourceHandle['producer'] | undefined {
+    return this.#transactionResultSource?.producer;
+  }
+
   get snapshot(): TransactionExecutionSnapshot {
     const records = Object.freeze([...this.#recordsByTransactionId.values()]
       .map(record => record.publicRecord)
@@ -362,6 +619,10 @@ export class RuntimeTransactionExecutionManager {
         terminalPending: countStatus(records, 'terminal-pending'),
         succeeded: countStatus(records, 'succeeded'),
         failed: countStatus(records, 'failed'),
+        resultEvents: records.filter(record => record.resultEventId !== undefined).length,
+        retiredResultEvents: records.filter(
+          record => record.resultEventLifecycle === 'retired',
+        ).length,
       }),
     });
   }
@@ -864,6 +1125,8 @@ function createExecutionRecord(
     retryAttempts: 0,
     recoveryAttempts: 0,
     terminalCommitAttempts: 0,
+    resultRequestAttempts: 0,
+    lastResultRequestTick: null,
     businessAdditions: Object.freeze({ goals: 0, rewards: 0, effects: 0 }),
     remainingPaths: Object.freeze({
       retries: retryBudget,
@@ -1032,6 +1295,105 @@ function pendingRecoveryRecord(
     status: 'recovery-pending' as const,
     phase: 'verify' as const,
   });
+}
+
+function normalizeTransactionResultContext(
+  context: TransactionResultRequestContext,
+):
+  | Readonly<{
+    ok: true;
+    runtimeInstanceId: string;
+    simulationTick: number;
+  }>
+  | Readonly<{ ok: false; message: string }> {
+  if (context === null || typeof context !== 'object') {
+    return {
+      ok: false,
+      message: 'Transaction result context must be an object.',
+    };
+  }
+  if (typeof context.runtimeInstanceId !== 'string' ||
+      !Number.isSafeInteger(context.simulationTick) ||
+      context.simulationTick < 1 ||
+      context.phase !== 'result') {
+    return {
+      ok: false,
+      message: 'Result context requires a runtime ID, positive safe Tick and result phase.',
+    };
+  }
+  return {
+    ok: true,
+    runtimeInstanceId: context.runtimeInstanceId,
+    simulationTick: context.simulationTick,
+  };
+}
+
+function toTransactionFinalResult(
+  terminal: TransactionTerminalResult,
+): TransactionFinalResult {
+  return terminal.status === 'succeeded'
+    ? Object.freeze({
+      status: 'succeeded' as const,
+      simulationTick: terminal.simulationTick,
+    })
+    : Object.freeze({
+      status: 'failed' as const,
+      simulationTick: terminal.simulationTick,
+      reasonCode: terminal.reasonCode,
+      message: terminal.message,
+    });
+}
+
+function transactionResultRequestForRecord(
+  record: TransactionExecutionRecord,
+): TransactionResultRequest {
+  if (!record.terminal) {
+    throw new Error('Registered terminal is required for transaction result creation.');
+  }
+  return Object.freeze({
+    runtimeInstanceId: record.runtimeInstanceId,
+    sourceEventId: record.eventId,
+    commandId: record.commandId,
+    transactionId: record.transactionId,
+    targetId: record.targetId,
+    terminal: toTransactionFinalResult(record.terminal),
+  });
+}
+
+function mapTransactionResultRejection(
+  reason: Extract<TransactionResultCreationResult, { status: 'rejected' }>['reason'],
+): Extract<TransactionResultRequestResult, { status: 'rejected' }>['reason'] {
+  switch (reason) {
+    case 'runtime-mismatch':
+      return 'runtime-mismatch';
+    case 'association-mismatch':
+      return 'association-mismatch';
+    case 'result-capacity':
+      return 'result-capacity';
+    case 'inbox-capacity':
+      return 'inbox-capacity';
+    case 'history-capacity':
+      return 'history-capacity';
+    case 'event-id-exhausted':
+      return 'event-id-exhausted';
+    case 'transaction-aborted':
+      return 'transaction-aborted';
+    case 'blocked':
+      return 'blocked';
+    case 'invalid-source':
+    case 'target-mismatch':
+    case 'invalid-request':
+    case 'invalid-terminal':
+    case 'unsupported-event-type':
+      return 'association-mismatch';
+  }
+}
+
+function rejectedTransactionResultRequest(
+  reason: Extract<TransactionResultRequestResult, { status: 'rejected' }>['reason'],
+  message: string,
+): Extract<TransactionResultRequestResult, { status: 'rejected' }> {
+  return Object.freeze({ status: 'rejected' as const, reason, message });
 }
 
 function countStatus(

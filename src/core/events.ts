@@ -17,6 +17,22 @@ import {
   type DeliverySourceEvent,
   type RealCommandDeliveryOptions as DeliveryCoordinatorOptions,
 } from './delivery.ts';
+import {
+  TRANSACTION_RESULT_EVENT_TYPE,
+  transactionResultRequestsEqual,
+  type TransactionFinalResult,
+  type TransactionResultAuthority,
+  type TransactionResultAuthorityRegistrationResult,
+  type TransactionResultAssociation,
+  type TransactionResultConsumer,
+  type TransactionResultCreationResult,
+  type TransactionResultEvent,
+  type TransactionResultEventPort,
+  type TransactionResultLifecycle,
+  type TransactionResultQuery,
+  type TransactionResultRequest,
+  type TransactionResultSourceHandle,
+} from './transaction-results.ts';
 
 export interface RuntimeUuidProvider {
   generate(): string;
@@ -113,6 +129,8 @@ export type EventCreationFaultPoint =
   | 'event-id-committed'
   | 'registration-committed'
   | 'inbox-committed'
+  | 'before-result-binding-commit'
+  | 'after-result-commit'
   | 'rollback';
 
 export type EventCreationFaultInjector = (point: EventCreationFaultPoint) => void;
@@ -120,10 +138,12 @@ export type EventCreationFaultInjector = (point: EventCreationFaultPoint) => voi
 export type EventCreationOptions = Readonly<{
   inboxCapacity: number;
   historyCapacity?: number;
+  transactionResultCapacity?: number;
   allowedEventTypes?: readonly string[];
   dispatchHandler?: EventDispatchHandler;
   commandReceiptTestDouble?: CommandReceiptTestDouble;
   realCommandDelivery?: RealCommandDeliveryOptions;
+  transactionResultConsumer?: TransactionResultConsumer;
   // Deterministic failure seam for tests. Runtime composition does not supply it.
   faultInjector?: EventCreationFaultInjector;
   // A separate deterministic seam verifies lifecycle transitions without
@@ -180,6 +200,8 @@ export type EventLifecycleRecord = Readonly<{
   simulationTick?: number;
   testCommandReference?: string;
   realCommand?: RealCommandAssociation;
+  transactionResult?: TransactionResultAssociation;
+  transactionResultConsumed?: boolean;
 }>;
 
 export type RealCommandAssociation = Readonly<{
@@ -211,7 +233,11 @@ export type EventDispatchFailure = Readonly<{
     | 'receipt-unknown'
     | 'invalid-receipt'
     | 'lifecycle-invalid'
-    | 'dispatch-blocked';
+    | 'dispatch-blocked'
+    | 'result-consumer-not-configured'
+    | 'result-consumer-threw'
+    | 'result-consumer-invalid'
+    | 'result-lifecycle-invalid';
   simulationTick: number;
   eventId?: number;
   message: string;
@@ -264,6 +290,7 @@ export type CompletedEventResult = Readonly<{
   producerId: string;
   testCommandReference?: string;
   realCommand?: RealCommandAssociation;
+  transactionResult?: TransactionResultAssociation;
 }>;
 
 export type FinalEventResultRead =
@@ -358,12 +385,17 @@ export type EventKernelSnapshot = Readonly<{
     }>;
     resourceCapacity: number;
   }>;
+  transactionResults: Readonly<{
+    bindings: readonly TransactionResultAssociation[];
+    capacity: number;
+  }>;
   blocked: boolean;
   lastDispatchTick: number | null;
   dispatchBlocked: boolean;
   delivery?: CommandDeliverySnapshot;
   lastFailure?: EventCreationFailure;
   dispatchFailure?: EventDispatchFailure;
+  resultDispatchFailure?: EventDispatchFailure;
   retirementFailure?: EventRetirementFailure;
 }>;
 
@@ -374,11 +406,20 @@ type PreparedRegistration = Readonly<{
   status: 'pending';
   eventFingerprint: string;
   producerId?: string;
+  transactionResult?: TransactionResultAssociation;
+}>;
+
+type StoredTransactionResult = Readonly<{
+  sourceId: string;
+  producerId: string;
+  event: TransactionResultEvent;
+  association: TransactionResultAssociation;
 }>;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EVENT_TYPE_PATTERN = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/;
 const DEFAULT_HISTORY_CAPACITY = 1024;
+const DEFAULT_TRANSACTION_RESULT_CAPACITY = 256;
 
 // Event IDs are an in-memory prototype sequence. A successful creation advances
 // it; candidates and rolled-back transactions never consume an ID.
@@ -526,7 +567,11 @@ class EventLifecycleRegistry {
     return this.#records.size;
   }
 
-  prepare(event: PendingEvent, producerId?: string): PreparedRegistration {
+  prepare(
+    event: PendingEvent,
+    producerId?: string,
+    transactionResult?: TransactionResultAssociation,
+  ): PreparedRegistration {
     if (!this.hasCapacity) {
       throw new Error('The lifecycle history has no capacity for another event.');
     }
@@ -539,6 +584,7 @@ class EventLifecycleRegistry {
       status: 'pending' as const,
       eventFingerprint: fingerprintEvent(event),
       ...(producerId === undefined ? {} : { producerId }),
+      ...(transactionResult === undefined ? {} : { transactionResult }),
     });
   }
 
@@ -572,6 +618,7 @@ class EventLifecycleRegistry {
       simulationTick: number;
       testCommandReference?: string;
       realCommand?: RealCommandAssociation;
+      transactionResultConsumed?: boolean;
     }>,
   ): EventLifecycleRecord {
     const current = this.#records.get(eventId);
@@ -597,6 +644,15 @@ class EventLifecycleRegistry {
         ? { testCommandReference: details.testCommandReference }
         : {}),
       ...(details.realCommand ? { realCommand: details.realCommand } : {}),
+      ...(current.transactionResult === undefined
+        ? {}
+        : { transactionResult: current.transactionResult }),
+      ...((details.transactionResultConsumed ?? current.transactionResultConsumed) === undefined
+        ? {}
+        : {
+          transactionResultConsumed:
+            details.transactionResultConsumed ?? current.transactionResultConsumed,
+        }),
       eventFingerprint: current.eventFingerprint,
     });
     this.#records.set(eventId, updated);
@@ -742,7 +798,7 @@ export class RuntimeEventContext {
 
 // This is the only public event creation entry. Generator, lifecycle registry
 // and Inbox retain their own state while the coordinator controls the commit.
-export class EventCreationCoordinator implements CommandEventSource {
+export class EventCreationCoordinator implements CommandEventSource, TransactionResultEventPort {
   readonly #runtimeInstanceId: string;
   readonly #eventIds: EventIdSequence;
   readonly #businessIdentities: RuntimeBusinessIdentityInfrastructure;
@@ -750,6 +806,7 @@ export class EventCreationCoordinator implements CommandEventSource {
   readonly #retirement: EventRetirementLedger;
   readonly #inbox: EventInbox;
   readonly #resourceCapacity: number;
+  readonly #transactionResultCapacity: number;
   readonly #allowedEventTypes: ReadonlySet<string> | undefined;
   readonly #faultInjector: EventCreationFaultInjector | undefined;
   readonly #dispatchFaultInjector: EventDispatchFaultInjector | undefined;
@@ -757,7 +814,20 @@ export class EventCreationCoordinator implements CommandEventSource {
   readonly #dispatchHandler: EventDispatchHandler | undefined;
   readonly #commandReceiptTestDouble: CommandReceiptTestDouble | undefined;
   readonly #realCommandDeliveryOptions: RealCommandDeliveryOptions | undefined;
+  readonly #transactionResultConsumer: TransactionResultConsumer | undefined;
   readonly #producerHandles = new WeakMap<object, string>();
+  readonly #transactionResultSources = new WeakMap<
+    object,
+    {
+      sourceId: string;
+      runtimeInstanceId: string;
+      targetId: string;
+      producerId: string;
+      producer: EventProducerHandle;
+      authority?: TransactionResultAuthority;
+    }
+  >();
+  readonly #transactionResults = new Map<number, StoredTransactionResult>();
   readonly #finalResultObjects = new WeakSet<object>();
   readonly #acknowledgedResultObjects = new WeakSet<object>();
   readonly #finalResults = new Map<number, CompletedEventResult>();
@@ -765,9 +835,11 @@ export class EventCreationCoordinator implements CommandEventSource {
   #lastFailure: EventCreationFailure | undefined;
   #lastDispatchTick: number | undefined;
   #dispatchFailure: EventDispatchFailure | undefined;
+  #resultDispatchFailure: EventDispatchFailure | undefined;
   #retirementFailure: EventRetirementFailure | undefined;
   #dispatching = false;
   #nextProducerNumber = 1;
+  #nextTransactionResultSourceNumber = 1;
   #commandCoordinator: CommandCreationCoordinator | undefined;
   #realCommandDelivery: RealCommandDeliveryCoordinator | undefined;
 
@@ -782,6 +854,14 @@ export class EventCreationCoordinator implements CommandEventSource {
     this.#eventIds = eventIds;
     this.#businessIdentities = businessIdentities;
     this.#resourceCapacity = options.historyCapacity ?? DEFAULT_HISTORY_CAPACITY;
+    this.#transactionResultCapacity =
+      options.transactionResultCapacity ?? DEFAULT_TRANSACTION_RESULT_CAPACITY;
+    if (!Number.isSafeInteger(this.#transactionResultCapacity) ||
+        this.#transactionResultCapacity <= 0) {
+      throw new RangeError(
+        'transactionResultCapacity must be a positive safe integer.',
+      );
+    }
     this.#lifecycle = new EventLifecycleRegistry(this.#resourceCapacity);
     this.#retirement = new EventRetirementLedger(initialNextEventId);
     this.#inbox = new EventInbox(options.inboxCapacity);
@@ -794,6 +874,7 @@ export class EventCreationCoordinator implements CommandEventSource {
     this.#dispatchHandler = options.dispatchHandler;
     this.#commandReceiptTestDouble = options.commandReceiptTestDouble;
     this.#realCommandDeliveryOptions = options.realCommandDelivery;
+    this.#transactionResultConsumer = options.transactionResultConsumer;
     if (this.#commandReceiptTestDouble && this.#realCommandDeliveryOptions) {
       throw new Error(
         'Command receipt test-double and real target delivery modes are mutually exclusive.',
@@ -851,6 +932,355 @@ export class EventCreationCoordinator implements CommandEventSource {
     return handle;
   }
 
+  createTransactionResultSource(targetId: string): TransactionResultSourceHandle {
+    if (typeof targetId !== 'string' || targetId.trim().length === 0) {
+      throw new TypeError('Transaction result target ID must be a non-empty string.');
+    }
+    const producer = this.createProducer();
+    const sourceId =
+      `${this.#runtimeInstanceId}:transaction-result-source:` +
+      `${this.#nextTransactionResultSourceNumber++}`;
+    const source: TransactionResultSourceHandle = Object.freeze({
+      sourceId,
+      runtimeInstanceId: this.#runtimeInstanceId,
+      targetId,
+      producer,
+    });
+    this.#transactionResultSources.set(source, {
+      sourceId,
+      runtimeInstanceId: this.#runtimeInstanceId,
+      targetId,
+      producerId: producer.producerId,
+      producer,
+    });
+    return source;
+  }
+
+  registerTransactionResultAuthority(
+    source: TransactionResultSourceHandle,
+    authority: TransactionResultAuthority,
+  ): TransactionResultAuthorityRegistrationResult {
+    const sourceEntry = this.#resolveTransactionResultSource(source);
+    if (!sourceEntry) {
+      return Object.freeze({
+        status: 'rejected' as const,
+        reason: 'invalid-source' as const,
+        message: 'Transaction result source capability is not owned by this coordinator.',
+      });
+    }
+    if (typeof authority !== 'function') {
+      return Object.freeze({
+        status: 'rejected' as const,
+        reason: 'invalid-authority' as const,
+        message: 'Transaction result authority must be a function.',
+      });
+    }
+    if (sourceEntry.authority) {
+      return Object.freeze({
+        status: 'rejected' as const,
+        reason: 'already-registered' as const,
+        message: 'Transaction result source already has an authority.',
+      });
+    }
+    sourceEntry.authority = authority;
+    return Object.freeze({ status: 'registered' as const });
+  }
+
+  requestTransactionResult(
+    source: TransactionResultSourceHandle,
+    transactionId: number,
+  ): TransactionResultCreationResult {
+    const sourceEntry = this.#resolveTransactionResultSource(source);
+    if (!sourceEntry) {
+      return rejectedTransactionResult(
+        'invalid-source',
+        'Transaction result source capability is not owned by this coordinator.',
+      );
+    }
+    if (!Number.isSafeInteger(transactionId) || transactionId < 1) {
+      return rejectedTransactionResult(
+        'invalid-request',
+        'Transaction ID must be a positive safe integer.',
+      );
+    }
+    if (!sourceEntry.authority) {
+      return rejectedTransactionResult(
+        'invalid-source',
+        'Transaction result source has no registered authority.',
+      );
+    }
+    let authorityRead;
+    try {
+      authorityRead = sourceEntry.authority(transactionId);
+    } catch (error) {
+      return rejectedTransactionResult(
+        'invalid-request',
+        `Transaction result authority failed: ${toMessage(error)}`,
+      );
+    }
+    if (authorityRead === null ||
+        typeof authorityRead !== 'object' ||
+        (authorityRead.status !== 'found' &&
+          authorityRead.status !== 'not-found' &&
+          authorityRead.status !== 'not-terminal')) {
+      return rejectedTransactionResult(
+        'invalid-request',
+        'Transaction result authority returned an invalid snapshot.',
+      );
+    }
+    if (authorityRead.status !== 'found') {
+      return rejectedTransactionResult(
+        authorityRead.status === 'not-terminal' ? 'invalid-terminal' : 'association-mismatch',
+        authorityRead.message,
+      );
+    }
+    const normalized = normalizeTransactionResultRequest(authorityRead.request);
+    if (!normalized.ok) {
+      return rejectedTransactionResult('invalid-request', normalized.message);
+    }
+    if (normalized.request.runtimeInstanceId !== this.#runtimeInstanceId ||
+        normalized.request.runtimeInstanceId !== sourceEntry.runtimeInstanceId) {
+      return rejectedTransactionResult(
+        'runtime-mismatch',
+        'Transaction result request belongs to another runtime instance.',
+      );
+    }
+    if (normalized.request.targetId !== sourceEntry.targetId) {
+      return rejectedTransactionResult(
+        'target-mismatch',
+        'Transaction result request belongs to another target module.',
+      );
+    }
+    if (this.#blockedFailure) {
+      return rejectedTransactionResult(
+        'blocked',
+        'Transaction result creation is blocked after an unconfirmed rollback.',
+      );
+    }
+
+    const existing = this.#transactionResults.get(normalized.request.transactionId);
+    if (existing) {
+      if (existing.sourceId !== sourceEntry.sourceId ||
+          !transactionResultRequestsEqual(
+            normalized.request,
+            transactionResultRequestFromAssociation(existing.association),
+          )) {
+        return rejectedTransactionResult(
+          'association-mismatch',
+          'Transaction already owns a different final result event.',
+        );
+      }
+      const lifecycle = this.#transactionResultLifecycle(existing.event.eventId);
+      if (!lifecycle) {
+        return rejectedTransactionResult(
+          'blocked',
+          'Transaction result binding exists without a known lifecycle state.',
+        );
+      }
+      return existingTransactionResult(existing, lifecycle);
+    }
+    if (this.#transactionResults.size >= this.#transactionResultCapacity) {
+      return rejectedTransactionResult(
+        'result-capacity',
+        'Transaction result binding capacity is full.',
+      );
+    }
+
+    let currentPoint: EventCreationFaultPoint = 'validation';
+    let candidate: CandidateEventId | undefined;
+    let eventIdCommitted = false;
+    let registrationCommitted = false;
+    let inboxCommitted = false;
+    let bindingCommitted = false;
+    let stored: StoredTransactionResult | undefined;
+    try {
+      this.#fault('validation');
+      candidate = this.#eventIds.prepare();
+      if (!candidate) {
+        return rejectedTransactionResult(
+          'event-id-exhausted',
+          'The runtime Event ID sequence reached its safe integer boundary.',
+        );
+      }
+      currentPoint = 'candidate-prepared';
+      this.#fault(currentPoint);
+
+      if (!this.#hasResourceCapacity()) {
+        return rejectedTransactionResult(
+          'history-capacity',
+          'The combined lifecycle and retirement budget is full.',
+        );
+      }
+
+      const association = transactionResultAssociation(
+        candidate.eventId,
+        normalized.request,
+      );
+      const payload = transactionResultPayload(association);
+      const eventNormalization = this.#normalize({
+        type: TRANSACTION_RESULT_EVENT_TYPE,
+        payload,
+      });
+      if (!eventNormalization.ok) {
+        return rejectedTransactionResult(
+          eventNormalization.reason === 'unsupported-event-type'
+            ? 'unsupported-event-type'
+            : 'invalid-request',
+          eventNormalization.message,
+        );
+      }
+      const event = createPendingEvent(
+        this.#runtimeInstanceId,
+        candidate.eventId,
+        eventNormalization.type,
+        eventNormalization.payload,
+      ) as TransactionResultEvent;
+      const registration = this.#lifecycle.prepare(
+        event,
+        sourceEntry.producerId,
+        association,
+      );
+      currentPoint = 'registration-prepared';
+      this.#fault(currentPoint);
+
+      if (!this.#inbox.prepare(event)) {
+        return rejectedTransactionResult(
+          'inbox-capacity',
+          'The coordinator Inbox has no capacity for the result event.',
+        );
+      }
+      currentPoint = 'inbox-prepared';
+      this.#fault(currentPoint);
+
+      this.#eventIds.commit(candidate);
+      eventIdCommitted = true;
+      currentPoint = 'event-id-committed';
+      this.#fault(currentPoint);
+
+      this.#lifecycle.commit(registration);
+      registrationCommitted = true;
+      currentPoint = 'registration-committed';
+      this.#fault(currentPoint);
+
+      this.#inbox.commit(event);
+      inboxCommitted = true;
+      currentPoint = 'inbox-committed';
+      this.#fault(currentPoint);
+
+      currentPoint = 'before-result-binding-commit';
+      this.#fault(currentPoint);
+      stored = Object.freeze({
+        sourceId: sourceEntry.sourceId,
+        producerId: sourceEntry.producerId,
+        event,
+        association,
+      });
+      this.#transactionResults.set(normalized.request.transactionId, stored);
+      bindingCommitted = true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (bindingCommitted) this.#transactionResults.delete(normalized.request.transactionId);
+      try {
+        this.#rollback(candidate, {
+          eventIdCommitted,
+          registrationCommitted,
+          inboxCommitted,
+        });
+        this.#fault('rollback');
+      } catch (rollbackError) {
+        const failure: EventCreationFailure = Object.freeze({
+          code: 'rollback-unconfirmed' as const,
+          point: currentPoint,
+          message: `${message}; rollback failed: ${toMessage(rollbackError)}`,
+          rollback: 'unconfirmed' as const,
+        });
+        this.#blockedFailure = failure;
+        this.#lastFailure = failure;
+        return rejectedTransactionResult(
+          'blocked',
+          'Transaction result creation stopped after rollback could not be confirmed.',
+        );
+      }
+      const failure: EventCreationFailure = Object.freeze({
+        code: 'transaction-aborted' as const,
+        point: currentPoint,
+        message,
+        rollback: 'complete' as const,
+      });
+      this.#lastFailure = failure;
+      return rejectedTransactionResult(
+        'transaction-aborted',
+        `Transaction result creation was rolled back: ${message}`,
+      );
+    }
+
+    if (!stored) {
+      return rejectedTransactionResult(
+        'transaction-aborted',
+        'Transaction result creation completed without a stored binding.',
+      );
+    }
+    try {
+      this.#fault('after-result-commit');
+    } catch (error) {
+      return Object.freeze({
+        status: 'unknown' as const,
+        transactionId: stored.association.transactionId,
+        resultEventId: stored.association.resultEventId,
+        message:
+          'Transaction result committed, but its creation response was lost: ' +
+          toMessage(error),
+      });
+    }
+    return createdTransactionResult(stored, 'pending');
+  }
+
+  queryTransactionResult(
+    source: TransactionResultSourceHandle,
+    transactionId: number,
+  ): TransactionResultQuery {
+    const sourceEntry = this.#resolveTransactionResultSource(source);
+    if (!sourceEntry) {
+      return rejectedTransactionResultQuery(
+        'invalid-source',
+        'Transaction result source capability is not owned by this coordinator.',
+      );
+    }
+    if (sourceEntry.runtimeInstanceId !== this.#runtimeInstanceId) {
+      return rejectedTransactionResultQuery(
+        'runtime-mismatch',
+        'Transaction result source belongs to another runtime instance.',
+      );
+    }
+    if (!Number.isSafeInteger(transactionId) || transactionId < 1) {
+      return rejectedTransactionResultQuery(
+        'invalid-input',
+        'Transaction ID must be a positive safe integer.',
+      );
+    }
+    const stored = this.#transactionResults.get(transactionId);
+    if (!stored) {
+      return Object.freeze({
+        status: 'not-found' as const,
+        transactionId,
+      });
+    }
+    if (stored.sourceId !== sourceEntry.sourceId) {
+      return rejectedTransactionResultQuery(
+        'target-mismatch',
+        'Transaction result belongs to another target source.',
+      );
+    }
+    const lifecycle = this.#transactionResultLifecycle(stored.event.eventId);
+    if (!lifecycle) {
+      return rejectedTransactionResultQuery(
+        'invalid-input',
+        'Transaction result binding has no known lifecycle state.',
+      );
+    }
+    return foundTransactionResult(stored, lifecycle);
+  }
+
   readFinalResult(
     producer: EventProducerHandle,
     eventId: number,
@@ -871,7 +1301,9 @@ export class EventCreationCoordinator implements CommandEventSource {
       );
     }
     if (record.status !== 'completed' ||
-        (!record.testCommandReference && !record.realCommand)) {
+        (!record.testCommandReference &&
+          !record.realCommand &&
+          !record.transactionResult)) {
       return rejectedFinalResult(
         'not-completed',
         'Final coordination result does not exist yet.',
@@ -889,6 +1321,9 @@ export class EventCreationCoordinator implements CommandEventSource {
           ? { testCommandReference: record.testCommandReference }
           : {}),
         ...(record.realCommand ? { realCommand: record.realCommand } : {}),
+        ...(record.transactionResult
+          ? { transactionResult: record.transactionResult }
+          : {}),
       });
       this.#finalResults.set(eventId, result);
       this.#finalResultObjects.add(result);
@@ -1258,10 +1693,25 @@ export class EventCreationCoordinator implements CommandEventSource {
 
     const handler = this.#dispatchHandler;
     const receiptTestDouble = this.#commandReceiptTestDouble;
+    if (!handler && !receiptTestDouble && this.#transactionResultConsumer) {
+      if (normalized.retryDeliveryEventIds.length > 0) {
+        return rejectDispatch(
+          'retry-not-allowed',
+          'Explicit delivery retry requires real target delivery mode.',
+        );
+      }
+      this.#lastDispatchTick = normalized.simulationTick;
+      this.#dispatching = true;
+      try {
+        return this.#dispatchTransactionResultsOnly(normalized);
+      } finally {
+        this.#dispatching = false;
+      }
+    }
     if (!handler || !receiptTestDouble) {
       return rejectDispatch(
         'dispatch-not-configured',
-        'A coordination handler and command receipt test double are both required.',
+        'A transaction result consumer or a command dispatch mode is required.',
       );
     }
     if (normalized.retryDeliveryEventIds &&
@@ -1282,6 +1732,233 @@ export class EventCreationCoordinator implements CommandEventSource {
       );
     } finally {
       this.#dispatching = false;
+    }
+  }
+
+  #dispatchTransactionResultsOnly(
+    normalized: NormalizedDispatchContext & { ok: true },
+  ): EventDispatchResult {
+    const processedEventIds: number[] = [];
+    const completedEventIds: number[] = [];
+    const batchEvents = this.#inbox.snapshot;
+    for (const event of batchEvents) {
+      const current = this.#lifecycle.get(event.eventId);
+      if (!current?.transactionResult) {
+        return this.#blockDispatch(
+          'dispatch-blocked',
+          `Event ${event.eventId} requires a command dispatch mode.`,
+          event.eventId,
+          processedEventIds,
+          completedEventIds,
+        );
+      }
+      const failure = this.#dispatchTransactionResultEvent(
+        event,
+        current,
+        normalized,
+        processedEventIds,
+        completedEventIds,
+      );
+      if (failure) return failure;
+    }
+    this.#resultDispatchFailure = undefined;
+    return Object.freeze({
+      status: 'completed' as const,
+      simulationTick: normalized.simulationTick,
+      progress: createDispatchProgress(
+        processedEventIds,
+        completedEventIds,
+        this.#inbox.snapshot.map(event => event.eventId),
+      ),
+    });
+  }
+
+  #dispatchTransactionResultEvent(
+    event: PendingEvent,
+    current: StoredLifecycleRecord,
+    normalized: NormalizedDispatchContext & { ok: true },
+    processedEventIds: number[],
+    completedEventIds: number[],
+  ): Extract<EventDispatchResult, { status: 'blocked' }> | undefined {
+    const association = current.transactionResult;
+    const consumer = this.#transactionResultConsumer;
+    if (!association || !consumer) {
+      return this.#blockTransactionResultDispatch(
+        'result-consumer-not-configured',
+        `Transaction result event ${event.eventId} has no result notification consumer.`,
+        event.eventId,
+        processedEventIds,
+        completedEventIds,
+      );
+    }
+    if (!transactionResultEventMatches(event, association)) {
+      return this.#blockTransactionResultDispatch(
+        'result-lifecycle-invalid',
+        `Transaction result event ${event.eventId} does not match its association.`,
+        event.eventId,
+        processedEventIds,
+        completedEventIds,
+      );
+    }
+
+    try {
+      this.#dispatchFault('before-processing-transition');
+      this.#lifecycle.transition(
+        event.eventId,
+        'pending',
+        'processing',
+        { simulationTick: normalized.simulationTick },
+      );
+      this.#inbox.remove(event.eventId);
+    } catch (error) {
+      return this.#blockTransactionResultDispatch(
+        'result-lifecycle-invalid',
+        `Transaction result Pending to Processing transition failed: ${toMessage(error)}`,
+        event.eventId,
+        processedEventIds,
+        completedEventIds,
+      );
+    }
+    processedEventIds.push(event.eventId);
+
+    let consumption;
+    try {
+      consumption = consumer(Object.freeze({
+        runtimeInstanceId: this.#runtimeInstanceId,
+        simulationTick: normalized.simulationTick,
+        phase: normalized.phase,
+        event: event as TransactionResultEvent,
+        association,
+      }));
+    } catch (error) {
+      const requeueError = this.#requeueTransactionResultEvent(
+        event,
+        normalized.simulationTick,
+      );
+      if (requeueError) {
+        return this.#blockDispatch(
+          'result-lifecycle-invalid',
+          requeueError,
+          event.eventId,
+          processedEventIds,
+          completedEventIds,
+        );
+      }
+      return this.#blockTransactionResultDispatch(
+        'result-consumer-threw',
+        `Transaction result consumer ${event.eventId} threw: ${toMessage(error)}`,
+        event.eventId,
+        processedEventIds,
+        completedEventIds,
+      );
+    }
+    if (consumption === null ||
+        typeof consumption !== 'object' ||
+        (consumption.status !== 'consumed' &&
+          consumption.status !== 'already-consumed' &&
+          consumption.status !== 'failed')) {
+      const requeueError = this.#requeueTransactionResultEvent(
+        event,
+        normalized.simulationTick,
+      );
+      if (requeueError) {
+        return this.#blockDispatch(
+          'result-lifecycle-invalid',
+          requeueError,
+          event.eventId,
+          processedEventIds,
+          completedEventIds,
+        );
+      }
+      return this.#blockTransactionResultDispatch(
+        'result-consumer-invalid',
+        `Transaction result consumer ${event.eventId} returned an invalid result.`,
+        event.eventId,
+        processedEventIds,
+        completedEventIds,
+      );
+    }
+    if (consumption.status === 'failed') {
+      const requeueError = this.#requeueTransactionResultEvent(
+        event,
+        normalized.simulationTick,
+      );
+      if (requeueError) {
+        return this.#blockDispatch(
+          'result-lifecycle-invalid',
+          requeueError,
+          event.eventId,
+          processedEventIds,
+          completedEventIds,
+        );
+      }
+      return this.#blockTransactionResultDispatch(
+        'result-consumer-threw',
+        `Transaction result consumer ${event.eventId} failed: ${
+          typeof consumption.message === 'string'
+            ? consumption.message
+            : 'no reason supplied'
+        }`,
+        event.eventId,
+        processedEventIds,
+        completedEventIds,
+      );
+    }
+
+    try {
+      this.#dispatchFault('before-completion-transition');
+      this.#lifecycle.transition(
+        event.eventId,
+        'processing',
+        'completed',
+        {
+          simulationTick: normalized.simulationTick,
+          transactionResultConsumed: true,
+        },
+      );
+    } catch (error) {
+      const requeueError = this.#requeueTransactionResultEvent(
+        event,
+        normalized.simulationTick,
+      );
+      if (requeueError) {
+        return this.#blockDispatch(
+          'result-lifecycle-invalid',
+          requeueError,
+          event.eventId,
+          processedEventIds,
+          completedEventIds,
+        );
+      }
+      return this.#blockTransactionResultDispatch(
+        'result-lifecycle-invalid',
+        `Transaction result Processing to Completed transition failed: ${toMessage(error)}`,
+        event.eventId,
+        processedEventIds,
+        completedEventIds,
+      );
+    }
+    completedEventIds.push(event.eventId);
+    this.#resultDispatchFailure = undefined;
+    return undefined;
+  }
+
+  #requeueTransactionResultEvent(
+    event: PendingEvent,
+    simulationTick: number,
+  ): string | undefined {
+    try {
+      this.#lifecycle.transition(
+        event.eventId,
+        'processing',
+        'pending',
+        { simulationTick },
+      );
+      this.#inbox.commit(event);
+      return undefined;
+    } catch (error) {
+      return `Transaction result event ${event.eventId} could not be restored to Pending: ` +
+        toMessage(error);
     }
   }
 
@@ -1317,7 +1994,17 @@ export class EventCreationCoordinator implements CommandEventSource {
           completedEventIds,
         );
       }
-
+      if (current.transactionResult) {
+        const resultFailure = this.#dispatchTransactionResultEvent(
+          event,
+          current,
+          normalized,
+          processedEventIds,
+          completedEventIds,
+        );
+        if (resultFailure) return resultFailure;
+        continue;
+      }
       try {
         this.#dispatchFault('before-processing-transition');
         this.#lifecycle.transition(
@@ -1374,7 +2061,6 @@ export class EventCreationCoordinator implements CommandEventSource {
           completedEventIds,
         );
       }
-
       try {
         this.#dispatchFault('before-completion-transition');
         this.#lifecycle.transition(
@@ -1452,6 +2138,17 @@ export class EventCreationCoordinator implements CommandEventSource {
           processedEventIds,
           completedEventIds,
         );
+      }
+      if (current.transactionResult) {
+        const resultFailure = this.#dispatchTransactionResultEvent(
+          event,
+          current,
+          normalized,
+          processedEventIds,
+          completedEventIds,
+        );
+        if (resultFailure) return resultFailure;
+        continue;
       }
 
       try {
@@ -1708,6 +2405,13 @@ export class EventCreationCoordinator implements CommandEventSource {
         }),
         resourceCapacity: this.#resourceCapacity,
       }),
+      transactionResults: Object.freeze({
+        bindings: Object.freeze(
+          [...this.#transactionResults.values()]
+            .map(result => result.association),
+        ),
+        capacity: this.#transactionResultCapacity,
+      }),
       blocked: this.#blockedFailure !== undefined,
       lastDispatchTick: this.#lastDispatchTick ?? null,
       dispatchBlocked: this.#dispatchFailure !== undefined,
@@ -1716,6 +2420,9 @@ export class EventCreationCoordinator implements CommandEventSource {
         : {}),
       ...(this.#lastFailure ? { lastFailure: this.#lastFailure } : {}),
       ...(this.#dispatchFailure ? { dispatchFailure: this.#dispatchFailure } : {}),
+      ...(this.#resultDispatchFailure
+        ? { resultDispatchFailure: this.#resultDispatchFailure }
+        : {}),
       ...(this.#retirementFailure
         ? { retirementFailure: this.#retirementFailure }
         : {}),
@@ -1733,6 +2440,31 @@ export class EventCreationCoordinator implements CommandEventSource {
       return undefined;
     }
     return this.#producerHandles.get(producer as object);
+  }
+
+  #resolveTransactionResultSource(
+    source: TransactionResultSourceHandle,
+  ):
+    | {
+      sourceId: string;
+      runtimeInstanceId: string;
+      targetId: string;
+      producerId: string;
+      producer: EventProducerHandle;
+      authority?: TransactionResultAuthority;
+    }
+    | undefined {
+    if (source === null ||
+        (typeof source !== 'object' && typeof source !== 'function')) {
+      return undefined;
+    }
+    return this.#transactionResultSources.get(source as object);
+  }
+
+  #transactionResultLifecycle(eventId: number): TransactionResultLifecycle | undefined {
+    const lifecycle = this.#lifecycle.get(eventId)?.status;
+    if (lifecycle) return lifecycle;
+    return this.#retirement.isRetired(eventId) ? 'retired' : undefined;
   }
 
   #verifyResult(
@@ -1821,6 +2553,28 @@ export class EventCreationCoordinator implements CommandEventSource {
       ),
     });
     this.#dispatchFailure = failure;
+    return blockedDispatch(failure);
+  }
+
+  #blockTransactionResultDispatch(
+    code: EventDispatchFailure['code'],
+    message: string,
+    eventId: number,
+    processedEventIds: readonly number[],
+    completedEventIds: readonly number[],
+  ): Readonly<{ status: 'blocked'; failure: EventDispatchFailure }> {
+    const failure: EventDispatchFailure = Object.freeze({
+      code,
+      simulationTick: this.#lastDispatchTick as number,
+      eventId,
+      message,
+      progress: createDispatchProgress(
+        processedEventIds,
+        completedEventIds,
+        this.#inbox.snapshot.map(event => event.eventId),
+      ),
+    });
+    this.#resultDispatchFailure = failure;
     return blockedDispatch(failure);
   }
 
@@ -1927,6 +2681,188 @@ export class EventCreationCoordinator implements CommandEventSource {
   #retirementFault(point: EventRetirementFaultPoint): void {
     this.#retirementFaultInjector?.(point);
   }
+}
+
+type NormalizedTransactionResultRequest =
+  | Readonly<{ ok: true; request: TransactionResultRequest }>
+  | Readonly<{ ok: false; message: string }>;
+
+function normalizeTransactionResultRequest(
+  request: TransactionResultRequest,
+): NormalizedTransactionResultRequest {
+  try {
+    if (!isPlainRecord(request)) {
+      return { ok: false, message: 'Transaction result request must be a plain object.' };
+    }
+    if (typeof request.runtimeInstanceId !== 'string' ||
+        !UUID_PATTERN.test(request.runtimeInstanceId)) {
+      return { ok: false, message: 'Transaction result runtime must be a UUID.' };
+    }
+    if (!Number.isSafeInteger(request.sourceEventId) || request.sourceEventId < 1 ||
+        !Number.isSafeInteger(request.commandId) || request.commandId < 1 ||
+        !Number.isSafeInteger(request.transactionId) || request.transactionId < 1) {
+      return {
+        ok: false,
+        message: 'Transaction result Event, Command and Transaction IDs must be positive safe integers.',
+      };
+    }
+    if (typeof request.targetId !== 'string' || request.targetId.trim().length === 0) {
+      return { ok: false, message: 'Transaction result target ID must be non-empty.' };
+    }
+    if (!isPlainRecord(request.terminal) ||
+        (request.terminal.status !== 'succeeded' && request.terminal.status !== 'failed') ||
+        !Number.isSafeInteger(request.terminal.simulationTick) ||
+        request.terminal.simulationTick < 1) {
+      return {
+        ok: false,
+        message: 'Only a registered Succeeded or Failed terminal can publish a result event.',
+      };
+    }
+    if (request.terminal.status === 'failed' &&
+        (typeof request.terminal.reasonCode !== 'string' ||
+          request.terminal.reasonCode.trim().length === 0 ||
+          typeof request.terminal.message !== 'string' ||
+          request.terminal.message.trim().length === 0)) {
+      return {
+        ok: false,
+        message: 'A Failed terminal must preserve a non-empty reason code and message.',
+      };
+    }
+    const terminal: TransactionFinalResult = request.terminal.status === 'succeeded'
+      ? Object.freeze({
+        status: 'succeeded' as const,
+        simulationTick: request.terminal.simulationTick,
+      })
+      : Object.freeze({
+        status: 'failed' as const,
+        simulationTick: request.terminal.simulationTick,
+        reasonCode: request.terminal.reasonCode,
+        message: request.terminal.message,
+      });
+    return {
+      ok: true,
+      request: Object.freeze({
+        runtimeInstanceId: request.runtimeInstanceId,
+        sourceEventId: request.sourceEventId,
+        commandId: request.commandId,
+        transactionId: request.transactionId,
+        targetId: request.targetId,
+        terminal,
+      }),
+    };
+  } catch {
+    return {
+      ok: false,
+      message: 'Transaction result request fields could not be read.',
+    };
+  }
+}
+
+function transactionResultAssociation(
+  resultEventId: number,
+  request: TransactionResultRequest,
+): TransactionResultAssociation {
+  return deepFreeze({
+    ...request,
+    resultEventId,
+  }) as TransactionResultAssociation;
+}
+
+function transactionResultRequestFromAssociation(
+  association: TransactionResultAssociation,
+): TransactionResultRequest {
+  return Object.freeze({
+    runtimeInstanceId: association.runtimeInstanceId,
+    sourceEventId: association.sourceEventId,
+    commandId: association.commandId,
+    transactionId: association.transactionId,
+    targetId: association.targetId,
+    terminal: association.terminal,
+  });
+}
+
+function transactionResultPayload(
+  association: TransactionResultAssociation,
+): EventPayload {
+  return deepFreeze({
+    runtimeInstanceId: association.runtimeInstanceId,
+    sourceEventId: association.sourceEventId,
+    commandId: association.commandId,
+    transactionId: association.transactionId,
+    targetId: association.targetId,
+    terminal: association.terminal,
+    resultEventId: association.resultEventId,
+  });
+}
+
+function transactionResultEventMatches(
+  event: PendingEvent,
+  association: TransactionResultAssociation,
+): boolean {
+  if (event.eventId !== association.resultEventId ||
+      event.runtimeInstanceId !== association.runtimeInstanceId ||
+      event.type !== TRANSACTION_RESULT_EVENT_TYPE) {
+    return false;
+  }
+  try {
+    return stableSerialize(event.payload) ===
+      stableSerialize(transactionResultPayload(association));
+  } catch {
+    return false;
+  }
+}
+
+function createdTransactionResult(
+  stored: StoredTransactionResult,
+  lifecycle: TransactionResultLifecycle,
+): TransactionResultCreationResult {
+  return Object.freeze({
+    status: 'created' as const,
+    event: stored.event,
+    association: stored.association,
+    lifecycle,
+    producerId: stored.producerId,
+  });
+}
+
+function existingTransactionResult(
+  stored: StoredTransactionResult,
+  lifecycle: TransactionResultLifecycle,
+): TransactionResultCreationResult {
+  return Object.freeze({
+    status: 'existing' as const,
+    event: stored.event,
+    association: stored.association,
+    lifecycle,
+    producerId: stored.producerId,
+  });
+}
+
+function foundTransactionResult(
+  stored: StoredTransactionResult,
+  lifecycle: TransactionResultLifecycle,
+): TransactionResultQuery {
+  return Object.freeze({
+    status: 'found' as const,
+    event: stored.event,
+    association: stored.association,
+    lifecycle,
+    producerId: stored.producerId,
+  });
+}
+
+function rejectedTransactionResult(
+  reason: Extract<TransactionResultCreationResult, { status: 'rejected' }>['reason'],
+  message: string,
+): Extract<TransactionResultCreationResult, { status: 'rejected' }> {
+  return Object.freeze({ status: 'rejected' as const, reason, message });
+}
+
+function rejectedTransactionResultQuery(
+  reason: Extract<TransactionResultQuery, { status: 'rejected' }>['reason'],
+  message: string,
+): Extract<TransactionResultQuery, { status: 'rejected' }> {
+  return Object.freeze({ status: 'rejected' as const, reason, message });
 }
 
 function createPendingEvent(
@@ -2257,6 +3193,12 @@ function publicLifecycleRecord(record: StoredLifecycleRecord): EventLifecycleRec
     ...(record.realCommand === undefined
       ? {}
       : { realCommand: record.realCommand }),
+    ...(record.transactionResult === undefined
+      ? {}
+      : { transactionResult: record.transactionResult }),
+    ...(record.transactionResultConsumed === undefined
+      ? {}
+      : { transactionResultConsumed: record.transactionResultConsumed }),
   });
 }
 
