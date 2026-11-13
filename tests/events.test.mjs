@@ -276,7 +276,12 @@ test('D09-A1 A05 creation remains Pending and has no automatic dispatch side eff
   assert.equal(snapshot.lastFailure, undefined);
   assert.equal('process' in coordinator, false);
   assert.equal(typeof coordinator.dispatch, 'function');
-  assert.equal('acknowledge' in coordinator, false);
+  assert.equal(typeof coordinator.createProducer, 'function');
+  assert.equal(typeof coordinator.readFinalResult, 'function');
+  assert.equal(typeof coordinator.acknowledge, 'function');
+  assert.equal(typeof coordinator.retire, 'function');
   assert.equal(snapshot.lastDispatchTick, null);
   assert.equal(snapshot.dispatchBlocked, false);
+  assert.equal(snapshot.retirement.watermark, 0);
+  assert.deepEqual(snapshot.retirement.lightweightEventIds, []);
 });

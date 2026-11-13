@@ -97,7 +97,7 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `src/core/player.ts` | 原型参数、PC-01 输入许可、PC-02 请求及移动／跳跃规则；不依赖平台或 Phaser。 |
 | `src/core/interaction.ts` | 原型调查／拾取对象、稳定目标选择、单次按键消费、临时反馈及交互自身控制限制；不依赖平台或 Phaser。 |
 | `src/core/progress.ts` | D08 运行内进度仓库：四类稳定业务 ID、幂等登记、显式奖励关系、期望效果状态与只读快照；无平台或存储 API。 |
-| `src/core/events.ts` | D09-A1／A2 运行上下文、单调 Event ID、原子创建、有限 Inbox、固定协调阶段分发、生命周期防重与异常保留；不依赖 DOM、Node、Electron 或 Phaser。 |
+| `src/core/events.ts` | D09-A1～A3 运行上下文、单调 Event ID、原子创建、有限 Inbox、固定协调阶段分发、生产者结果／确认、连续退役水位线与容量受控清理；不依赖 DOM、Node、Electron 或 Phaser。 |
 | `src/physics/matter/graybox-world.ts` | 两端共用 Matter 世界、静态地形、独立脚底区域与实际接触法线判定。 |
 | `src/core/simulation.ts` | 固定步累加器、实际 Tick、有界补算及余量／丢弃统计。 |
 | `src/core/lifecycle.ts` | Owner + Key 去重、Token 所有权、退役与有效暂停集合。 |
@@ -118,6 +118,7 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `tests/progress.test.mjs` | D08 四类记录、非法请求、只读快照、目标／奖励幂等及永久效果期望状态。 |
 | `tests/events.test.mjs` | D09-A1 运行时 UUID、Event ID、Pending 登记、有限 Inbox、原子回滚、编号边界及未确认回滚阻断。 |
 | `tests/events-dispatch.test.mjs` | D09-A2 固定阶段、逐事件转换、后生事件延后、递归拒绝、防重、测试接收替身合同、异常保留及历史容量。 |
+| `tests/events-retirement.test.mjs` | D09-A3 生产者结果能力、显式确认、乱序退役、缺口合并、旧 ID 拒绝、组合容量与清理故障。 |
 | `tests/graybox-browser.mjs` | 真实窗口键盘操作、物理暂停、平台、区域、D07 交互及 D08 收藏／目标／奖励／效果断言。 |
 | `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1／D05／D07／D08 定向入口。 |
 | `tests/browser-selection.mjs` | 解析 `--browser`、查找标准安装路径并核验 CDP 实际浏览器身份；缺失时不回退。 |
@@ -958,12 +959,72 @@ B01–B05 验收：
 
 结论限纯核心分发与测试替身合同。当前等待 Work 审查，不迁移 D08 接线、不实现检查点、命令事务或安全退役清理，不 Commit／Push／发布。
 
+## D09-A3：生产者确认与连续安全退役核心
+
+2026-11-13 在现有事件创建与固定阶段分发内核上补齐纯核心退役闭环。当前 Web／Electron 宿主、D08 玩法、物理、交互与暂停仍未使用事件协调器；本段没有新增用户可见功能。
+
+实现边界：
+
+1. `EventCreationCoordinator.createProducer()` 生成由协调器私有的 producer 句柄。新事件通过 `create(request, producer)` 关联生产者；句柄以对象身份和私有 `WeakMap` 校验，复制公开的 `producerId`、使用其他 producer 或其他 runtime 的句柄均被拒绝。原有无 producer 创建路径保留以维持 A01／A02 行为，但其记录不会取得本段的生产者结果或进入安全退役。
+2. `readFinalResult(producer, eventId)` 只向创建该事件的正确生产者返回 Completed 结果 capability。结果明确表示协调处理完成且测试命令交付被接受，不是业务事务成功或独立的 Transaction Result Event。错误 producer、其他 runtime、未知事件和尚未 Completed 的状态均拒绝；重复读取复用同一个不可伪造 capability。
+3. `acknowledge(producer, result)` 只接受同一 producer 持有的真实结果 capability。首次确认登记“不再提交”的承诺，重复确认返回 `already-acknowledged`；完整记录已安全退役后，生产者仍持有原 capability 时重复确认也保持该幂等结果。确认本身不删除完整记录。
+4. `retire(producer, result)` 只有在同一 producer／runtime、事件已 Completed、结果已经交付、已显式确认、不在 Inbox 且没有活动分发轮次时才允许清理。Pending、Processing、未确认、失败阻断、Inbox 中及 handler 当前轮引用均不能清理；重复退役返回 `already-retired`。
+5. 独立 `EventRetirementLedger` 维护连续退役水位线和其上的缺口轻量 ID。初始水位线为 `initialNextEventId - 1`，只按连续 Event ID 前进，不因 Completed、确认或高位退役跳过低位缺口。低于水位线或位于轻量缺口集合中的旧 ID 重投均返回 `retired-event`，不登记、不入队、不执行 handler。
+6. `historyCapacity` 现在约束“完整生命周期记录 + 缺口轻量记录”的总预算，默认原型值仍为 `1024`。预算满时创建返回 `history-capacity` 且不消耗 Event ID；清理后编号继续递增，运行 UUID 和编号序列不重置。不能删除 Pending、Processing、未确认或异常未解决记录来腾容量。
+7. 退役前、完整记录删除前及删除后均提供测试故障接缝。若删除尚未完成，保留完整记录并恢复退役账本；若完整记录已删除而后续故障被报告，已提交的退役防重信息继续拒绝旧 ID。失败不会重开 Completed、重发测试命令或重跑 handler。
+
+乱序退役证据：
+
+| 步骤 | 水位线 | 轻量退役 ID | 完整记录数 | 下一 Event ID |
+| --- | ---: | --- | ---: | ---: |
+| 完成并确认 1、2、3 | 0 | `[]` | 3 | 4 |
+| 先退役 3 | 0 | `[3]` | 2 | 4 |
+| 再退役 2 | 0 | `[2, 3]` | 1 | 4 |
+| 最后退役 1 | 3 | `[]` | 0 | 4 |
+
+容量 `1` 下连续三轮“创建→分发→结果→确认→退役”后，水位线为 `3`、保留记录为 `0`、下一 Event ID 为 `4`。低位缺口加高位已退役记录达到总预算时，新建被拒绝且不消耗编号；补齐缺口后轻量记录一次合并并恢复容量。
+
+C01–C06 验收：
+
+| 用例 | 状态 | 实际证据 |
+| --- | --- | --- |
+| C01 生产者权限与确认 | PASS | 正确 producer 获得结果；错误 producer／runtime、伪造句柄、未知 ID 和伪造结果均拒绝。确认不清理记录，重复确认无副作用。 |
+| C02 不安全状态 | PASS | Pending、Processing、测试交付阻断、未读结果、未确认及活动分发中的退役均拒绝；handler 内尝试不破坏固定轮次。 |
+| C03 乱序退役 | PASS | 3→2→1 退役先保留缺口轻量记录，补齐后水位线一次推进至 `3` 并清空轻量集合；Completed／确认本身不推进水位线。 |
+| C04 旧 ID 拒绝 | PASS | 原事件、篡改载荷旧 ID 及轻量退役 ID 均不执行；其他 runtime 隔离，清理后新事件继续获得更大编号。 |
+| C05 容量循环 | PASS | 小容量可多轮回收；完整记录与轻量记录共用预算；拒绝不消耗 ID，不删除未确认低位事件，补齐后恢复创建。 |
+| C06 清理故障与边界 | PASS | 三类清理故障保持可拒绝旧 ID 的保守状态；重复清理幂等；非默认起点与 `Number.MAX_SAFE_INTEGER` 不回绕。 |
+
+验证结果：
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `npm.cmd run typecheck` | PASS | 共享核心与 Renderer 类型检查通过。 |
+| `npm.cmd test` | PASS | 类型检查、Electron Main 编译及 `81/81` 测试通过，0 fail、0 skipped；原 75 项保留，新增 C01–C06 六项。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建、Electron Main 编译及 Windows x64 免安装目录构建成功；保留既有 bundle 体积、author 和默认图标警告。 |
+| Chrome Web／Electron 开发版／独立包业务事件运行 | NOT RUN | 事件内核未接宿主，不以纯核心测试冒充三端业务事件端到端验收。 |
+| 真实命令接收／事务／结果事件／检查点／存档 | NOT RUN | 明确不在 D09-A3 范围；Accepted 仍仅是同步测试替身。 |
+| Edge | NOT RUN | 本段没有 GUI 回归。 |
+| `git diff --check` | PASS | 无空白错误，仅有既有 LF／CRLF 提示。 |
+
+对应版本：
+
+- 基线提交：`b6cf8eb36ddf57b474a885a14e0ff485e6da54c2`。
+- `src/core/events.ts`：`E28021C12B87E2B558DEECEF0F8743E5F87D1E11CE809E37869DF75BCE39FE1E`。
+- `tests/events.test.mjs`：`FD09A57F7ED2DA9C5D7BC8E98482B8DE7715293F738360358BAF5A14DC16584D`。
+- `tests/events-dispatch.test.mjs`：`4CA6511E11F6AADBCF477437F85BB926F918CC588BB55803418ED572E77ECE7C`。
+- `tests/events-retirement.test.mjs`：`7DA7E2958CC580E78092FE4194711450B9241CA552C71F8B14044416B8043252`。
+- 生产 ASAR SHA-256：`92999B8A38D5B10DF331314D94F161AC3E2739E37C0E758D773E5A8B4D48CB8B`；事件模块尚未进入宿主入口，所以内容与 D08／D09-A1／A2 相同。
+- Windows EXE SHA-256：`BB578EADD877147171729D3A5EF4D785ABB52B51EA8CE522DA83945869398973`。
+
+结论限纯核心确认、退役和资源回收。当前等待 Work 审查，不接宿主或真实命令事务，不实现检查点或存档，不 Commit／Push／发布。
+
 ## 当前限制
 
-- 最新执行（D09-A2，2026-11-13）：类型检查、Electron Main 编译及 `75/75` 自动化测试 PASS，生产构建 PASS。事件创建／固定阶段分发内核尚未接入宿主，GUI 与三端业务事件运行均为 NOT RUN；D08 三端报告仍只代表当时的 D08 功能。
+- 最新执行（D09-A3，2026-11-13）：类型检查、Electron Main 编译及 `81/81` 自动化测试 PASS，生产构建 PASS。事件创建、固定阶段分发、生产者确认与安全退役内核尚未接入宿主，GUI 与三端业务事件运行均为 NOT RUN；D08 三端报告仍只代表当时的 D08 功能。
 - Web 主包约 332.14 KB gzip，Vite 有体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互及 D08 运行内进度是工程灰盒；共享核心另有 D09-A2 原子创建与固定阶段分发基础，但当前页面尚未使用它。未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、正式命令事务、生产者确认／安全退役、检查点或存档。D08 的“永久”仅限当前页面运行内；D09-A2 的测试事件与 Completed 也不等于真实业务事务或 Checkpoint Recovery。不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 审查，不自动进入 D09 后续分段。
+- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互及 D08 运行内进度是工程灰盒；共享核心另有 D09-A3 原子创建、固定阶段分发、生产者确认与安全退役基础，但当前页面尚未使用它。未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、真实命令事务、宿主事件接线、检查点或存档。D08 的“永久”仅限当前页面运行内；D09-A3 的测试事件、Completed、确认与退役也不等于真实业务事务或 Checkpoint Recovery。不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 审查，不自动进入后续分段。

@@ -17,6 +17,10 @@ export type EventCreationRequest = Readonly<{
   payload: EventPayload;
 }>;
 
+export type EventProducerHandle = Readonly<{
+  producerId: string;
+}>;
+
 export type EventLifecycleState = 'pending' | 'processing' | 'completed';
 export type EventDispatchPhase = 'coordination';
 
@@ -30,7 +34,10 @@ export type EventDispatchHandlerContext = Readonly<{
   runtimeInstanceId: string;
   simulationTick: number;
   phase: EventDispatchPhase;
-  create: (request: EventCreationRequest) => EventCreationResult;
+  create: (
+    request: EventCreationRequest,
+    producer?: EventProducerHandle,
+  ) => EventCreationResult;
   statusOf: (eventId: number) => EventLifecycleState | undefined;
 }>;
 
@@ -57,6 +64,14 @@ export type EventDispatchFaultPoint =
 
 export type EventDispatchFaultInjector = (point: EventDispatchFaultPoint) => void;
 
+export type EventRetirementFaultPoint =
+  | 'before-retirement-ledger-commit'
+  | 'before-lifecycle-record-remove'
+  | 'after-lifecycle-record-remove';
+
+export type EventRetirementFaultInjector =
+  (point: EventRetirementFaultPoint) => void;
+
 export type EventCreationFaultPoint =
   | 'validation'
   | 'candidate-prepared'
@@ -80,6 +95,7 @@ export type EventCreationOptions = Readonly<{
   // A separate deterministic seam verifies lifecycle transitions without
   // exposing registry mutation to callers.
   dispatchFaultInjector?: EventDispatchFaultInjector;
+  retirementFaultInjector?: EventRetirementFaultInjector;
 }>;
 
 export type RuntimeEventContextOptions = Readonly<{
@@ -90,6 +106,7 @@ export type EventCreationRejectionReason =
   | 'invalid-request'
   | 'unsupported-event-type'
   | 'invalid-payload'
+  | 'invalid-producer'
   | 'inbox-capacity'
   | 'history-capacity'
   | 'event-id-exhausted'
@@ -121,6 +138,9 @@ export type EventLifecycleRecord = Readonly<{
   eventId: number;
   runtimeInstanceId: string;
   status: EventLifecycleState;
+  producerId?: string;
+  resultDelivered?: boolean;
+  acknowledged?: boolean;
   simulationTick?: number;
   testCommandReference?: string;
 }>;
@@ -174,8 +194,97 @@ export type EventRedeliveryProbeResult =
   }>
   | Readonly<{
     status: 'rejected';
-    reason: 'invalid-context' | 'runtime-mismatch' | 'unknown-event' | 'integrity-mismatch';
+    reason:
+      | 'invalid-context'
+      | 'runtime-mismatch'
+      | 'unknown-event'
+      | 'integrity-mismatch'
+      | 'retired-event';
     message: string;
+  }>;
+
+export type CompletedEventResult = Readonly<{
+  status: 'coordinated-completed';
+  runtimeInstanceId: string;
+  eventId: number;
+  producerId: string;
+  testCommandReference: string;
+}>;
+
+export type FinalEventResultRead =
+  | Readonly<{
+    status: 'available';
+    result: CompletedEventResult;
+  }>
+  | Readonly<{
+    status: 'rejected';
+    reason:
+      | 'invalid-producer'
+      | 'producer-mismatch'
+      | 'unknown-event'
+      | 'not-completed';
+    message: string;
+  }>;
+
+export type ProducerAcknowledgementResult =
+  | Readonly<{
+    status: 'acknowledged';
+    eventId: number;
+    producerId: string;
+  }>
+  | Readonly<{
+    status: 'already-acknowledged';
+    eventId: number;
+    producerId: string;
+  }>
+  | Readonly<{
+    status: 'rejected';
+    reason:
+      | 'invalid-producer'
+      | 'invalid-result'
+      | 'producer-mismatch'
+      | 'unknown-event'
+      | 'not-completed';
+    message: string;
+  }>;
+
+export type EventRetirementFailure = Readonly<{
+  code: 'retirement-failed';
+  point: EventRetirementFaultPoint;
+  eventId?: number;
+  message: string;
+  lifecyclePreserved: boolean;
+  retirementRecordPreserved: boolean;
+}>;
+
+export type EventRetirementResult =
+  | Readonly<{
+    status: 'retired';
+    eventId: number;
+    watermark: number;
+    compactedEventIds: readonly number[];
+  }>
+  | Readonly<{
+    status: 'already-retired';
+    eventId: number;
+    watermark: number;
+  }>
+  | Readonly<{
+    status: 'rejected';
+    reason:
+      | 'invalid-producer'
+      | 'invalid-result'
+      | 'producer-mismatch'
+      | 'unknown-event'
+      | 'not-completed'
+      | 'not-acknowledged'
+      | 'dispatch-active'
+      | 'inbox-busy';
+    message: string;
+  }>
+  | Readonly<{
+    status: 'failed';
+    failure: EventRetirementFailure;
   }>;
 
 export type EventKernelSnapshot = Readonly<{
@@ -184,11 +293,22 @@ export type EventKernelSnapshot = Readonly<{
   lifecycleRecords: readonly EventLifecycleRecord[];
   inboxEvents: readonly PendingEvent[];
   counts: Readonly<{ lifecycleRecords: number; inboxEvents: number }>;
+  retirement: Readonly<{
+    initialWatermark: number;
+    watermark: number;
+    lightweightEventIds: readonly number[];
+    counts: Readonly<{
+      lightweightRecords: number;
+      retainedRecords: number;
+    }>;
+    resourceCapacity: number;
+  }>;
   blocked: boolean;
   lastDispatchTick: number | null;
   dispatchBlocked: boolean;
   lastFailure?: EventCreationFailure;
   dispatchFailure?: EventDispatchFailure;
+  retirementFailure?: EventRetirementFailure;
 }>;
 
 type CandidateEventId = Readonly<{ eventId: number; previousEventId: number }>;
@@ -197,6 +317,7 @@ type PreparedRegistration = Readonly<{
   runtimeInstanceId: string;
   status: 'pending';
   eventFingerprint: string;
+  producerId?: string;
 }>;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -244,6 +365,86 @@ class EventIdSequence {
   }
 }
 
+type RetirementLedgerResult = Readonly<{
+  wasAlreadyRetired: boolean;
+  compactedEventIds: readonly number[];
+}>;
+type RetirementLedgerState = Readonly<{
+  watermark: number;
+  retiredGapEventIds: readonly number[];
+}>;
+
+// This ledger owns only retirement identity: one continuous watermark plus
+// lightweight IDs above an unresolved gap.
+class EventRetirementLedger {
+  readonly #initialWatermark: number;
+  readonly #retiredGapEventIds = new Set<number>();
+  #watermark: number;
+
+  constructor(initialNextEventId: number) {
+    this.#initialWatermark = initialNextEventId - 1;
+    this.#watermark = this.#initialWatermark;
+  }
+
+  isRetired(eventId: number): boolean {
+    return eventId <= this.#watermark || this.#retiredGapEventIds.has(eventId);
+  }
+
+  retire(eventId: number): RetirementLedgerResult {
+    if (this.isRetired(eventId)) {
+      return Object.freeze({
+        wasAlreadyRetired: true,
+        compactedEventIds: Object.freeze([]),
+      });
+    }
+
+    this.#retiredGapEventIds.add(eventId);
+    const compactedEventIds: number[] = [];
+    while (this.#watermark < Number.MAX_SAFE_INTEGER &&
+           this.#retiredGapEventIds.has(this.#watermark + 1)) {
+      const compacted = this.#watermark + 1;
+      this.#retiredGapEventIds.delete(compacted);
+      this.#watermark = compacted;
+      compactedEventIds.push(compacted);
+    }
+    return Object.freeze({
+      wasAlreadyRetired: false,
+      compactedEventIds: Object.freeze(compactedEventIds),
+    });
+  }
+
+  capture(): RetirementLedgerState {
+    return Object.freeze({
+      watermark: this.#watermark,
+      retiredGapEventIds: Object.freeze([...this.#retiredGapEventIds]),
+    });
+  }
+
+  restore(state: RetirementLedgerState): void {
+    this.#watermark = state.watermark;
+    this.#retiredGapEventIds.clear();
+    for (const eventId of state.retiredGapEventIds) {
+      this.#retiredGapEventIds.add(eventId);
+    }
+  }
+
+  get initialWatermark(): number {
+    return this.#initialWatermark;
+  }
+
+  get watermark(): number {
+    return this.#watermark;
+  }
+
+  get lightweightCount(): number {
+    return this.#retiredGapEventIds.size;
+  }
+
+  get lightweightEventIds(): readonly number[] {
+    return Object.freeze([...this.#retiredGapEventIds].sort((left, right) => left - right));
+  }
+}
+
 type StoredLifecycleRecord = Readonly<EventLifecycleRecord & {
   eventFingerprint: string;
 }>;
@@ -265,7 +466,11 @@ class EventLifecycleRegistry {
     return this.#records.size < this.#capacity;
   }
 
-  prepare(event: PendingEvent): PreparedRegistration {
+  get count(): number {
+    return this.#records.size;
+  }
+
+  prepare(event: PendingEvent, producerId?: string): PreparedRegistration {
     if (!this.hasCapacity) {
       throw new Error('The lifecycle history has no capacity for another event.');
     }
@@ -277,6 +482,7 @@ class EventLifecycleRegistry {
       runtimeInstanceId: event.runtimeInstanceId,
       status: 'pending' as const,
       eventFingerprint: fingerprintEvent(event),
+      ...(producerId === undefined ? {} : { producerId }),
     });
   }
 
@@ -319,6 +525,13 @@ class EventLifecycleRegistry {
       eventId: current.eventId,
       runtimeInstanceId: current.runtimeInstanceId,
       status: next,
+      ...(current.producerId === undefined ? {} : { producerId: current.producerId }),
+      ...(current.resultDelivered === undefined
+        ? {}
+        : { resultDelivered: current.resultDelivered }),
+      ...(current.acknowledged === undefined
+        ? {}
+        : { acknowledged: current.acknowledged }),
       simulationTick: details.simulationTick,
       ...(details.testCommandReference
         ? { testCommandReference: details.testCommandReference }
@@ -329,8 +542,38 @@ class EventLifecycleRegistry {
     return publicLifecycleRecord(updated);
   }
 
+  markResultDelivered(eventId: number): void {
+    this.#updateFlags(eventId, { resultDelivered: true });
+  }
+
+  markAcknowledged(eventId: number): void {
+    this.#updateFlags(eventId, { acknowledged: true });
+  }
+
+  removeRetired(eventId: number): void {
+    const current = this.#records.get(eventId);
+    if (!current || current.status !== 'completed') {
+      throw new Error(`Event ${eventId} is not a Completed record eligible for retirement.`);
+    }
+    this.#records.delete(eventId);
+  }
+
   get snapshot(): readonly EventLifecycleRecord[] {
     return Object.freeze([...this.#records.values()].map(publicLifecycleRecord));
+  }
+
+  #updateFlags(
+    eventId: number,
+    flags: Readonly<{ resultDelivered?: true; acknowledged?: true }>,
+  ): void {
+    const current = this.#records.get(eventId);
+    if (!current) {
+      throw new Error(`Lifecycle record ${eventId} does not exist.`);
+    }
+    this.#records.set(eventId, Object.freeze({
+      ...current,
+      ...flags,
+    }));
   }
 }
 
@@ -377,6 +620,10 @@ class EventInbox {
     return event;
   }
 
+  contains(eventId: number): boolean {
+    return this.#eventIds.has(eventId);
+  }
+
   get snapshot(): readonly PendingEvent[] {
     return Object.freeze([...this.#queue]);
   }
@@ -393,6 +640,7 @@ type NormalizedRequest =
 export class RuntimeEventContext {
   readonly runtimeInstanceId: string;
   readonly #eventIds: EventIdSequence;
+  readonly #initialNextEventId: number;
   #coordinator: EventCreationCoordinator | undefined;
 
   constructor(
@@ -404,7 +652,8 @@ export class RuntimeEventContext {
       throw new TypeError('Runtime UUID provider must return a UUID.');
     }
     this.runtimeInstanceId = runtimeInstanceId;
-    this.#eventIds = new EventIdSequence(options.initialNextEventId ?? 1);
+    this.#initialNextEventId = options.initialNextEventId ?? 1;
+    this.#eventIds = new EventIdSequence(this.#initialNextEventId);
   }
 
   createCoordinator(options: EventCreationOptions): EventCreationCoordinator {
@@ -414,6 +663,7 @@ export class RuntimeEventContext {
     this.#coordinator = new EventCreationCoordinator(
       this.runtimeInstanceId,
       this.#eventIds,
+      this.#initialNextEventId,
       options,
     );
     return this.#coordinator;
@@ -426,39 +676,255 @@ export class EventCreationCoordinator {
   readonly #runtimeInstanceId: string;
   readonly #eventIds: EventIdSequence;
   readonly #lifecycle: EventLifecycleRegistry;
+  readonly #retirement: EventRetirementLedger;
   readonly #inbox: EventInbox;
+  readonly #resourceCapacity: number;
   readonly #allowedEventTypes: ReadonlySet<string> | undefined;
   readonly #faultInjector: EventCreationFaultInjector | undefined;
   readonly #dispatchFaultInjector: EventDispatchFaultInjector | undefined;
+  readonly #retirementFaultInjector: EventRetirementFaultInjector | undefined;
   readonly #dispatchHandler: EventDispatchHandler | undefined;
   readonly #commandReceiptTestDouble: CommandReceiptTestDouble | undefined;
+  readonly #producerHandles = new WeakMap<object, string>();
+  readonly #finalResultObjects = new WeakSet<object>();
+  readonly #acknowledgedResultObjects = new WeakSet<object>();
+  readonly #finalResults = new Map<number, CompletedEventResult>();
   #blockedFailure: EventCreationFailure | undefined;
   #lastFailure: EventCreationFailure | undefined;
   #lastDispatchTick: number | undefined;
   #dispatchFailure: EventDispatchFailure | undefined;
+  #retirementFailure: EventRetirementFailure | undefined;
   #dispatching = false;
+  #nextProducerNumber = 1;
 
   constructor(
     runtimeInstanceId: string,
     eventIds: EventIdSequence,
+    initialNextEventId: number,
     options: EventCreationOptions,
   ) {
     this.#runtimeInstanceId = runtimeInstanceId;
     this.#eventIds = eventIds;
-    this.#lifecycle = new EventLifecycleRegistry(
-      options.historyCapacity ?? DEFAULT_HISTORY_CAPACITY,
-    );
+    this.#resourceCapacity = options.historyCapacity ?? DEFAULT_HISTORY_CAPACITY;
+    this.#lifecycle = new EventLifecycleRegistry(this.#resourceCapacity);
+    this.#retirement = new EventRetirementLedger(initialNextEventId);
     this.#inbox = new EventInbox(options.inboxCapacity);
     this.#allowedEventTypes = options.allowedEventTypes
       ? new Set(options.allowedEventTypes)
       : undefined;
     this.#faultInjector = options.faultInjector;
     this.#dispatchFaultInjector = options.dispatchFaultInjector;
+    this.#retirementFaultInjector = options.retirementFaultInjector;
     this.#dispatchHandler = options.dispatchHandler;
     this.#commandReceiptTestDouble = options.commandReceiptTestDouble;
   }
 
-  create(request: EventCreationRequest): EventCreationResult {
+  createProducer(): EventProducerHandle {
+    const producerId =
+      `${this.#runtimeInstanceId}:producer:${this.#nextProducerNumber++}`;
+    const handle: EventProducerHandle = Object.freeze({ producerId });
+    this.#producerHandles.set(handle, producerId);
+    return handle;
+  }
+
+  readFinalResult(
+    producer: EventProducerHandle,
+    eventId: number,
+  ): FinalEventResultRead {
+    const producerId = this.#resolveProducer(producer);
+    if (!producerId) return invalidFinalResultProducer();
+    if (!Number.isSafeInteger(eventId) || eventId < 1) {
+      return rejectedFinalResult('unknown-event', 'Event ID is not registered.');
+    }
+    const record = this.#lifecycle.get(eventId);
+    if (!record) {
+      return rejectedFinalResult('unknown-event', 'Event ID is not registered.');
+    }
+    if (record.producerId !== producerId) {
+      return rejectedFinalResult(
+        'producer-mismatch',
+        'Final result is only available to the event producer.',
+      );
+    }
+    if (record.status !== 'completed' || !record.testCommandReference) {
+      return rejectedFinalResult(
+        'not-completed',
+        'Final coordination result does not exist yet.',
+      );
+    }
+
+    let result = this.#finalResults.get(eventId);
+    if (!result) {
+      result = Object.freeze({
+        status: 'coordinated-completed' as const,
+        runtimeInstanceId: this.#runtimeInstanceId,
+        eventId,
+        producerId,
+        testCommandReference: record.testCommandReference,
+      });
+      this.#finalResults.set(eventId, result);
+      this.#finalResultObjects.add(result);
+    }
+    this.#lifecycle.markResultDelivered(eventId);
+    return Object.freeze({
+      status: 'available' as const,
+      result,
+    });
+  }
+
+  acknowledge(
+    producer: EventProducerHandle,
+    result: CompletedEventResult,
+  ): ProducerAcknowledgementResult {
+    const verified = this.#verifyResult(producer, result);
+    if (!verified.ok) return verified.rejected;
+    const record = this.#lifecycle.get(verified.eventId);
+    if (!record) {
+      if (this.#retirement.isRetired(verified.eventId) &&
+          this.#acknowledgedResultObjects.has(result)) {
+        return Object.freeze({
+          status: 'already-acknowledged' as const,
+          eventId: verified.eventId,
+          producerId: verified.producerId,
+        });
+      }
+      return rejectedAcknowledgement('unknown-event', 'Event record no longer exists.');
+    }
+    if (record.status !== 'completed') {
+      return rejectedAcknowledgement(
+        'not-completed',
+        'Only a Completed coordination result can be acknowledged.',
+      );
+    }
+    if (record.acknowledged) {
+      return Object.freeze({
+        status: 'already-acknowledged' as const,
+        eventId: verified.eventId,
+        producerId: verified.producerId,
+      });
+    }
+    this.#lifecycle.markAcknowledged(verified.eventId);
+    this.#acknowledgedResultObjects.add(result);
+    return Object.freeze({
+      status: 'acknowledged' as const,
+      eventId: verified.eventId,
+      producerId: verified.producerId,
+    });
+  }
+
+  retire(
+    producer: EventProducerHandle,
+    result: CompletedEventResult,
+  ): EventRetirementResult {
+    const verified = this.#verifyResult(producer, result);
+    if (!verified.ok) return verified.rejectedRetirement;
+    if (this.#dispatching) {
+      return rejectedRetirement(
+        'dispatch-active',
+        'Retirement is unavailable while a coordination round is active.',
+      );
+    }
+    if (this.#inbox.contains(verified.eventId)) {
+      return rejectedRetirement(
+        'inbox-busy',
+        'Retirement cannot remove an event still held by the Inbox.',
+      );
+    }
+
+    const record = this.#lifecycle.get(verified.eventId);
+    if (!record) {
+      if (this.#retirement.isRetired(verified.eventId)) {
+        this.#retirementFailure = undefined;
+        return Object.freeze({
+          status: 'already-retired' as const,
+          eventId: verified.eventId,
+          watermark: this.#retirement.watermark,
+        });
+      }
+      return rejectedRetirement('unknown-event', 'Event record no longer exists.');
+    }
+    if (record.producerId !== verified.producerId) {
+      return rejectedRetirement(
+        'producer-mismatch',
+        'Only the event producer can retire this event.',
+      );
+    }
+    if (record.status !== 'completed') {
+      return rejectedRetirement(
+        'not-completed',
+        'Only a Completed event can be retired.',
+      );
+    }
+    if (!record.resultDelivered) {
+      return rejectedRetirement(
+        'not-completed',
+        'The producer must receive the final result before retirement.',
+      );
+    }
+    if (!record.acknowledged) {
+      return rejectedRetirement(
+        'not-acknowledged',
+        'The producer must explicitly acknowledge the final result first.',
+      );
+    }
+
+    try {
+      this.#retirementFault('before-retirement-ledger-commit');
+    } catch (error) {
+      return this.#failRetirement(
+        'before-retirement-ledger-commit',
+        verified.eventId,
+        error,
+      );
+    }
+
+    const retirementState = this.#retirement.capture();
+    let ledgerResult: RetirementLedgerResult;
+    try {
+      ledgerResult = this.#retirement.retire(verified.eventId);
+    } catch (error) {
+      return this.#failRetirement(
+        'before-retirement-ledger-commit',
+        verified.eventId,
+        error,
+      );
+    }
+
+    try {
+      this.#retirementFault('before-lifecycle-record-remove');
+      this.#lifecycle.removeRetired(verified.eventId);
+    } catch (error) {
+      this.#retirement.restore(retirementState);
+      return this.#failRetirement(
+        'before-lifecycle-record-remove',
+        verified.eventId,
+        error,
+      );
+    }
+    this.#finalResults.delete(verified.eventId);
+
+    try {
+      this.#retirementFault('after-lifecycle-record-remove');
+    } catch (error) {
+      return this.#failRetirement(
+        'after-lifecycle-record-remove',
+        verified.eventId,
+        error,
+      );
+    }
+    this.#retirementFailure = undefined;
+    return Object.freeze({
+      status: 'retired' as const,
+      eventId: verified.eventId,
+      watermark: this.#retirement.watermark,
+      compactedEventIds: ledgerResult.compactedEventIds,
+    });
+  }
+
+  create(
+    request: EventCreationRequest,
+    producer?: EventProducerHandle,
+  ): EventCreationResult {
     if (this.#blockedFailure) {
       return Object.freeze({
         status: 'blocked' as const,
@@ -474,6 +940,17 @@ export class EventCreationCoordinator {
         status: 'rejected' as const,
         reason: normalized.reason,
         message: normalized.message,
+      });
+    }
+
+    const producerId = producer === undefined
+      ? undefined
+      : this.#resolveProducer(producer);
+    if (producer !== undefined && producerId === undefined) {
+      return Object.freeze({
+        status: 'rejected' as const,
+        reason: 'invalid-producer' as const,
+        message: 'Event producer handle is not owned by this coordinator.',
       });
     }
 
@@ -496,11 +973,11 @@ export class EventCreationCoordinator {
       currentPoint = 'candidate-prepared';
       this.#fault(currentPoint);
 
-      if (!this.#lifecycle.hasCapacity) {
+      if (!this.#hasResourceCapacity()) {
         return Object.freeze({
           status: 'rejected' as const,
           reason: 'history-capacity' as const,
-          message: 'The lifecycle history has no capacity for another event.',
+          message: 'The combined lifecycle and retirement budget is full.',
         });
       }
 
@@ -510,7 +987,7 @@ export class EventCreationCoordinator {
         normalized.type,
         normalized.payload,
       );
-      const registration = this.#lifecycle.prepare(event);
+      const registration = this.#lifecycle.prepare(event, producerId);
       currentPoint = 'registration-prepared';
       this.#fault(currentPoint);
 
@@ -639,7 +1116,10 @@ export class EventCreationCoordinator {
       runtimeInstanceId: this.#runtimeInstanceId,
       simulationTick: normalized.simulationTick,
       phase: normalized.phase,
-      create: (request: EventCreationRequest) => this.create(request),
+      create: (
+        request: EventCreationRequest,
+        producer?: EventProducerHandle,
+      ) => this.create(request, producer),
       statusOf: (eventId: number) => this.#lifecycle.statusOf(eventId),
     }) satisfies EventDispatchHandlerContext;
 
@@ -785,6 +1265,13 @@ export class EventCreationCoordinator {
         message: 'Redelivered event belongs to another runtime instance.',
       });
     }
+    if (this.#retirement.isRetired(eventId as number)) {
+      return Object.freeze({
+        status: 'rejected' as const,
+        reason: 'retired-event' as const,
+        message: 'Event ID has already been safely retired and cannot execute again.',
+      });
+    }
 
     const registered = this.#lifecycle.get(eventId as number);
     if (!registered) {
@@ -826,11 +1313,105 @@ export class EventCreationCoordinator {
         lifecycleRecords: lifecycleRecords.length,
         inboxEvents: inboxEvents.length,
       }),
+      retirement: Object.freeze({
+        initialWatermark: this.#retirement.initialWatermark,
+        watermark: this.#retirement.watermark,
+        lightweightEventIds: this.#retirement.lightweightEventIds,
+        counts: Object.freeze({
+          lightweightRecords: this.#retirement.lightweightCount,
+          retainedRecords:
+            lifecycleRecords.length + this.#retirement.lightweightCount,
+        }),
+        resourceCapacity: this.#resourceCapacity,
+      }),
       blocked: this.#blockedFailure !== undefined,
       lastDispatchTick: this.#lastDispatchTick ?? null,
       dispatchBlocked: this.#dispatchFailure !== undefined,
       ...(this.#lastFailure ? { lastFailure: this.#lastFailure } : {}),
       ...(this.#dispatchFailure ? { dispatchFailure: this.#dispatchFailure } : {}),
+      ...(this.#retirementFailure
+        ? { retirementFailure: this.#retirementFailure }
+        : {}),
+    });
+  }
+
+  #hasResourceCapacity(): boolean {
+    return this.#lifecycle.count + this.#retirement.lightweightCount <
+      this.#resourceCapacity;
+  }
+
+  #resolveProducer(producer: EventProducerHandle): string | undefined {
+    if (producer === null ||
+        (typeof producer !== 'object' && typeof producer !== 'function')) {
+      return undefined;
+    }
+    return this.#producerHandles.get(producer as object);
+  }
+
+  #verifyResult(
+    producer: EventProducerHandle,
+    result: CompletedEventResult,
+  ): VerifiedCompletedResult {
+    const producerId = this.#resolveProducer(producer);
+    if (!producerId) {
+      const message = 'Producer handle is not owned by this coordinator.';
+      return {
+        ok: false,
+        rejected: rejectedAcknowledgement('invalid-producer', message),
+        rejectedRetirement: rejectedRetirement('invalid-producer', message),
+      };
+    }
+    if (result === null || typeof result !== 'object' ||
+        !this.#finalResultObjects.has(result)) {
+      const message = 'Completed result capability is not owned by this coordinator.';
+      return {
+        ok: false,
+        rejected: rejectedAcknowledgement('invalid-result', message),
+        rejectedRetirement: rejectedRetirement('invalid-result', message),
+      };
+    }
+    if (result.runtimeInstanceId !== this.#runtimeInstanceId ||
+        !Number.isSafeInteger(result.eventId) ||
+        result.eventId < 1) {
+      const message = 'Completed result capability has an invalid runtime or Event ID.';
+      return {
+        ok: false,
+        rejected: rejectedAcknowledgement('invalid-result', message),
+        rejectedRetirement: rejectedRetirement('invalid-result', message),
+      };
+    }
+    if (result.producerId !== producerId) {
+      const message = 'Completed result belongs to another producer.';
+      return {
+        ok: false,
+        rejected: rejectedAcknowledgement('producer-mismatch', message),
+        rejectedRetirement: rejectedRetirement('producer-mismatch', message),
+      };
+    }
+    return {
+      ok: true,
+      producerId,
+      eventId: result.eventId,
+    };
+  }
+
+  #failRetirement(
+    point: EventRetirementFaultPoint,
+    eventId: number,
+    error: unknown,
+  ): Readonly<{ status: 'failed'; failure: EventRetirementFailure }> {
+    const failure: EventRetirementFailure = Object.freeze({
+      code: 'retirement-failed' as const,
+      point,
+      eventId,
+      message: toMessage(error),
+      lifecyclePreserved: this.#lifecycle.get(eventId) !== undefined,
+      retirementRecordPreserved: this.#retirement.isRetired(eventId),
+    });
+    this.#retirementFailure = failure;
+    return Object.freeze({
+      status: 'failed' as const,
+      failure,
     });
   }
 
@@ -955,6 +1536,10 @@ export class EventCreationCoordinator {
   #dispatchFault(point: EventDispatchFaultPoint): void {
     this.#dispatchFaultInjector?.(point);
   }
+
+  #retirementFault(point: EventRetirementFaultPoint): void {
+    this.#retirementFaultInjector?.(point);
+  }
 }
 
 function createPendingEvent(
@@ -991,6 +1576,66 @@ type NormalizedCommandReceipt =
       | 'invalid-receipt';
     message: string;
   }>;
+
+type RejectedAcknowledgement = Extract<
+  ProducerAcknowledgementResult,
+  { status: 'rejected' }
+>;
+type RejectedRetirement = Extract<
+  EventRetirementResult,
+  { status: 'rejected' }
+>;
+type VerifiedCompletedResult =
+  | Readonly<{
+    ok: true;
+    producerId: string;
+    eventId: number;
+  }>
+  | Readonly<{
+    ok: false;
+    rejected: RejectedAcknowledgement;
+    rejectedRetirement: RejectedRetirement;
+  }>;
+
+function invalidFinalResultProducer(): FinalEventResultRead {
+  return rejectedFinalResult(
+    'invalid-producer',
+    'Producer handle is not owned by this coordinator.',
+  );
+}
+
+function rejectedFinalResult(
+  reason: Extract<FinalEventResultRead, { status: 'rejected' }>['reason'],
+  message: string,
+): FinalEventResultRead {
+  return Object.freeze({
+    status: 'rejected' as const,
+    reason,
+    message,
+  });
+}
+
+function rejectedAcknowledgement(
+  reason: RejectedAcknowledgement['reason'],
+  message: string,
+): RejectedAcknowledgement {
+  return Object.freeze({
+    status: 'rejected' as const,
+    reason,
+    message,
+  });
+}
+
+function rejectedRetirement(
+  reason: RejectedRetirement['reason'],
+  message: string,
+): RejectedRetirement {
+  return Object.freeze({
+    status: 'rejected' as const,
+    reason,
+    message,
+  });
+}
 
 function normalizeDispatchContext(context: EventDispatchContext): NormalizedDispatchContext {
   let runtimeInstanceId: unknown;
@@ -1145,6 +1790,13 @@ function publicLifecycleRecord(record: StoredLifecycleRecord): EventLifecycleRec
     eventId: record.eventId,
     runtimeInstanceId: record.runtimeInstanceId,
     status: record.status,
+    ...(record.producerId === undefined ? {} : { producerId: record.producerId }),
+    ...(record.resultDelivered === undefined
+      ? {}
+      : { resultDelivered: record.resultDelivered }),
+    ...(record.acknowledged === undefined
+      ? {}
+      : { acknowledged: record.acknowledged }),
     ...(record.simulationTick === undefined
       ? {}
       : { simulationTick: record.simulationTick }),
