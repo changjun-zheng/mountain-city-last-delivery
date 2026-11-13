@@ -3,6 +3,11 @@ import { RuntimeLifecycleController } from './lifecycle.ts';
 import { PlayerMotor, type PlayerState } from './player.ts';
 import { InteractionController, type InteractionObject } from './interaction.ts';
 import { InMemoryRunProgress } from './progress.ts';
+import {
+  PrototypeGoalRouteRuntime,
+  type GoalRouteRuntimeOptions,
+} from './goal-route-runtime.ts';
+import type { RuntimeUuidProvider } from './events.ts';
 
 export const GRAYBOX_SIMULATION = Object.freeze({ fixedDeltaMs: 1000 / 60, maxStepsPerFrame: 5 });
 export type GrayboxPhysics = {
@@ -15,10 +20,22 @@ export type GrayboxPhysics = {
   reset(): void;
 };
 
+export type GrayboxCoreOptions = Readonly<{
+  uuidProvider: RuntimeUuidProvider;
+  progress?: InMemoryRunProgress;
+  goalRouteOptions?: GoalRouteRuntimeOptions;
+}>;
+
 export function createGrayboxCore(
   physics: GrayboxPhysics,
-  progress = new InMemoryRunProgress(),
+  options: GrayboxCoreOptions,
 ) {
+  const progress = options.progress ?? new InMemoryRunProgress();
+  const goalRoute = new PrototypeGoalRouteRuntime(
+    progress,
+    options.uuidProvider,
+    options.goalRouteOptions,
+  );
   const motor = new PlayerMotor();
   const availabilityOwner = Symbol('input-availability');
   let simulation!: FixedStepSimulation;
@@ -35,12 +52,8 @@ export function createGrayboxCore(
         ? `${object.label}：测试收藏 +1（${object.progress.id}）`
         : `${object.label}：已收藏，重复请求未新增（${object.progress.id}）`;
     }
-    const result = progress.completeGoal(object.progress.id);
-    reconcilePermanentEffects();
-    if (result.status === 'rejected') return `${object.label}：测试目标请求被拒绝`;
-    return result.status === 'added'
-      ? `${object.label}：测试目标完成 · 测试奖励 +1 · 路线 OPEN`
-      : `${object.label}：目标已完成，奖励未重复发放 · 路线保持 OPEN`;
+    const result = goalRoute.requestGoal();
+    return `${object.label}：${result.feedback}`;
   };
   const interaction = new InteractionController(
     motor.controls,
@@ -56,6 +69,11 @@ export function createGrayboxCore(
     motor.afterStep(physics.state, deltaMs);
     interaction.updatePlayerState(physics.state);
     interaction.afterStep(physics.state, deltaMs);
+    // Business coordination happens once after the actual world, physics and
+    // interaction updates for this fixed Tick. New result events remain Pending
+    // for the next coordination dispatch.
+    goalRoute.step(tick);
+    reconcilePermanentEffects();
   });
   const lifecycle = new RuntimeLifecycleController(simulation);
   reconcilePermanentEffects();
@@ -87,7 +105,7 @@ export function createGrayboxCore(
       return { ...simulation.snapshot, pauseCount: lifecycle.pauseCount,
         player: { ...physics.state, ...motor.snapshot }, physicsSteps: physics.steps,
         physicsTimestamp: physics.timestamp, resets, interaction: interaction.snapshot,
-        progress: progress.snapshot };
+        progress: progress.snapshot, goalRoute: goalRoute.snapshot };
     },
   };
 }

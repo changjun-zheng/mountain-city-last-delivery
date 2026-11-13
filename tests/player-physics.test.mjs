@@ -11,11 +11,19 @@ import { MatterGrayboxWorld } from '../src/physics/matter/graybox-world.ts';
 
 // The same Matter 0.20.0 implementation bundled by Phaser, without a second dependency.
 const M = createRequire(import.meta.url)('../node_modules/phaser/src/physics/matter-js/CustomMain.js');
+let fixtureRuntimeNumber = 0;
+function fixtureRuntimeId() {
+  fixtureRuntimeNumber++;
+  return `70000000-0000-4000-8000-${String(fixtureRuntimeNumber).padStart(12, '0')}`;
+}
 function fixture(x = 80, y = 472, settle = 30, progress) {
   const engine = M.Engine.create();
   const world = new MatterGrayboxWorld(M, engine, dt => M.Engine.update(engine, dt));
   M.Body.setPosition(world.player, { x, y });
-  const core = createGrayboxCore(world, progress);
+  const core = createGrayboxCore(world, {
+    progress,
+    uuidProvider: { generate: fixtureRuntimeId },
+  });
   let frame = 0;
   const step = (n = 1) => { for (let i = 0; i < n; i++) core.frame(frame++ * core.config.fixedDeltaMs); };
   const until = (condition, max = 300) => {
@@ -815,6 +823,7 @@ test('D08 P03 goal and reward are recorded once; world effect is explicitly reco
     'The test route gate starts with a real player collision mask');
 
   pressKey(instance, 'KeyE');
+  instance.until(state => state.goalRoute.phase === 'succeeded');
   assert.deepEqual(instance.core.snapshot.progress.goals,
     [PROTOTYPE_PROGRESS_CONTENT.goal.businessId]);
   assert.deepEqual(instance.core.snapshot.progress.rewards,
@@ -824,9 +833,13 @@ test('D08 P03 goal and reward are recorded once; world effect is explicitly reco
   assert.equal(instance.world.progressRouteOpen, true);
   assert.equal(instance.world.progressRouteGate.collisionFilter.mask, 0,
     'The permanent effect opens the route by disabling the real collision mask');
-  assert.match(instance.core.snapshot.interaction.feedbackText, /测试奖励 \+1/);
+  assert.match(instance.core.snapshot.interaction.feedbackText, /Event #1.*Pending/);
+  assert.equal(instance.core.snapshot.goalRoute.resultConsumptionCount, 1);
+  assert.match(instance.core.snapshot.goalRoute.message, /链路完成/);
 
   pressKey(instance, 'KeyE');
+  assert.equal(instance.core.snapshot.goalRoute.counts.commands, 1);
+  assert.equal(instance.core.snapshot.goalRoute.counts.transactions, 1);
   progress.completeGoal(PROTOTYPE_PROGRESS_CONTENT.goal.businessId);
   instance.core.reset();
   assert.deepEqual(instance.core.snapshot.progress.counts, {
@@ -842,6 +855,7 @@ test('D08 P04 P05 permanent effect survives closed world reset and temporary obj
   const first = fixture(80, 472, 30, progress);
   placePlayer(first, 460);
   pressKey(first, 'KeyE');
+  first.until(state => state.goalRoute.phase === 'succeeded');
   assert.equal(first.world.progressRouteOpen, true);
 
   // Simulate a rebuilt temporary world starting with its initial closed effect.
@@ -882,6 +896,7 @@ test('D08 P06 pause freezes progress and a held E does not replay interaction af
   });
   assert.equal(completed.interaction.consumedCount, 1);
   assert.equal(completed.interaction.needsRelease, false);
+  assert.equal(completed.goalRoute.phase, 'result-pending');
 
   const owner = Symbol('test-pause-owner');
   instance.core.setAvailable(false);
@@ -901,5 +916,178 @@ test('D08 P06 pause freezes progress and a held E does not replay interaction af
   assert.equal(instance.core.snapshot.interaction.consumedCount, 1);
   assert.equal(instance.core.snapshot.interaction.needsRelease, true);
   assert.ok(instance.core.snapshot.tick <= completed.tick + 1);
+  assert.ok(instance.core.snapshot.goalRoute.resultConsumptionCount <= 1);
   instance.core.key('KeyE', false);
+});
+
+test('D09-D1 H01-H02 real host input creates Event first and never repeats Command, Transaction or award', () => {
+  const progress = new InMemoryRunProgress();
+  const instance = fixture(80, 472, 30, progress);
+  placePlayer(instance, 460);
+  assert.equal(instance.core.snapshot.goalRoute.phase, 'idle');
+  assert.equal(instance.world.progressRouteOpen, false);
+
+  instance.core.key('KeyE', true);
+  let snapshot = instance.core.snapshot;
+  assert.equal(snapshot.goalRoute.phase, 'request-pending');
+  assert.equal(snapshot.goalRoute.eventId, 1);
+  assert.equal(snapshot.goalRoute.commandId, null);
+  assert.deepEqual(snapshot.progress.counts, {
+    collections: 0,
+    goals: 0,
+    rewards: 0,
+    effects: 0,
+  });
+  assert.equal(instance.world.progressRouteOpen, false,
+    'Creating a Pending Event must not modify the Matter gate');
+  instance.core.key('KeyE', false);
+
+  instance.step();
+  snapshot = instance.core.snapshot;
+  assert.equal(snapshot.goalRoute.phase, 'verifying');
+  assert.equal(snapshot.goalRoute.commandId, 1);
+  assert.equal(snapshot.goalRoute.transactionId, 1);
+  assert.deepEqual(snapshot.progress.counts, {
+    collections: 0,
+    goals: 1,
+    rewards: 1,
+    effects: 1,
+  });
+  assert.equal(instance.world.progressRouteOpen, true);
+
+  instance.core.key('KeyE', true);
+  instance.core.key('KeyE', false);
+  snapshot = instance.core.snapshot;
+  assert.equal(snapshot.goalRoute.counts.commands, 1);
+  assert.equal(snapshot.goalRoute.counts.transactions, 1);
+
+  instance.until(state => state.goalRoute.phase === 'succeeded');
+  snapshot = instance.core.snapshot;
+  const identities = {
+    runtimeInstanceId: snapshot.goalRoute.runtimeInstanceId,
+    eventId: snapshot.goalRoute.eventId,
+    commandId: snapshot.goalRoute.commandId,
+    transactionId: snapshot.goalRoute.transactionId,
+    resultEventId: snapshot.goalRoute.resultEventId,
+  };
+  assert.equal(identities.resultEventId, 2);
+  assert.notEqual(identities.resultEventId, identities.eventId);
+  assert.equal(snapshot.goalRoute.resultConsumptionCount, 1);
+  assert.equal(snapshot.goalRoute.originalRetired, true);
+  assert.equal(snapshot.goalRoute.resultRetired, true);
+
+  const consumedBefore = snapshot.interaction.consumedCount;
+  instance.core.key('KeyE', true);
+  instance.core.key('KeyE', false);
+  instance.step(2);
+  snapshot = instance.core.snapshot;
+  assert.equal(snapshot.interaction.consumedCount, consumedBefore + 1);
+  assert.deepEqual({
+    runtimeInstanceId: snapshot.goalRoute.runtimeInstanceId,
+    eventId: snapshot.goalRoute.eventId,
+    commandId: snapshot.goalRoute.commandId,
+    transactionId: snapshot.goalRoute.transactionId,
+    resultEventId: snapshot.goalRoute.resultEventId,
+  }, identities);
+  assert.deepEqual(snapshot.progress.counts, {
+    collections: 0,
+    goals: 1,
+    rewards: 1,
+    effects: 1,
+  });
+});
+
+test('D09-D1 H03 pause freezes Pending and in-progress route work without catch-up', () => {
+  const instance = fixture(80, 472, 30);
+  placePlayer(instance, 460);
+  instance.core.key('KeyE', true);
+  instance.core.key('KeyE', false);
+  const pending = instance.core.snapshot;
+  assert.equal(pending.goalRoute.phase, 'request-pending');
+
+  const pendingOwner = Symbol('d09-pending-pause');
+  const pendingToken = instance.core.lifecycle.acquire(
+    pendingOwner,
+    Symbol('d09-pending-request'),
+  );
+  assert.ok(pendingToken);
+  instance.core.frame(60000);
+  assert.equal(instance.core.snapshot.tick, pending.tick);
+  assert.equal(instance.core.snapshot.goalRoute.phase, 'request-pending');
+  assert.equal(instance.core.snapshot.goalRoute.counts.inboxEvents, 1);
+  assert.equal(instance.core.lifecycle.release(pendingOwner, pendingToken), 'released');
+
+  let manualNow = 60000 + instance.core.config.fixedDeltaMs * 2;
+  instance.core.frame(manualNow);
+  manualNow += instance.core.config.fixedDeltaMs;
+  instance.core.frame(manualNow);
+  const applying = instance.core.snapshot;
+  assert.equal(applying.goalRoute.phase, 'verifying');
+  assert.equal(applying.goalRoute.applyTick, applying.tick);
+
+  const transactionOwner = Symbol('d09-transaction-pause');
+  const transactionToken = instance.core.lifecycle.acquire(
+    transactionOwner,
+    Symbol('d09-transaction-request'),
+  );
+  assert.ok(transactionToken);
+  const frozen = instance.core.snapshot;
+  instance.core.frame(120000);
+  assert.equal(instance.core.snapshot.tick, frozen.tick);
+  assert.equal(instance.core.snapshot.goalRoute.phase, 'verifying');
+  assert.equal(instance.core.snapshot.goalRoute.verifyTick, null);
+  assert.deepEqual(instance.core.snapshot.progress, frozen.progress);
+  assert.equal(instance.core.lifecycle.release(transactionOwner, transactionToken), 'released');
+
+  for (let index = 0; index < 8 && instance.core.snapshot.goalRoute.phase !== 'succeeded'; index++) {
+    manualNow += instance.core.config.fixedDeltaMs;
+    instance.core.frame(manualNow);
+  }
+  assert.equal(instance.core.snapshot.goalRoute.phase, 'succeeded');
+  assert.equal(instance.core.snapshot.goalRoute.resultConsumptionCount, 1);
+  assert.deepEqual(instance.core.snapshot.progress.counts, {
+    collections: 0,
+    goals: 1,
+    rewards: 1,
+    effects: 1,
+  });
+});
+
+test('D09-D1 H04 debug reset preserves Pending identities and a completed run identity', () => {
+  const instance = fixture(80, 472, 30);
+  placePlayer(instance, 460);
+  instance.core.key('KeyE', true);
+  instance.core.key('KeyE', false);
+  const pendingBeforeReset = instance.core.snapshot;
+  instance.core.reset();
+  assert.equal(instance.core.snapshot.goalRoute.runtimeInstanceId,
+    pendingBeforeReset.goalRoute.runtimeInstanceId);
+  assert.equal(instance.core.snapshot.goalRoute.eventId, pendingBeforeReset.goalRoute.eventId);
+  assert.equal(instance.core.snapshot.goalRoute.phase, 'request-pending');
+  assert.equal(instance.core.snapshot.progress.counts.goals, 0);
+  instance.until(state => state.goalRoute.phase === 'succeeded');
+  assert.equal(instance.core.snapshot.goalRoute.counts.commands, 1);
+  assert.equal(instance.core.snapshot.goalRoute.counts.transactions, 1);
+  assert.equal(instance.core.snapshot.progress.rewards.filter(id =>
+    id === PROTOTYPE_PROGRESS_CONTENT.goal.rewardId).length, 1);
+
+  const completedBeforeReset = instance.core.snapshot;
+  instance.core.reset();
+  const completedAfterReset = instance.core.snapshot;
+  assert.equal(completedAfterReset.goalRoute.runtimeInstanceId,
+    completedBeforeReset.goalRoute.runtimeInstanceId);
+  assert.equal(completedAfterReset.goalRoute.eventId, completedBeforeReset.goalRoute.eventId);
+  assert.equal(completedAfterReset.goalRoute.commandId, completedBeforeReset.goalRoute.commandId);
+  assert.equal(completedAfterReset.goalRoute.transactionId,
+    completedBeforeReset.goalRoute.transactionId);
+  assert.equal(completedAfterReset.goalRoute.resultEventId,
+    completedBeforeReset.goalRoute.resultEventId);
+  assert.equal(completedAfterReset.goalRoute.phase, 'succeeded');
+  assert.equal(instance.world.progressRouteOpen, true);
+  assert.deepEqual(completedAfterReset.progress.counts, {
+    collections: 0,
+    goals: 1,
+    rewards: 1,
+    effects: 1,
+  });
 });

@@ -66,6 +66,15 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       ` R${progress.counts.rewards} F${progress.counts.effects}` +
       ` | Gate ${grayboxDiagnostics?.progressRouteOpen ? 'OPEN' : 'CLOSED'}`,
     );
+    const goalRoute = sample.goalRoute;
+    common.push(
+      `D09-D1 ${goalRoute.phase.toUpperCase()} | Runtime ${goalRoute.runtimeInstanceId}` +
+      ` | Event ${goalRoute.eventId ?? '-'} Command ${goalRoute.commandId ?? '-'}` +
+      ` Transaction ${goalRoute.transactionId ?? '-'} Result ${goalRoute.resultEventId ?? '-'}` +
+      ` | Accept ${goalRoute.acceptedTick ?? '-'} Apply ${goalRoute.applyTick ?? '-'}` +
+      ` Verify ${goalRoute.verifyTick ?? '-'} Consume ${goalRoute.resultConsumedTick ?? '-'}` +
+      ` | ${goalRoute.message}`,
+    );
     const horizontal = grayboxDiagnostics?.movingPlatforms.find(platform => platform.axis === 'horizontal');
     const vertical = grayboxDiagnostics?.movingPlatforms.find(platform => platform.axis === 'vertical');
     const zoneA = grayboxDiagnostics?.diagnosticZones.find(zone => zone.label === 'diagnostic-zone-a');
@@ -130,6 +139,49 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       progressRewardIds: progress.rewards.join(','),
       progressEffects: progress.effects.map(effect =>
         `${effect.id}:${effect.expectedActive ? 'active' : 'inactive'}`).join(','),
+      goalRuntimeInstanceId: goalRoute.runtimeInstanceId,
+      goalPhase: goalRoute.phase,
+      goalMessage: goalRoute.message,
+      goalEventId: goalRoute.eventId == null ? '' : String(goalRoute.eventId),
+      goalCommandId: goalRoute.commandId == null ? '' : String(goalRoute.commandId),
+      goalTransactionId: goalRoute.transactionId == null
+        ? '' : String(goalRoute.transactionId),
+      goalResultEventId: goalRoute.resultEventId == null
+        ? '' : String(goalRoute.resultEventId),
+      goalDeliveryStatus: goalRoute.deliveryStatus ?? '',
+      goalTransactionStatus: goalRoute.transactionStatus ?? '',
+      goalResultLifecycle: goalRoute.resultLifecycle ?? '',
+      goalTerminalStatus: goalRoute.terminal?.status ?? '',
+      goalAcceptedTick: goalRoute.acceptedTick == null ? '' : String(goalRoute.acceptedTick),
+      goalApplyTick: goalRoute.applyTick == null ? '' : String(goalRoute.applyTick),
+      goalVerifyTick: goalRoute.verifyTick == null ? '' : String(goalRoute.verifyTick),
+      goalTerminalTick: goalRoute.terminalTick == null ? '' : String(goalRoute.terminalTick),
+      goalOriginalCompletedTick: goalRoute.originalCompletedTick == null
+        ? '' : String(goalRoute.originalCompletedTick),
+      goalResultCreatedTick: goalRoute.resultCreatedTick == null
+        ? '' : String(goalRoute.resultCreatedTick),
+      goalResultConsumedTick: goalRoute.resultConsumedTick == null
+        ? '' : String(goalRoute.resultConsumedTick),
+      goalOriginalAcknowledged: String(goalRoute.originalAcknowledged),
+      goalOriginalRetired: String(goalRoute.originalRetired),
+      goalResultAcknowledged: String(goalRoute.resultAcknowledged),
+      goalResultRetired: String(goalRoute.resultRetired),
+      goalResultConsumerAttempts: String(goalRoute.resultConsumerAttempts),
+      goalResultConsumptionCount: String(goalRoute.resultConsumptionCount),
+      goalAcceptedBusinessGoals: String(goalRoute.acceptedBusinessCounts.goals),
+      goalAcceptedBusinessRewards: String(goalRoute.acceptedBusinessCounts.rewards),
+      goalAcceptedBusinessEffects: String(goalRoute.acceptedBusinessCounts.effects),
+      goalTerminalBusinessGoals: String(goalRoute.terminalBusinessCounts.goals),
+      goalTerminalBusinessRewards: String(goalRoute.terminalBusinessCounts.rewards),
+      goalTerminalBusinessEffects: String(goalRoute.terminalBusinessCounts.effects),
+      goalEventRecords: String(goalRoute.counts.events),
+      goalInboxEvents: String(goalRoute.counts.inboxEvents),
+      goalCommands: String(goalRoute.counts.commands),
+      goalAcceptedCommands: String(goalRoute.counts.acceptedCommands),
+      goalTransactionIntents: String(goalRoute.counts.transactionIntents),
+      goalTransactions: String(goalRoute.counts.transactions),
+      goalResultEvents: String(goalRoute.counts.resultEvents),
+      goalLastError: goalRoute.lastError ?? '',
     });
   }
   diagnostics.textContent = common.join('\n');
@@ -158,7 +210,14 @@ const launch = async () => {
       const diagnostic = createGameCore();
       wire(diagnostic);
       game = await mountStartupScene(parent, diagnostic, platform, () => performance.now(), showDiagnostics);
-    } else game = await mountGrayboxScene(parent, platform, () => performance.now(), wire, showDiagnostics);
+    } else game = await mountGrayboxScene(
+      parent,
+      platform,
+      () => performance.now(),
+      { generate: () => crypto.randomUUID() },
+      wire,
+      showDiagnostics,
+    );
     destroy = game.destroy;
   } catch (cause) {
     console.error('Could not start the game.', cause);

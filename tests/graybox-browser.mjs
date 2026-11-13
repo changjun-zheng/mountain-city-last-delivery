@@ -47,7 +47,48 @@ const parseSample = data => ({ tick: +data.tick, x: +data.x, y: +data.y, vx: +da
   progressCollectionIds: data.progressCollectionIds || '',
   progressGoalIds: data.progressGoalIds || '',
   progressRewardIds: data.progressRewardIds || '',
-  progressEffects: data.progressEffects || '' });
+  progressEffects: data.progressEffects || '',
+  goalRuntimeInstanceId: data.goalRuntimeInstanceId || '',
+  goalPhase: data.goalPhase || '',
+  goalMessage: data.goalMessage || '',
+  goalEventId: data.goalEventId === '' ? null : +data.goalEventId,
+  goalCommandId: data.goalCommandId === '' ? null : +data.goalCommandId,
+  goalTransactionId: data.goalTransactionId === '' ? null : +data.goalTransactionId,
+  goalResultEventId: data.goalResultEventId === '' ? null : +data.goalResultEventId,
+  goalDeliveryStatus: data.goalDeliveryStatus || '',
+  goalTransactionStatus: data.goalTransactionStatus || '',
+  goalResultLifecycle: data.goalResultLifecycle || '',
+  goalTerminalStatus: data.goalTerminalStatus || '',
+  goalAcceptedTick: data.goalAcceptedTick === '' ? null : +data.goalAcceptedTick,
+  goalApplyTick: data.goalApplyTick === '' ? null : +data.goalApplyTick,
+  goalVerifyTick: data.goalVerifyTick === '' ? null : +data.goalVerifyTick,
+  goalTerminalTick: data.goalTerminalTick === '' ? null : +data.goalTerminalTick,
+  goalOriginalCompletedTick: data.goalOriginalCompletedTick === ''
+    ? null : +data.goalOriginalCompletedTick,
+  goalResultCreatedTick: data.goalResultCreatedTick === ''
+    ? null : +data.goalResultCreatedTick,
+  goalResultConsumedTick: data.goalResultConsumedTick === ''
+    ? null : +data.goalResultConsumedTick,
+  goalOriginalAcknowledged: data.goalOriginalAcknowledged === 'true',
+  goalOriginalRetired: data.goalOriginalRetired === 'true',
+  goalResultAcknowledged: data.goalResultAcknowledged === 'true',
+  goalResultRetired: data.goalResultRetired === 'true',
+  goalResultConsumerAttempts: +(data.goalResultConsumerAttempts || 0),
+  goalResultConsumptionCount: +(data.goalResultConsumptionCount || 0),
+  goalAcceptedBusinessGoals: +(data.goalAcceptedBusinessGoals || 0),
+  goalAcceptedBusinessRewards: +(data.goalAcceptedBusinessRewards || 0),
+  goalAcceptedBusinessEffects: +(data.goalAcceptedBusinessEffects || 0),
+  goalTerminalBusinessGoals: +(data.goalTerminalBusinessGoals || 0),
+  goalTerminalBusinessRewards: +(data.goalTerminalBusinessRewards || 0),
+  goalTerminalBusinessEffects: +(data.goalTerminalBusinessEffects || 0),
+  goalEventRecords: +(data.goalEventRecords || 0),
+  goalInboxEvents: +(data.goalInboxEvents || 0),
+  goalCommands: +(data.goalCommands || 0),
+  goalAcceptedCommands: +(data.goalAcceptedCommands || 0),
+  goalTransactionIntents: +(data.goalTransactionIntents || 0),
+  goalTransactions: +(data.goalTransactions || 0),
+  goalResultEvents: +(data.goalResultEvents || 0),
+  goalLastError: data.goalLastError || '' });
 const sample = async page => parseSample(await rawSample(page));
 
 export async function chooseScene(ctx, mode) {
@@ -1663,13 +1704,16 @@ export async function checkInMemoryProgress(ctx, record, capture) {
     await page.waitForFunction(() => {
       const data = document.querySelector('#diagnostics')?.dataset;
       return data.progressGoalCount === '1' && data.progressRewardCount === '1' &&
-        data.progressEffectCount === '1' && data.progressRouteOpen === 'true';
+        data.progressEffectCount === '1' && data.progressRouteOpen === 'true' &&
+        data.goalPhase === 'succeeded';
     }, undefined, poll);
     const completed = await sample(page);
     assert.equal(completed.progressGoalIds, 'goal.prototype.open-test-route');
     assert.equal(completed.progressRewardIds, 'reward.prototype.open-test-route');
     assert.equal(completed.progressEffects, 'effect.prototype.open-test-route:active');
-    assert.match(completed.interactionFeedback, /测试奖励 \+1/);
+    assert.match(completed.interactionFeedback, /Event #1.*Pending/);
+    assert.equal(completed.goalPhase, 'succeeded');
+    assert.match(completed.goalMessage, /链路完成/);
     await capture('D08-goal-route-open', true);
 
     await interact();
@@ -1807,4 +1851,286 @@ export async function checkInMemoryProgress(ctx, record, capture) {
       afterRelease: { consumed: released.interactionConsumed, prompt: released.interactionPrompt },
     };
   });
+}
+
+export async function checkGoalRouteRuntime(ctx, record, capture) {
+  const page = ctx.page;
+  const key = (code, down) => ctx.monitor.key(code, down);
+  const up = async () => {
+    for (const code of ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'Escape', 'KeyR']) {
+      await key(code, false);
+    }
+  };
+  const resetViaR = async () => {
+    await ctx.show();
+    await up();
+    const before = await sample(page);
+    await key('KeyR', true);
+    await key('KeyR', false);
+    await page.waitForFunction(({ resets, tick }) => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return Number(data?.resets) > resets && Number(data?.tick) >= tick &&
+        Number(data?.x) <= 81 && data?.interactionMode === 'idle' &&
+        data?.interactionConsumed === '0' && data?.grounded === 'true' &&
+        data?.controlAllowed === 'true';
+    }, { resets: before.resets, tick: before.tick }, poll);
+    return sample(page);
+  };
+  const moveUntilGoalSelected = async () => {
+    await key('KeyD', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.interactionSelected === 'prototype-goal-e',
+    undefined, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.interactionSelected === 'prototype-goal-e',
+    undefined, poll);
+  };
+  const waitStablePausedSample = async () => {
+    let previous;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(100);
+      const current = await sample(page);
+      if (previous && JSON.stringify(current) === JSON.stringify(previous)) return current;
+      previous = current;
+    }
+    throw new Error('Paused D09-D1 diagnostics did not settle');
+  };
+  const run = async (name, fn) => {
+    ctx.operation = 'graybox-' + name;
+    ctx.stage = ctx.operation;
+    await ctx.show();
+    await page.waitForFunction(() => document.visibilityState === 'visible' && document.hasFocus(),
+      undefined, poll);
+    const result = await ctx.monitor.race(fn);
+    record(name, { status: 'PASS', ...result });
+    console.log('PASS', ctx.label, 'graybox', name, JSON.stringify(result));
+  };
+
+  await chooseScene(ctx, 'graybox');
+  let successful = await resetViaR();
+  assert.equal(successful.progressGoalCount, 0);
+  assert.equal(successful.goalPhase, 'idle');
+
+  await run('D09-D1-H01-real-host-route', async () => {
+    await moveUntilGoalSelected();
+    const before = await sample(page);
+    assert.match(before.interactionPrompt, /完成目标 E/);
+    assert.equal(before.progressGoalCount, 0);
+    assert.equal(before.progressRewardCount, 0);
+    assert.equal(before.progressEffectCount, 0);
+    assert.equal(before.progressRouteOpen, false);
+    assert.equal(before.goalEventId, null);
+
+    await key('KeyE', true);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return data.goalPhase === 'succeeded' &&
+        data.progressGoalCount === '1' && data.progressRewardCount === '1' &&
+        data.progressEffectCount === '1' && data.progressRouteOpen === 'true';
+    }, undefined, poll);
+    successful = await sample(page);
+
+    assert.equal(successful.goalDeliveryStatus, 'accepted');
+    assert.equal(successful.goalTransactionStatus, 'succeeded');
+    assert.equal(successful.goalTerminalStatus, 'succeeded');
+    assert.equal(successful.goalResultLifecycle, 'retired');
+    assert.ok(successful.goalEventId >= 1);
+    assert.ok(successful.goalCommandId >= 1);
+    assert.ok(successful.goalTransactionId >= 1);
+    assert.ok(successful.goalResultEventId > successful.goalEventId,
+      'The final result must own an independent later Event ID');
+    assert.equal(successful.goalOriginalCompletedTick, successful.goalAcceptedTick);
+    assert.equal(successful.goalApplyTick, successful.goalAcceptedTick);
+    assert.ok(successful.goalVerifyTick > successful.goalApplyTick);
+    assert.equal(successful.goalTerminalTick, successful.goalVerifyTick);
+    assert.equal(successful.goalResultCreatedTick, successful.goalVerifyTick);
+    assert.ok(successful.goalResultConsumedTick > successful.goalVerifyTick,
+      'The result event must be consumed in a later coordination Tick');
+    assert.equal(successful.goalOriginalAcknowledged, true);
+    assert.equal(successful.goalOriginalRetired, true);
+    assert.equal(successful.goalResultAcknowledged, true);
+    assert.equal(successful.goalResultRetired, true);
+    assert.equal(successful.goalResultConsumerAttempts, 1);
+    assert.equal(successful.goalResultConsumptionCount, 1);
+    assert.deepEqual([
+      successful.goalAcceptedBusinessGoals,
+      successful.goalAcceptedBusinessRewards,
+      successful.goalAcceptedBusinessEffects,
+    ], [0, 0, 0], 'Accepted happened before business mutation');
+    assert.deepEqual([
+      successful.goalTerminalBusinessGoals,
+      successful.goalTerminalBusinessRewards,
+      successful.goalTerminalBusinessEffects,
+    ], [1, 1, 1]);
+    assert.deepEqual([
+      successful.goalCommands,
+      successful.goalAcceptedCommands,
+      successful.goalTransactionIntents,
+      successful.goalTransactions,
+      successful.goalResultEvents,
+      successful.goalInboxEvents,
+    ], [1, 1, 1, 1, 1, 0]);
+    assert.equal(successful.goalLastError, '');
+    assert.match(successful.interactionFeedback, /Event #\d+ 已创建为 Pending/);
+    assert.match(successful.goalMessage, /链路完成/);
+    await capture('D09-D1-real-host-route-success', true);
+    return {
+      runtimeInstanceId: successful.goalRuntimeInstanceId,
+      eventId: successful.goalEventId,
+      commandId: successful.goalCommandId,
+      transactionId: successful.goalTransactionId,
+      resultEventId: successful.goalResultEventId,
+      acceptedTick: successful.goalAcceptedTick,
+      applyTick: successful.goalApplyTick,
+      verifyTick: successful.goalVerifyTick,
+      resultConsumedTick: successful.goalResultConsumedTick,
+      businessCounts: [
+        successful.progressGoalCount,
+        successful.progressRewardCount,
+        successful.progressEffectCount,
+      ],
+      routeOpen: successful.progressRouteOpen,
+    };
+  });
+
+  await run('D09-D1-H02-H03-held-key-pause-release-and-idempotency', async () => {
+    const beforeHide = successful;
+    assert.equal(beforeHide.interactionNeedsRelease, false);
+    assert.equal((await sample(page)).interactionNeedsRelease, false);
+
+    ctx.stage = 'D09-D1-lifecycle-wait-hidden';
+    await ctx.hide();
+    await page.waitForFunction(() => document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics').dataset.paused === 'true', undefined,
+    { polling: 100 });
+    const frozen = await waitStablePausedSample();
+    assert.equal(frozen.control, false);
+    assert.equal(frozen.interactionNeedsRelease, true);
+    assert.equal(frozen.goalPhase, 'succeeded');
+    assert.equal(frozen.goalResultConsumptionCount, 1);
+    assert.equal(frozen.interactionConsumed, beforeHide.interactionConsumed);
+    await page.waitForTimeout(1200);
+    assert.deepEqual(await sample(page), frozen,
+      'Hidden/minimized route state and held input must remain frozen');
+    await capture('D09-D1-hidden-with-held-key', true);
+
+    ctx.stage = 'D09-D1-lifecycle-wait-restore';
+    await ctx.show();
+    await page.waitForFunction(() => document.visibilityState === 'visible' &&
+      document.hasFocus() && document.querySelector('#diagnostics').dataset.paused === 'false' &&
+      document.querySelector('#diagnostics').dataset.controlAllowed === 'true', undefined, poll);
+    const resumed = await sample(page);
+    assert.equal(resumed.goalRuntimeInstanceId, frozen.goalRuntimeInstanceId);
+    assert.equal(resumed.goalEventId, frozen.goalEventId);
+    assert.equal(resumed.goalCommandId, frozen.goalCommandId);
+    assert.equal(resumed.goalTransactionId, frozen.goalTransactionId);
+    assert.equal(resumed.goalResultEventId, frozen.goalResultEventId);
+    assert.equal(resumed.goalResultConsumptionCount, 1);
+    assert.equal(resumed.interactionConsumed, frozen.interactionConsumed);
+    assert.equal(resumed.interactionNeedsRelease, true);
+    assert.equal(resumed.interactionPrompt, '');
+    await capture('D09-D1-restored-held-key-no-auto-interaction', true);
+
+    await key('KeyE', false);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.interactionNeedsRelease === 'false',
+    undefined, poll);
+    await key('KeyE', true);
+    await page.waitForFunction(consumed =>
+      +document.querySelector('#diagnostics').dataset.interactionConsumed > consumed,
+    frozen.interactionConsumed, poll);
+    await key('KeyE', false);
+    const repeated = await sample(page);
+    assert.equal(repeated.progressGoalCount, 1);
+    assert.equal(repeated.progressRewardCount, 1);
+    assert.equal(repeated.progressEffectCount, 1);
+    assert.equal(repeated.goalCommands, 1);
+    assert.equal(repeated.goalTransactions, 1);
+    assert.equal(repeated.goalResultEvents, 1);
+    assert.equal(repeated.goalResultConsumptionCount, 1);
+    return {
+      frozenTick: frozen.tick,
+      resumedTick: resumed.tick,
+      held: {
+        consumed: frozen.interactionConsumed,
+        needsRelease: frozen.interactionNeedsRelease,
+      },
+      repeated: {
+        consumed: repeated.interactionConsumed,
+        commandCount: repeated.goalCommands,
+        transactionCount: repeated.goalTransactions,
+        resultEventCount: repeated.goalResultEvents,
+        rewards: repeated.progressRewardCount,
+      },
+    };
+  });
+
+  await run('D09-D1-H04-reset-and-full-runtime-boundary', async () => {
+    const beforeReset = await sample(page);
+    const reset = await resetViaR();
+    assert.equal(reset.goalRuntimeInstanceId, beforeReset.goalRuntimeInstanceId);
+    assert.equal(reset.goalEventId, beforeReset.goalEventId);
+    assert.equal(reset.goalCommandId, beforeReset.goalCommandId);
+    assert.equal(reset.goalTransactionId, beforeReset.goalTransactionId);
+    assert.equal(reset.goalResultEventId, beforeReset.goalResultEventId);
+    assert.equal(reset.goalPhase, 'succeeded');
+    assert.equal(reset.progressGoalCount, 1);
+    assert.equal(reset.progressRewardCount, 1);
+    assert.equal(reset.progressEffectCount, 1);
+    assert.equal(reset.progressRouteOpen, true);
+    assert.equal(reset.x, 80);
+    assert.equal(reset.interactionConsumed, 0);
+    await capture('D09-D1-debug-reset-retains-run-identity', true);
+
+    await up();
+    ctx.monitor.navigation('D09-D1-full-runtime-restart');
+    await Promise.all([
+      page.waitForEvent('framenavigated', { predicate: frame => frame === page.mainFrame() }),
+      page.locator('#restart').click(),
+    ]);
+    await page.waitForFunction(oldId => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return Boolean(data?.goalRuntimeInstanceId) && data.goalRuntimeInstanceId !== oldId &&
+        document.querySelector('#restart')?.disabled === false;
+    }, beforeReset.goalRuntimeInstanceId, { timeout: 15000, polling: 100 });
+    await ctx.show();
+    await chooseScene(ctx, 'graybox');
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return Number(data?.tick) >= 1 && data?.goalPhase === 'idle';
+    }, undefined, poll);
+    const fresh = await sample(page);
+    assert.notEqual(fresh.goalRuntimeInstanceId, beforeReset.goalRuntimeInstanceId);
+    assert.equal(fresh.goalEventId, null);
+    assert.equal(fresh.goalCommandId, null);
+    assert.equal(fresh.goalTransactionId, null);
+    assert.equal(fresh.goalResultEventId, null);
+    assert.equal(fresh.progressGoalCount, 0);
+    assert.equal(fresh.progressRewardCount, 0);
+    assert.equal(fresh.progressEffectCount, 0);
+    assert.equal(fresh.progressRouteOpen, false);
+    await capture('D09-D1-full-runtime-fresh-identity', true);
+    return {
+      debugReset: {
+        runtimeInstanceId: reset.goalRuntimeInstanceId,
+        eventId: reset.goalEventId,
+        commandId: reset.goalCommandId,
+        transactionId: reset.goalTransactionId,
+        resultEventId: reset.goalResultEventId,
+        rewards: reset.progressRewardCount,
+        routeOpen: reset.progressRouteOpen,
+      },
+      fullRestart: {
+        runtimeInstanceId: fresh.goalRuntimeInstanceId,
+        goalCount: fresh.progressGoalCount,
+        rewardCount: fresh.progressRewardCount,
+        effectCount: fresh.progressEffectCount,
+        routeOpen: fresh.progressRouteOpen,
+      },
+    };
+  });
+
+  await up();
+  assert.deepEqual(ctx.errors, []);
 }

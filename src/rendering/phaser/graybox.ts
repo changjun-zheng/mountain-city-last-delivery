@@ -4,12 +4,14 @@ import { createGrayboxCore, type GrayboxCore } from '../../core/graybox.ts';
 import { INTERACTION_OBJECTS } from '../../core/interaction.ts';
 import { PLAYER_PROTOTYPE } from '../../core/player.ts';
 import { PROTOTYPE_PROGRESS_CONTENT } from '../../core/progress.ts';
+import type { RuntimeUuidProvider } from '../../core/events.ts';
 import {
   MatterGrayboxWorld, ONE_WAY_PLATFORM, PROGRESS_TEST_ROUTE_GATE,
   type MatterGrayboxDiagnostics, type MatterLibrary,
 } from '../../physics/matter/graybox-world';
 
 export function mountGrayboxScene(parent: HTMLElement, platform: string, now: () => number,
+  uuidProvider: RuntimeUuidProvider,
   created: (core: GrayboxCore) => void,
   sampled: (diagnostics?: MatterGrayboxDiagnostics) => void): Promise<{ destroy: () => Promise<void> }> {
   parent.setAttribute('aria-label', `${PROJECT_IDENTITY.title} · ${PROJECT_IDENTITY.subtitle} · 可操作物理灰盒`);
@@ -23,7 +25,7 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
         create(this: Phaser.Scene) {
           const matter = (Phaser.Physics.Matter as unknown as { Matter: MatterLibrary }).Matter;
           const world = new MatterGrayboxWorld(matter, this.matter.world.engine, dt => this.matter.world.step(dt));
-          const core = createGrayboxCore(world);
+          const core = createGrayboxCore(world, { uuidProvider });
           created(core);
           const terrain = this.add.graphics();
           for (const body of world.terrain) {
@@ -47,7 +49,7 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
           label(1350, 350, '连续坡面');
           label(1618, 266, '水平移动平台 ↔');
           label(1848, 190, '垂直升降平台 ↕');
-          label(560, 207, 'D08 测试路线门');
+          label(560, 207, 'D09-D1 测试路线门');
           const progressGateVisual = this.add.rectangle(
             PROGRESS_TEST_ROUTE_GATE.x,
             PROGRESS_TEST_ROUTE_GATE.y,
@@ -102,8 +104,9 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
             backgroundColor: '#b9df98', padding: { x: 12, y: 7 },
           }).setOrigin(0.5).setScrollFactor(0).setDepth(30).setVisible(false);
           const progressHud = this.add.text(980, 16, '', {
-            fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', color: '#dff3ec',
+            fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '13px', color: '#dff3ec',
             backgroundColor: '#142b2d', padding: { x: 8, y: 6 }, align: 'right',
+            wordWrap: { width: 390, useAdvancedWrap: true },
           }).setOrigin(1, 0).setScrollFactor(0).setDepth(20);
           const interactionPanel = this.add.rectangle(760, 126, 420, 190, 0x172832, 0.97)
             .setStrokeStyle(4, 0xb888de).setScrollFactor(0).setDepth(40).setVisible(false);
@@ -126,9 +129,10 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
           const camera = this.cameras.main;
           camera.setBounds(0, 0, 2000, 680);
           camera.startFollow(player, true, 0.15, 0.15);
-          this.add.text(20, 16, `${PROJECT_IDENTITY.title} · ${PROJECT_IDENTITY.subtitle}\nM1.2.2 物理灰盒  /  ${platform}\nA/D 或 ←/→ 移动 · Space 跳跃（短按低跳／长按高跳）\n调查 A／B：E 打开；丢弃 C：E 只显示短反馈\nD08：E 收藏 D、完成目标 E；R 重置临时世界但保留本次运行进度\n蓝／粉区域、橙／青平台和上方测试路线门：只作灰盒验证\nR /「重置灰盒」回到出生点 · 失焦恢复后先松开按键再按\nMatter 优先验证中；非最终物理方案。所有数值为原型。`, {
+          this.add.text(20, 16, `${PROJECT_IDENTITY.title} · ${PROJECT_IDENTITY.subtitle}\nM1.2.2 物理灰盒  /  ${platform}\nA/D 或 ←/→ 移动 · Space 跳跃（短按低跳／长按高跳）\n调查 A／B：E 打开；丢弃 C：E 只显示短反馈\nD08 / D09-D1：E 收藏 D；目标 E 经 Event→Command→Transaction→Result 后开门\nR 重置临时世界但保留本次运行身份、进度和已开放路线\n蓝／粉区域、橙／青平台和上方测试路线门：只作灰盒验证\nR /「重置灰盒」回到出生点 · 失焦恢复后先松开按键再按\nMatter 优先验证中；非最终物理方案。所有数值为原型。`, {
             fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '17px', color: '#f4eddc',
             backgroundColor: '#152632', padding: { x: 8, y: 6 },
+            wordWrap: { width: 830, useAdvancedWrap: true },
           }).setScrollFactor(0).setDepth(5);
           this.events.on(Phaser.Scenes.Events.UPDATE, () => {
             core.frame(now());
@@ -136,6 +140,7 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
             const state = snapshot.player;
             const interaction = snapshot.interaction;
             const progress = snapshot.progress;
+            const goalRoute = snapshot.goalRoute;
             for (const platformState of world.movingPlatforms) {
               movingVisuals.get(platformState.label)?.setPosition(platformState.x, platformState.y);
             }
@@ -181,11 +186,17 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
             feedback.setText(interaction.feedbackText ?? '').setVisible(interaction.mode === 'feedback');
             const investigationOpen = interaction.mode === 'investigation';
             progressHud.setText(
-              `D08 内存进度\n` +
+              `D08 / D09-D1 运行进度\n` +
               `收藏 ${PROTOTYPE_PROGRESS_CONTENT.collection.label} ${progress.counts.collections}/1  ` +
               `目标 ${PROTOTYPE_PROGRESS_CONTENT.goal.label} ${progress.counts.goals}/1\n` +
               `奖励 ${progress.counts.rewards}/1  ` +
-              `效果 ${world.progressRouteOpen ? 'OPEN' : 'CLOSED'}`,
+              `效果 ${world.progressRouteOpen ? 'OPEN' : 'CLOSED'}\n` +
+              `E 链路 ${goalRoute.phase.toUpperCase()}\n` +
+              `E${goalRoute.eventId ?? '-'} · C${goalRoute.commandId ?? '-'} · ` +
+              `T${goalRoute.transactionId ?? '-'} · R${goalRoute.resultEventId ?? '-'}\n` +
+              `Accept ${goalRoute.acceptedTick ?? '-'} · Apply ${goalRoute.applyTick ?? '-'} · ` +
+              `Verify ${goalRoute.verifyTick ?? '-'} · Consume ${goalRoute.resultConsumedTick ?? '-'}\n` +
+              goalRoute.message,
             ).setVisible(!investigationOpen);
             interactionPanel.setVisible(investigationOpen);
             interactionTitle.setText(interaction.title ?? '').setVisible(investigationOpen);

@@ -4,11 +4,11 @@
 
 《叠城大冒险》（Layered City Adventures）是一款以具有山城特色的虚构立体城市为舞台的 2D 横版平台探索冒险游戏，核心体验是跳跃、探索、解谜与发现（CONFIRMED，2026-11-12）。
 
-当前默认打开已加入 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互原型和 D08 运行内进度原型的 M1.2.2 可操作物理灰盒，Web 与 Windows 使用同一份角色、地形、交互、进度与模拟代码。顶部「场景」可切回原固定步诊断场景。「重新启动」先销毁 Phaser 实例，再重新加载原页面并创建新实例；「重置灰盒」只重置原型角色、移动平台、诊断区域与临时交互状态，不清除 D08 的本次运行内记录，也不是检查点恢复。
+当前默认打开已加入 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互原型、D08 运行内进度原型及 D09-D1 目标 E 真实事件链的 M1.2.2 可操作物理灰盒，Web 与 Windows 使用同一份角色、地形、交互、进度、事件及模拟代码。顶部「场景」可切回原固定步诊断场景。「重新启动」先销毁 Phaser 实例，再重新加载原页面并创建新完整测试运行；「重置灰盒」只重置原型角色、移动平台、诊断区域与临时交互状态，保留 D08 的本次运行内记录及 D09-D1 的运行身份、编号、接受记录和已开放路线效果，也不是检查点恢复。
 
 Mountain City: Last Delivery／山城有路：最后一单为历史名称。下文旧里程碑的日志、截图及证据保留当时名称，不改写为新名执行过的测试。真实地标资料与旧首关方案保留参考，其虚构世界叙事尚待适配；本次不新增玩法、不重写任务或通关条件。内部包名、appId、用户数据身份及项目目录不变。
 
-操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；靠近调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束；R 或「重置灰盒」回到出生点。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过，并从上方落地行走；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。调查 A／B 的范围局部重叠，界面始终只选一个主要目标；拾取 C 只提供短暂反馈，不发放奖励。D08 的 D／E 分别登记一次测试收藏和一次目标／奖励／永久效果；右上 HUD 与 D08 测试路线门显示记录数和 OPEN／CLOSED 状态。R 保留本次页面运行内的 D08 记录并重新应用 OPEN；整页刷新或场景重载会创建新的运行内仓库。出生点右侧的蓝色 A 与粉色 B 是局部重叠的非实体诊断区域，只显示占用和进入／离开记录，不阻挡、不提供支撑。沿右侧跨过墙壁和间隙，再经连续坡面可到达两条移动平台；掉出间隙后按 R。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
+操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；靠近调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束；R 或「重置灰盒」回到出生点。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过，并从上方落地行走；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。调查 A／B 的范围局部重叠，界面始终只选一个主要目标；拾取 C 只提供短暂反馈，不发放奖励。D 仍由 D08 原型直接登记一次测试收藏；目标 E 的按 E 只创建 Pending Event，真实命令接收和跨 Tick 事务完成后才登记目标／奖励／永久效果并开门。右上 HUD 显示 D08 记录数、D09-D1 阶段以及 Runtime／Event／Command／Transaction／Result Event 身份和关键 Tick。R 保留本次页面运行内的 D08 记录、D09-D1 身份链与 OPEN 状态；整页刷新或场景重载会创建新的运行和进度。出生点右侧的蓝色 A 与粉色 B 是局部重叠的非实体诊断区域，只显示占用和进入／离开记录，不阻挡、不提供支撑。沿右侧跨过墙壁和间隙，再经连续坡面可到达两条移动平台；掉出间隙后按 R。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
 
 ## 技术栈与安装
 
@@ -93,7 +93,7 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `index.html` | 共同页面入口、场景选择、调试重置与重启。 |
 | `src/platform/web/` | Web 适配层。 `main.ts` 调用核心、挂载 Phaser、处理销毁和重启，并将启动错误写入浏览器日志。 |
 | `src/core/game.ts` | 共享入口，装配模拟与生命周期控制器，维护诊断标记状态。 |
-| `src/core/graybox.ts` | 共享灰盒入口，装配角色、固定步、物理端口与生命周期。 |
+| `src/core/graybox.ts` | 共享灰盒入口，装配角色、固定步、物理端口、生命周期、目标 E 运行组合与永久效果协调。 |
 | `src/core/player.ts` | 原型参数、PC-01 输入许可、PC-02 请求及移动／跳跃规则；不依赖平台或 Phaser。 |
 | `src/core/interaction.ts` | 原型调查／拾取对象、稳定目标选择、单次按键消费、临时反馈及交互自身控制限制；不依赖平台或 Phaser。 |
 | `src/core/progress.ts` | D08 运行内进度仓库：四类稳定业务 ID、幂等登记、显式奖励关系、期望效果状态与只读快照；无平台或存储 API。 |
@@ -101,6 +101,8 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `src/core/commands.ts` | D09-B1 运行实例级独立 Command／Transaction 编号、单事件稳定命令、目标模块幂等接收、事务意图与原子身份关联；提供临时／永久接收故障分类，不执行业务。 |
 | `src/core/delivery.ts` | D09-B2 真实目标交付协调：四类交付结果、原 Command ID 核查、显式重试、有限交付记录与真实关联快照；不执行业务事务。 |
 | `src/core/transactions.ts` | D09-C1／R1 Accepted 意图执行状态、跨 Tick 两阶段推进、错误分类、显式重试／安全恢复、有界终态登记与 Succeeded／Failed 终态；通过进度端口调用测试业务。 |
+| `src/core/transaction-results.ts` | D09-C2 唯一最终结果事件的受控合同、完整关联及生命周期类型；结果创建仍由事件协调器和事务管理模块执行。 |
+| `src/core/goal-route-runtime.ts` | D09-D1 单次运行的目标 E 组合：复用事件、稳定命令、真实目标接收、跨 Tick 事务、唯一结果事件、确认／退役和共享进度，不包含平台 API。 |
 | `src/physics/matter/graybox-world.ts` | 两端共用 Matter 世界、静态地形、独立脚底区域与实际接触法线判定。 |
 | `src/core/simulation.ts` | 固定步累加器、实际 Tick、有界补算及余量／丢弃统计。 |
 | `src/core/lifecycle.ts` | Owner + Key 去重、Token 所有权、退役与有效暂停集合。 |
@@ -125,8 +127,9 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `tests/commands.test.mjs` | D09-B1 三套独立编号、单事件单命令、目标模块隔离、重复接收、身份篡改、事务编号空洞、提交回滚和容量边界。 |
 | `tests/delivery.test.mjs` | D09-B2 真实目标成功链、四类结果、丢失回执核查、查询故障、显式重试、固定批次、退役保留、交付容量及模式隔离。 |
 | `tests/transactions.test.mjs` | D09-C1／R1 真实 Accepted 意图、跨 Tick 执行、重试／恢复、持续终态登记故障、待登记结果恢复、Unknown 独立性、终态防重、容量与平台隔离。 |
+| `tests/goal-route-runtime.test.mjs` | D09-D1 完整 Event→Command→Transaction→Result 链、创建失败回滚及结果消费故障有界返回。 |
 | `tests/graybox-browser.mjs` | 真实窗口键盘操作、物理暂停、平台、区域、D07 交互及 D08 收藏／目标／奖励／效果断言。 |
-| `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1／D05／D07／D08 定向入口。 |
+| `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1／D05／D07／D08／D09-D1 定向入口。 |
 | `tests/browser-selection.mjs` | 解析 `--browser`、查找标准安装路径并核验 CDP 实际浏览器身份；缺失时不回退。 |
 | `scripts/test.mjs` | 无参数时运行自动化单测，有参数时把平台测试参数原样转发给 `test:platform`。 |
 | `docs/` | 策划、决策与赛事原始材料。 |
@@ -157,6 +160,9 @@ npm.cmd run test:d07
 
 # D08 运行内进度、幂等奖励与效果重建三端定向验收
 npm.cmd run test:d08
+
+# D09-D1 目标 E 的真实事件、命令、跨 Tick 事务及结果三端定向验收
+npm.cmd run test:d09-d1
 ```
 
 平台测试只接受 `chrome`、`edge`，使用每次新建的临时用户配置目录，并通过 CDP `Browser.getVersion` 核对实际品牌。`report.json` 记录候选／实际路径、品牌、版本、进程 PID、启动参数、临时配置目录、页面与进程时间线，以及测试脚本和 ASAR 的 SHA-256。所选浏览器缺失时结果为 `BLOCKED`，不会静默切换浏览器、安装软件或使用个人资料。
@@ -1314,12 +1320,87 @@ R01–R03 验收：
 
 ASAR／EXE 与 D09-C2 相同，因为新核心仍没有进入宿主入口。D09-C2-R1 在当前纯核心范围完成，等待 Work 审查；D09-C2 在审查收口前保持 BLOCKED。不自动接宿主、不进入检查点或其他后续任务，不 Commit／Push／发布。
 
+## D09-D1：测试目标 E 的共享宿主真实业务闭环
+
+2026-11-13 将灰盒目标 E 从交互回调直接调用 `progress.completeGoal()` 迁移到真实共享事件链。收藏 D、调查 A／B 与短反馈 C 保留原原型行为；正式任务、检查点、存档和业务事件框架没有新增。
+
+每个灰盒运行只创建一份 `PrototypeGoalRouteRuntime`，组合现有事件上下文、协调器、稳定命令协调器、真实目标模块、Transaction Manager、唯一结果来源与共用的 `InMemoryRunProgress`。Web 宿主只注入 `crypto.randomUUID()`；共享核心不调用 DOM、Node、Electron 或 Phaser API。
+
+固定步中的实际顺序是：
+
+1. 处理输入，执行一次玩家控制和唯一的 Matter `step`。
+2. 更新交互目标、反馈与玩家状态。
+3. 在固定 `coordination` 阶段执行一次单轮事件分发。
+4. 读取原事件完成／交付结果，推进已 Accepted 事务的 `apply`；下一实际 Tick 执行 `verify` 并登记正式终态。
+5. 正式 Succeeded／Failed 后由 Manager 请求唯一 Result Event；它在更晚的协调阶段消费，不创建第二条 Command／Transaction。
+6. 原事件与结果事件各自确认、安全退役，再由共享进度协调真实门体碰撞与视觉状态。
+
+实际身份关联均为同一 Runtime 下的独立 Event／Command／Transaction／Result Event。最终三端定向结果来自 [run-2FGMG5](test-results/platform/run-2FGMG5/report.json)：
+
+| 平台 | 状态 | Runtime UUID | Event／Command／Transaction／Result Event | Accept／Apply／Verify／Consume Tick | 业务计数 |
+| --- | --- | --- | --- | --- | --- |
+| Chrome Web | PASS | `bed57577-e9c5-4e5b-8d2e-780e74bfe80b` | `1／1／1／2` | `142／142／143／144` | 目标／奖励／效果 `1/1/1` |
+| Electron 开发版 | PASS | `46789686-efb4-4502-b621-52afdce55cdf` | `1／1／1／2` | `155／155／156／157` | 目标／奖励／效果 `1/1/1` |
+| 仓库外独立生产包 | PASS | `ca0a0cc2-429b-462c-92f1-b3d2a7a955e1` | `1／1／1／2` | `149／149／150／151` | 目标／奖励／效果 `1/1/1` |
+
+三端均在完成链后保持 Command `1`、Transaction `1`、Result Event `1`；结果消费 `1` 次，原事件和结果事件均确认／退役，测试路线门 OPEN。按住 E 暂停并恢复后未自动再交互；释放后再次按 E，只有交互消费增加，命令、事务、结果和奖励仍各为 `1`。R 调试重置保留原 Runtime UUID、四类身份、奖励和 OPEN；完整重启产生新 UUID 并从空进度、CLOSED 开始。
+
+H01–H06：
+
+| 用例 | 状态 | 实际证据 |
+| --- | --- | --- |
+| H01 正常可玩链 | PASS | 按 E 先得到 Event `1` Pending，命令接收与 apply 在同一实际 Tick，verify、Result Event `2` 创建及结果消费分布在后续 Tick；门体仅在正式结果消费和共享进度协调后 OPEN。 |
+| H02 幂等与输入 | PASS | Pending 重按返回 existing；结果完成后重按只返回已完成。三端 Command／Transaction／Result Event 与奖励均保持 `1`；按住 E 和失焦恢复没有自动重复。 |
+| H03 暂停与恢复 | PASS | 核心受控测试分别冻结 Pending 与执行中事务；三端真实 hidden／原生最小化期间 Tick、阶段和业务计数不变。Web `164→165`、开发版 `171→174`、生产包 `166→169`，恢复不补算后台时间。 |
+| H04 调试重置与运行边界 | PASS | Pending 重置不丢接受记录；完成后重置保留 Runtime／Event／Command／Transaction／Result 身份、奖励 `1` 和 OPEN。完整页面重启分别生成新 UUID `b837cf77…`、`e615bbc1…`、`d78884fb…`，进度为空且路线 CLOSED。 |
+| H05 失败与资源 | PASS | 核心测试证明创建失败在 Event ID／Inbox 分配前回滚、无业务副作用；结果消费故障每次合法 Tick 最多尝试一次，不重跑事件、事务或 apply，Result Event 身份保持。 |
+| H06 三端与既有回归 | PASS | D09-D1 三端定向全部 PASS；D07 定向 [run-SAhfNN](test-results/platform/run-SAhfNN/report.json) 与 D08 最终定向 [run-ERvFKU](test-results/platform/run-ERvFKU/report.json) 三端 PASS。D08 旧同步反馈断言的首轮失败 `run-MTYI1g` 和第二轮 `result-pending` 竞态失败 `run-JmR87w` 保留；仅改为等待正式 succeeded 反馈后通过。 |
+
+实际执行：
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `npm.cmd test` | PASS | 类型检查、Electron Main 编译及 `118/118` 测试通过，0 fail、0 skipped；原 112 项保留，新增 D09-D1 六项。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建 24 modules，Electron Main 编译及 Windows x64 免安装目录构建成功；仅有既有 bundle 体积、author 和默认图标警告。 |
+| `npm.cmd run test:d09-d1` | PASS | Chrome Web、Electron 开发版、仓库外生产包全部 PASS；三进程退出码均 `0`，`cleanupFailures=0`。 |
+| `npm.cmd run test:d07` | PASS | 交互选择、控制锁、提示可用性、松键门槛、反馈与重置三端通过。 |
+| `npm.cmd run test:d08` | PASS | 收藏／目标／奖励／效果幂等、暂停和重置三端通过；两次测试驱动的历史 FAIL 保留。 |
+| `git diff --check` | PASS | 无空白错误；仅有既有 LF／CRLF 提示。 |
+| Edge | NOT RUN | 本轮只执行默认 Chrome，不能声称 Edge 已回归。 |
+| 独立人工手感 | BLOCKED／NOT RUN | 自动化使用真实键盘与原生窗口信号；本轮未取得可可靠持续按键的人工工具证据。 |
+| 正式任务／磁盘存档／检查点： | NOT RUN | “永久”仅指当前运行内；完整重载是新测试运行，不是 Checkpoint Recovery。 |
+
+真实链截图：
+
+- [Chrome Web：路线 OPEN](test-results/platform/run-2FGMG5/001-web-D09-D1-real-host-route-success.png)
+- [Electron 开发版：路线 OPEN](test-results/platform/run-2FGMG5/008-electron-dev-D09-D1-real-host-route-success.png)
+- [仓库外生产包：路线 OPEN](test-results/platform/run-2FGMG5/015-electron-packaged-D09-D1-real-host-route-success.png)
+- [Web 调试重置保留身份](test-results/platform/run-2FGMG5/004-web-D09-D1-debug-reset-retains-run-identity.png)
+- [生产包完整重载新身份](test-results/platform/run-2FGMG5/019-electron-packaged-D09-D1-full-runtime-fresh-identity.png)
+
+自动化结束后已用 `npm.cmd run electron` 留下一个正常开发体验窗口，当前 PID `37556`、HWND `66850124`、标题“叠城大冒险 | Layered City Adventures”，开发地址 `http://127.0.0.1:57607/`。实际窗口截图与启动记录见 [experience-window.png](test-results/d09-d1-20261113/experience-window.png) 和 [experience-launch.json](test-results/d09-d1-20261113/experience-launch.json)。该窗口保留给用户自行关闭。
+
+体验路线：用 D／→ 向右到达目标 E，按 E；右上 HUD 会从 `REQUEST-PENDING` 依次显示接受、Apply、Verify、Result Pending、消费和 `SUCCEEDED`，路线门随后 OPEN。再次按 E 不会增加命令、事务、结果或奖励；按 R 后回到出生点，原 Runtime UUID、四类身份、奖励 `1` 和 OPEN 保留。顶部「重新启动」或整页重载是完整新测试运行，会产生新 UUID 和空进度。
+
+当前版本证据：
+
+- 基线提交：`adebba2`。
+- `src/core/goal-route-runtime.ts`：`C0CFF220D446D17EED651B5AB7F7524513C3288008017133AFE6FAD59A4E6564`。
+- `tests/goal-route-runtime.test.mjs`：`1B5CCAE4FE5146A6912DEF1FA082FF8067AFCF7091D08AFAB3AB2A598237D9F1`。
+- `tests/graybox-browser.mjs`：`1AA288A7D3D89E1F2DB6C5D07DBC2F89077FDEDA1ED5840D1554692F0C652DD1`。
+- `tests/platform-smoke.mjs`：`19EA577FB16C987072989A52BBBDD65D63E5E6A187DE32927ABEA0F6DEC52389`。
+- 生产 ASAR：`AB0EA7E9798BB872F9B784BF8F827A287F80213CA137C5C1CADEEAB20D53E850`。
+- Windows EXE：`7A6F271FA22D55A8CCA88D2BD919F9CC29C9973FA462F60702E78C919CC73674`。
+- 最终报告 JSON／时间线：`EAC60D411B0EDDAE777FCA33A35A344657A61F485EAA1ECE121CB470BB9BA800`／`4F85BC6249E1429F3A08C28FC159EE1C9C39ECBB3518C56A95158DB8F9901402`。
+
+结论限目标 E 的当前工程原型和本轮三端实际运行。收藏 D 尚未迁移到事件内核；Matter 仍是物理验证候选，不是最终物理选型。D09-D1 等待 Work 审查，不自动进入 D10，不 Commit／Push／发布。
+
 ## 当前限制
 
-- 最新执行（D09-C2-R1，2026-11-13）：专项 `8/8`、类型检查、Electron Main 编译及 `112/112` 自动化测试 PASS，生产构建 PASS。普通 create 已不能在编号或登记前伪造 `transaction.result`，无权威关联的事件也不会进入普通命令路径；合法 Manager 结果创建、稳定 Result Event ID、原子回滚、幂等消费及确认／退役链保持通过。结果内核与既有事件、命令和事务内核仍未接入宿主，GUI 与三端业务链均为 NOT RUN。
+- 最新执行（D09-D1，2026-11-13）：目标 E 已实际接入 Pending Event→命令接收→跨 Tick 事务→唯一最终结果→确认／退役链，Chrome Web、Electron 开发版和仓库外生产包 PASS；`118/118` 自动化测试、类型检查和生产构建 PASS。收藏 D 仍为 D08 直接原型，事件链只迁移目标 E。
 - Web 主包约 332.14 KB gzip，Vite 有体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互及 D08 运行内进度是工程灰盒；共享核心另有 D09 事件、稳定命令、真实目标接收分类、Unknown 核查、带终态登记恢复的最小事务执行及唯一最终结果事件，但当前页面尚未使用它们。未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、宿主接线、检查点或存储。D08 的“永久”仅限当前页面运行内；D09 的 Accepted、intent、Transaction ID、核心测试 Succeeded 或结果事件 Completed 也不等于 GUI 业务成功或 Checkpoint Recovery。不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 对 D09-C2-R1 及 D09-C2 整体的审查，不自动进入后续分段。
+- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互、D08 运行内进度及 D09-D1 目标 E 真实链是工程灰盒。未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、检查点或 Checkpoint Recovery。D08 的“永久”仅限当前页面运行内；D09-D1 Accepted 只表示真实目标接收，业务成功只在正式事务终态和结果消费后显示。不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 对 D09-D1 的审查，不自动进入 D10。

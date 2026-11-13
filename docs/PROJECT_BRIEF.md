@@ -270,6 +270,22 @@ R01 覆盖无 producer／普通 owned producer、显式白名单／无白名单�
 
 `events.ts` SHA-256 为 `9A055CECD7681DF169ADB82FC1579D6974939FEF2DA9747788B3D27E86A277F4`，专项测试为 `CBE1DCF5A6F82DC5F5DDC2A9389BFC562C2AB5CCDF8D7F061F24066AA30722EB`；ASAR／EXE 仍为 `92999B8A38D5B10DF331314D94F161AC3E2739E37C0E758D773E5A8B4D48CB8B`／`BB578EADD877147171729D3A5EF4D785ABB52B51EA8CE522DA83945869398973`，因为核心尚未进入宿主入口。GUI／三端事件业务链、检查点、存档和 Edge 均为 NOT RUN。R1 当前 DONE（待 Work 审查），D09-C2 在审查确认前保持 BLOCKED；不自动领取后续任务，不 Commit／Push／发布。详细证据见 [README](../README.md#d09-c2-r1结果事件受控创建与分发入口补修)和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-c2-r1-执行结果)。
 
+### D09-C2-R1 Work 复审与 D09-D1 任务
+
+2026-11-13：Work 在 `adebba2` 核对普通创建的保留类型拒绝、私有受控结果放行和分发关联检查；源码／测试哈希与报告一致，重跑类型检查、Electron Main 编译及 112/112 自动化测试 PASS，未另跑生产构建或 GUI。公开创建拒绝及合法结果链已经验证，分发防御经源码核对，不把公开入口测试当作注入损坏私有记录的运行证据。D09-C2-R1 缺口关闭，D09-C2 在当前纯核心范围收口；先前 BLOCKED 和开发报告保留为历史，尚不代表 D09 整体或三端业务验收完成。
+
+下一项 D09-D1 只将现有目标 E“开启测试路线”迁移到共享宿主的真实事件 → 稳定命令 → 跨 Tick 事务 → 唯一最终结果链，接入既有实际 SimulationTick、producer 确认与安全退役，并在 Chrome Web、Electron 开发版及仓库外生产包定向验证。同步请求不直接 completeGoal，Accepted 不冒充业务成功；R 重置保留运行身份／进度，世界门体按永久效果重新协调。收藏 D 仍是未迁移的 D08 原型；不实现正式任务、检查点、RecoveryError、存档或新玩法。现有整页重载属于完整测试运行重新初始化，必须明确标注，不能据此声称同运行实例场景切换身份连续性已经实现。范围、H01–H06 验收与三端证据要求见[路线图当前任务](DEVELOPMENT_ROADMAP.md#7-当前任务与持续记录)。本轮只授权这一任务，完成后报告并等待 Work 审查。
+
+### D09-D1 工程执行状态
+
+2026-11-13：目标 E 已接入共享宿主的真实业务链。按 E 只创建 Pending Event；固定步在物理与交互更新后执行单轮协调，真实目标接收后形成稳定 Command 与 Transaction intent，事务跨实际 Tick 执行 `apply → verify`，正式 Succeeded 后再由 Manager 创建唯一结果事件。结果在更晚协调阶段消费，原事件和结果事件分别确认／安全退役，最后由同一共享进度仓库协调真实路线门。Accepted、事件 Completed 与结果 Pending 均不等于业务成功。
+
+最终 D09-D1 三端定向报告为 `run-2FGMG5`，Chrome Web、Electron 开发版和仓库外独立生产包全部 PASS。三端均为 Event `1`、Command `1`、Transaction `1`、Result Event `2`，结果消费 `1` 次，目标／奖励／效果各 `1`；三进程退出码 `0`、清理失败 `0`。R 调试重置保留 Runtime UUID、四类身份和 OPEN；完整重启生成新 UUID 并从空进度开始。暂停／最小化期间业务阶段和 Tick 冻结，恢复不补算，持键不自动重复交互。
+
+原 112 项测试保留，`npm.cmd test` 为 `118/118` PASS；D07 `run-SAhfNN`、D08 `run-ERvFKU` 及 D09-D1 三端定向 PASS。D08 的 `run-MTYI1g`／`run-JmR87w` 两次旧同步测试等待失败保留。生产构建 PASS，当前 ASAR／EXE 为 `AB0EA7E9798BB872F9B784BF8F827A287F80213CA137C5C1CADEEAB20D53E850`／`7A6F271FA22D55A8CCA88D2BD919F9CC29C9973FA462F60702E78C919CC73674`。
+
+收藏 D 仍是 D08 直接原型；正式任务、磁盘存档、检查点、Checkpoint Recovery、同实例场景连续性、Edge 和完整人工手感不在本段或未通过。Matter 仍为候选。D09-D1 当前等待 Work 审查，不自动进入 D10，不 Commit／Push／发布。实际截图、H01–H06 和版本证据见 [README](../README.md#d09-d1测试目标-e-的共享宿主真实业务闭环)与[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-d1-执行结果)。
+
 ## 已确认的游戏设计方向
 
 确认日期：2026-11-06；依据：项目负责人本次明确指示。

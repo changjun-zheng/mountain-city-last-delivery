@@ -16,7 +16,7 @@ import {
 } from './browser-selection.mjs';
 import {
   chooseScene, checkDiagnosticZones, checkGraybox, checkInMemoryProgress,
-  checkInteractions, checkMovingPlatformLifecycle,
+  checkInteractions, checkMovingPlatformLifecycle, checkGoalRouteRuntime,
 } from './graybox-browser.mjs';
 import { createPlatformObserver } from './platform-observer.mjs';
 
@@ -37,10 +37,11 @@ const focusedD04R1 = cliArgs.includes('--d04-r1');
 const focusedD05 = cliArgs.includes('--d05');
 const focusedD07 = cliArgs.includes('--d07');
 const focusedD08 = cliArgs.includes('--d08');
-if ([focusedD04R1, focusedD05, focusedD07, focusedD08].filter(Boolean).length > 1) {
+const focusedD09D1 = cliArgs.includes('--d09-d1');
+if ([focusedD04R1, focusedD05, focusedD07, focusedD08, focusedD09D1].filter(Boolean).length > 1) {
   throw new Error('Select only one focused platform scenario');
 }
-const focused = focusedD04R1 || focusedD05 || focusedD07 || focusedD08;
+const focused = focusedD04R1 || focusedD05 || focusedD07 || focusedD08 || focusedD09D1;
 const webOnly = cliArgs.includes('--web-only') || Boolean(injection);
 let browserResolution;
 let browserResolutionError;
@@ -51,11 +52,14 @@ try {
 }
 const report = {
   task: focusedD04R1 ? 'D04-R1' : focusedD05 ? 'D05'
-    : focusedD07 ? 'D07-R1' : focusedD08 ? 'D08' : 'D04',
+    : focusedD07 ? 'D07-R1' : focusedD08 ? 'D08'
+      : focusedD09D1 ? 'D09-D1' : 'D04',
   scope: focusedD04R1 ? 'moving-platform-lifecycle'
     : focusedD05 ? 'diagnostic-zones'
       : focusedD07 ? 'interaction-prompt-and-release-gate'
-        : focusedD08 ? 'in-memory-progress-idempotency' : 'full-platform-regression',
+        : focusedD08 ? 'in-memory-progress-idempotency'
+          : focusedD09D1 ? 'goal-route-real-event-command-transaction-result'
+            : 'full-platform-regression',
   startedAt: new Date().toISOString(), evidenceDir, injection,
   commandLine: cliArgs,
   runtime: { node: process.version, platform: process.platform, arch: process.arch },
@@ -77,7 +81,10 @@ report.version = Object.fromEntries(await Promise.all([
   'tests/foreground-window.ps1',
   'src/core/player.ts', 'src/core/graybox.ts', 'src/physics/matter/graybox-world.ts',
   'src/core/interaction.ts', 'src/core/progress.ts', 'src/platform/web/player-input.ts',
+  'src/core/goal-route-runtime.ts', 'src/core/events.ts', 'src/core/commands.ts',
+  'src/core/delivery.ts', 'src/core/transactions.ts', 'src/core/transaction-results.ts',
   'src/rendering/phaser/graybox.ts', 'src/platform/web/main.ts',
+  'tests/goal-route-runtime.test.mjs', 'package.json',
   'release/layered-city-adventures/win-unpacked/resources/app.asar',
 ].map(async path => [path, createHash('sha256').update(await readFile(path)).digest('hex')])));
 let captureNumber = 0;
@@ -498,6 +505,9 @@ async function checkDesktop(ctx, executablePath, devURL) {
     } else if (focusedD08) {
       await checkInMemoryProgress(ctx, (name, data) => note(ctx.label, 'd08-' + name, data),
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
+    } else if (focusedD09D1) {
+      await checkGoalRouteRuntime(ctx, (name, data) => note(ctx.label, 'd09-d1-' + name, data),
+        (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else {
       await hiddenStartup(ctx);
       for (let i = 1; i <= 2; i++) await checkPause(ctx, i);
@@ -607,6 +617,9 @@ async function checkWeb(ctx, devURL) {
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else if (focusedD08) {
       await checkInMemoryProgress(ctx, (name, data) => note(ctx.label, 'd08-' + name, data),
+        (phase, screenshot) => snapshot(ctx, phase, screenshot));
+    } else if (focusedD09D1) {
+      await checkGoalRouteRuntime(ctx, (name, data) => note(ctx.label, 'd09-d1-' + name, data),
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else {
       await hiddenStartup(ctx);
@@ -730,7 +743,11 @@ async function runCase(label, fn) {
         ? 'D05 diagnostic-zone enter/occupancy/exit lifecycle; owned process exited'
         : focusedD07
           ? 'D07 interaction range/selection/control/pause lifecycle; owned process exited'
-        : 'loaded / scene / running; hidden start; 2 hide cycles; 3 restarts; graybox controls / collisions / pause; owned process exited');
+          : focusedD08
+            ? 'D08 in-memory progress idempotency; owned process exited'
+            : focusedD09D1
+              ? 'D09-D1 Event -> Command -> Transaction -> Result -> confirmation/retirement; owned process exited'
+              : 'loaded / scene / running; hidden start; 2 hide cycles; 3 restarts; graybox controls / collisions / pause; owned process exited');
   } catch (error) {
     Object.assign(result, { status: ['ENOENT', 'ENVIRONMENT_PRECONDITION'].includes(error.code) ? 'BLOCKED' : 'FAIL', stage: ctx.stage,
       expectedFailure: Boolean(injection), interruption: ctx.interruption, error: String(error), stack: error.stack });
