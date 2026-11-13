@@ -617,9 +617,17 @@ test('D09-C1 F04 apply and terminal-commit interruptions reuse one effect and on
     terminalStart.record.transactionId,
     executionContext(3),
   );
-  assert.equal(interruptedTerminal.status, 'recovery-pending');
+  assert.equal(interruptedTerminal.status, 'terminal-pending');
   assert.equal(interruptedTerminal.record.terminal, undefined);
-  assert.equal(interruptedTerminal.record.remainingPaths.recoveries, 1);
+  assert.deepEqual(interruptedTerminal.record.pendingTerminal, {
+    status: 'succeeded',
+    simulationTick: 3,
+  });
+  assert.equal(interruptedTerminal.record.terminalCommitAttempts, 1);
+  assert.deepEqual(interruptedTerminal.record.remainingPaths, {
+    retries: 0,
+    recoveries: 0,
+  });
   assertOneBusinessApplication(terminalProgress);
   assert.equal(
     terminalManager.recover(
@@ -641,6 +649,351 @@ test('D09-C1 F04 apply and terminal-commit interruptions reuse one effect and on
   assert.equal(targetSnapshot.counts.acceptedRecords, 1);
   assert.equal(targetSnapshot.counts.intents, 1);
   assert.equal(terminalRuntime.commands.snapshot.transactionIds.nextId, 2);
+});
+
+test('D09-C1-R1 R01 persistent terminal commit failure is bounded per explicit operation', () => {
+  const runtime = makeRuntime();
+  const accepted = acceptEvent(runtime, { value: 'terminal-pending-bounded' });
+  const progress = new InMemoryRunProgress();
+  let terminalAttempts = 0;
+  const manager = new RuntimeTransactionExecutionManager(
+    runtime.target,
+    UUID,
+    progress,
+    new PrototypeProgressTransactionExecutor(progress),
+    {
+      retryBudget: 0,
+      recoveryBudget: 0,
+      faultInjector: point => {
+        if (point !== 'before-terminal-commit') return;
+        terminalAttempts += 1;
+        if (terminalAttempts <= 5) {
+          throw new Error(`persistent terminal fault ${terminalAttempts}`);
+        }
+      },
+    },
+  );
+  const started = manager.start(accepted.command.commandId);
+  assert.equal(started.status, 'started');
+  assert.equal(
+    manager.advance(started.record.transactionId, executionContext(2)).status,
+    'progressed',
+  );
+
+  const firstPending = manager.advance(
+    started.record.transactionId,
+    executionContext(3),
+  );
+  assert.equal(firstPending.status, 'terminal-pending');
+  assert.equal(terminalAttempts, 1);
+  assert.equal(firstPending.record.terminalCommitAttempts, 1);
+  assert.equal(firstPending.record.executionAttempts, 2);
+  assert.deepEqual(firstPending.record.pendingTerminal, {
+    status: 'succeeded',
+    simulationTick: 3,
+  });
+  assert.equal(firstPending.record.terminal, undefined);
+  assert.deepEqual(firstPending.record.remainingPaths, {
+    retries: 0,
+    recoveries: 0,
+  });
+  assert.equal(manager.snapshot.counts.terminalPending, 1);
+  assertOneBusinessApplication(progress);
+
+  for (const simulationTick of [4, 5, 6, 7]) {
+    const before = terminalAttempts;
+    const pending = manager.recover(
+      started.record.transactionId,
+      executionContext(simulationTick),
+    );
+    assert.equal(pending.status, 'terminal-pending');
+    assert.equal(terminalAttempts, before + 1);
+    assert.equal(pending.record.status, 'terminal-pending');
+    assert.equal(pending.record.terminal, undefined);
+    assert.equal(pending.record.executionAttempts, 2);
+    assertOneBusinessApplication(progress);
+  }
+  assert.equal(terminalAttempts, 5);
+
+  const sameTick = manager.recover(
+    started.record.transactionId,
+    executionContext(7),
+  );
+  assert.equal(
+    sameTick.status === 'rejected' ? sameTick.reason : sameTick.status,
+    'phase-order',
+  );
+  assert.equal(terminalAttempts, 5);
+
+  const succeeded = manager.recover(
+    started.record.transactionId,
+    executionContext(8),
+  );
+  assert.equal(succeeded.status, 'succeeded');
+  assert.equal(terminalAttempts, 6);
+  assert.equal(succeeded.record.terminalCommitAttempts, 6);
+  assert.equal(succeeded.record.executionAttempts, 2);
+  assert.deepEqual(succeeded.record.terminal, {
+    status: 'succeeded',
+    simulationTick: 3,
+  });
+  assert.equal(succeeded.record.pendingTerminal, undefined);
+  assert.equal(manager.snapshot.counts.terminalPending, 0);
+  assert.equal(manager.snapshot.counts.succeeded, 1);
+  assertOneBusinessApplication(progress);
+});
+
+test('D09-C1-R1 R02 terminal-pending recovery requires a new phase and preserves identity', () => {
+  const runtime = makeRuntime();
+  const producer = runtime.events.createProducer();
+  const accepted = acceptEvent(
+    runtime,
+    { value: 'terminal-resume' },
+    producer,
+  );
+  const progress = new InMemoryRunProgress();
+  let terminalAttempts = 0;
+  let failFirstCommit = true;
+  const manager = new RuntimeTransactionExecutionManager(
+    runtime.target,
+    UUID,
+    progress,
+    new PrototypeProgressTransactionExecutor(progress),
+    {
+      retryBudget: 0,
+      recoveryBudget: 0,
+      faultInjector: point => {
+        if (point !== 'before-terminal-commit') return;
+        terminalAttempts += 1;
+        if (failFirstCommit) {
+          failFirstCommit = false;
+          throw new Error('one terminal metadata failure');
+        }
+      },
+    },
+  );
+  const started = manager.start(accepted.command.commandId);
+  assert.equal(started.status, 'started');
+  assert.equal(
+    manager.advance(started.record.transactionId, executionContext(2)).status,
+    'progressed',
+  );
+  const pending = manager.advance(
+    started.record.transactionId,
+    executionContext(3),
+  );
+  assert.equal(pending.status, 'terminal-pending');
+  assert.equal(terminalAttempts, 1);
+
+  const sameTick = manager.recover(
+    started.record.transactionId,
+    executionContext(3),
+  );
+  assert.equal(
+    sameTick.status === 'rejected' ? sameTick.reason : sameTick.status,
+    'phase-order',
+  );
+  const backwards = manager.recover(
+    started.record.transactionId,
+    executionContext(2),
+  );
+  assert.equal(
+    backwards.status === 'rejected' ? backwards.reason : backwards.status,
+    'phase-order',
+  );
+  const advanceInstead = manager.advance(
+    started.record.transactionId,
+    executionContext(4),
+  );
+  assert.equal(
+    advanceInstead.status === 'rejected'
+      ? advanceInstead.reason
+      : advanceInstead.status,
+    'explicit-recovery-required',
+  );
+  assert.equal(terminalAttempts, 1);
+  assertOneBusinessApplication(progress);
+
+  const resumed = manager.recover(
+    started.record.transactionId,
+    executionContext(4),
+  );
+  assert.equal(resumed.status, 'succeeded');
+  assert.equal(terminalAttempts, 2);
+  assert.equal(resumed.record.transactionId, accepted.query.intent.transactionId);
+  assert.equal(resumed.record.commandId, accepted.command.commandId);
+  assert.equal(resumed.record.eventId, accepted.event.eventId);
+  assert.equal(resumed.record.runtimeInstanceId, UUID);
+  assert.equal(resumed.record.terminalCommitAttempts, 2);
+  assert.equal(resumed.record.executionAttempts, 2);
+  assert.deepEqual(resumed.record.terminal, {
+    status: 'succeeded',
+    simulationTick: 3,
+  });
+  assertOneBusinessApplication(progress);
+
+  const currentQuery = runtime.target.query(accepted.command.commandId);
+  assert.equal(currentQuery.status, 'found');
+  assert.deepEqual(currentQuery.record, accepted.query.record);
+  assert.deepEqual(currentQuery.intent, accepted.query.intent);
+  assert.equal(runtime.target.snapshot.counts.acceptedRecords, 1);
+  assert.equal(runtime.target.snapshot.counts.intents, 1);
+  assert.equal(runtime.commands.snapshot.transactionIds.nextId, 2);
+  assert.equal(runtime.handlerCounts.get(accepted.event.eventId), 1);
+  assert.equal(
+    runtime.events.snapshot.lifecycleRecords[0].status,
+    'completed',
+  );
+  assert.equal(
+    runtime.events.snapshot.lifecycleRecords[0].realCommand.transactionId,
+    accepted.query.intent.transactionId,
+  );
+});
+
+test('D09-C1-R1 R03 failed business result remains Failed after terminal metadata recovery', () => {
+  const runtime = makeRuntime();
+  const accepted = acceptEvent(runtime, { value: 'failed-terminal-resume' });
+  const progress = new InMemoryRunProgress();
+  let terminalAttempts = 0;
+  let allowTerminalCommit = false;
+  const manager = new RuntimeTransactionExecutionManager(
+    runtime.target,
+    UUID,
+    progress,
+    new PrototypeProgressTransactionExecutor(progress, {
+      goalId: 'goal.prototype.not-configured',
+    }),
+    {
+      retryBudget: 1,
+      recoveryBudget: 1,
+      faultInjector: point => {
+        if (point !== 'before-terminal-commit') return;
+        terminalAttempts += 1;
+        if (!allowTerminalCommit) {
+          throw new Error(`failed terminal metadata outage ${terminalAttempts}`);
+        }
+      },
+    },
+  );
+  const started = manager.start(accepted.command.commandId);
+  assert.equal(started.status, 'started');
+  const pending = manager.advance(
+    started.record.transactionId,
+    executionContext(2),
+  );
+  assert.equal(pending.status, 'terminal-pending');
+  assert.equal(terminalAttempts, 1);
+  assert.equal(pending.record.status, 'terminal-pending');
+  assert.equal(pending.record.terminal, undefined);
+  assert.deepEqual(pending.record.pendingTerminal, {
+    status: 'failed',
+    simulationTick: 2,
+    reasonCode: 'prototype.invalid-completion-request',
+    message: 'Command payload does not contain the configured prototype goal ID.',
+  });
+  assert.equal(pending.record.executionAttempts, 1);
+  assert.equal(pending.record.terminalCommitAttempts, 1);
+  assert.deepEqual(pending.record.remainingPaths, {
+    retries: 0,
+    recoveries: 0,
+  });
+  assert.deepEqual(progress.snapshot.counts, {
+    collections: 0,
+    goals: 0,
+    rewards: 0,
+    effects: 0,
+  });
+
+  const stillPending = manager.recover(
+    started.record.transactionId,
+    executionContext(3),
+  );
+  assert.equal(stillPending.status, 'terminal-pending');
+  assert.equal(terminalAttempts, 2);
+  assert.equal(stillPending.record.executionAttempts, 1);
+  assert.equal(stillPending.record.terminalCommitAttempts, 2);
+  assert.deepEqual(stillPending.record.pendingTerminal, {
+    status: 'failed',
+    simulationTick: 2,
+    reasonCode: 'prototype.invalid-completion-request',
+    message: 'Command payload does not contain the configured prototype goal ID.',
+  });
+
+  allowTerminalCommit = true;
+  const failed = manager.recover(
+    started.record.transactionId,
+    executionContext(4),
+  );
+  assert.equal(failed.status, 'failed');
+  assert.equal(terminalAttempts, 3);
+  assert.equal(failed.record.executionAttempts, 1);
+  assert.equal(failed.record.terminalCommitAttempts, 3);
+  assert.deepEqual(failed.record.terminal, {
+    status: 'failed',
+    simulationTick: 2,
+    reasonCode: 'prototype.invalid-completion-request',
+    message: 'Command payload does not contain the configured prototype goal ID.',
+  });
+  assert.equal(failed.record.pendingTerminal, undefined);
+  assert.equal(
+    runtime.target.query(accepted.command.commandId).status,
+    'found',
+  );
+  assert.equal(runtime.target.snapshot.counts.intents, 1);
+  assert.equal(runtime.commands.snapshot.transactionIds.nextId, 2);
+});
+
+test('D09-C1-R1 R04 normal terminal registration and terminal immutability stay unchanged', () => {
+  const runtime = makeRuntime();
+  const accepted = acceptEvent(runtime, { value: 'normal-terminal' });
+  const progress = new InMemoryRunProgress();
+  let terminalAttempts = 0;
+  const manager = new RuntimeTransactionExecutionManager(
+    runtime.target,
+    UUID,
+    progress,
+    new PrototypeProgressTransactionExecutor(progress),
+    {
+      retryBudget: 0,
+      recoveryBudget: 0,
+      faultInjector: point => {
+        if (point === 'before-terminal-commit') terminalAttempts += 1;
+      },
+    },
+  );
+  const started = manager.start(accepted.command.commandId);
+  assert.equal(started.status, 'started');
+  assert.equal(
+    manager.advance(started.record.transactionId, executionContext(2)).status,
+    'progressed',
+  );
+  const succeeded = manager.advance(
+    started.record.transactionId,
+    executionContext(3),
+  );
+  assert.equal(succeeded.status, 'succeeded');
+  assert.equal(terminalAttempts, 1);
+  assert.equal(succeeded.record.terminalCommitAttempts, 1);
+  assert.equal(succeeded.record.executionAttempts, 2);
+  assertOneBusinessApplication(progress);
+
+  const businessCounts = progress.snapshot.counts;
+  for (const operation of [
+    () => manager.advance(started.record.transactionId, executionContext(4)),
+    () => manager.retry(started.record.transactionId, executionContext(4)),
+    () => manager.recover(started.record.transactionId, executionContext(4)),
+  ]) {
+    const result = operation();
+    assert.equal(
+      result.status === 'rejected' ? result.reason : result.status,
+      'terminal',
+    );
+  }
+  assert.equal(terminalAttempts, 1);
+  assert.deepEqual(progress.snapshot.counts, businessCounts);
+  assert.equal(manager.readByCommandId(accepted.command.commandId), succeeded.record);
+  assert.equal(runtime.target.snapshot.counts.intents, 1);
+  assert.equal(runtime.commands.snapshot.transactionIds.nextId, 2);
 });
 
 test('D09-C1 F05 lost command receipt stays independent from transaction execution', () => {

@@ -224,9 +224,23 @@ D01–D06 全部 PASS，原 81 项语义保留；`npm.cmd test` 为 `87/87` PASS
 
 2026-11-13：D09-C1 已在纯核心完成最小事务执行。`RuntimeTransactionExecutionManager` 从真实目标 `query(Command ID)` 返回的 Accepted record／intent 启动一次执行，原 creation intent 保持 `not-started`，运行状态另存并始终沿用原 Runtime／Event／Command／Transaction／target 关联。固定阶段为 `apply → verify`，只接受严格递增的 SimulationTick；F01 在两个 Tick 内通过 D08 `InMemoryRunProgress` 一次登记目标、奖励和永久效果，并进入 Succeeded。
 
-重试与恢复由 Manager 独占判断。暂时应用错误在无业务新增时可进入 retry-pending；业务写入后异常、核查失败或终态提交中断进入 recovery-pending，并固定从 verify 安全继续，不重复 apply。已观察业务效果但没有恢复路径时直接 Failed，不会使用 retry 重写；只有无合法重试／安全恢复路径才由 Manager 判定最终失败。终态不可重开，重复启动、接受命令、事件退役或后续操作都不能建立第二个事务身份。F05 证明原事件 Unknown 与事务 Succeeded 相互独立，事务完成不会自动改写事件，后续仍按原 Command ID 查询并完成。
+重试与恢复由 Manager 独占判断。暂时应用错误在无业务新增时可进入 retry-pending；业务写入后异常或核查失败可进入 recovery-pending，并固定从 verify 安全继续，不重复 apply。终态元数据登记失败由 R1 单独进入 terminal-pending，不占用业务预算。已观察业务效果但没有恢复路径时直接 Failed，不会使用 retry 重写；只有无合法重试／安全恢复路径才由 Manager 判定最终失败。终态不可重开，重复启动、接受命令、事件退役或后续操作都不能建立第二个事务身份。F05 证明原事件 Unknown 与事务 Succeeded 相互独立，事务完成不会自动改写事件，后续仍按原 Command ID 查询并完成。
 
 F01–F06 全部 PASS，原 94 项语义保留，`npm.cmd test` 为 `100/100` PASS；类型检查与 Windows 生产构建 PASS。该模块尚未接灰盒或宿主，GUI／三端事务、最终结果事件、检查点、存档和正式业务均为 NOT RUN；Matter 仍为候选，ASAR／EXE 未变化不能解释为宿主已运行新事务。当前等待 Work 审查，不自动进入下一任务，不 Commit／Push／发布。详细证据见 [README](../README.md#d09-c1最小事务执行与终态判定核心)和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-c1-执行结果)。
+
+### D09-C1 Work 审查与局部修复
+
+2026-11-13：Work 按 `cef92d2` 核对事务源码／测试哈希与报告一致，重跑类型检查、Electron Main 编译及 100/100 测试 PASS，未重跑构建或 GUI。另用真实核心组合复现：业务 apply 成功后，终态登记故障连续 5 次，会在同一次 Tick 3 调用中递归提交 6 次；持续失败的源码路径无递归终止条件。既有测试只覆盖一次终态中断，未覆盖该问题。
+
+D09-C1 暂不整体验收。下一项 D09-C1-R1 只修终态元数据登记失败的有界控制流、待登记结果保留和显式后续恢复，不重复业务 apply 或改原事务身份。最终结果事件、宿主及检查点继续未实现，不以 100 项 PASS 掩盖新复现，具体 R01–R04 验收见[路线图当前任务](DEVELOPMENT_ROADMAP.md#7-当前任务与持续记录)。
+
+### D09-C1-R1 工程执行状态
+
+2026-11-13：终态登记故障的递归路径已修复。Manager 新增 `terminal-pending`、`pendingTerminal` 和独立 `terminalCommitAttempts`。每次显式 advance／recover 最多提交一次终态元数据；失败立即保存原身份、业务新增、错误和预期 Succeeded／Failed 结果，不进入业务错误路由。业务预算为零或非零时都适用。
+
+待登记 Succeeded／Failed 只能在新合法 Tick 通过显式 recovery 继续登记，不重新 accept、不创建 Command／Transaction intent、不调用 executor apply。R01 的零预算持续故障中，Tick `3` 与后续每次调用均只提交一次，业务保持 `1/1/1`，第 6 次显式提交才成功；R02 证明成功结果恢复和身份不变；R03 证明原业务失败在元数据恢复后仍为 Failed，execution 尝试保持 `1`；R04 保留正常终态和原有 100 项测试语义。
+
+`npm.cmd test` 为 `104/104` PASS，类型检查与 Windows 生产构建 PASS。修复尚未接宿主，GUI／三端事务、最终结果事件、检查点、存档和 Edge 均为 NOT RUN；ASAR／EXE 不变不能解释为宿主运行。D09-C1 与 R1 当前等待 Work 审查，不自动进入后续任务，不 Commit／Push／发布。详细证据见 [README](../README.md#d09-c1-r1终态提交失败的有界恢复)和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-c1-r1-执行结果)。
 
 ## 已确认的游戏设计方向
 

@@ -114,13 +114,14 @@
 | D07：统一交互原型（DONE） | 主体交互与 D07-R1 两项补修已由 Work 按当前原型范围收口；历史完整回归及最新定向证据分别保留。 | 不代表正式任务或检查点实现；允许 D08。 |
 | D07-R1：交互提示与重置松键门槛（DONE） | Work 核对 run-LTvqUU、源码／脚本／产物版本及修复，重跑 52/52 测试 PASS。 | 仅限指定缺陷与定向范围；未重跑完整物理长套件。 |
 | D08：永久进度原型（DONE） | Work 核对实现与 run-nlbzAQ 三端版本证据，重跑 59/59 测试 PASS；限运行内测试内容。 | D07 补充回归 run-xHiVwG 仅 Web PASS，Electron 两端 NOT RUN；无跨会话存档或正式任务。 |
-| D09：最小事件与事务协议（分段实施） | 按正式决策接入运行身份、原子事件创建／分发与安全退役，再做命令接收、事务意图与最终反馈。 | 当前只授权第 7 节 D09-C1，不一次实现全部协议。 |
+| D09：最小事件与事务协议（分段实施） | 按正式决策接入运行身份、原子事件创建／分发与安全退役，再做命令接收、事务意图与最终反馈。 | 当前只授权第 7 节 D09-C1-R1，不一次实现全部协议。 |
 | D09-A1：统一事件创建与原子入队（DONE） | Work 核对 3f27478 的原子创建、故障回滚与哈希，并重跑 66/66 测试 PASS；当前纯核心范围收口。 | 不代表宿主、玩法或真实业务事件已接入。 |
 | D09-A2：固定阶段单轮分发与事件防重（DONE） | Work 核对 b6cf8eb 实现、源码／测试哈希及边界，重跑 75/75 测试 PASS，当前纯核心范围收口。 | Accepted 仍仅为测试替身；未接宿主或真实命令事务。 |
 | D09-A3：生产者确认与连续安全退役（DONE） | Work 按 6038571 核对权限、清理及水位线实现和哈希，重跑 81/81 测试 PASS，当前核心范围收口。 | 未接宿主，Accepted 仍为测试替身；不含跨会话保证。 |
 | D09-B1：稳定命令与原子接收意图（DONE） | Work 按 6ff9d24 核对实现／哈希，重跑 87/87 测试 PASS，纯核心接收范围收口。 | 尚未执行事务或接宿主，不把 Accepted 等同业务成功。 |
 | D09-B2：真实交付分类与 Unknown 核查（DONE） | Work 按 d954e24 核对真实接收／查询联调及哈希，重跑 94/94 测试 PASS，当前核心范围收口。 | 未执行业务事务，未接宿主；不代表 GUI 端到端通过。 |
-| D09-C1：最小事务执行与终态判定（DONE，待 Work 审查） | 已从真实 Accepted intent 启动同一事务测试业务，覆盖跨 Tick 执行、错误分类、显式重试／恢复、终态防重及 Unknown 独立性；100/100 测试和生产构建 PASS。 | 仅核心联调，最终结果事件、宿主、检查点与存储仍 NOT RUN。 |
+| D09-C1：最小事务执行与终态判定（BLOCKED，待 R1 审查） | 主体实现及 100/100 测试已交付；Work 发现终态提交故障递归，R1 已修复并等待复核。 | 最终结果事件、宿主、检查点与存储仍 NOT RUN。 |
+| D09-C1-R1：终态提交失败的有界恢复（DONE，待 Work 审查） | 已消除递归并保留待登记结果；零／非零预算、持续故障、Succeeded／Failed 恢复均有证据，104/104 测试和生产构建 PASS。 | 只修当前执行内核，不开始结果事件或其他新功能。 |
 | D10：检查点捕获 | 固定登记、完整初始备用快照、单一有效快照、原子提交、局部冻结、批次仲裁／全局单事务及失败保留旧快照。 | D09；分“登记与备用快照 → 捕获事务 → 触发／协调器接入”逐项实施。 |
 | D11：失败与恢复 | 两阶段恢复、永久效果协调、锚点与世界验证、触发器屏蔽同步、淡出淡入及 RecoveryError。 | D10；分“正常恢复 → 锚点与验证 → 异常恢复与手动重试”验收；调试重置不等于恢复实现。 |
 | D12：首关内容整合 | 形成从开始到结束的主线路径，整合玩家、交互、谜题、任务及恢复，先灰盒再补表现。 | D07～D11；先明确虚构世界与旧真实地标／夜景任务的适用性，不能凭更名自行重写故事。 |
@@ -132,11 +133,47 @@
 
 ## 7. 当前任务与持续记录
 
-当前任务：D09-C1 最小事务执行与终态判定（DONE，待 Work 审查）。D09-B2 已由 Work 按核心交付范围收口。
+当前任务：D09-C1-R1 终态提交失败的有界恢复（DONE，待 Work 审查）。D09-C1 主体继续暂缓整体验收，等待 R1 复核。
 
-当前实施窗口：“游戏开发”窗口；仅执行下方 D09-C1 任务卡，不并行实施其他任务。
+当前实施窗口：“游戏开发”窗口；仅执行下方 D09-C1-R1 任务卡，不并行实施其他任务。
 
-当前模式：D09-C1 已报告并等待 Work 审查，不自动实现最终结果事件、接入宿主或开始其他后续功能。
+当前模式：D09-C1-R1 已报告并等待 Work 审查，不开始最终结果事件、宿主或其他后续功能。
+
+### 2026-11-13 D09-C1 Work 审查与 R1 任务卡
+
+基线 `cef92d2`，审查开始时工作区干净。Work 阅读事务执行、错误路径与测试，transactions 源码／测试哈希分别为 `CD06434C1B477E520E5DC0DD5BCF02E57164A60E59969DE0B3473782990FB98C`、`585FB3C4DA2967350F736281BE6912245BC1E2A0C7959446303D89F128CFA093`，匹配报告。本轮重跑类型检查、Electron Main 编译及 100/100 测试 PASS；未重跑构建或 GUI。既有证据保留，但不能据此认为未覆盖故障正确。
+
+Work 使用当前真实核心模块做无文件写入 Node 复现：真实 Accepted 意图、真实 D08 进度，retryBudget=0／recoveryBudget=0；Tick 2 apply 成功，Tick 3 verify 后的 `before-terminal-commit` 连续抛错 5 次、第 6 次允许通过。同一次 advance(Tick 3) 内发生 6 次终态提交调用，最后记录为 Failed，进度目标／奖励／效果仍为 1/1/1。源码原因是 `#commitTerminal` 捕获故障后调用 `#routeAfterError`，耗尽路径后再次调用 `#commitTerminal`；持续故障没有递归退出条件。此次运行用有限 5 次故障避免实际栈耗尽，持续失败会无限递归是从源码控制流得出的风险判断，不伪称已执行栈溢出测试。
+
+现有 F04 只让终态故障出现一次并随后恢复，未覆盖该路径。D09-C1 暂为 BLOCKED，只安排以下 R1，不扩大到 C2。工程重试／恢复预算保持原型参数，不能靠提高预算、移除故障注入、吞异常或自动重复调用来掩盖问题。
+
+- 目标／模块：在 `transactions.ts` 修复终态登记中断的控制流，并补真实核心集成回归；仅必要的执行状态／错误元数据调整，不改进度、交付、物理或正式设计。
+- 行为：每次显式操作中的终态登记尝试必须有界，不允许 catch→错误处理→同 Tick 再递归登记到成功。提交失败立即保留原事务、已观察业务效果、错误与待登记结果，并返回可检查的非终态／受阻结果；不能在未成功登记时假报 Succeeded 或 Failed。
+- 结果与恢复：业务已经 verify 成功而终态元数据写入失败，不能仅因元数据故障把业务结果递归改判失败。保留明确待登记结果；下一合法阶段可由显式恢复／登记重试入口处理，沿用原身份，不重新 accept、创建意图或调用 apply。若原本应登记 Failed，也须保留原业务失败依据，元数据恢复不重新运行失败业务。允许必要只读 verify，不增发目标或奖励。
+- 不混淆预算：区分业务重试／安全恢复与终态登记本身的失败。业务路径预算为 0 时也必须安全返回，不能形成无限递归或要求无限自动恢复；后续元数据恢复的具体接口由实施者选择并记录工程边界，不偷偷修改全局终态规则或升级为新正式参数。
+- R01：新增可稳定失败的回归：retryBudget=0、recoveryBudget=0、终态故障连续 5 次后才放行，验证单次调用不会执行 6 次提交；故障一直有效时，多次显式后续操作均快速返回、无递归／栈溢出或业务重跑。用受控计数／短超时保护测试，不能靠等到进程崩溃判断。
+- R02：Succeeded 待登记场景下保持已完成业务／原身份，后续同 Tick／倒退调用拒绝；解除故障后，在新合法 Tick 显式恢复并正确终结。目标、奖励、效果各仍只新增一次，原 Event 不重开，Command／Transaction 编号不变化。
+- R03：原业务应 Failed 的终态登记也持续失败，安全保留失败依据、不得提前声称已写入终态；恢复后仍为正确的 Failed，不重新 apply、不错误变为 Succeeded。覆盖预算非零时的同类故障，不能仅修补零预算特例。
+- R04：保留原 100 项有效语义，包括一次故障的既有恢复、Unknown 已执行后核查、目标与奖励幂等、终态防重；如原错误路径断言确需调整，解释其为何错误，不能放宽无副作用、身份或终态验证。
+- 验证与报告：类型检查、`npm.cmd test`、适用 Web／Electron 构建、`git diff --check`；报告修复前后每次调用提交尝试数、Tick、待登记／已登记状态、错误及业务新增数、版本哈希。本段仍未接宿主，GUI／三端事务运行及最终结果事件 NOT RUN，无需重跑未变动的物理长套件。
+- 交付与停止：更新 README、路线图和受影响的项目概述，保留原报告和复现记录。不新增结果事件、宿主、检查点、存档、正式玩法、依赖或通用持久化框架；无新增用户产品决策，不改 CONFIRMED、不删除文件、不关闭体验窗口、不 Commit／Push／发布。两轮有效修复仍失败则整理最小复现交 Work，完成后停止等审查，不开始 C2。
+
+### 2026-11-13 D09-C1-R1 执行结果
+
+D09-C1-R1 已按任务卡完成终态登记控制流修复，等待 Work 审查。`RuntimeTransactionExecutionManager` 新增 `terminal-pending` 状态、`pendingTerminal` 待登记结果、`terminalCommitAttempts` 独立计数和终态登记错误记录。`apply／verify` 得到最终业务结果后只调用一次终态提交入口；提交失败不再进入 `#routeAfterError`，因此不会触碰业务 retry／recovery 预算，也不会在单次操作内递归。
+
+终态登记失败时，记录保留原 Runtime／Event／Command／Transaction／target、业务新增、错误和预期 Succeeded／Failed 结果，但 `terminal` 仍为空并返回可检查的 `terminal-pending`。后续 `advance()` 明确要求显式 recovery，`recover()`只在新合法 Tick 重新登记保留结果；不执行 executor、不重新 accept、不创建 intent 或第二事务。终态登记恢复不消耗业务预算，Succeeded 与 Failed 待登记结果都沿用原身份。
+
+| 用例 | 状态 | 实际证据 |
+| --- | --- | --- |
+| R01 持续故障 | PASS | 修复前复现为同一 Tick `3` 内 6 次提交并错误 Failed。修复后零预算下 Tick `3` 只提交 1 次并保留 Succeeded pending；Tick `4–7` 每次显式 recover 各提交 1 次仍 pending；Tick `8` 第 6 次提交成功进入 Succeeded。业务执行尝试保持 `2`，目标／奖励／效果保持 `1/1/1`。 |
+| R02 Succeeded 待登记 | PASS | `pendingTerminal` 保留 Tick `3`；同 Tick／倒退 Tick 拒绝，advance 要求显式恢复。Tick `4` 解除故障后只重试元数据登记并 Succeeded；Event 保持 Completed，原 Command／Transaction／intent 与编号不变。 |
+| R03 Failed 待登记 | PASS | 使用非零预算，业务永久错误后预期 Failed 的终态登记连续失败时只保留 `terminal-pending`，不提前写 `terminal`。解除故障后恢复为原 `prototype.invalid-completion-request` Failed，execution 尝试仍为 `1`，没有重新 apply 或改成 Succeeded。 |
+| R04 原语义 | PASS | 正常登记仍为单次提交并在 Tick `3` Succeeded；终态后 advance／retry／recovery 均返回 `terminal`。原 100 项测试保留，F04 的旧断言由 `recovery-pending` 更正为 `terminal-pending`，原因是终态元数据故障不属于业务恢复状态；无副作用、身份和终态验证未放宽。 |
+
+`npm.cmd run typecheck` PASS；`npm.cmd test` 为 `104/104` PASS，0 fail、0 skipped；`npm.cmd run electron:build` PASS。修复基线 `cef92d23e226cd649de34b6cd35ebae03ee1a4c7`。`src/core/transactions.ts` SHA-256 为 `EE43AF96C5CDC76714F4DBFF9F3F06DDDB96CBBDA85FEE190188628358E8BE22`，`tests/transactions.test.mjs` 为 `5F400FB13D6B2D3E319ED053A33B82160941C483B45520656BF2C6556E965DF2`。生产 ASAR 与 EXE 仍为 `92999B8A38D5B10DF331314D94F161AC3E2739E37C0E758D773E5A8B4D48CB8B`／`BB578EADD877147171729D3A5EF4D785ABB52B51EA8CE522DA83945869398973`，与新核心未进入宿主入口一致。
+
+Chrome Web／Electron 开发版／独立包事务运行、Edge、最终 Transaction Result Event、宿主、检查点与存档均为 NOT RUN；未重跑未修改的物理长套件。详细证据见 [README D09-C1-R1](../README.md#d09-c1-r1终态提交失败的有界恢复)。当前等待 Work 审查，不进入结果事件或其他后续任务，不 Commit／Push／发布。
 
 ### 2026-11-13 D09-B2 Work 审查
 
@@ -177,10 +214,10 @@ D09-C1 已按任务卡完成纯核心最小事务，等待 Work 审查。新增 
 | 成功 | Tick `2` apply：目标／奖励／效果各 `1`，执行尝试 `1`；Tick `3` verify：执行尝试 `2`，Succeeded，业务新增保持 `1`。 |
 | 暂时失败 | Tick `2` 应用前错误：retry-pending、业务新增 `0`；Tick `3` 显式 retry 沿用同一 Transaction，apply 成功；Tick `4` verify Succeeded。 |
 | 业务后异常 | Tick `2` 观察到新增 `1` 后异常：recovery-pending 且阶段切到 verify；Tick `3` 首次恢复失败仍保留 1 条恢复路径；Tick `4` 安全 verify 成功，未再次 apply。 |
-| 终态中断 | verify 成功但终态登记故障时仍为 recovery-pending；下一次只重做 verify／终态登记，不重跑业务；进入终态后 retry／advance／recovery 均拒绝。 |
+| 终态中断（R1 前） | D09-C1 初版在 verify 成功但终态登记故障时进入 recovery-pending，未覆盖持续故障；该状态已由 R1 修正为独立的 `terminal-pending`，历史记录保留。 |
 | 无安全恢复 | 已观察业务效果但 recovery 预算为 `0` 时直接 Failed，即使 retry 预算存在也不重新 apply。 |
 
-错误分类由 Manager 独占：`prototype.temporary-apply` 在无业务新增时走 retry；业务写入后异常、`prototype.ambiguous-apply`、`prototype.progress-incomplete`、`prototype.recovery-transient` 与终态提交中断走 recovery；`prototype.invalid-completion-request` 与 `prototype.invalid-progress` 明确为 permanent；未分类错误只有在尚有可检查路径时保留，不能自动判成功。终态之后不能重开，也不能靠重新交付事件、接受 Command 或新建执行记录绕过。
+错误分类由 Manager 独占：`prototype.temporary-apply` 在无业务新增时走 retry；业务写入后异常、`prototype.ambiguous-apply`、`prototype.progress-incomplete` 与 `prototype.recovery-transient` 走 recovery；终态提交中断由 R1 单独保存为 `terminal-pending`，不进入业务错误路由；`prototype.invalid-completion-request` 与 `prototype.invalid-progress` 明确为 permanent；未分类错误只有在尚有可检查路径时保留，不能自动判成功。终态之后不能重开，也不能靠重新交付事件、接受 Command 或新建执行记录绕过。
 
 F01–F06 全部 PASS。真实丢失回执场景中，目标已接受但 Event 保持 Unknown；事务使用同一 Command／Transaction 完成 Succeeded 后，下一合法阶段仍按原 Command ID 查询并完成原事件，handler、accept 与 intent 数不增加。F06 保留原 94 项语义，新增容量、错误身份、只读快照、递归、同／倒退 Tick、无调用不推进和平台隔离测试；旧 B1／B2 未调用执行入口时业务执行数仍为 `0`。
 

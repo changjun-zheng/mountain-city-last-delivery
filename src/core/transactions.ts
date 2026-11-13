@@ -15,6 +15,7 @@ export type TransactionExecutionStatus =
   | 'running'
   | 'retry-pending'
   | 'recovery-pending'
+  | 'terminal-pending'
   | 'succeeded'
   | 'failed';
 
@@ -98,12 +99,14 @@ export type TransactionExecutionRecord = Readonly<{
   executionAttempts: number;
   retryAttempts: number;
   recoveryAttempts: number;
+  terminalCommitAttempts: number;
   businessAdditions: TransactionProgressAddition;
   remainingPaths: Readonly<{
     retries: number;
     recoveries: number;
   }>;
   errors: readonly TransactionErrorHistoryEntry[];
+  pendingTerminal?: TransactionTerminalResult;
   terminal?: TransactionTerminalResult;
 }>;
 
@@ -117,6 +120,7 @@ export type TransactionExecutionSnapshot = Readonly<{
     running: number;
     retryPending: number;
     recoveryPending: number;
+    terminalPending: number;
     succeeded: number;
     failed: number;
   }>;
@@ -148,7 +152,8 @@ export type TransactionOperationResult =
       | 'succeeded'
       | 'failed'
       | 'retry-pending'
-      | 'recovery-pending';
+      | 'recovery-pending'
+      | 'terminal-pending';
     record: TransactionExecutionRecord;
   }>
   | Readonly<{
@@ -354,6 +359,7 @@ export class RuntimeTransactionExecutionManager {
         running: countStatus(records, 'running'),
         retryPending: countStatus(records, 'retry-pending'),
         recoveryPending: countStatus(records, 'recovery-pending'),
+        terminalPending: countStatus(records, 'terminal-pending'),
         succeeded: countStatus(records, 'succeeded'),
         failed: countStatus(records, 'failed'),
       }),
@@ -412,6 +418,12 @@ export class RuntimeTransactionExecutionManager {
           'A transaction awaiting safe recovery requires an explicit recovery operation.',
         );
       }
+      if (stored.publicRecord.status === 'terminal-pending') {
+        return rejectedOperation(
+          'explicit-recovery-required',
+          'A verified terminal result awaiting registration requires an explicit recovery operation.',
+        );
+      }
     }
     if (attemptKind === 'retry' && stored.publicRecord.status !== 'retry-pending') {
       return rejectedOperation(
@@ -420,10 +432,11 @@ export class RuntimeTransactionExecutionManager {
       );
     }
     if (attemptKind === 'recovery' &&
-        stored.publicRecord.status !== 'recovery-pending') {
+        stored.publicRecord.status !== 'recovery-pending' &&
+        stored.publicRecord.status !== 'terminal-pending') {
       return rejectedOperation(
         'not-recoverable',
-        'Only a recovery-pending transaction can enter safe recovery.',
+        'Only recovery-pending or terminal-pending transactions can be recovered.',
       );
     }
 
@@ -432,6 +445,22 @@ export class RuntimeTransactionExecutionManager {
       const acceptedError = this.#verifyAccepted(stored);
       if (acceptedError) return acceptedError;
       let record = stored.publicRecord;
+      if (record.status === 'terminal-pending') {
+        if (!record.pendingTerminal) {
+          return rejectedOperation(
+            'not-recoverable',
+            'Terminal-pending transaction has no preserved terminal result.',
+          );
+        }
+        const pendingTerminal = record.pendingTerminal;
+        record = Object.freeze({
+          ...record,
+          status: 'running' as const,
+          lastSimulationTick: normalized.simulationTick,
+          lastAttemptKind: 'recovery' as const,
+        });
+        return this.#commitTerminal(stored, record, pendingTerminal);
+      }
       let retries = record.remainingPaths.retries;
       let recoveries = record.remainingPaths.recoveries;
       let retryAttempts = record.retryAttempts;
@@ -514,8 +543,7 @@ export class RuntimeTransactionExecutionManager {
         return this.#commitTerminal(
           stored,
           record,
-          'succeeded',
-          normalized.simulationTick,
+          succeededTerminalResult(normalized.simulationTick),
         );
       }
       record = Object.freeze({ ...record, phase: nextPhase });
@@ -563,10 +591,11 @@ export class RuntimeTransactionExecutionManager {
       return this.#commitTerminal(
         stored,
         record,
-        'failed',
-        record.lastSimulationTick as number,
-        error.code,
-        error.message,
+        failedTerminalResult(
+          record.lastSimulationTick as number,
+          error.code,
+          error.message,
+        ),
       );
     }
 
@@ -587,10 +616,11 @@ export class RuntimeTransactionExecutionManager {
       return this.#commitTerminal(
         stored,
         record,
-        'failed',
-        record.lastSimulationTick as number,
-        'prototype.safe-recovery-unavailable',
-        `Business effects were observed after ${error.code}, and no safe recovery path remains.`,
+        failedTerminalResult(
+          record.lastSimulationTick as number,
+          'prototype.safe-recovery-unavailable',
+          `Business effects were observed after ${error.code}, and no safe recovery path remains.`,
+        ),
       );
     }
     if (record.remainingPaths.recoveries > 0) {
@@ -609,21 +639,23 @@ export class RuntimeTransactionExecutionManager {
     return this.#commitTerminal(
       stored,
       record,
-      'failed',
-      record.lastSimulationTick as number,
-      'prototype.paths-exhausted',
-      `No legal retry or safe recovery path remains after ${error.code}.`,
+      failedTerminalResult(
+        record.lastSimulationTick as number,
+        'prototype.paths-exhausted',
+        `No legal retry or safe recovery path remains after ${error.code}.`,
+      ),
     );
   }
 
   #commitTerminal(
     stored: InternalRecord,
     record: TransactionExecutionRecord,
-    outcome: 'succeeded' | 'failed',
-    simulationTick: number,
-    reasonCode?: string,
-    message?: string,
+    pendingTerminal: TransactionTerminalResult,
   ): TransactionOperationResult {
+    const attemptedRecord: TransactionExecutionRecord = Object.freeze({
+      ...record,
+      terminalCommitAttempts: record.terminalCommitAttempts + 1,
+    });
     try {
       this.#fault('before-terminal-commit');
     } catch (error) {
@@ -631,44 +663,43 @@ export class RuntimeTransactionExecutionManager {
         code: 'prototype.terminal-commit-interrupted',
         message: `Terminal registration was interrupted: ${toMessage(error)}`,
       });
-      const classification: ErrorClassification = Object.freeze({
-        classification: 'recoverable' as const,
-        retryable: false,
-        recoverable: true,
-      });
-      const withError: TransactionExecutionRecord = Object.freeze({
-        ...record,
+      const pendingRecord: TransactionExecutionRecord = Object.freeze({
+        ...attemptedRecord,
+        status: 'terminal-pending' as const,
+        pendingTerminal,
+        terminal: undefined,
+        remainingPaths: Object.freeze({ retries: 0, recoveries: 0 }),
         errors: Object.freeze([
-          ...record.errors,
+          ...attemptedRecord.errors,
           Object.freeze({
             code: terminalError.code,
             message: terminalError.message,
-            phase: record.phase,
-            simulationTick,
-            classification: classification.classification,
-            effectsApplied: false,
+            phase: attemptedRecord.phase,
+            simulationTick: attemptedRecord.lastSimulationTick as number,
+            classification: 'recoverable' as const,
+            effectsApplied: hasBusinessAdditions(attemptedRecord),
           }),
         ]),
       });
-      return this.#routeAfterError(stored, withError, terminalError, classification);
+      this.#replaceRecord(stored, pendingRecord);
+      return Object.freeze({
+        status: 'terminal-pending' as const,
+        record: pendingRecord,
+      });
     }
 
-    const terminal: TransactionTerminalResult = outcome === 'succeeded'
-      ? Object.freeze({ status: 'succeeded' as const, simulationTick })
-      : Object.freeze({
-        status: 'failed' as const,
-        simulationTick,
-        reasonCode: reasonCode ?? 'prototype.failed',
-        message: message ?? 'Transaction has no legal retry or recovery path.',
-      });
     const terminalRecord: TransactionExecutionRecord = Object.freeze({
-      ...record,
-      status: outcome,
-      terminal,
+      ...attemptedRecord,
+      status: pendingTerminal.status,
+      pendingTerminal: undefined,
+      terminal: pendingTerminal,
       remainingPaths: Object.freeze({ retries: 0, recoveries: 0 }),
     });
     this.#replaceRecord(stored, terminalRecord);
-    return Object.freeze({ status: outcome, record: terminalRecord });
+    return Object.freeze({
+      status: pendingTerminal.status,
+      record: terminalRecord,
+    });
   }
 
   #verifyAccepted(
@@ -832,6 +863,7 @@ function createExecutionRecord(
     executionAttempts: 0,
     retryAttempts: 0,
     recoveryAttempts: 0,
+    terminalCommitAttempts: 0,
     businessAdditions: Object.freeze({ goals: 0, rewards: 0, effects: 0 }),
     remainingPaths: Object.freeze({
       retries: retryBudget,
@@ -927,8 +959,7 @@ function classifyError(
   }
   if (code === 'prototype.ambiguous-apply' ||
       code === 'prototype.progress-incomplete' ||
-      code === 'prototype.recovery-transient' ||
-      code === 'prototype.terminal-commit-interrupted') {
+      code === 'prototype.recovery-transient') {
     return Object.freeze({
       classification: 'recoverable' as const,
       retryable: false,
@@ -966,6 +997,31 @@ function advancePhase(
 ): TransactionExecutionPhase | 'terminal' {
   if (phase === 'apply') return 'verify';
   return 'terminal';
+}
+
+function succeededTerminalResult(
+  simulationTick: number,
+): TransactionTerminalResult {
+  return Object.freeze({ status: 'succeeded' as const, simulationTick });
+}
+
+function failedTerminalResult(
+  simulationTick: number,
+  reasonCode: string,
+  message: string,
+): TransactionTerminalResult {
+  return Object.freeze({
+    status: 'failed' as const,
+    simulationTick,
+    reasonCode,
+    message,
+  });
+}
+
+function hasBusinessAdditions(record: TransactionExecutionRecord): boolean {
+  return record.businessAdditions.goals > 0 ||
+    record.businessAdditions.rewards > 0 ||
+    record.businessAdditions.effects > 0;
 }
 
 function pendingRecoveryRecord(

@@ -100,7 +100,7 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `src/core/events.ts` | D09-A1～A3 运行上下文、单调 Event ID、原子创建、有限 Inbox、固定协调阶段分发、生产者结果／确认与容量受控清理；同时为 D09-B1 提供受控源事件校验和命令协调器创建入口。 |
 | `src/core/commands.ts` | D09-B1 运行实例级独立 Command／Transaction 编号、单事件稳定命令、目标模块幂等接收、事务意图与原子身份关联；提供临时／永久接收故障分类，不执行业务。 |
 | `src/core/delivery.ts` | D09-B2 真实目标交付协调：四类交付结果、原 Command ID 核查、显式重试、有限交付记录与真实关联快照；不执行业务事务。 |
-| `src/core/transactions.ts` | D09-C1 Accepted 意图执行状态、跨 Tick 两阶段推进、错误分类、显式重试／安全恢复、有限准入与 Succeeded／Failed 终态；通过进度端口调用测试业务。 |
+| `src/core/transactions.ts` | D09-C1／R1 Accepted 意图执行状态、跨 Tick 两阶段推进、错误分类、显式重试／安全恢复、有界终态登记与 Succeeded／Failed 终态；通过进度端口调用测试业务。 |
 | `src/physics/matter/graybox-world.ts` | 两端共用 Matter 世界、静态地形、独立脚底区域与实际接触法线判定。 |
 | `src/core/simulation.ts` | 固定步累加器、实际 Tick、有界补算及余量／丢弃统计。 |
 | `src/core/lifecycle.ts` | Owner + Key 去重、Token 所有权、退役与有效暂停集合。 |
@@ -124,7 +124,7 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `tests/events-retirement.test.mjs` | D09-A3 生产者结果能力、显式确认、乱序退役、缺口合并、旧 ID 拒绝、组合容量与清理故障。 |
 | `tests/commands.test.mjs` | D09-B1 三套独立编号、单事件单命令、目标模块隔离、重复接收、身份篡改、事务编号空洞、提交回滚和容量边界。 |
 | `tests/delivery.test.mjs` | D09-B2 真实目标成功链、四类结果、丢失回执核查、查询故障、显式重试、固定批次、退役保留、交付容量及模式隔离。 |
-| `tests/transactions.test.mjs` | D09-C1 真实 Accepted 意图、跨 Tick 执行、重试／恢复、故障中断、Unknown 独立性、终态防重、容量与平台隔离。 |
+| `tests/transactions.test.mjs` | D09-C1／R1 真实 Accepted 意图、跨 Tick 执行、重试／恢复、持续终态登记故障、待登记结果恢复、Unknown 独立性、终态防重、容量与平台隔离。 |
 | `tests/graybox-browser.mjs` | 真实窗口键盘操作、物理暂停、平台、区域、D07 交互及 D08 收藏／目标／奖励／效果断言。 |
 | `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1／D05／D07／D08 定向入口。 |
 | `tests/browser-selection.mjs` | 解析 `--browser`、查找标准安装路径并核验 CDP 实际浏览器身份；缺失时不回退。 |
@@ -1149,7 +1149,7 @@ ASAR 与 EXE 和 D09-B1 相同，因为新核心尚未进入宿主入口。结�
 2. 事务执行固定为 `apply → verify` 两个显式原型阶段。`advance()`、`retry()`、`recovery()` 只接受严格递增的 SimulationTick；不接 Simulation Runtime，不创建计时器，暂停或不调用推进时不会自行执行。
 3. 默认工程准入为 256 条执行记录、1 条重试预算和 1 条恢复预算，均可由测试配置调整。预算、状态和错误分类是原型，不升级为正式重试次数或间隔决策。
 4. `apply` 调用真实 D08 `completeGoal()`；`verify` 核查目标、奖励和永久效果均存在。Manager 根据实际 Progress 快照差分记录业务新增，重复执行同一幂等业务不会增加第二次奖励。
-5. 暂时错误在未观察业务新增时可进入 `retry-pending`；业务写入后异常、恢复核查失败和终态提交中断进入 `recovery-pending`。安全恢复固定从 `verify` 继续，不重新应用业务。已观察业务效果但没有安全恢复路径时直接 Failed，不会冒险重用 retry 再写一次。
+5. 暂时错误在未观察业务新增时可进入 `retry-pending`；业务写入后异常和恢复核查失败可进入 `recovery-pending`，安全恢复固定从 `verify` 继续，不重新应用业务。终态元数据登记中断则由 R1 进入独立的 `terminal-pending`。已观察业务效果但没有安全恢复路径时直接 Failed，不会冒险重用 retry 再写一次。
 6. 只有 `Succeeded` 和 `Failed` 是终态，无 Cancelled。终态、原事件 Completed／退役、重复 Command 接收或重复启动都不能创建第二个执行身份；后续 advance／retry／recovery 返回 `terminal`。
 
 F01–F06 验收：
@@ -1159,7 +1159,7 @@ F01–F06 验收：
 | F01 跨 Tick 成功 | PASS | 真实 Event→Command→Accepted intent 后，事件 Completed 且业务为空；Tick `2` 的 `apply` 新增目标／奖励／效果各 `1`，Tick `3` 的 `verify` 进入 Succeeded。全程 Event `1`、Command `1`、Transaction `1`、target 不变，原始 intent 仍为 `not-started`。 |
 | F02 重复、Tick 与退役 | PASS | 重复 start 返回 existing；同 Tick、倒退 Tick、递归和终态后推进均拒绝，没有重复业务。原事件确认并安全退役后事务仍可完成；重复 Command 接收仍返回原 intent 与 Transaction。 |
 | F03 重试与恢复 | PASS | `prototype.temporary-apply` 在无业务新增时进入 retry-pending，显式 retry 沿用原 ID 后成功；业务写入后进入 recovery，首次核查失败时仍有恢复预算，保持非终态，下一次安全核查进入 Succeeded。重试／恢复均无路径时才由 Manager 判定 Failed。 |
-| F04 中断与终态 | PASS | `before-apply`、`after-progress-mutation`、`before-terminal-commit` 均有故障证据；已写入业务后只执行 verify 恢复，目标／奖励／效果各保持 `1`。终态提交中断不重跑业务，终态后的 retry 不重新打开事务。 |
+| F04 中断与终态 | PASS | `before-apply`、`after-progress-mutation`、`before-terminal-commit` 均有故障证据；已写入业务后只执行 verify 恢复，目标／奖励／效果各保持 `1`。一次终态提交中断保留 `terminal-pending`，后续显式恢复不重跑业务；终态后的 retry 不重新打开事务。 |
 | F05 回执丢失独立性 | PASS | 目标已接受但回执丢失时原事件先保持 Unknown，目标 intent 已可查询。事务随后在 Tick `2／3` 进入 Succeeded；下一阶段按原 Command ID 确认 Accepted 并完成原事件。handler／accept 次数仍各为 `1`，Command／Transaction／intent 均未新增。 |
 | F06 边界与回归 | PASS | 非法 Command／Transaction 与错误 Runtime 被拒绝，执行容量满不启动业务；快照与记录冻结，未调用推进时业务保持为空；每目标只允许一个 Manager。旧 B1／B2 未调用执行入口的用例业务执行数仍为 `0`，`transactions.ts` 无平台专属 API。 |
 
@@ -1184,12 +1184,48 @@ F01–F06 验收：
 
 ASAR 与 EXE 未变化，因为新事务核心尚未进入宿主入口，不能据此声称 GUI 或三端事务已运行。D09-C1 当前等待 Work 审查，不自动进入最终结果事件或其他后续任务，不 Commit／Push／发布。
 
+## D09-C1-R1：终态提交失败的有界恢复
+
+Work 在 `cef92d2` 复现了终态登记递归：业务已得到 Succeeded，`before-terminal-commit` 连续失败 5 次时，同一次 Tick `3` 调用递归提交 6 次，最后错误地登记为 Failed，业务仍为 `1/1/1`。原因是终态提交异常被送入业务错误路由，预算耗尽后再次调用终态提交。该历史复现与修正后证据分别保留。
+
+R1 增加独立 `terminal-pending` 状态、待登记结果 `pendingTerminal`、终态提交计数 `terminalCommitAttempts` 和独立错误记录。终态提交失败不再进入业务 retry／recovery 路由，也不消耗或绕过业务预算。单次 `advance()`／`recover()` 最多尝试一次终态登记；失败立即返回 `terminal-pending`，保留原 Runtime／Event／Command／Transaction／target、业务效果、预期终态、错误和最后 Tick。后续只能在新合法 Tick 调用显式 `recover()` 处理，不重新 accept、不创建 intent、不调用 executor apply。
+
+R01–R04：
+
+| 用例 | 状态 | 实际证据 |
+| --- | --- | --- |
+| R01 持续故障有界返回 | PASS | `retryBudget=0／recoveryBudget=0`。Tick `3` 的 advance 只提交 1 次并返回 Succeeded 的 `terminal-pending`；Tick `4–7` 每次 recover 也只提交 1 次且仍为 pending，同 Tick 重入被拒绝。Tick `8` 第 6 次提交成功后进入 Succeeded。执行尝试始终为 `2`，目标／奖励／效果始终为 `1/1/1`。 |
+| R02 成功结果恢复 | PASS | 单次元数据故障后，原身份和 `pendingTerminal(succeeded, Tick 3)` 保留；同 Tick、倒退 Tick 拒绝，advance 要求显式 recovery。解除故障后 Tick `4` 恢复为 Succeeded。Event 保持 Completed，Command／Transaction／intent 数量及编号不变。 |
+| R03 原失败结果恢复 | PASS | 使用非零重试／恢复预算，真实 D08 进度未变化；业务错误使预期结果为 Failed，但首次终态登记失败时只保存 `pendingTerminal(failed)`，terminal 仍为空。再次故障后仍 pending，放行后恢复为原 Failed 原因，execution 尝试保持 `1`，没有重新 apply 或改为 Succeeded。 |
+| R04 原语义回归 | PASS | 正常无故障时仍在 Tick `3` 完成 Succeeded，`terminalCommitAttempts=1`。终态后的 advance／retry／recovery 均返回 `terminal`，业务计数不变。原 100 项测试全部保留，新增 R01–R04 后为 `104/104`。 |
+
+验证结果：
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `npm.cmd run typecheck` | PASS | 共享核心、Renderer 与 Electron Main 编译检查通过。 |
+| `npm.cmd test` | PASS | `104/104`，0 fail、0 skipped；原 100 项语义保留，新增 R01–R04。 |
+| `npm.cmd run electron:build` | PASS | Vite、Electron Main 和 Windows x64 免安装目录构建成功；既有 bundle、author、默认图标警告不变。 |
+| `git diff --check` | PASS | 无空白错误；仅有既有 LF／CRLF 提示。 |
+| Chrome Web／Electron 开发版／独立包事务运行 | NOT RUN | 事务核心未接宿主。 |
+| 最终结果事件／宿主／检查点／存档／Edge | NOT RUN | 不在 D09-C1-R1 范围。 |
+
+对应版本：
+
+- 修复基线：`cef92d23e226cd649de34b6cd35ebae03ee1a4c7`。
+- `src/core/transactions.ts`：`EE43AF96C5CDC76714F4DBFF9F3F06DDDB96CBBDA85FEE190188628358E8BE22`。
+- `tests/transactions.test.mjs`：`5F400FB13D6B2D3E319ED053A33B82160941C483B45520656BF2C6556E965DF2`。
+- 当前生产 ASAR SHA-256：`92999B8A38D5B10DF331314D94F161AC3E2739E37C0E758D773E5A8B4D48CB8B`。
+- Windows EXE SHA-256：`BB578EADD877147171729D3A5EF4D785ABB52B51EA8CE522DA83945869398973`。
+
+ASAR／EXE 未变化是因为修复尚未进入宿主入口。D09-C1-R1 当前等待 Work 审查，不进入最终结果事件、宿主、检查点或其他后续任务，不 Commit／Push／发布。
+
 ## 当前限制
 
-- 最新执行（D09-C1，2026-11-13）：类型检查、Electron Main 编译及 `100/100` 自动化测试 PASS，生产构建 PASS。事件创建、退役、稳定命令、真实目标接收分类、Unknown 核查与最小事务执行内核尚未接入宿主，GUI 与三端业务链均为 NOT RUN；D08 三端报告仍只代表当时的 D08 功能。
+- 最新执行（D09-C1-R1，2026-11-13）：类型检查、Electron Main 编译及 `104/104` 自动化测试 PASS，生产构建 PASS。终态登记失败可跨合法 Tick 有界恢复；事件创建、退役、稳定命令、真实目标接收分类、Unknown 核查与最小事务执行内核仍未接入宿主，GUI 与三端业务链均为 NOT RUN。
 - Web 主包约 332.14 KB gzip，Vite 有体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互及 D08 运行内进度是工程灰盒；共享核心另有 D09 事件、稳定命令、真实目标接收分类、Unknown 核查和 D09-C1 最小事务执行，但当前页面尚未使用它们。未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、最终结果事件、宿主接线、检查点或存储。D08 的“永久”仅限当前页面运行内；D09 的 Accepted、intent、Transaction ID 或核心测试 Succeeded 也不等于 GUI 业务成功或 Checkpoint Recovery。不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 审查，不自动进入后续分段。
+- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互及 D08 运行内进度是工程灰盒；共享核心另有 D09 事件、稳定命令、真实目标接收分类、Unknown 核查和带终态登记恢复的最小事务执行，但当前页面尚未使用它们。未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、最终结果事件、宿主接线、检查点或存储。D08 的“永久”仅限当前页面运行内；D09 的 Accepted、intent、Transaction ID 或核心测试 Succeeded 也不等于 GUI 业务成功或 Checkpoint Recovery。不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 审查，不自动进入后续分段。
