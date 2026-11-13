@@ -2,6 +2,7 @@ import { createGameCore, type GameCore } from '../../core/game';
 import type { GrayboxCore } from '../../core/graybox';
 import { mountStartupScene } from '../../rendering/phaser/startup';
 import { mountGrayboxScene } from '../../rendering/phaser/graybox';
+import type { MatterGrayboxDiagnostics } from '../../physics/matter/graybox-world';
 import { bindVisibilityPause } from './visibility';
 import { bindPlayerInput } from './player-input';
 import './style.css';
@@ -23,7 +24,7 @@ let unbind = () => {};
 const mode = sessionStorage.getItem('scene') === 'diagnostic' ? 'diagnostic' : 'graybox';
 sceneSelect.value = mode;
 reset.hidden = mode !== 'graybox';
-const showDiagnostics = () => {
+const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
   if (!core) return;
   const sample = core.snapshot;
   const marker = 'player' in sample ? sample.player.x : sample.markerX;
@@ -35,14 +36,35 @@ const showDiagnostics = () => {
   if ('player' in sample) {
     const p = sample.player;
     common[0] = `${sample.paused ? 'PAUSED' : 'RUNNING'} | Tick ${sample.tick} | x ${p.x.toFixed(1)} y ${p.y.toFixed(1)} | ${p.support || 'AIR'} | Jumps ${p.jumps}`;
+    if (diagnosticsState) {
+      const horizontal = diagnosticsState.movingPlatforms.find(platform => platform.axis === 'horizontal');
+      const vertical = diagnosticsState.movingPlatforms.find(platform => platform.axis === 'vertical');
+      if (horizontal && vertical) common.push(
+        `Platforms ${diagnosticsState.platformClockMs.toFixed(1)} ms | H x ${horizontal.x.toFixed(1)} phase ${horizontal.phase.toFixed(2)} ${horizontal.direction > 0 ? '→' : '←'} | V y ${vertical.y.toFixed(1)} phase ${vertical.phase.toFixed(2)} ${vertical.direction > 0 ? '↓' : '↑'}`,
+      );
+    }
     common.push(`Matter steps ${sample.physicsSteps} | Input ${p.controlAllowed ? 'ON' : 'LOCKED'} | ${p.needsRelease ? '请先松开 Space' : 'Space READY'}${p.y > 700 ? ' | 已掉出场景，请按 R 重置' : ''}`);
+    const horizontal = diagnosticsState?.movingPlatforms.find(platform => platform.axis === 'horizontal');
+    const vertical = diagnosticsState?.movingPlatforms.find(platform => platform.axis === 'vertical');
     Object.assign(diagnostics.dataset, {
       x: String(p.x), y: String(p.y), vx: String(p.vx), vy: String(p.vy),
+      worldVx: String(p.worldVx), worldVy: String(p.worldVy),
+      supportVx: String(p.supportVx), supportVy: String(p.supportVy),
       grounded: String(p.grounded), support: p.support, jumps: String(p.jumps),
       wall: String(p.wall), ceiling: String(p.ceiling), needsRelease: String(p.needsRelease),
       controlAllowed: String(p.controlAllowed), eligible: String(p.eligible),
       buffer: String(p.bufferMs), coyote: String(p.coyoteMs), nx: String(p.normalX), ny: String(p.normalY),
       physicsSteps: String(sample.physicsSteps), physicsTime: String(sample.physicsTimestamp), resets: String(sample.resets),
+      oneWayCollision: diagnosticsState === undefined ? '' : String(diagnosticsState.oneWayCollisionEnabled),
+      platformClock: diagnosticsState ? String(diagnosticsState.platformClockMs) : '',
+      movingHX: horizontal ? String(horizontal.x) : '', movingHY: horizontal ? String(horizontal.y) : '',
+      movingHVx: horizontal ? String(horizontal.vx) : '', movingHDirection: horizontal ? String(horizontal.direction) : '',
+      movingHPhase: horizontal ? String(horizontal.phase) : '', movingHCycle: horizontal ? String(horizontal.cycle) : '',
+      movingVX: vertical ? String(vertical.x) : '', movingVY: vertical ? String(vertical.y) : '',
+      movingVVy: vertical ? String(vertical.vy) : '', movingVDirection: vertical ? String(vertical.direction) : '',
+      movingVPhase: vertical ? String(vertical.phase) : '', movingVCycle: vertical ? String(vertical.cycle) : '',
+      supportRelativeX: diagnosticsState?.supportRelativeX == null ? '' : String(diagnosticsState.supportRelativeX),
+      supportRelativeY: diagnosticsState?.supportRelativeY == null ? '' : String(diagnosticsState.supportRelativeY),
     });
   }
   diagnostics.textContent = common.join('\n');

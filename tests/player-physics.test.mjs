@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { test } from 'node:test';
 import { createGrayboxCore } from '../src/core/graybox.ts';
-import { PlayerMotor } from '../src/core/player.ts';
+import { PLAYER_PROTOTYPE, PlayerMotor } from '../src/core/player.ts';
 import { MatterGrayboxWorld } from '../src/physics/matter/graybox-world.ts';
 
 // The same Matter 0.20.0 implementation bundled by Phaser, without a second dependency.
@@ -20,6 +20,20 @@ function fixture(x = 80, y = 472, settle = 30) {
   };
   step(settle);
   return { core, world, step, until };
+}
+
+function placeOnMovingPlatform(label) {
+  const instance = fixture();
+  const platform = instance.world.movingPlatforms.find(item => item.label === label);
+  assert.ok(platform, `Missing moving platform ${label}`);
+  M.Body.setPosition(instance.world.player, {
+    x: platform.x,
+    y: platform.y - platform.height / 2 - PLAYER_PROTOTYPE.height / 2,
+  });
+  M.Body.setVelocity(instance.world.player, { x: 0, y: 0 });
+  instance.step(2);
+  assert.equal(instance.core.snapshot.player.support, label);
+  return { ...instance, platform };
 }
 
 test('Matter is stepped exactly once per fixed tick; ground supports the body', () => {
@@ -174,4 +188,355 @@ test('pause freezes real Matter and resumes without chasing background time; res
   for (let i = 2; i < 122; i++) core.frame(90000 + i * core.config.fixedDeltaMs);
   assert.equal(core.snapshot.player.grounded, true, 'Reset must rebuild Matter collision detection');
   assert.ok(Math.abs(core.snapshot.player.y - 478) < 0.2);
+});
+
+test('P01 solid platforms block from below, support from above, and release at the edge', () => {
+  const underside = fixture(745);
+  underside.core.key('Space', true);
+  let minY = Infinity, hitUnderside = false;
+  for (let i = 0; i < 150; i++) {
+    underside.step();
+    minY = Math.min(minY, underside.core.snapshot.player.y);
+    hitUnderside ||= underside.core.snapshot.player.ceiling;
+  }
+  assert.ok(minY >= 439.5, JSON.stringify(underside.core.snapshot.player));
+  assert.equal(hitUnderside, true);
+  assert.notEqual(underside.core.snapshot.player.support, 'solid-platform-a');
+
+  const top = fixture(745, 350);
+  top.until(s => s.player.support === 'solid-platform-a');
+  assert.equal(top.core.snapshot.player.grounded, true);
+  assert.ok(Math.abs(top.core.snapshot.player.y - 378) < 0.2);
+  top.core.key('KeyD', true);
+  top.until(s => !s.player.grounded);
+  top.until(s => s.player.grounded && s.player.support === 'ground-a');
+  assert.ok(top.core.snapshot.player.x > 790);
+  assert.ok(Math.abs(top.core.snapshot.player.y - 478) < 0.2);
+});
+
+test('P02 a full one-way ascent passes the underside without ceiling contact and lands from above', () => {
+  const { core, world, step } = fixture(1060);
+  assert.equal(world.oneWayCollisionEnabled, false);
+  core.key('Space', true);
+  let minY = Infinity, ceiling = false;
+  for (let i = 0; i < 180 && core.snapshot.player.support !== 'one-way-platform-a'; i++) {
+    step();
+    minY = Math.min(minY, core.snapshot.player.y);
+    ceiling ||= core.snapshot.player.ceiling;
+  }
+  assert.ok(minY < 388, JSON.stringify({ minY, state: core.snapshot.player }));
+  assert.equal(ceiling, false, 'Ascent must ignore the one-way platform underside');
+  assert.equal(core.snapshot.player.support, 'one-way-platform-a');
+  assert.equal(world.oneWayCollisionEnabled, true);
+  assert.equal(core.snapshot.player.grounded, true);
+  assert.ok(Math.abs(core.snapshot.player.y - 388) < 0.2);
+  assert.equal(core.snapshot.player.jumps, 1);
+});
+
+test('P03 one-way landing supports walking and a held jump cannot auto-repeat', () => {
+  const { core, world, step } = fixture(1060);
+  core.key('Space', true); // Keep held through take-off, landing and standing.
+  for (let i = 0; i < 180 && core.snapshot.player.support !== 'one-way-platform-a'; i++) step();
+  const landedX = core.snapshot.player.x;
+  core.key('KeyA', true); step(4); core.key('KeyA', false);
+  assert.equal(core.snapshot.player.support, 'one-way-platform-a');
+  assert.ok(core.snapshot.player.x < landedX - 1);
+  const leftX = core.snapshot.player.x;
+  core.key('KeyD', true); step(20); core.key('KeyD', false);
+  assert.ok(core.snapshot.player.x > leftX + 1);
+  step(20);
+  assert.equal(core.snapshot.player.support, 'one-way-platform-a');
+  step(120);
+  assert.equal(core.snapshot.player.jumps, 1);
+  assert.equal(core.snapshot.player.grounded, true);
+  assert.equal(world.oneWayCollisionEnabled, true);
+
+  const overlap = fixture(1060, 420, 0);
+  overlap.step();
+  assert.equal(overlap.core.snapshot.player.grounded, false);
+  assert.equal(overlap.world.oneWayCollisionEnabled, false,
+    'Foot-sensor overlap below the top does not grant support');
+});
+
+test('P04 short jumps cannot false-land; one-way edges release into the supporting ground', () => {
+  const short = fixture(1060);
+  short.core.key('Space', true); short.step(); short.core.key('Space', false);
+  let minY = Infinity, oneWaySupport = false;
+  for (let i = 0; i < 180; i++) {
+    short.step();
+    minY = Math.min(minY, short.core.snapshot.player.y);
+    oneWaySupport ||= short.core.snapshot.player.support === 'one-way-platform-a';
+  }
+  assert.ok(minY > 420, JSON.stringify({ minY, state: short.core.snapshot.player }));
+  assert.equal(oneWaySupport, false);
+  assert.equal(short.world.oneWayCollisionEnabled, false);
+  assert.equal(short.core.snapshot.player.grounded, true);
+  assert.equal(short.core.snapshot.player.support, 'ground-b');
+  assert.ok(Math.abs(short.core.snapshot.player.y - 478) < 0.2);
+
+  const edge = fixture(1060);
+  edge.core.key('Space', true);
+  edge.until(s => s.player.support === 'one-way-platform-a');
+  edge.core.key('Space', false); edge.core.key('KeyA', true);
+  edge.until(s => !s.player.grounded);
+  edge.core.key('KeyA', false);
+  edge.until(s => s.player.grounded && s.player.support === 'ground-b');
+  assert.ok(edge.core.snapshot.player.x < 1030);
+  assert.ok(Math.abs(edge.core.snapshot.player.y - 478) < 0.2);
+});
+
+test('P05 one-way edges retain coyote/buffer jumps; Down + Space never drops through', () => {
+  const landOneWay = () => {
+    const f = fixture(1060);
+    f.core.key('Space', true);
+    f.until(s => s.player.support === 'one-way-platform-a');
+    f.core.key('Space', false);
+    return f;
+  };
+
+  const coyote = landOneWay();
+  coyote.core.key('KeyA', true);
+  coyote.until(s => !s.player.grounded);
+  coyote.core.key('KeyA', false);
+  coyote.step(2); coyote.core.key('Space', true); coyote.step();
+  assert.equal(coyote.core.snapshot.player.jumps, 2);
+
+  const buffered = landOneWay();
+  buffered.core.key('KeyA', true);
+  buffered.until(s => !s.player.grounded);
+  buffered.core.key('KeyA', false);
+  buffered.until(s => s.player.y > 445 && s.player.vy > 0);
+  buffered.core.key('Space', true); buffered.core.key('Space', false);
+  buffered.until(s => s.player.jumps === 2 && s.player.vy < 0);
+
+  const down = landOneWay();
+  down.core.key('ArrowDown', true);
+  down.step(30);
+  assert.equal(down.core.snapshot.player.support, 'one-way-platform-a');
+  assert.ok(Math.abs(down.core.snapshot.player.y - 388) < 0.2);
+  down.core.key('Space', true); down.step();
+  assert.ok(down.core.snapshot.player.vy < 0);
+  assert.equal(down.core.snapshot.player.support, '');
+  assert.equal(down.world.oneWayCollisionEnabled, false);
+});
+
+test('P06 reset and pause do not retain one-way collision bypass or old support', () => {
+  const reset = fixture(1060);
+  reset.core.key('Space', true);
+  reset.until(s => s.player.y < 450 && s.player.vy < 0);
+  assert.equal(reset.world.oneWayCollisionEnabled, false);
+  reset.core.reset();
+  assert.equal(reset.world.oneWayCollisionEnabled, false);
+  assert.equal(reset.core.snapshot.player.grounded, false);
+  M.Body.setPosition(reset.world.player, { x: 1060, y: 472 });
+  reset.step(30);
+  reset.core.key('Space', false); reset.core.key('Space', true);
+  reset.until(s => s.player.support === 'one-way-platform-a');
+  assert.equal(reset.world.oneWayCollisionEnabled, true);
+
+  const paused = fixture(1060);
+  paused.core.key('Space', true);
+  paused.until(s => s.player.support === 'one-way-platform-a');
+  paused.core.key('Space', false);
+  const owner = Symbol(), token = paused.core.lifecycle.acquire(owner, Symbol());
+  const frozen = paused.core.snapshot;
+  paused.core.frame(60000);
+  assert.deepEqual(paused.core.snapshot, frozen);
+  paused.core.lifecycle.release(owner, token);
+  paused.core.frame(120000);
+  assert.equal(paused.core.snapshot.physicsSteps, frozen.physicsSteps);
+  paused.core.frame(120000 + paused.core.config.fixedDeltaMs);
+  assert.equal(paused.core.snapshot.physicsSteps, frozen.physicsSteps + 1);
+  assert.equal(paused.core.snapshot.player.support, 'one-way-platform-a');
+  assert.equal(paused.core.snapshot.player.grounded, true);
+  assert.equal(paused.core.snapshot.player.jumps, frozen.player.jumps);
+});
+
+test('D04 M01 horizontal and vertical platforms carry through multiple reversals without drift', () => {
+  for (const label of ['moving-horizontal-a', 'moving-vertical-a']) {
+    const moving = placeOnMovingPlatform(label);
+    const axis = moving.platform.axis;
+    const relative = () => axis === 'horizontal'
+      ? moving.core.snapshot.player.x - moving.world.movingPlatforms.find(item => item.label === label).x
+      : moving.core.snapshot.player.y - moving.world.movingPlatforms.find(item => item.label === label).y;
+    const startRelative = relative();
+    const period = axis === 'horizontal' ? 4000 : 3600;
+    const ticks = Math.ceil(period * 2.2 / moving.core.config.fixedDeltaMs);
+    let minPosition = Infinity, maxPosition = -Infinity, maxDrift = 0;
+    for (let i = 0; i < ticks; i++) {
+      moving.step();
+      const platform = moving.world.movingPlatforms.find(item => item.label === label);
+      assert.equal(moving.core.snapshot.player.support, label);
+      assert.equal(moving.core.snapshot.player.grounded, true);
+      const position = axis === 'horizontal' ? platform.x : platform.y;
+      minPosition = Math.min(minPosition, position);
+      maxPosition = Math.max(maxPosition, position);
+      maxDrift = Math.max(maxDrift, Math.abs(relative() - startRelative));
+    }
+    const platform = moving.world.movingPlatforms.find(item => item.label === label);
+    assert.ok(platform.cycle >= 2, JSON.stringify(platform));
+    assert.ok(maxPosition - minPosition > 60, JSON.stringify({ label, minPosition, maxPosition }));
+    assert.ok(maxDrift < 0.35, JSON.stringify({ label, startRelative, maxDrift, platform }));
+    const state = moving.core.snapshot.player;
+    assert.ok(Math.abs(state.vx) < 1 && Math.abs(state.vy) < 1);
+    if (axis === 'horizontal') {
+      assert.ok(Math.abs(Math.abs(state.supportVx) - 35) < 0.1);
+      assert.ok(Math.abs(state.worldVx - state.supportVx) < 0.1);
+    } else {
+      assert.ok(Math.abs(Math.abs(state.supportVy) - 50) < 0.1);
+      assert.ok(Math.abs(state.worldVy - state.supportVy) < 0.1);
+    }
+  }
+});
+
+test('D04 M02 player walking, braking, reversal and edge exit combine correctly with platform motion', () => {
+  const moving = placeOnMovingPlatform('moving-horizontal-a');
+  const relativeX = () => moving.core.snapshot.player.x - moving.world.movingPlatforms[0].x;
+  const start = relativeX();
+  moving.core.key('KeyD', true);
+  moving.step(6);
+  const moved = relativeX();
+  assert.ok(moved > start + 4, JSON.stringify({ start, moved }));
+  moving.core.key('KeyD', false);
+  moving.step(5);
+  const braked = moving.core.snapshot.player.vx;
+  assert.ok(Math.abs(braked) < 220);
+  moving.core.key('KeyA', true);
+  moving.step(8);
+  const reversed = relativeX();
+  assert.ok(reversed < moved, JSON.stringify({ moved, reversed }));
+  moving.core.key('KeyA', false);
+  moving.core.key('KeyD', true);
+  moving.until(s => !s.player.grounded, 120);
+  moving.core.key('KeyD', false);
+  assert.notEqual(moving.core.snapshot.player.support, 'moving-horizontal-a');
+});
+
+test('D04 M03 short and long jumps from a moving platform land again without auto-repeat', () => {
+  const jumpFromMovingPlatform = short => {
+    const moving = placeOnMovingPlatform('moving-horizontal-a');
+    const before = moving.core.snapshot.player.jumps;
+    moving.core.key('Space', true);
+    moving.step(short ? 2 : 1);
+    if (short) moving.core.key('Space', false);
+    let peakY = moving.core.snapshot.player.y;
+    for (let i = 0; i < 120; i++) {
+      moving.step();
+      peakY = Math.min(peakY, moving.core.snapshot.player.y);
+    }
+    assert.equal(moving.core.snapshot.player.grounded, true);
+    assert.equal(moving.core.snapshot.player.support, 'moving-horizontal-a');
+    assert.equal(moving.core.snapshot.player.jumps, before + 1);
+    return { peakY, moving };
+  };
+  const short = jumpFromMovingPlatform(true);
+  const long = jumpFromMovingPlatform(false);
+  assert.ok(short.peakY - long.peakY > 25, JSON.stringify({ short: short.peakY, long: long.peakY }));
+
+  const coyote = placeOnMovingPlatform('moving-horizontal-a');
+  coyote.core.key('KeyA', true);
+  coyote.until(s => !s.player.grounded, 120);
+  coyote.core.key('KeyA', false);
+  coyote.step(2);
+  coyote.core.key('Space', true);
+  coyote.step();
+  assert.equal(coyote.core.snapshot.player.jumps, 1);
+
+  const buffered = placeOnMovingPlatform('moving-horizontal-a');
+  buffered.core.key('KeyA', true);
+  buffered.until(s => !s.player.grounded, 120);
+  buffered.core.key('KeyA', false);
+  buffered.until(s => s.player.vy > 0 && s.player.y > 330, 120);
+  buffered.core.key('Space', true);
+  buffered.core.key('Space', false);
+  buffered.until(s => s.player.jumps === 1 && s.player.vy < 0, 20);
+});
+
+test('D04 M04 airborne, side and underside contacts never receive remote platform carry', () => {
+  const airborne = placeOnMovingPlatform('moving-horizontal-a');
+  airborne.core.key('Space', true);
+  airborne.step();
+  assert.equal(airborne.core.snapshot.player.support, '');
+  assert.equal(airborne.core.snapshot.player.supportVx, 0);
+  const takeoff = airborne.core.snapshot.player;
+  airborne.step(8);
+  const platform = airborne.world.movingPlatforms[0];
+  assert.ok(airborne.core.snapshot.player.x < platform.x, 'Platform must move under an airborne player without carrying them');
+  assert.ok(Math.abs(takeoff.vx) < 0.01, 'Prototype jumping does not inherit platform velocity');
+
+  const side = fixture();
+  const horizontal = side.world.movingPlatforms[0];
+  M.Body.setPosition(side.world.player, {
+    x: horizontal.x - horizontal.width / 2 - PLAYER_PROTOTYPE.width / 2 - 1, y: horizontal.y,
+  });
+  side.step(3);
+  assert.equal(side.core.snapshot.player.support, '');
+
+  const below = fixture();
+  const vertical = below.world.movingPlatforms[1];
+  M.Body.setPosition(below.world.player, {
+    x: vertical.x, y: vertical.y + vertical.height / 2 + PLAYER_PROTOTYPE.height / 2 + 2,
+  });
+  below.step(3);
+  assert.equal(below.core.snapshot.player.support, '');
+
+  const switched = placeOnMovingPlatform('moving-horizontal-a');
+  switched.core.key('KeyD', true);
+  switched.until(s => !s.player.grounded, 120);
+  switched.core.key('KeyD', false);
+  switched.until(s => s.player.grounded && s.player.support === 'upper-ground', 160);
+  switched.step(30);
+  const groundedX = switched.core.snapshot.player.x;
+  switched.step(60);
+  assert.equal(switched.core.snapshot.player.support, 'upper-ground');
+  assert.equal(switched.core.snapshot.player.supportVx, 0);
+  assert.ok(Math.abs(switched.core.snapshot.player.x - groundedX) < 1);
+});
+
+test('D04 M05 pause freezes platform route and bounded catch-up cannot add discarded travel', () => {
+  const moving = placeOnMovingPlatform('moving-vertical-a');
+  const beforePlatform = moving.world.movingPlatforms;
+  const owner = Symbol(), token = moving.core.lifecycle.acquire(owner, Symbol());
+  const frozen = moving.core.snapshot;
+  moving.core.frame(60000);
+  assert.deepEqual(moving.core.snapshot, frozen);
+  assert.deepEqual(moving.world.movingPlatforms, beforePlatform);
+  moving.core.lifecycle.release(owner, token);
+  moving.core.frame(120000);
+  assert.deepEqual(moving.world.movingPlatforms, beforePlatform);
+  const resumedAt = 120000 + moving.core.config.fixedDeltaMs;
+  moving.core.frame(resumedAt);
+  assert.equal(moving.core.snapshot.physicsSteps, frozen.physicsSteps + 1);
+  assert.ok(Math.abs(
+    moving.world.platformClockMs - (frozen.physicsSteps + 1) * moving.core.config.fixedDeltaMs,
+  ) < 0.001);
+  moving.core.frame(resumedAt + 10000);
+  const advanced = moving.core.snapshot.physicsSteps - frozen.physicsSteps;
+  assert.ok(advanced <= 1 + moving.core.config.maxStepsPerFrame);
+  assert.equal(moving.core.snapshot.player.support, 'moving-vertical-a');
+  assert.equal(moving.core.snapshot.player.jumps, frozen.player.jumps);
+});
+
+test('D04 M06 reset restores platform origin and clears carry state without resetting global Tick', () => {
+  const moving = placeOnMovingPlatform('moving-vertical-a');
+  moving.step(240);
+  assert.ok(moving.world.movingPlatforms[1].cycle >= 1);
+  const tickBeforeReset = moving.core.snapshot.tick;
+  moving.core.reset();
+  assert.equal(moving.core.snapshot.tick, tickBeforeReset);
+  assert.equal(moving.core.snapshot.player.x, 80);
+  assert.equal(moving.core.snapshot.player.support, '');
+  assert.equal(moving.world.platformClockMs, 0);
+  for (const [index, platform] of moving.world.movingPlatforms.entries()) {
+    assert.equal(platform.direction, index === 0 ? 1 : -1);
+    assert.equal(platform.cycle, 0);
+    assert.equal(platform.x, index === 0 ? 1710 : 1910);
+    assert.equal(platform.y, index === 0 ? 300 : 310);
+  }
+  const horizontal = moving.world.movingPlatforms[0];
+  M.Body.setPosition(moving.world.player, {
+    x: horizontal.x, y: horizontal.y - horizontal.height / 2 - PLAYER_PROTOTYPE.height / 2,
+  });
+  moving.step(2);
+  assert.equal(moving.core.snapshot.player.support, 'moving-horizontal-a');
 });

@@ -4,10 +4,18 @@ const poll = { polling: 'raf', timeout: 12000 };
 const sample = page => page.locator('#diagnostics').evaluate(element => {
   const data = element.dataset;
   return { tick: +data.tick, x: +data.x, y: +data.y, vx: +data.vx, vy: +data.vy,
+    worldVx: +data.worldVx, worldVy: +data.worldVy, supportVx: +data.supportVx, supportVy: +data.supportVy,
     grounded: data.grounded === 'true', jumps: +data.jumps, support: data.support,
     physicsSteps: +data.physicsSteps, physicsTime: +data.physicsTime, discarded: +data.discarded,
     paused: data.paused === 'true', tokens: +data.tokens, control: data.controlAllowed === 'true',
-    needsRelease: data.needsRelease === 'true' };
+    needsRelease: data.needsRelease === 'true', oneWayCollision: data.oneWayCollision === 'true',
+    platformClock: +data.platformClock,
+    movingHX: +data.movingHX, movingHY: +data.movingHY, movingHVx: +data.movingHVx,
+    movingHDirection: +data.movingHDirection, movingHPhase: +data.movingHPhase, movingHCycle: +data.movingHCycle,
+    movingVX: +data.movingVX, movingVY: +data.movingVY, movingVVy: +data.movingVVy,
+    movingVDirection: +data.movingVDirection, movingVPhase: +data.movingVPhase, movingVCycle: +data.movingVCycle,
+    supportRelativeX: data.supportRelativeX === '' ? null : +data.supportRelativeX,
+    supportRelativeY: data.supportRelativeY === '' ? null : +data.supportRelativeY };
 });
 
 export async function chooseScene(ctx, mode) {
@@ -46,7 +54,16 @@ export async function checkGraybox(ctx, record, capture) {
     const collect = () => {
       const d = document.querySelector('#diagnostics').dataset;
       window.__grayboxTrace.push({ x: +d.x, y: +d.y, vx: +d.vx, vy: +d.vy,
-        jumps: +d.jumps, wall: d.wall === 'true', ceiling: d.ceiling === 'true', grounded: d.grounded === 'true' });
+        worldVx: +d.worldVx, worldVy: +d.worldVy, supportVx: +d.supportVx, supportVy: +d.supportVy,
+        jumps: +d.jumps, wall: d.wall === 'true', ceiling: d.ceiling === 'true',
+        grounded: d.grounded === 'true', support: d.support,
+        oneWayCollision: d.oneWayCollision === 'true',
+        platformClock: +d.platformClock, movingHX: +d.movingHX, movingHY: +d.movingHY,
+        movingHVx: +d.movingHVx, movingHDirection: +d.movingHDirection,
+        movingVX: +d.movingVX, movingVY: +d.movingVY, movingVVy: +d.movingVVy,
+        movingVDirection: +d.movingVDirection,
+        supportRelativeX: d.supportRelativeX === '' ? null : +d.supportRelativeX,
+        supportRelativeY: d.supportRelativeY === '' ? null : +d.supportRelativeY });
       window.__grayboxTraceRAF = requestAnimationFrame(collect);
     };
     collect();
@@ -181,6 +198,372 @@ export async function checkGraybox(ctx, record, capture) {
     assert.ok(down.grounded && down.y > upper.y + 50);
     return { edgeX: edge.x, crossedX: crossed.x, stoppedX: stopped.x, idleDrift: idle.x - stopped.x,
       upperY: upper.y, downhillY: down.y };
+  });
+  const navigateToGroundBAt = async targetX => {
+    await reset();
+    await key('KeyD', true);
+    await page.waitForFunction(() => +document.querySelector('#diagnostics').dataset.x > 425, undefined, poll);
+    await key('Space', true);
+    await page.waitForFunction(() => +document.querySelector('#diagnostics').dataset.x > 600, undefined, poll);
+    await key('Space', false);
+    await page.waitForFunction(() => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return +d.x > 880 && d.grounded === 'false';
+    }, undefined, poll);
+    const edgeJumps = (await sample(page)).jumps;
+    await key('Space', true);
+    await page.waitForFunction(jumps => +document.querySelector('#diagnostics').dataset.jumps > jumps, edgeJumps, poll);
+    await page.waitForFunction(() => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return +d.x > 1030 && d.grounded === 'true';
+    }, undefined, poll);
+    await key('Space', false);
+    await page.waitForFunction(x => +document.querySelector('#diagnostics').dataset.x > x, targetX, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return d.grounded === 'true' && d.support === 'ground-b';
+    }, undefined, poll);
+  };
+  const navigateToUpperGroundAt = async targetX => {
+    await reset();
+    await key('KeyD', true);
+    await page.waitForFunction(() => +document.querySelector('#diagnostics').dataset.x > 425, undefined, poll);
+    await key('Space', true);
+    await page.waitForFunction(() => +document.querySelector('#diagnostics').dataset.x > 600, undefined, poll);
+    await key('Space', false);
+    await page.waitForFunction(() => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return +d.x > 880 && d.grounded === 'false';
+    }, undefined, poll);
+    const edgeJumps = (await sample(page)).jumps;
+    await key('Space', true);
+    await page.waitForFunction(jumps => +document.querySelector('#diagnostics').dataset.jumps > jumps, edgeJumps, poll);
+    await page.waitForFunction(() => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return +d.x > 1030 && d.grounded === 'true';
+    }, undefined, poll);
+    await key('Space', false);
+    await page.waitForFunction(x => +document.querySelector('#diagnostics').dataset.x > x, targetX, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return d.grounded === 'true' && d.support === 'upper-ground';
+    }, undefined, poll);
+  };
+  await run('P01-P06-solid-and-one-way-platforms', async () => {
+    await navigateToGroundBAt(1155);
+
+    const solidJump = (await sample(page)).jumps;
+    await traceStart();
+    await key('Space', true);
+    await page.waitForFunction(jumps => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return +d.jumps > jumps && +d.y < 460;
+    }, solidJump, poll);
+    await page.waitForFunction(() => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return d.grounded === 'true' && d.support === 'ground-b';
+    }, undefined, poll);
+    await key('Space', false);
+    const solidFrames = await traceStop();
+    const solidMinY = Math.min(...solidFrames.map(point => point.y));
+    assert.ok(solidMinY >= 429 && solidFrames.some(point => point.ceiling),
+      JSON.stringify({ solidMinY, ceilingFrames: solidFrames.filter(point => point.ceiling).length }));
+
+    await key('KeyA', true);
+    await page.waitForFunction(() => +document.querySelector('#diagnostics').dataset.x < 1080, undefined, poll);
+    await key('KeyA', false);
+    await page.waitForFunction(() => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return d.grounded === 'true' && d.support === 'ground-b';
+    }, undefined, poll);
+
+    const beforeShort = (await sample(page)).jumps;
+    await traceStart();
+    await key('Space', true);
+    await page.waitForTimeout(30);
+    await key('Space', false);
+    await page.waitForTimeout(900);
+    const shortFrames = await traceStop();
+    assert.equal((await sample(page)).jumps, beforeShort + 1);
+    assert.ok(Math.min(...shortFrames.map(point => point.y)) > 420);
+    assert.equal(shortFrames.some(point => point.support === 'one-way-platform-a'), false);
+
+    await traceStart();
+    await key('Space', true);
+    await page.waitForFunction(() => document.querySelector('#diagnostics').dataset.support === 'one-way-platform-a', undefined, poll);
+    const beforeHeld = await sample(page);
+    const oneWayFrames = await traceStop();
+    assert.equal(beforeHeld.oneWayCollision, true);
+    assert.equal(beforeHeld.grounded, true);
+    assert.equal(oneWayFrames.some(point => point.ceiling), false);
+    assert.ok(Math.min(...oneWayFrames.map(point => point.y)) < 388);
+    await page.waitForTimeout(400);
+    assert.equal((await sample(page)).jumps, beforeHeld.jumps, 'Held Space must not auto-repeat on a one-way platform');
+
+    await key('ArrowDown', true);
+    await page.waitForTimeout(180);
+    const downHeld = await sample(page);
+    await key('ArrowDown', false);
+    assert.equal(downHeld.support, 'one-way-platform-a');
+    assert.ok(Math.abs(downHeld.y - 388) < 2);
+
+    await ctx.hide();
+    await page.waitForFunction(() => document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics').dataset.paused === 'true', undefined, { polling: 100 });
+    const frozen = await sample(page);
+    assert.equal(frozen.control, false);
+    await page.waitForTimeout(500);
+    assert.deepEqual(await sample(page), frozen);
+    await page.evaluate(() => {
+      window.__oneWayResume = new Promise(resolve => {
+        const changed = () => {
+          if (document.visibilityState !== 'visible') return;
+          document.removeEventListener('visibilitychange', changed);
+          requestAnimationFrame(() => resolve({ ...document.querySelector('#diagnostics').dataset }));
+        };
+        document.addEventListener('visibilitychange', changed);
+      });
+    });
+    await ctx.show();
+    const resumed = await page.evaluate(() => window.__oneWayResume);
+    assert.ok(+resumed.tick - frozen.tick <= 5);
+    assert.equal(+resumed.discarded, frozen.discarded);
+    assert.equal(resumed.needsRelease, 'true');
+    assert.equal(resumed.support, 'one-way-platform-a');
+    await key('Space', true);
+    await page.waitForTimeout(500);
+    const recovered = await sample(page);
+    assert.equal(recovered.jumps, frozen.jumps);
+    assert.equal(recovered.support, 'one-way-platform-a');
+
+    await up();
+    await key('KeyD', true);
+    await key('Space', true);
+    await page.waitForTimeout(30);
+    await key('Space', false);
+    await page.waitForFunction(() => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return d.grounded === 'true' && d.support === 'solid-platform-b';
+    }, undefined, poll);
+    await key('KeyD', false);
+    const solidTop = await sample(page);
+    assert.ok(solidTop.y < 390 && solidTop.y > 365);
+
+    await up();
+    await key('Space', true);
+    await page.waitForFunction(() => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return +d.vy < 0 && +d.y < 360;
+    }, undefined, poll);
+    const crossingX = (await sample(page)).x;
+    await reset();
+    await page.waitForFunction(() => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return +d.x === 80 && d.oneWayCollision === 'false';
+    }, undefined, poll);
+    return { solidMinY, shortPeak: Math.min(...shortFrames.map(point => point.y)),
+      oneWayPeak: Math.min(...oneWayFrames.map(point => point.y)), frozenTick: frozen.tick,
+      resumedTick: +resumed.tick, solidTopY: solidTop.y, resetDuringCrossingX: crossingX };
+  });
+  await run('D04-M01-M04-moving-platform-carriage', async () => {
+    await navigateToUpperGroundAt(1835);
+    await page.waitForFunction(() => +document.querySelector('#diagnostics').dataset.movingHX < 1765, undefined, poll);
+    await key('KeyA', true);
+    await key('Space', true);
+    await page.waitForTimeout(450);
+    await key('KeyA', false);
+    await page.waitForFunction(() => document.querySelector('#diagnostics').dataset.support === 'moving-horizontal-a',
+      undefined, poll);
+    await key('Space', false);
+    await page.waitForFunction(() => Math.abs(+document.querySelector('#diagnostics').dataset.vx) < 1 &&
+      document.querySelector('#diagnostics').dataset.support === 'moving-horizontal-a', undefined, poll);
+    const horizontalLanded = await sample(page);
+    assert.equal(horizontalLanded.grounded, true);
+    assert.ok(Math.abs(horizontalLanded.supportRelativeX) < 45);
+    assert.ok(Math.abs(horizontalLanded.supportRelativeY + 31) < 1);
+    assert.ok(Math.abs(horizontalLanded.worldVx - horizontalLanded.supportVx) < 1);
+
+    await page.waitForTimeout(700);
+    const horizontalCarried = await sample(page);
+    assert.equal(horizontalCarried.support, 'moving-horizontal-a');
+    assert.ok(Math.abs(horizontalCarried.supportRelativeX - horizontalLanded.supportRelativeX) < 0.6);
+    assert.ok(horizontalCarried.platformClock > horizontalLanded.platformClock);
+    await capture('D04-horizontal-carriage', true);
+
+    const relativeBeforeWalk = horizontalCarried.supportRelativeX;
+    await key('KeyA', true);
+    await page.waitForTimeout(200);
+    await key('KeyA', false);
+    await page.waitForFunction(() => Math.abs(+document.querySelector('#diagnostics').dataset.vx) < 1 &&
+      document.querySelector('#diagnostics').dataset.support === 'moving-horizontal-a', undefined, poll);
+    const walkedLeft = await sample(page);
+    assert.equal(walkedLeft.support, 'moving-horizontal-a');
+    assert.ok(walkedLeft.supportRelativeX < relativeBeforeWalk - 2);
+    await key('KeyD', true);
+    await page.waitForTimeout(120);
+    await key('KeyD', false);
+    await page.waitForFunction(() => Math.abs(+document.querySelector('#diagnostics').dataset.vx) < 1 &&
+      document.querySelector('#diagnostics').dataset.support === 'moving-horizontal-a', undefined, poll);
+    const walkedRight = await sample(page);
+    assert.equal(walkedRight.support, 'moving-horizontal-a');
+    assert.ok(walkedRight.supportRelativeX > walkedLeft.supportRelativeX + 2);
+    await key('KeyA', true);
+    await page.waitForTimeout(100);
+    await key('KeyA', false);
+    await page.waitForFunction(() => Math.abs(+document.querySelector('#diagnostics').dataset.vx) < 1 &&
+      document.querySelector('#diagnostics').dataset.support === 'moving-horizontal-a', undefined, poll);
+    const reversedWalk = await sample(page);
+    assert.equal(reversedWalk.support, 'moving-horizontal-a');
+    assert.ok(reversedWalk.supportRelativeX < walkedRight.supportRelativeX);
+
+    const horizontalJumpBefore = reversedWalk.jumps;
+    await traceStart();
+    await key('Space', true);
+    await page.waitForFunction(jumps => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return +d.jumps > jumps && d.grounded === 'false';
+    }, horizontalJumpBefore, poll);
+    const horizontalAir = await sample(page);
+    assert.equal(horizontalAir.support, '');
+    assert.ok(Math.abs(horizontalAir.worldVx - horizontalAir.supportVx) < 1,
+      'Airborne player must not inherit horizontal platform velocity');
+    await key('Space', false);
+    await page.waitForFunction(() => document.querySelector('#diagnostics').dataset.support === 'moving-horizontal-a',
+      undefined, poll);
+    const horizontalJumped = await sample(page);
+    const horizontalJumpFrames = await traceStop();
+    assert.equal(horizontalJumped.jumps, horizontalJumpBefore + 1);
+    const relativeBeforeReversal = horizontalJumped.supportRelativeX;
+    const horizontalDirection = horizontalJumped.movingHDirection;
+    await page.waitForFunction(direction =>
+      +document.querySelector('#diagnostics').dataset.movingHDirection !== direction,
+    horizontalDirection, { polling: 100, timeout: 6000 });
+    const horizontalReversed = await sample(page);
+    assert.equal(horizontalReversed.support, 'moving-horizontal-a');
+    assert.ok(Math.abs(horizontalReversed.supportRelativeX - relativeBeforeReversal) < 0.7);
+
+    await navigateToUpperGroundAt(1835);
+    await page.waitForFunction(() => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return +d.movingVY > 302 && +d.movingVDirection === 1;
+    }, undefined, poll);
+    await key('KeyD', true);
+    await key('Space', true);
+    await page.waitForTimeout(500);
+    await key('KeyD', false);
+    await page.waitForFunction(() => document.querySelector('#diagnostics').dataset.support === 'moving-vertical-a',
+      undefined, poll);
+    await key('Space', false);
+    await page.waitForFunction(() => Math.abs(+document.querySelector('#diagnostics').dataset.vx) < 1 &&
+      document.querySelector('#diagnostics').dataset.support === 'moving-vertical-a', undefined, poll);
+    const verticalLanded = await sample(page);
+    assert.equal(verticalLanded.grounded, true);
+    assert.ok(Math.abs(verticalLanded.supportRelativeY + 31) < 1);
+    await page.waitForTimeout(700);
+    const verticalCarried = await sample(page);
+    assert.equal(verticalCarried.support, 'moving-vertical-a');
+    assert.ok(Math.abs(verticalCarried.supportRelativeY - verticalLanded.supportRelativeY) < 0.7);
+    assert.ok(Math.abs(verticalCarried.worldVy - verticalCarried.supportVy) < 1);
+    await capture('D04-vertical-carriage', true);
+
+    const verticalDirection = verticalCarried.movingVDirection;
+    await page.waitForFunction(direction =>
+      +document.querySelector('#diagnostics').dataset.movingVDirection !== direction,
+    verticalDirection, { polling: 100, timeout: 6000 });
+    const verticalReversed = await sample(page);
+    assert.equal(verticalReversed.support, 'moving-vertical-a');
+    assert.ok(Math.abs(verticalReversed.supportRelativeY - verticalCarried.supportRelativeY) < 0.7);
+
+    const verticalJumpBefore = verticalReversed.jumps;
+    await traceStart();
+    await key('Space', true);
+    await page.waitForFunction(jumps => {
+      const d = document.querySelector('#diagnostics').dataset;
+      return +d.jumps > jumps && d.grounded === 'false';
+    }, verticalJumpBefore, poll);
+    await key('Space', false);
+    await page.waitForFunction(() => document.querySelector('#diagnostics').dataset.support === 'moving-vertical-a',
+      undefined, poll);
+    const verticalJumped = await sample(page);
+    const verticalJumpFrames = await traceStop();
+    assert.equal(verticalJumped.jumps, verticalJumpBefore + 1);
+    await up();
+    return {
+      horizontal: { support: horizontalReversed.support, x: horizontalReversed.movingHX,
+        y: horizontalReversed.movingHY, phase: horizontalReversed.movingHPhase,
+        direction: horizontalReversed.movingHDirection, cycle: horizontalReversed.movingHCycle,
+        relativeX: horizontalReversed.supportRelativeX },
+      vertical: { support: verticalReversed.support, x: verticalReversed.movingVX,
+        y: verticalReversed.movingVY, phase: verticalReversed.movingVPhase,
+        direction: verticalReversed.movingVDirection, cycle: verticalReversed.movingVCycle,
+        relativeY: verticalReversed.supportRelativeY },
+      horizontalJumpPeakY: Math.min(...horizontalJumpFrames.map(point => point.y)),
+      horizontalJumpCount: horizontalJumped.jumps,
+      verticalJumpPeakY: Math.min(...verticalJumpFrames.map(point => point.y)),
+      verticalJumpCount: verticalJumped.jumps,
+      airborneSupportVelocity: { horizontal: horizontalAir.supportVx, vertical: verticalCarried.supportVy },
+      platformClock: verticalJumped.platformClock,
+    };
+  });
+  await run('D04-M05-M06-platform-pause-reset', async () => {
+    await navigateToUpperGroundAt(1835);
+    await page.waitForFunction(() => +document.querySelector('#diagnostics').dataset.movingHX < 1765, undefined, poll);
+    await key('KeyA', true);
+    await key('Space', true);
+    await page.waitForTimeout(450);
+    await key('KeyA', false);
+    await page.waitForFunction(() => document.querySelector('#diagnostics').dataset.support === 'moving-horizontal-a',
+      undefined, poll);
+    await key('Space', false);
+    const before = await sample(page);
+    await ctx.hide();
+    await page.waitForFunction(() => document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics').dataset.paused === 'true', undefined, { polling: 100 });
+    const frozen = await sample(page);
+    assert.equal(frozen.control, false);
+    await page.waitForTimeout(1200);
+    assert.deepEqual(await sample(page), frozen);
+    await page.evaluate(() => {
+      window.__movingPlatformResume = new Promise(resolve => {
+        const changed = () => {
+          if (document.visibilityState !== 'visible') return;
+          document.removeEventListener('visibilitychange', changed);
+          requestAnimationFrame(() => resolve({ ...document.querySelector('#diagnostics').dataset }));
+        };
+        document.addEventListener('visibilitychange', changed);
+      });
+    });
+    await ctx.show();
+    const resumed = await page.evaluate(() => window.__movingPlatformResume);
+    assert.ok(+resumed.tick - frozen.tick <= 5);
+    assert.ok(Math.abs(
+      +resumed.platformClock - frozen.platformClock -
+      (+resumed.physicsSteps - frozen.physicsSteps) * (1000 / 60),
+    ) < 0.01);
+    assert.equal(resumed.needsRelease, 'true');
+    assert.equal(resumed.support, 'moving-horizontal-a');
+    await key('Space', true);
+    await page.waitForTimeout(500);
+    const held = await sample(page);
+    assert.equal(held.jumps, frozen.jumps);
+    assert.equal(held.support, 'moving-horizontal-a');
+    await up();
+
+    const tickBeforeReset = held.tick;
+    await reset();
+    const resetState = await sample(page);
+    assert.equal(resetState.tick, tickBeforeReset);
+    assert.equal(resetState.x, 80);
+    assert.ok(resetState.platformClock < 700);
+    assert.ok(resetState.movingHX >= 1710 && resetState.movingHX < 1735);
+    assert.equal(resetState.movingHY, 300);
+    assert.equal(resetState.movingVX, 1910);
+    assert.ok(resetState.movingVY <= 310 && resetState.movingVY > 280);
+    return { frozenTick: frozen.tick, resumedTick: +resumed.tick, frozenPlatformClock: frozen.platformClock,
+      resumedPlatformClock: +resumed.platformClock, resetTick: resetState.tick, heldJumpCount: held.jumps,
+      beforePlatformClock: before.platformClock };
   });
   await run('pause-input-release-and-physics-clock', async () => {
     await reset(); await key('Space', true); await key('KeyD', true);

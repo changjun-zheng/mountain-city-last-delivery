@@ -39,7 +39,7 @@ try {
   browserResolutionError = error;
 }
 const report = {
-  task: 'D01-R2', startedAt: new Date().toISOString(), evidenceDir, injection,
+  task: 'D04', startedAt: new Date().toISOString(), evidenceDir, injection,
   commandLine: cliArgs,
   runtime: { node: process.version, platform: process.platform, arch: process.arch },
   browser: {

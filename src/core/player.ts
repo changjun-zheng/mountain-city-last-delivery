@@ -7,6 +7,7 @@ export const PLAYER_PROTOTYPE = Object.freeze({
 
 export type PlayerState = Readonly<{
   x: number; y: number; vx: number; vy: number;
+  worldVx: number; worldVy: number; supportVx: number; supportVy: number;
   grounded: boolean; normalX: number; normalY: number; support: string;
   wall: boolean; ceiling: boolean;
 }>;

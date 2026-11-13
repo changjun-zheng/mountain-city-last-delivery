@@ -11,16 +11,73 @@ export type MatterLibrary = {
 type Pair = { isActive: boolean; isSensor: boolean; bodyA: MatterJS.BodyType; bodyB: MatterJS.BodyType;
   collision: { normal: { x: number; y: number } } };
 export const GRAYBOX_SIZE = { width: 2000, height: 680 };
+export const ONE_WAY_PLATFORM: Readonly<{
+  label: string; x: number; y: number; width: number; height: number;
+}> = Object.freeze({ label: 'one-way-platform-a', x: 1075, y: 419, width: 70, height: 18 });
+export type MovingPlatformSnapshot = Readonly<{
+  label: string; axis: 'horizontal' | 'vertical';
+  x: number; y: number; width: number; height: number;
+  vx: number; vy: number; direction: -1 | 1; phase: number; cycle: number;
+}>;
+export type MatterGrayboxDiagnostics = Readonly<{
+  oneWayCollisionEnabled: boolean;
+  platformClockMs: number;
+  movingPlatforms: readonly MovingPlatformSnapshot[];
+  supportRelativeX: number | null;
+  supportRelativeY: number | null;
+}>;
+
+const PLAYER_CATEGORY = 0x0002;
+const ONE_WAY_CATEGORY = 0x0004;
+// Matter contact slop can leave the body about 2 px inside the top face on the first supported tick.
+const TOP_TOLERANCE_PX = 4;
+const MOTION_EPSILON = 0.01;
+const MOVING_PLATFORM_PROTOTYPES = Object.freeze([
+  Object.freeze({
+    label: 'moving-horizontal-a', axis: 'horizontal' as const, width: 100, height: 18,
+    fromX: 1710, toX: 1780, fromY: 300, toY: 300, periodMs: 4000, phaseOffsetMs: 0,
+  }),
+  Object.freeze({
+    label: 'moving-vertical-a', axis: 'vertical' as const, width: 72, height: 18,
+    fromX: 1910, toX: 1910, fromY: 310, toY: 220, periodMs: 3600, phaseOffsetMs: 0,
+  }),
+]);
+
+type OneWayState = {
+  body: MatterJS.BodyType;
+  top: number;
+  passThrough: boolean;
+  collisionEnabled: boolean;
+};
+type MovingPlatformRuntime = {
+  readonly definition: (typeof MOVING_PLATFORM_PROTOTYPES)[number];
+  readonly body: MatterJS.BodyType;
+  deltaX: number;
+  deltaY: number;
+  vx: number;
+  vy: number;
+  direction: -1 | 1;
+  phase: number;
+  cycle: number;
+};
 
 export class MatterGrayboxWorld implements GrayboxPhysics {
   readonly terrain: MatterJS.BodyType[] = [];
   readonly player: MatterJS.BodyType;
   readonly foot: MatterJS.BodyType;
+  readonly oneWayPlatform: MatterJS.BodyType;
   readonly #matter: MatterLibrary;
   readonly #engine: MatterJS.Engine;
   readonly #advance: (deltaMs: number) => void;
   readonly #gravity: { x: number; y: number; scale: number };
+  readonly #oneWay: OneWayState;
+  readonly #movingPlatforms: MovingPlatformRuntime[];
+  readonly #movingByLabel: Map<string, MovingPlatformRuntime>;
+  #platformClockMs = 0;
+  #driveVelocity = { x: 0, y: 0 };
+  #carriedBy?: MovingPlatformRuntime;
   #state: PlayerState = { x: 80, y: 472, vx: 0, vy: 0, grounded: false,
+    worldVx: 0, worldVy: 0, supportVx: 0, supportVy: 0,
     normalX: 0, normalY: -1, support: '', wall: false, ceiling: false };
   #steps = 0;
 
@@ -45,6 +102,31 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     rectangle(290, 415, 200, 30, 'low-ceiling');
     rectangle(745, 409, 90, 18, 'solid-platform-a');
     rectangle(1155, 399, 90, 18, 'solid-platform-b');
+    this.oneWayPlatform = matter.Bodies.rectangle(
+      ONE_WAY_PLATFORM.x, ONE_WAY_PLATFORM.y, ONE_WAY_PLATFORM.width, ONE_WAY_PLATFORM.height,
+      {
+        isStatic: true, friction: 1, label: ONE_WAY_PLATFORM.label,
+        collisionFilter: { category: ONE_WAY_CATEGORY, mask: 0, group: 0 },
+      },
+    );
+    this.terrain.push(this.oneWayPlatform);
+    this.#oneWay = {
+      body: this.oneWayPlatform,
+      top: this.oneWayPlatform.bounds.min.y,
+      passThrough: false,
+      collisionEnabled: false,
+    };
+    this.#movingPlatforms = MOVING_PLATFORM_PROTOTYPES.map(definition => {
+      const body = matter.Bodies.rectangle(
+        definition.fromX, definition.fromY, definition.width, definition.height,
+        { isStatic: true, friction: 1, label: definition.label },
+      );
+      return {
+        definition, body, deltaX: 0, deltaY: 0, vx: 0, vy: 0,
+        direction: 1, phase: 0, cycle: 0,
+      };
+    });
+    this.#movingByLabel = new Map(this.#movingPlatforms.map(platform => [platform.definition.label, platform]));
     const slope = matter.Bodies.fromVertices(0, 0, [[
       { x: 0, y: 120 }, { x: 300, y: 0 }, { x: 300, y: 180 }, { x: 0, y: 180 },
     ]], { isStatic: true, friction: 1, label: 'continuous-slope' });
@@ -52,33 +134,56 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     this.terrain.push(slope);
     this.player = matter.Bodies.rectangle(80, 472, PLAYER_PROTOTYPE.width, PLAYER_PROTOTYPE.height, {
       label: 'player', friction: 0, frictionStatic: 2, frictionAir: 0, restitution: 0,
-      chamfer: { radius: 3 },
+      chamfer: { radius: 3 }, collisionFilter: { category: PLAYER_CATEGORY, mask: -1, group: 0 },
     });
     matter.Body.setInertia(this.player, Infinity);
-    this.foot = matter.Bodies.rectangle(80, 496, 22, 8, { isSensor: true, isStatic: true, label: 'foot-region' });
+    this.foot = matter.Bodies.rectangle(80, 496, 22, 8, {
+      isSensor: true, isStatic: true, label: 'foot-region',
+      collisionFilter: { category: PLAYER_CATEGORY, mask: -1, group: 0 },
+    });
     // The sensor is a query-only independent region: it never blocks or changes player mass.
-    for (const body of [...this.terrain, this.player]) {
+    for (const body of [...this.terrain, ...this.#movingPlatforms.map(platform => platform.body), this.player]) {
       matter.Composite.add(engine.world as unknown as MatterJS.CompositeType, body);
     }
   }
 
   drive(vx: number, vy: number): void {
+    this.#driveVelocity = { x: vx, y: vy };
     this.player.friction = this.#state.grounded && Math.abs(vx) < 0.01 ? 1 : 0;
     if (this.#state.support === 'continuous-slope' && Math.abs(vx) < 0.01 && Math.abs(vy) < 0.01) {
       // Prototype static-support anti-slide: counter gravity only after validated contact.
       // Engine collision detection still runs; air, moving input and jumping never use this.
       this.player.force.y -= this.player.mass * this.#gravity.y * this.#gravity.scale;
     }
-    this.#matter.Body.setVelocity(this.player, { x: vx / 60, y: vy / 60 });
   }
 
   step(deltaMs: number): void {
+    const previousSupport = this.#movingByLabel.get(this.#state.support);
+    this.#advanceMovingPlatforms(deltaMs);
+    this.#matter.Body.setVelocity(this.player, {
+      x: this.#driveVelocity.x / 60, y: this.#driveVelocity.y / 60,
+    });
+    this.#carriedBy = undefined;
+    // Prototype choice: moving supports carry position, but jumping inherits no extra velocity.
+    if (previousSupport && this.player.velocity.y >= -MOTION_EPSILON) {
+      this.#matter.Body.setPosition(this.player, {
+        x: this.player.position.x + previousSupport.deltaX,
+        y: this.player.position.y + previousSupport.deltaY,
+      });
+      this.#carriedBy = previousSupport;
+    }
+    this.#updateOneWayCollision();
     this.#advance(deltaMs);
     this.#steps++;
     const body = this.player;
     this.#matter.Body.setPosition(this.foot, { x: body.position.x, y: body.position.y + PLAYER_PROTOTYPE.height / 2 + 1 });
-    const candidates = new Set(this.#matter.Query.collides(this.foot, this.terrain).map(c => c.bodyA === this.foot ? c.bodyB : c.bodyA));
+    const candidates = new Set(this.#matter.Query.collides(
+      this.foot, [...this.terrain, ...this.#movingPlatforms.map(platform => platform.body)],
+    ).map(c => c.bodyA === this.foot ? c.bodyB : c.bodyA));
+    const carriedVx = this.#carriedBy ? this.#carriedBy.deltaX * 1000 / deltaMs : 0;
+    const carriedVy = this.#carriedBy ? this.#carriedBy.deltaY * 1000 / deltaMs : 0;
     let support = '', normalX = 0, normalY = -1, wall = false, ceiling = false;
+    let supportVx = 0, supportVy = 0;
     for (const pair of this.#engine.pairs.list as Pair[]) {
       if (!pair.isActive || pair.isSensor || (pair.bodyA !== body && pair.bodyB !== body)) continue;
       const other = pair.bodyA === body ? pair.bodyB : pair.bodyA;
@@ -87,15 +192,23 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       if (Math.abs(nx) > 0.7) wall = true;
       if (ny > 0.65) ceiling = true;
       // Tangential ascent has negative world-Y velocity but is still supported.
-      const separatingSpeed = (body.velocity.x * nx + body.velocity.y * ny) * 60;
+      const moving = this.#movingByLabel.get(other.label);
+      const otherVx = moving?.vx ?? 0, otherVy = moving?.vy ?? 0;
+      const playerVx = body.velocity.x * 60 + carriedVx;
+      const playerVy = body.velocity.y * 60 + carriedVy;
+      const separatingSpeed = (playerVx - otherVx) * nx + (playerVy - otherVy) * ny;
       if (candidates.has(other) && ny < -0.65 && separatingSpeed <= 40) {
         support = other.label;
         normalX = nx;
         normalY = ny;
+        supportVx = otherVx;
+        supportVy = otherVy;
       }
     }
-    this.#state = { x: body.position.x, y: body.position.y, vx: body.velocity.x * 60,
-      vy: body.velocity.y * 60, grounded: Boolean(support), normalX, normalY, support, wall, ceiling };
+    const vx = body.velocity.x * 60, vy = body.velocity.y * 60;
+    this.#state = { x: body.position.x, y: body.position.y, vx, vy,
+      worldVx: vx + carriedVx, worldVy: vy + carriedVy,
+      supportVx, supportVy, grounded: Boolean(support), normalX, normalY, support, wall, ceiling };
   }
 
   reset(): void {
@@ -110,10 +223,114 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     m.Engine.clear(this.#engine);
     // Engine.clear also empties the broadphase detector. Rebuild it on the next step.
     m.Composite.setModified(this.#engine.world as unknown as MatterJS.CompositeType, true, false, true);
-    this.#state = { x: 80, y: 472, vx: 0, vy: 0, grounded: false,
+    this.#oneWay.passThrough = false;
+    this.#setOneWayCollision(false);
+    this.#platformClockMs = 0;
+    this.#driveVelocity = { x: 0, y: 0 };
+    this.#carriedBy = undefined;
+    for (const platform of this.#movingPlatforms) {
+      m.Body.setPosition(platform.body, { x: platform.definition.fromX, y: platform.definition.fromY });
+      m.Body.setVelocity(platform.body, { x: 0, y: 0 });
+      platform.deltaX = platform.deltaY = platform.vx = platform.vy = 0;
+      const definition = platform.definition;
+      const phase = (definition.phaseOffsetMs % definition.periodMs) / definition.periodMs;
+      const outward = phase < 0.5;
+      const outwardDirection = definition.axis === 'horizontal'
+        ? Math.sign(definition.toX - definition.fromX)
+        : Math.sign(definition.toY - definition.fromY);
+      platform.direction = (outward ? outwardDirection : -outwardDirection) as -1 | 1;
+      platform.phase = phase;
+      platform.cycle = 0;
+    }
+    this.#state = { x: 80, y: 472, vx: 0, vy: 0,
+      worldVx: 0, worldVy: 0, supportVx: 0, supportVy: 0, grounded: false,
       normalX: 0, normalY: -1, support: '', wall: false, ceiling: false };
   }
   get state(): PlayerState { return this.#state; }
   get steps(): number { return this.#steps; }
   get timestamp(): number { return this.#engine.timing.timestamp; }
+  get oneWayCollisionEnabled(): boolean { return this.#oneWay.collisionEnabled; }
+  get platformClockMs(): number { return this.#platformClockMs; }
+  get movingPlatforms(): readonly MovingPlatformSnapshot[] {
+    return this.#movingPlatforms.map(platform => ({
+      label: platform.definition.label,
+      axis: platform.definition.axis,
+      x: platform.body.position.x,
+      y: platform.body.position.y,
+      width: platform.definition.width,
+      height: platform.definition.height,
+      vx: platform.vx,
+      vy: platform.vy,
+      direction: platform.direction,
+      phase: platform.phase,
+      cycle: platform.cycle,
+    }));
+  }
+  get diagnostics(): MatterGrayboxDiagnostics {
+    const support = this.#movingByLabel.get(this.#state.support);
+    return {
+      oneWayCollisionEnabled: this.#oneWay.collisionEnabled,
+      platformClockMs: this.#platformClockMs,
+      movingPlatforms: this.movingPlatforms,
+      supportRelativeX: support ? this.#state.x - support.body.position.x : null,
+      supportRelativeY: support ? this.#state.y - support.body.position.y : null,
+    };
+  }
+
+  #updateOneWayCollision(): void {
+    const bodyBottom = this.player.bounds.max.y;
+    const rising = this.player.velocity.y < -MOTION_EPSILON;
+    if (rising) this.#oneWay.passThrough = true;
+
+    if (this.#oneWay.passThrough && bodyBottom > this.#oneWay.top - TOP_TOLERANCE_PX) {
+      this.#setOneWayCollision(false);
+      return;
+    }
+
+    if (bodyBottom <= this.#oneWay.top - TOP_TOLERANCE_PX) {
+      // The whole player body has cleared the top face. Collision may resume only while descending.
+      this.#oneWay.passThrough = false;
+    }
+    const descending = this.player.velocity.y >= -MOTION_EPSILON;
+    const aboveTop = bodyBottom <= this.#oneWay.top + TOP_TOLERANCE_PX;
+    this.#setOneWayCollision(!this.#oneWay.passThrough && descending && aboveTop);
+  }
+
+  #setOneWayCollision(enabled: boolean): void {
+    if (this.#oneWay.collisionEnabled === enabled) return;
+    this.#oneWay.collisionEnabled = enabled;
+    this.#oneWay.body.collisionFilter.mask = enabled ? PLAYER_CATEGORY : 0;
+    this.#matter.Composite.setModified(
+      this.#engine.world as unknown as MatterJS.CompositeType, true, false, true,
+    );
+  }
+
+  #advanceMovingPlatforms(deltaMs: number): void {
+    this.#platformClockMs += deltaMs;
+    for (const platform of this.#movingPlatforms) {
+      const d = platform.definition;
+      const elapsed = this.#platformClockMs + d.phaseOffsetMs;
+      const phase = (elapsed % d.periodMs) / d.periodMs;
+      const outward = phase < 0.5;
+      const triangle = outward ? phase * 2 : (1 - phase) * 2;
+      const x = d.fromX + (d.toX - d.fromX) * triangle;
+      const y = d.fromY + (d.toY - d.fromY) * triangle;
+      const deltaX = x - platform.body.position.x;
+      const deltaY = y - platform.body.position.y;
+      this.#matter.Body.setPosition(platform.body, { x, y });
+      platform.deltaX = deltaX;
+      platform.deltaY = deltaY;
+      platform.vx = deltaX * 1000 / deltaMs;
+      platform.vy = deltaY * 1000 / deltaMs;
+      const outwardDirection = d.axis === 'horizontal'
+        ? Math.sign(d.toX - d.fromX)
+        : Math.sign(d.toY - d.fromY);
+      platform.direction = (outward ? outwardDirection : -outwardDirection) as -1 | 1;
+      platform.phase = phase;
+      platform.cycle = Math.floor(elapsed / d.periodMs);
+    }
+    this.#matter.Composite.setModified(
+      this.#engine.world as unknown as MatterJS.CompositeType, true, false, true,
+    );
+  }
 }
