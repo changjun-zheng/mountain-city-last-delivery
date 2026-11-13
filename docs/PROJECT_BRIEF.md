@@ -214,6 +214,20 @@ D01–D06 全部 PASS，原 81 项语义保留；`npm.cmd test` 为 `87/87` PASS
 
 旧测试接收替身与真实交付路径互斥并保持明确区分。E01–E06 全部 PASS，原 87 项测试保留，`npm.cmd test` 为 `94/94` PASS，类型检查与生产构建通过。Accepted 仍只表示目标接收，intent 保持 `not-started`，业务执行数为 `0`；真实游戏事务、最终结果事件、宿主接线、检查点、存档和 GUI／三端业务链均不属于本段，仍为 NOT RUN。详细证据见 [README](../README.md#d09-b2真实交付分类与-unknown-核查核心)和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-b2-执行结果)。当前等待 Work 审查，不进入后续任务。
 
+### D09-B2 Work 审查与 D09-C1 任务
+
+2026-11-13：Work 按 `d954e24` 核对真实命令交付、Unknown 按原 Command ID 核查、显式重试和身份验证，四个源码／测试哈希匹配报告，本轮重跑类型检查、Electron Main 编译及 94/94 测试 PASS，未重跑构建或 GUI。D09-B2 按核心联调范围收口，事务仍未执行，宿主未接入。
+
+下一项 D09-C1 从已提交意图启动最小事务，使用 D08 进度模块验证测试业务及幂等重试，由目标 Transaction Manager 统一判断中间错误、合法恢复路径和 Succeeded／Failed 两种终态。接收意图与运行状态分离，事务已执行后原命令查询仍需确认 Accepted；原事件 Completed／退役不能重开或替换事务身份。仅核心组合测试启用，不改现有灰盒交互或接宿主，最终结果事件留到下一段，范围与 F01–F06 见[路线图当前任务](DEVELOPMENT_ROADMAP.md#7-当前任务与持续记录)。
+
+### D09-C1 工程执行状态
+
+2026-11-13：D09-C1 已在纯核心完成最小事务执行。`RuntimeTransactionExecutionManager` 从真实目标 `query(Command ID)` 返回的 Accepted record／intent 启动一次执行，原 creation intent 保持 `not-started`，运行状态另存并始终沿用原 Runtime／Event／Command／Transaction／target 关联。固定阶段为 `apply → verify`，只接受严格递增的 SimulationTick；F01 在两个 Tick 内通过 D08 `InMemoryRunProgress` 一次登记目标、奖励和永久效果，并进入 Succeeded。
+
+重试与恢复由 Manager 独占判断。暂时应用错误在无业务新增时可进入 retry-pending；业务写入后异常、核查失败或终态提交中断进入 recovery-pending，并固定从 verify 安全继续，不重复 apply。已观察业务效果但没有恢复路径时直接 Failed，不会使用 retry 重写；只有无合法重试／安全恢复路径才由 Manager 判定最终失败。终态不可重开，重复启动、接受命令、事件退役或后续操作都不能建立第二个事务身份。F05 证明原事件 Unknown 与事务 Succeeded 相互独立，事务完成不会自动改写事件，后续仍按原 Command ID 查询并完成。
+
+F01–F06 全部 PASS，原 94 项语义保留，`npm.cmd test` 为 `100/100` PASS；类型检查与 Windows 生产构建 PASS。该模块尚未接灰盒或宿主，GUI／三端事务、最终结果事件、检查点、存档和正式业务均为 NOT RUN；Matter 仍为候选，ASAR／EXE 未变化不能解释为宿主已运行新事务。当前等待 Work 审查，不自动进入下一任务，不 Commit／Push／发布。详细证据见 [README](../README.md#d09-c1最小事务执行与终态判定核心)和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-c1-执行结果)。
+
 ## 已确认的游戏设计方向
 
 确认日期：2026-11-06；依据：项目负责人本次明确指示。
