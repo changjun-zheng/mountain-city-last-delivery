@@ -161,6 +161,7 @@ export type RuntimeEventContextOptions = Readonly<{
 export type EventCreationRejectionReason =
   | 'invalid-request'
   | 'unsupported-event-type'
+  | 'reserved-event-type'
   | 'invalid-payload'
   | 'invalid-producer'
   | 'inbox-capacity'
@@ -750,7 +751,11 @@ type NormalizedRequest =
   | Readonly<{ ok: true; type: string; payload: EventPayload }>
   | Readonly<{
     ok: false;
-    reason: 'invalid-request' | 'unsupported-event-type' | 'invalid-payload';
+    reason:
+      | 'invalid-request'
+      | 'unsupported-event-type'
+      | 'reserved-event-type'
+      | 'invalid-payload';
     message: string;
   }>;
 
@@ -1117,10 +1122,13 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
         normalized.request,
       );
       const payload = transactionResultPayload(association);
-      const eventNormalization = this.#normalize({
-        type: TRANSACTION_RESULT_EVENT_TYPE,
-        payload,
-      });
+      const eventNormalization = this.#normalize(
+        {
+          type: TRANSACTION_RESULT_EVENT_TYPE,
+          payload,
+        },
+        true,
+      );
       if (!eventNormalization.ok) {
         return rejectedTransactionResult(
           eventNormalization.reason === 'unsupported-event-type'
@@ -1994,7 +2002,17 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
           completedEventIds,
         );
       }
-      if (current.transactionResult) {
+      if (event.type === TRANSACTION_RESULT_EVENT_TYPE ||
+          current.transactionResult) {
+        if (!current.transactionResult) {
+          return this.#blockTransactionResultDispatch(
+            'result-lifecycle-invalid',
+            `Transaction result event ${event.eventId} has no authoritative association.`,
+            event.eventId,
+            processedEventIds,
+            completedEventIds,
+          );
+        }
         const resultFailure = this.#dispatchTransactionResultEvent(
           event,
           current,
@@ -2139,7 +2157,17 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
           completedEventIds,
         );
       }
-      if (current.transactionResult) {
+      if (event.type === TRANSACTION_RESULT_EVENT_TYPE ||
+          current.transactionResult) {
+        if (!current.transactionResult) {
+          return this.#blockTransactionResultDispatch(
+            'result-lifecycle-invalid',
+            `Transaction result event ${event.eventId} has no authoritative association.`,
+            event.eventId,
+            processedEventIds,
+            completedEventIds,
+          );
+        }
         const resultFailure = this.#dispatchTransactionResultEvent(
           event,
           current,
@@ -2578,7 +2606,10 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
     return blockedDispatch(failure);
   }
 
-  #normalize(request: EventCreationRequest): NormalizedRequest {
+  #normalize(
+    request: EventCreationRequest,
+    allowReservedTransactionResult = false,
+  ): NormalizedRequest {
     let type: unknown;
     let payload: unknown;
     try {
@@ -2596,6 +2627,15 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
     }
     if (!EVENT_TYPE_PATTERN.test(type) || type.length > 96) {
       return invalidRequest('Event type uses an unsupported format.');
+    }
+    if (!allowReservedTransactionResult &&
+        type === TRANSACTION_RESULT_EVENT_TYPE) {
+      return Object.freeze({
+        ok: false as const,
+        reason: 'reserved-event-type' as const,
+        message:
+          'Transaction result events can only be created through the authoritative result path.',
+      });
     }
     if (this.#allowedEventTypes && !this.#allowedEventTypes.has(type)) {
       return Object.freeze({

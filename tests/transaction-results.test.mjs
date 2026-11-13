@@ -172,6 +172,269 @@ function assertOneBusinessApplication(progress) {
   });
 }
 
+function forgedResultPayload(runtimeInstanceId, suffix = 'forged') {
+  return Object.freeze({
+    runtimeInstanceId,
+    sourceEventId: 1,
+    commandId: 1,
+    transactionId: 1,
+    targetId: TARGET,
+    terminal: {
+      status: 'succeeded',
+      simulationTick: 3,
+    },
+    resultEventId: 2,
+    diagnostic: suffix,
+  });
+}
+
+test('D09-C2-R1 R01 public create rejects the reserved result type before allocation', () => {
+  const configurations = [
+    { label: 'no whitelist, no producer', allowedEventTypes: undefined, producer: false },
+    { label: 'no whitelist, owned producer', allowedEventTypes: undefined, producer: true },
+    {
+      label: 'result type allowed, no producer',
+      allowedEventTypes: ['test.progress', TRANSACTION_RESULT_EVENT_TYPE],
+      producer: false,
+    },
+    {
+      label: 'result type allowed, owned producer',
+      allowedEventTypes: ['test.progress', TRANSACTION_RESULT_EVENT_TYPE],
+      producer: true,
+    },
+  ];
+  const payloads = [
+    { terminal: { status: 'succeeded' }, transactionId: 999 },
+    forgedResultPayload(UUID, 'copied-shape'),
+  ];
+
+  for (const configuration of configurations) {
+    const context = new RuntimeEventContext(
+      { generate: () => UUID },
+      { initialNextEventId: 1 },
+    );
+    const faultPoints = [];
+    const events = context.createCoordinator({
+      inboxCapacity: 8,
+      historyCapacity: 16,
+      ...(configuration.allowedEventTypes
+        ? { allowedEventTypes: configuration.allowedEventTypes }
+        : {}),
+      faultInjector: point => faultPoints.push(point),
+    });
+    const producer = configuration.producer ? events.createProducer() : undefined;
+    const outcomes = payloads.map(payload => {
+      const result = events.create(
+        { type: TRANSACTION_RESULT_EVENT_TYPE, payload },
+        producer,
+      );
+      return Object.freeze({
+        status: result.status,
+        reason: result.status === 'rejected' ? result.reason : undefined,
+      });
+    });
+
+    assert.deepEqual(
+      outcomes,
+      payloads.map(() => ({ status: 'rejected', reason: 'reserved-event-type' })),
+      configuration.label,
+    );
+    assert.deepEqual(faultPoints, [], configuration.label);
+    assert.equal(events.snapshot.nextEventId, 1, configuration.label);
+    assert.deepEqual(events.snapshot.lifecycleRecords, [], configuration.label);
+    assert.deepEqual(events.snapshot.inboxEvents, [], configuration.label);
+    assert.deepEqual(
+      events.snapshot.transactionResults.bindings,
+      [],
+      configuration.label,
+    );
+    assert.deepEqual(
+      events.snapshot.counts,
+      { lifecycleRecords: 0, inboxEvents: 0 },
+      configuration.label,
+    );
+
+    const normal = events.create({
+      type: 'test.progress',
+      payload: { value: configuration.label },
+    }, producer);
+    assert.equal(normal.status, 'created', configuration.label);
+    assert.equal(normal.event.eventId, 1, configuration.label);
+  }
+});
+
+test('D09-C2-R1 R02 unassociated result-shaped events never reach command paths', () => {
+  const observations = [];
+
+  const realRuntime = makeRuntime({
+    transactionResultConsumer: () => {
+      observations.push({ kind: 'real-consumer' });
+      return { status: 'consumed' };
+    },
+  });
+  const realCreate = realRuntime.events.create({
+    type: TRANSACTION_RESULT_EVENT_TYPE,
+    payload: forgedResultPayload(UUID, 'real-delivery'),
+  });
+  if (realCreate.status === 'created') {
+    dispatch(realRuntime, 1);
+  }
+  const realNormal = realRuntime.events.create({
+    type: 'test.progress',
+    payload: { value: 'after-real-rejection' },
+  });
+  observations.push({
+    kind: 'real-delivery',
+    createStatus: realCreate.status,
+    createReason: realCreate.status === 'rejected' ? realCreate.reason : undefined,
+    handlerCalls: realRuntime.handlerCounts.size,
+    commandCount: realRuntime.commands.snapshot.counts.commands,
+    intentCount: realRuntime.target.snapshot.counts.intents,
+    resultBindings: realRuntime.events.snapshot.transactionResults.bindings.length,
+    nextEventId: realRuntime.events.snapshot.nextEventId,
+    normalStatus: realNormal.status,
+    normalEventId: realNormal.status === 'created' ? realNormal.event.eventId : undefined,
+    inboxEventIds: realRuntime.events.snapshot.inboxEvents.map(event => event.eventId),
+  });
+
+  let testHandlerCalls = 0;
+  let testReceiptCalls = 0;
+  let testConsumerCalls = 0;
+  const testContext = new RuntimeEventContext(
+    { generate: () => UUID },
+    { initialNextEventId: 1 },
+  );
+  const testEvents = testContext.createCoordinator({
+    inboxCapacity: 8,
+    historyCapacity: 16,
+    allowedEventTypes: ['test.progress', TRANSACTION_RESULT_EVENT_TYPE],
+    dispatchHandler: () => {
+      testHandlerCalls += 1;
+    },
+    commandReceiptTestDouble: () => {
+      testReceiptCalls += 1;
+      return { status: 'accepted', testCommandReference: 'test-only-command' };
+    },
+    transactionResultConsumer: () => {
+      testConsumerCalls += 1;
+      return { status: 'consumed' };
+    },
+  });
+  const testCreate = testEvents.create({
+    type: TRANSACTION_RESULT_EVENT_TYPE,
+    payload: forgedResultPayload(UUID, 'test-double'),
+  });
+  if (testCreate.status === 'created') {
+    testEvents.dispatch({
+      runtimeInstanceId: UUID,
+      simulationTick: 1,
+      phase: 'coordination',
+    });
+  }
+  const testNormal = testEvents.create({
+    type: 'test.progress',
+    payload: { value: 'after-test-double-rejection' },
+  });
+  observations.push({
+    kind: 'test-double',
+    createStatus: testCreate.status,
+    createReason: testCreate.status === 'rejected' ? testCreate.reason : undefined,
+    handlerCalls: testHandlerCalls,
+    receiptCalls: testReceiptCalls,
+    consumerCalls: testConsumerCalls,
+    resultBindings: testEvents.snapshot.transactionResults.bindings.length,
+    nextEventId: testEvents.snapshot.nextEventId,
+    normalStatus: testNormal.status,
+    normalEventId: testNormal.status === 'created' ? testNormal.event.eventId : undefined,
+    inboxEventIds: testEvents.snapshot.inboxEvents.map(event => event.eventId),
+  });
+
+  let resultOnlyConsumerCalls = 0;
+  const resultOnlyContext = new RuntimeEventContext(
+    { generate: () => UUID },
+    { initialNextEventId: 1 },
+  );
+  const resultOnlyEvents = resultOnlyContext.createCoordinator({
+    inboxCapacity: 8,
+    historyCapacity: 16,
+    allowedEventTypes: ['test.progress', TRANSACTION_RESULT_EVENT_TYPE],
+    transactionResultConsumer: () => {
+      resultOnlyConsumerCalls += 1;
+      return { status: 'consumed' };
+    },
+  });
+  const resultOnlyCreate = resultOnlyEvents.create({
+    type: TRANSACTION_RESULT_EVENT_TYPE,
+    payload: forgedResultPayload(UUID, 'result-only'),
+  });
+  if (resultOnlyCreate.status === 'created') {
+    resultOnlyEvents.dispatch({
+      runtimeInstanceId: UUID,
+      simulationTick: 1,
+      phase: 'coordination',
+    });
+  }
+  const resultOnlyNormal = resultOnlyEvents.create({
+    type: 'test.progress',
+    payload: { value: 'after-result-only-rejection' },
+  });
+  observations.push({
+    kind: 'result-only',
+    createStatus: resultOnlyCreate.status,
+    createReason: resultOnlyCreate.status === 'rejected'
+      ? resultOnlyCreate.reason
+      : undefined,
+    consumerCalls: resultOnlyConsumerCalls,
+    resultBindings: resultOnlyEvents.snapshot.transactionResults.bindings.length,
+    nextEventId: resultOnlyEvents.snapshot.nextEventId,
+    normalStatus: resultOnlyNormal.status,
+    normalEventId: resultOnlyNormal.status === 'created'
+      ? resultOnlyNormal.event.eventId
+      : undefined,
+    inboxEventIds: resultOnlyEvents.snapshot.inboxEvents.map(event => event.eventId),
+  });
+
+  assert.deepEqual(
+    observations.map(({ kind, createStatus, createReason, nextEventId, normalEventId }) => ({
+      kind,
+      createStatus,
+      createReason,
+      nextEventId,
+      normalEventId,
+    })),
+    ['real-delivery', 'test-double', 'result-only'].map(kind => ({
+      kind,
+      createStatus: 'rejected',
+      createReason: 'reserved-event-type',
+      nextEventId: 2,
+      normalEventId: 1,
+    })),
+  );
+  assert.deepEqual(
+    observations.map(({ handlerCalls = 0, receiptCalls = 0, consumerCalls = 0 }) => ({
+      handlerCalls,
+      receiptCalls,
+      consumerCalls,
+    })),
+    [
+      { handlerCalls: 0, receiptCalls: 0, consumerCalls: 0 },
+      { handlerCalls: 0, receiptCalls: 0, consumerCalls: 0 },
+      { handlerCalls: 0, receiptCalls: 0, consumerCalls: 0 },
+    ],
+  );
+  assert.equal(observations[0].commandCount, 0);
+  assert.equal(observations[0].intentCount, 0);
+  assert.deepEqual(
+    observations.map(observation => observation.resultBindings),
+    [0, 0, 0],
+  );
+  assert.deepEqual(
+    observations.map(observation => observation.inboxEventIds),
+    [[1], [1], [1]],
+    'The only queued event in each mode is the subsequent legal ordinary event.',
+  );
+});
+
 test('D09-C2 G01 only registered terminals create one associated result event', () => {
   const successRuntime = makeRuntime();
   const success = succeedTransaction(successRuntime);

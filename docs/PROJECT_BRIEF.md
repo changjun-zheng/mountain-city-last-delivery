@@ -254,7 +254,21 @@ D09-C1 暂不整体验收。下一项 D09-C1-R1 只修终态元数据登记失�
 
 结果事件在固定协调阶段独立消费，不创建 Command／Transaction、不重跑原事务，也不调用业务 `apply`。消费成功后才 Completed；完成登记失败以同一 Pending 身份恢复，并由结果 source 的 producer 独立确认和安全退役。原事件与结果事件生命周期互不代表，原命令 Unknown 也不能替代事务最终结果。
 
-G01–G06 全部 PASS，原 104 项测试保留，`npm.cmd test` 为 `110/110` PASS；类型检查、D09-C2 专项 `6/6` 与 Windows 生产构建 PASS。结果核心尚未接宿主，GUI／三端事务结果、检查点、RecoveryError、存档和 Edge 均为 NOT RUN；ASAR／EXE 未变化不能解释为宿主已运行。D09-C2 当前状态为 DONE（待 Work 审查），不自动进入后续任务，不 Commit／Push／发布。详细证据见 [README](../README.md#d09-c2唯一最终结果事件核心)和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-c2-执行结果)。
+G01–G06 全部 PASS，原 104 项测试保留，`npm.cmd test` 为 `110/110` PASS；类型检查、D09-C2 专项 `6/6` 与 Windows 生产构建 PASS。结果核心尚未接宿主，GUI／三端事务结果、检查点、RecoveryError、存档和 Edge 均为 NOT RUN；ASAR／EXE 未变化不能解释为宿主已运行。D09-C2 开发报告当时状态为 DONE（待 Work 审查），后续结论见下方 Work 审查；不自动进入后续任务，不 Commit／Push／发布。详细证据见 [README](../README.md#d09-c2唯一最终结果事件核心)和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-c2-执行结果)。
+
+### D09-C2 Work 审查与 D09-C2-R1 任务
+
+2026-11-13：Work 按 `1023641` 阅读结果创建、权威终态来源、原子绑定与消费恢复，四项源码／专项测试哈希匹配报告；本轮重跑类型检查、Electron Main 编译及 110/110 自动化测试 PASS，未另跑构建或 GUI。另用真实核心无文件写入复现：普通 `create()` 可以创建保留类型 `transaction.result`，不具备权威结果关联，固定阶段却进入普通命令 handler，形成 1 条 Command 和 1 份真实事务 intent，结果消费者调用 0 次。未执行事务业务，不将此复现描述为已修改奖励或永久进度。
+
+D09-C2 主体与历史测试结果保留，但整体暂为 BLOCKED；下一项只执行 D09-C2-R1，封住普通创建入口并补充分发边界回归，保留合法 Manager 结果创建、原子回滚、稳定身份及确认／退役链。没有新的产品或技术选型决策；宿主接线、三端业务链、检查点与存档仍未实现，不因核心测试通过提前标为完成。详细复现、范围与 R01–R03 见[路线图当前任务](DEVELOPMENT_ROADMAP.md#7-当前任务与持续记录)。R1 完成后报告并等待 Work 审查，不自动领取后续任务。
+
+### D09-C2-R1 工程执行状态
+
+2026-11-13：结果事件入口补修完成。修复前新增 R01／R02 先稳定失败：普通 `create()` 实际创建 `transaction.result` 并消耗候选 Event ID，真实交付、测试替身及结果专用三种分发模式均错误进入普通路径。现普通 create 在编号、容量、生命周期、Inbox 和结果绑定之前返回 `reserved-event-type`；仅 Transaction Manager authority 经受控结果创建调用显式放行。结果类型但缺少权威关联的事件返回 `result-lifecycle-invalid`，不能进入普通 handler、accept 或结果 consumer。
+
+R01 覆盖无 producer／普通 owned producer、显式白名单／无白名单及伪造和复制形态载荷，所有拒绝路径都没有 Event ID 或状态副作用；R02 三种模式中 handler、receipt、consumer、Command、intent 和绑定调用数均为 0；R03 由原 G01–G06 全部保留并通过，合法终态结果创建、稳定 Result Event ID、原子回滚、幂等消费、生产者确认和安全退役没有回归。专项测试 `8/8`、类型检查、`npm.cmd test` 的 `112/112`、生产构建、共享核心隔离扫描及 `git diff --check` 均 PASS。
+
+`events.ts` SHA-256 为 `9A055CECD7681DF169ADB82FC1579D6974939FEF2DA9747788B3D27E86A277F4`，专项测试为 `CBE1DCF5A6F82DC5F5DDC2A9389BFC562C2AB5CCDF8D7F061F24066AA30722EB`；ASAR／EXE 仍为 `92999B8A38D5B10DF331314D94F161AC3E2739E37C0E758D773E5A8B4D48CB8B`／`BB578EADD877147171729D3A5EF4D785ABB52B51EA8CE522DA83945869398973`，因为核心尚未进入宿主入口。GUI／三端事件业务链、检查点、存档和 Edge 均为 NOT RUN。R1 当前 DONE（待 Work 审查），D09-C2 在审查确认前保持 BLOCKED；不自动领取后续任务，不 Commit／Push／发布。详细证据见 [README](../README.md#d09-c2-r1结果事件受控创建与分发入口补修)和[路线图执行结果](DEVELOPMENT_ROADMAP.md#2026-11-13-d09-c2-r1-执行结果)。
 
 ## 已确认的游戏设计方向
 

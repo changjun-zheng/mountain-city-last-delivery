@@ -1269,12 +1269,57 @@ G01–G06 验收：
 
 ASAR／EXE 与 D09-C1-R1 相同，因为结果内核尚未进入宿主入口。D09-C2 在当前纯核心范围完成，等待 Work 审查；不自动进入宿主、检查点、存档或下一任务，不 Commit／Push／发布。
 
+## D09-C2-R1：结果事件受控创建与分发入口补修
+
+2026-11-13 修复 Work 在 `1023641` 复现的 P1 入口缺口。本段只收紧共享核心的保留结果事件创建与分发边界，没有接 Web／Electron 宿主、当前灰盒或 D08 交互，也没有实现检查点、存档或正式业务。
+
+修复前先新增并执行 R01／R02，两项均稳定失败：R01 的普通 `create({ type: 'transaction.result' })` 实际返回 `created`，下一候选 Event ID 从预期 `1` 消耗到 `2`；R02 的真实交付、测试替身和结果专用三种模式均实际创建同名事件并进入普通命令路径。历史失败保留，不把修复后的通过回写成修复前结果。
+
+修复边界：
+
+1. `transaction.result` 成为普通公开 `create()` 的保留类型。类型检查在候选 Event ID 分配、容量占用、生命周期登记、Inbox 入队和结果绑定之前返回 `reserved-event-type`；是否传入普通 producer、是否显式加入 `allowedEventTypes`、以及是否配置白名单都不改变结果。
+2. 合法结果仍只能由已正式登记 Succeeded／Failed 的 Transaction Manager 经受控 authority 调用协调器结果创建入口。该入口显式允许保留类型，不通过载荷布尔标记或可复制 source 字段授权，也没有把普通创建入口永久封成无法产生合法结果。
+3. 真实交付与测试替身分发在进入普通 handler 前先识别结果类型。保留类型但缺少权威 `transactionResult` 关联时返回 `result-lifecycle-invalid` 并阻断；结果专用模式同样拒绝无关联事件。三种模式均不会退回普通命令 handler，也不会因载荷形似真实结果而调用结果消费者。
+
+R01–R03 验收：
+
+| 用例 | 状态 | 实际证据 |
+| --- | --- | --- |
+| R01 普通创建拒绝保留类型 | PASS | 覆盖无 producer／普通 owned producer、显式结果类型白名单／未设白名单；伪造载荷与复制真实结果形态载荷全部返回 `reserved-event-type`。下一 Event ID 保持 `1`，生命周期记录、Inbox、结果绑定和计数保持空；随后合法普通事件取得 Event ID `1`。 |
+| R02 无权威关联不得进入命令路径 | PASS | 真实交付、测试替身、结果专用三种模式均为 rejected；普通 handler、测试 receipt、结果 consumer、Command、Transaction intent 和结果绑定调用数均为 `0`。随后合法普通事件在各模式均取得 Event ID `1`，Inbox 仅包含该事件。 |
+| R03 合法结果闭环保持 | PASS | 原 G01–G06 全部保留：正式终态创建唯一结果事件、原子回滚与回执丢失、固定阶段幂等消费、完整关联校验、确认／退役和持续故障有界返回均未回归。合法结果仍不调用普通 handler、不创建 Command／Transaction，也不重跑业务。 |
+
+验证结果：
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `node --experimental-strip-types --test tests/transaction-results.test.mjs` | PASS | 专项 `8/8`，0 fail、0 skipped；R01、R02 与 G01–G06 全部通过。 |
+| `npm.cmd run typecheck` | PASS | `tsconfig.core.json` 与 Renderer 类型检查通过。 |
+| `npm.cmd test` | PASS | 类型检查、Electron Main 编译及 `112/112` 测试通过，0 fail、0 skipped；原 110 项保留，新增 R01／R02。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建（18 modules）、Electron Main 编译及 Windows x64 免安装目录成功；保留既有 bundle 体积、author 和默认图标警告。 |
+| 共享核心平台隔离扫描 | PASS | `src/core/events.ts`、`transactions.ts`、`transaction-results.ts` 未匹配 Node、Electron、Phaser、DOM、storage 或 navigator 平台 API。 |
+| `git diff --check` | PASS | 退出 0；仅出现 Git 的 LF／CRLF 提示，没有空白错误。 |
+| Chrome／Electron 开发版／独立包新事件业务链 | NOT RUN | 核心仍未接宿主；构建和生产产物存在不等于 GUI 业务链运行通过。 |
+| 宿主接线／检查点／存档／Edge | NOT RUN | 明确不在 D09-C2-R1 范围。 |
+
+对应版本：
+
+- 基线提交：`1023641b96d79f548ecfbbbf06015b6bc44100e7`。
+- `src/core/events.ts`：`9A055CECD7681DF169ADB82FC1579D6974939FEF2DA9747788B3D27E86A277F4`。
+- `src/core/transactions.ts`：`ABEFDB5E1990C897B5AF3483025ED66E41140F746A1B445D505A6B2887DDF7BD`。
+- `src/core/transaction-results.ts`：`4BF518631115B2AA8A3C83299EC816ECA30138298F2E071ADEE07E951ACAF5A8`。
+- `tests/transaction-results.test.mjs`：`CBE1DCF5A6F82DC5F5DDC2A9389BFC562C2AB5CCDF8D7F061F24066AA30722EB`。
+- 当前生产 ASAR SHA-256：`92999B8A38D5B10DF331314D94F161AC3E2739E37C0E758D773E5A8B4D48CB8B`。
+- Windows EXE SHA-256：`BB578EADD877147171729D3A5EF4D785ABB52B51EA8CE522DA83945869398973`。
+
+ASAR／EXE 与 D09-C2 相同，因为新核心仍没有进入宿主入口。D09-C2-R1 在当前纯核心范围完成，等待 Work 审查；D09-C2 在审查收口前保持 BLOCKED。不自动接宿主、不进入检查点或其他后续任务，不 Commit／Push／发布。
+
 ## 当前限制
 
-- 最新执行（D09-C2，2026-11-13）：类型检查、Electron Main 编译及 `110/110` 自动化测试 PASS，生产构建 PASS。正式 Succeeded／Failed 可经协调器创建唯一结果事件并在固定阶段幂等消费、确认和安全退役；结果内核与既有事件、命令和事务内核仍未接入宿主，GUI 与三端业务链均为 NOT RUN。
+- 最新执行（D09-C2-R1，2026-11-13）：专项 `8/8`、类型检查、Electron Main 编译及 `112/112` 自动化测试 PASS，生产构建 PASS。普通 create 已不能在编号或登记前伪造 `transaction.result`，无权威关联的事件也不会进入普通命令路径；合法 Manager 结果创建、稳定 Result Event ID、原子回滚、幂等消费及确认／退役链保持通过。结果内核与既有事件、命令和事务内核仍未接入宿主，GUI 与三端业务链均为 NOT RUN。
 - Web 主包约 332.14 KB gzip，Vite 有体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互及 D08 运行内进度是工程灰盒；共享核心另有 D09 事件、稳定命令、真实目标接收分类、Unknown 核查、带终态登记恢复的最小事务执行及唯一最终结果事件，但当前页面尚未使用它们。未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、宿主接线、检查点或存储。D08 的“永久”仅限当前页面运行内；D09 的 Accepted、intent、Transaction ID、核心测试 Succeeded 或结果事件 Completed 也不等于 GUI 业务成功或 Checkpoint Recovery。不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 对 D09-C2 的审查，不自动进入后续分段。
+- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互及 D08 运行内进度是工程灰盒；共享核心另有 D09 事件、稳定命令、真实目标接收分类、Unknown 核查、带终态登记恢复的最小事务执行及唯一最终结果事件，但当前页面尚未使用它们。未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、宿主接线、检查点或存储。D08 的“永久”仅限当前页面运行内；D09 的 Accepted、intent、Transaction ID、核心测试 Succeeded 或结果事件 Completed 也不等于 GUI 业务成功或 Checkpoint Recovery。不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 对 D09-C2-R1 及 D09-C2 整体的审查，不自动进入后续分段。
