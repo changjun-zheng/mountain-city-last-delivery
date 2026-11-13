@@ -158,6 +158,12 @@ M1.1.2 交付时结构为 src/core/game.ts（启动数据与共享入口）、sr
 
 下一项 D09-A1 只实现核心层运行上下文和统一事件创建／Pending 登记／Inbox 原子提交，以单测和模块集成验证成功／失败的一致性；不迁移 D08 接线、不接管宿主场景切换、不提前实现分发、命令、事务或检查点。正式身份、原子创建规则保持原状，接口／UUID 工程选择不自动成为正式决策。具体范围和 A01–A05 验收见[路线图当前任务](DEVELOPMENT_ROADMAP.md#7-当前任务与持续记录)。
 
+### D09-A1 工程执行状态
+
+2026-11-13：共享核心新增 `RuntimeEventContext` 与 `EventCreationCoordinator`。运行上下文通过注入的 `RuntimeUuidProvider` 获取一次运行 UUID，并持有从 `1` 至安全整数上限的共享 Event ID 序列，每个上下文最多创建一个协调器；当前 Web／Electron 入口尚未创建或使用该上下文，因此不表示正式运行身份已贯穿场景。协调器是唯一公开创建入口，统一提交候选 Event ID、Pending 生命周期记录和有限 Inbox，提交成功后才返回冻结事件；创建不执行 handler、不推进 Tick，也不接 D08 行为。
+
+故障注入覆盖校验、候选准备、登记准备、Inbox 准备及三个提交点。可确认失败会回滚编号、登记和队列，下一次创建仍使用未消耗编号；无法确认回滚时后续创建被阻断，快照提供 `rollback-unconfirmed` 错误。A01–A05 全部 PASS，`npm.cmd test` 为 `66/66` PASS，生产构建成功。该模块尚未接入宿主，GUI／三端事件运行、分发、Processing／Completed、Producer Acknowledgement、水位线、命令、事务、检查点和存档均为 NOT RUN。设计中的 CONFIRMED 规则未被工程数据结构改写；Matter 仍是候选，当前等待 Work 审查，不进入 D09 后续分段。
+
 ## 已确认的游戏设计方向
 
 确认日期：2026-11-06；依据：项目负责人本次明确指示。

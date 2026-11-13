@@ -97,6 +97,7 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `src/core/player.ts` | 原型参数、PC-01 输入许可、PC-02 请求及移动／跳跃规则；不依赖平台或 Phaser。 |
 | `src/core/interaction.ts` | 原型调查／拾取对象、稳定目标选择、单次按键消费、临时反馈及交互自身控制限制；不依赖平台或 Phaser。 |
 | `src/core/progress.ts` | D08 运行内进度仓库：四类稳定业务 ID、幂等登记、显式奖励关系、期望效果状态与只读快照；无平台或存储 API。 |
+| `src/core/events.ts` | D09-A1 运行上下文、单调 Event ID、Pending 生命周期登记、有限 Inbox 与协调器原子创建入口；不依赖 DOM、Node、Electron 或 Phaser。 |
 | `src/physics/matter/graybox-world.ts` | 两端共用 Matter 世界、静态地形、独立脚底区域与实际接触法线判定。 |
 | `src/core/simulation.ts` | 固定步累加器、实际 Tick、有界补算及余量／丢弃统计。 |
 | `src/core/lifecycle.ts` | Owner + Key 去重、Token 所有权、退役与有效暂停集合。 |
@@ -115,6 +116,7 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `tests/player-physics.test.mjs` | 受控时间运行 Phaser 内置的真实 Matter，验证控制、接触、平台、区域及 D08 进度／效果协调。 |
 | `tests/interaction.test.mjs` | D07 交互目标、单次消费、控制锁、提示资格与生命周期门槛。 |
 | `tests/progress.test.mjs` | D08 四类记录、非法请求、只读快照、目标／奖励幂等及永久效果期望状态。 |
+| `tests/events.test.mjs` | D09-A1 运行时 UUID、Event ID、Pending 登记、有限 Inbox、原子回滚、编号边界及未确认回滚阻断。 |
 | `tests/graybox-browser.mjs` | 真实窗口键盘操作、物理暂停、平台、区域、D07 交互及 D08 收藏／目标／奖励／效果断言。 |
 | `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1／D05／D07／D08 定向入口。 |
 | `tests/browser-selection.mjs` | 解析 `--browser`、查找标准安装路径并核验 CDP 实际浏览器身份；缺失时不回退。 |
@@ -865,14 +867,57 @@ D08 三端定向与趋势性状态：
 - [仓库外独立包目标与 OPEN 门](test-results/platform/run-nlbzAQ/018-electron-packaged-D08-goal-route-open.png)
 - [正常开发体验窗口（D08 源码已加载）](test-results/d08-20261113/electron-dev-experience.png)，启动信息见 [experience-launch.json](test-results/d08-20261113/experience-launch.json)。
 
-现有正常开发体验窗口继续保留，PID `30952`、HWND `13896118`、标题“叠城大冒险 | Layered City Adventures”；本轮未关闭或将其交给测试清理。结论限 D08 运行内原型：正式跨会话存档、正式任务／收藏册、奖励内容、Event／Command／Transaction、检查点及 RecoveryError 均未实现，Matter 仍未成为最终物理方案。当前等待 Work 审查，不进入 D09，不 Commit／Push／发布。
+现有正常开发体验窗口继续保留，PID `30952`、HWND `13896118`、标题“叠城大冒险 | Layered City Adventures”；D08 执行时未关闭或将其交给测试清理。结论限 D08 运行内原型：正式跨会话存档、正式任务／收藏册、奖励内容、Event／Command／Transaction、检查点及 RecoveryError 均未实现，Matter 仍未成为最终物理方案。该段当时等待 Work 审查并停止；Work 后续已收口 D08 并授权 D09-A1。
+
+## D09-A1：统一事件创建与原子入队核心
+
+2026-11-13 仅完成共享核心原型，没有把当前 Web／Electron 页面接入事件协调器，也没有修改 D08 进度接线、玩家、物理、交互、暂停或场景重载。运行上下文通过注入的 `RuntimeUuidProvider` 获取 UUID；核心不引用 DOM、Node、Electron 或 Phaser UUID API。测试组合使用 Node.js `crypto.randomUUID` 风格提供器，未新增依赖。
+
+实现边界：
+
+1. `RuntimeEventContext` 持有一次运行 UUID 和共享 Event ID 序列；默认从 `1` 开始，只到 `Number.MAX_SAFE_INTEGER`，到界后明确拒绝而不回绕。
+2. `EventCreationCoordinator.create()` 是唯一公开创建入口，且每个运行上下文最多创建一个协调器。生成器、Pending 生命周期登记和 Inbox 各自保存内部状态，不向外提供绕过协调器的分配或提交入口。
+3. 正式创建先验证类型与 JSON 兼容载荷，再准备候选 ID、Pending 记录和队列项；三者提交完成后才返回冻结事件。
+4. Inbox 使用可配置的有限容量。创建成功只表示事件已 Pending 并入队，不调用 handler、不推进 Tick、不进入 Processing，也不写入 D08 永久进度。
+5. 协调器在候选、登记准备、队列准备及各提交点支持确定性故障注入。可确认的回滚会恢复 Event ID 和两条记录；回滚无法确认时设置阻断状态，后续创建返回可检查错误。
+6. 调用者只获得深冻结事件和只读快照；生产者持有载荷的后续修改不会改变内核记录。
+
+A01–A05 验收：
+
+| 用例 | 状态 | 实际证据 |
+| --- | --- | --- |
+| A01 运行身份与编号 | PASS | 同一上下文交替创建得到 `1、2、3`，UUID 保持相同；新上下文使用独立 UUID 并从 `1` 开始。 |
+| A02 成功原子可见性 | PASS | 成功后恰有一条 Pending 生命周期记录、一个 Inbox 条目、`nextEventId=2`；返回事件与登记身份一致，深度冻结。 |
+| A03 故障回滚 | PASS | `validation`、候选、登记准备、Inbox 准备和三个提交点均注入失败；失败后无记录、无队列项、编号不消耗，下一次成功仍为 `1`。回滚故障切换为不可继续创建。 |
+| A04 容量与边界 | PASS | Inbox 满时拒绝且不产生孤立记录；空类型、不支持类型、非法载荷均在编号分配前拒绝；最大安全整数使用后返回 `event-id-exhausted`，不回绕。 |
+| A05 生命周期边界 | PASS | 生命周期记录与事件始终保持 `pending`；未实现 Processing、Completed、确认、水位线、分发、命令、事务或检查点，均未标为通过。 |
+
+验证结果：
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `npm.cmd test` | PASS | 类型检查、Electron Main 编译及 `66/66` 测试通过，0 fail、0 skipped；原 59 项全部保留。 |
+| `npm.cmd run electron:build` | PASS | Web 生产构建、Electron Main 编译及 Windows x64 免安装目录构建成功；保留既有 bundle 体积、author 和默认图标警告。 |
+| Chrome Web／Electron 开发版／独立包事件运行 | NOT RUN | 本段未接宿主，按任务卡不将纯核心测试冒充三端端到端运行。 |
+| 事件分发、命令事务、检查点和存档 | NOT RUN | 明确不在 D09-A1 范围。 |
+| Edge | NOT RUN | 本段没有 GUI 回归。 |
+| `git diff --check` | PASS | 无空白错误，仅有既有 LF／CRLF 提示。 |
+
+对应版本：
+
+- `src/core/events.ts`：`10B426F6BB8A660F4996EC3FBC5904FF1E74390D0359E6CD2905F1BC20683D2E`。
+- `tests/events.test.mjs`：`E5B642ACA370D8B1BFAA93ED13F04A0FA6E5D3AA12FFA615A8F1F98B19A351DD`。
+- 当前生产 ASAR SHA-256：`92999B8A38D5B10DF331314D94F161AC3E2739E37C0E758D773E5A8B4D48CB8B`；该模块尚未进入运行包入口，因此 ASAR 内容与 D08 一致。
+- Windows EXE SHA-256：`BB578EADD877147171729D3A5EF4D785ABB52B51EA8CE522DA83945869398973`。
+
+结论限核心创建内核。当前等待 Work 审查，不进入固定阶段分发或后续 D09 分段，不 Commit／Push／发布。
 
 ## 当前限制
 
-- 最新执行（D08，2026-11-13）：[run-nlbzAQ](test-results/platform/run-nlbzAQ/report.json) 的 Chrome Web、Electron 开发版和仓库外独立包均 PASS；D07 定向回归 [run-xHiVwG](test-results/platform/run-xHiVwG/report.json) PASS，Edge 为 NOT RUN。
+- 最新执行（D09-A1，2026-11-13）：类型检查、Electron Main 编译及 `66/66` 自动化测试 PASS，生产构建 PASS。事件创建内核尚未接入宿主，GUI 与三端事件运行均为 NOT RUN；D08 三端报告仍只代表当时的 D08 功能。
 - Web 主包约 325 KB gzip，Vite 有体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互及 D08 运行内进度是工程灰盒；未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、事件事务或检查点。D08 的“永久”仅限当前页面运行内；调试重置、最小化恢复、运行内进度和交互原型都不等于 Checkpoint Recovery；不代表完整 T01–T06 或 MVP-G01–G06 已通过。D08 已完成当前原型范围的实现和验证，等待 Work 审查，不自动进入 D09。
+- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互及 D08 运行内进度是工程灰盒；共享核心另有 D09-A1 事件创建基础，但当前页面尚未使用它。未实现移动单向平台、旋转／挤压、正式触发器业务、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、事件分发、命令事务、检查点或存档。D08 的“永久”仅限当前页面运行内；D09-A1 的 Pending 事件也不是正式业务处理；二者都不等于 Checkpoint Recovery。不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 审查，不自动进入 D09 后续分段。
