@@ -98,6 +98,11 @@ export type SnapshotCaptureRequestResult =
     feedback: string;
   }>;
 
+export type SnapshotCaptureCleanupResult = Readonly<{
+  status: 'released' | 'already-released' | 'failed' | 'blocked';
+  message: string;
+}>;
+
 export type SnapshotCaptureRuntimeSnapshot = Readonly<{
   runtimeInstanceId: string;
   targetId: string;
@@ -130,9 +135,18 @@ export type SnapshotCaptureRuntimeSnapshot = Readonly<{
     ownedByCapture: boolean;
   }>;
   frozenObjectIds: readonly string[];
+  resourceOwnership: Readonly<{
+    executorOwnerHeld: boolean;
+    freezeOwnedByCapture: boolean;
+    lockOwnedByCapture: boolean;
+    resourcesReleased: boolean;
+  }>;
   captureAttempts: number;
   commitAttempts: number;
   successfulCommits: number;
+  cleanupAttempts: number;
+  cleanupFailures: number;
+  lastCleanupError: string | null;
   originalAcknowledged: boolean;
   originalRetired: boolean;
   resultAcknowledged: boolean;
@@ -210,6 +224,22 @@ type ExecutorState = Readonly<{
   freezeTick: number | null;
   capturedAtTick: number | null;
   committedAtTick: number | null;
+  executorOwnerHeld: boolean;
+  freezeOwnedByCapture: boolean;
+  lockOwnedByCapture: boolean;
+  resourceOwnerHeld: boolean;
+  cleanupAttempts: number;
+  cleanupFailures: number;
+  lastCleanupError: string | null;
+}>;
+
+type CaptureRequestReceipt = Readonly<{
+  checkpointId: string;
+  eventId: number;
+  commandId: number | null;
+  transactionId: number | null;
+  resultEventId: number | null;
+  phase: SnapshotCapturePhase;
 }>;
 
 class SnapshotCaptureExecutor implements TransactionExecutor {
@@ -218,6 +248,7 @@ class SnapshotCaptureExecutor implements TransactionExecutor {
   readonly #lock: SnapshotCaptureLock;
   readonly #options: SnapshotCaptureRuntimeOptions;
   #owner: object | undefined;
+  #ownsFreeze = false;
   #checkpointId: string | undefined;
   #candidate: TemporarySnapshot | undefined;
   #committed: TemporarySnapshot | undefined;
@@ -228,6 +259,9 @@ class SnapshotCaptureExecutor implements TransactionExecutor {
   #capturedAtTick: number | null = null;
   #committedAtTick: number | null = null;
   #lastError: string | null = null;
+  #cleanupAttempts = 0;
+  #cleanupFailures = 0;
+  #lastCleanupError: string | null = null;
 
   constructor(
     source: GrayboxPhysics,
@@ -246,6 +280,7 @@ class SnapshotCaptureExecutor implements TransactionExecutor {
       throw new Error('A second capture candidate cannot start before resource release.');
     }
     this.#owner = owner;
+    this.#ownsFreeze = false;
     this.#checkpointId = checkpointId;
     this.#candidate = undefined;
     this.#committed = undefined;
@@ -253,11 +288,15 @@ class SnapshotCaptureExecutor implements TransactionExecutor {
     this.#capturedAtTick = null;
     this.#committedAtTick = null;
     this.#lastError = null;
+    this.#cleanupAttempts = 0;
+    this.#cleanupFailures = 0;
+    this.#lastCleanupError = null;
   }
 
   cancelBeforeCapture(owner: object): void {
     if (this.#owner === owner && this.#candidate === undefined) {
       this.#owner = undefined;
+      this.#ownsFreeze = false;
       this.#checkpointId = undefined;
     }
   }
@@ -300,11 +339,52 @@ class SnapshotCaptureExecutor implements TransactionExecutor {
       freezeTick: this.#freezeTick,
       capturedAtTick: this.#capturedAtTick,
       committedAtTick: this.#committedAtTick,
+      executorOwnerHeld: this.#owner !== undefined,
+      freezeOwnedByCapture: this.#owner !== undefined && this.#ownsFreeze,
+      lockOwnedByCapture: this.#lock.isHeldBy(this.#owner),
+      resourceOwnerHeld: this.#owner !== undefined,
+      cleanupAttempts: this.#cleanupAttempts,
+      cleanupFailures: this.#cleanupFailures,
+      lastCleanupError: this.#lastCleanupError,
     });
   }
 
   get resourceOwnerHeld(): boolean {
     return this.#owner !== undefined;
+  }
+
+  cleanupTerminalResources(): SnapshotCaptureCleanupResult {
+    this.#cleanupAttempts++;
+    const owner = this.#owner;
+    if (owner === undefined) {
+      return Object.freeze({
+        status: 'already-released' as const,
+        message: 'Capture resources were already released.',
+      });
+    }
+    if (!this.#ownsFreeze && !this.#lock.isHeldBy(owner)) {
+      this.#finish(owner);
+      return Object.freeze({
+        status: 'already-released' as const,
+        message: 'Capture resources were already released.',
+      });
+    }
+
+    const cleanupError = this.#releaseResources(owner);
+    this.#finish(owner);
+    if (cleanupError) {
+      this.#cleanupFailures++;
+      this.#lastCleanupError = cleanupError;
+      return Object.freeze({
+        status: 'failed' as const,
+        message: cleanupError,
+      });
+    }
+    this.#lastCleanupError = null;
+    return Object.freeze({
+      status: 'released' as const,
+      message: 'Capture-owned freeze and level lock were released.',
+    });
   }
 
   #apply(
@@ -329,6 +409,7 @@ class SnapshotCaptureExecutor implements TransactionExecutor {
           'Registered capture objects already belong to another freeze owner.',
         );
       }
+      this.#ownsFreeze = true;
     } catch (error) {
       const cleanup = this.#releaseResources(owner);
       if (!cleanup) this.#finish(owner);
@@ -438,31 +519,38 @@ class SnapshotCaptureExecutor implements TransactionExecutor {
   }
 
   #releaseResources(owner: object): string {
-    let error = '';
-    try {
-      if (this.#source.frozenTemporaryObjectIds.length > 0) {
+    const errors: string[] = [];
+    if (this.#ownsFreeze) {
+      try {
         this.#options.resourceFaultInjector?.('before-release-freeze');
         const released = this.#source.releaseTemporaryObjects(owner);
-        if (released.status === 'owner-mismatch') {
-          error += '; freeze release owner did not match';
+        if (released.status === 'released' ||
+            released.status === 'already-released') {
+          this.#ownsFreeze = false;
+        } else {
+          errors.push('freeze release owner did not match');
         }
+      } catch (releaseError) {
+        errors.push(`freeze release failed: ${toMessage(releaseError)}`);
       }
-      if (this.#lock.isHeldBy(owner)) {
+    }
+    if (this.#lock.isHeldBy(owner)) {
+      try {
         this.#options.resourceFaultInjector?.('before-release-lock');
         const lockRelease = this.#lock.release(owner);
         if (lockRelease !== 'released' && lockRelease !== 'already-released') {
-          error += `; lock release returned ${lockRelease}`;
+          errors.push(`lock release returned ${lockRelease}`);
         }
+      } catch (releaseError) {
+        errors.push(`lock release failed: ${toMessage(releaseError)}`);
       }
-    } catch (releaseError) {
-      error += `; resource release failed: ${toMessage(releaseError)}`;
     }
-    return error;
+    return errors.length === 0 ? '' : `; ${errors.join('; ')}`;
   }
 
   #finish(owner: object): void {
     if (this.#owner !== owner) return;
-    if (this.#source.frozenTemporaryObjectIds.length > 0 || this.#lock.isHeldBy(owner)) {
+    if (this.#ownsFreeze || this.#lock.isHeldBy(owner)) {
       return;
     }
     this.#owner = undefined;
@@ -490,6 +578,7 @@ export class SnapshotCaptureRuntime {
   readonly #store: FixedTemporarySnapshotStore;
   readonly #lock: SnapshotCaptureLock;
   readonly #consumedResultEventIds = new Set<number>();
+  readonly #requestReceipts = new Map<string, CaptureRequestReceipt>();
   #phase: SnapshotCapturePhase = 'idle';
   #message = 'No runtime checkpoint capture requested.';
   #lastError: string | null = null;
@@ -613,12 +702,18 @@ export class SnapshotCaptureRuntime {
         'Checkpoint capture requires a matching trusted authorization.',
       );
     }
-    if ((this.#phase === 'succeeded' || this.#phase === 'failed') &&
-        this.#requestedCheckpointId === checkpointId &&
-        this.#authorizationRequestId === authorization.requestId) {
+    const previousReceipt = this.#requestReceipts.get(authorization.requestId);
+    if (previousReceipt) {
+      if (previousReceipt.checkpointId !== checkpointId) {
+        return rejectedCaptureRequest(
+          'invalid-request',
+          `Request ID ${authorization.requestId} already belongs to checkpoint ` +
+            `${previousReceipt.checkpointId}.`,
+        );
+      }
       return Object.freeze({
         status: 'existing' as const,
-        feedback: `Checkpoint ${checkpointId} already completed this capture request.`,
+        feedback: describeExistingRequest(previousReceipt),
       });
     }
     // Lock release follows the atomic snapshot commit, while the transaction
@@ -629,15 +724,10 @@ export class SnapshotCaptureRuntime {
        this.#phase !== 'succeeded' &&
        this.#phase !== 'failed');
     if (lifecycleActive) {
-      if (this.#requestedCheckpointId === checkpointId) {
-        return Object.freeze({
-          status: 'existing' as const,
-          feedback: `Checkpoint ${checkpointId} still owns the active capture lifecycle.`,
-        });
-      }
       return rejectedCaptureRequest(
         'lock-busy',
-        `Level ${config.levelId} has a capture lifecycle that has not safely retired.`,
+        `Level ${config.levelId} has a capture lifecycle owned by request ` +
+          `${this.#authorizationRequestId ?? '-'}; no request was queued.`,
       );
     }
 
@@ -692,6 +782,7 @@ export class SnapshotCaptureRuntime {
     this.#message =
       `Event #${created.event.eventId} created for ${checkpointId}; ` +
       `capture lock acquired without freezing.`;
+    this.#syncCurrentRequestReceipt();
     return Object.freeze({
       status: 'created' as const,
       feedback: this.#message,
@@ -728,8 +819,10 @@ export class SnapshotCaptureRuntime {
       this.#refreshResultLifecycle();
       this.#confirmResultEvent();
       this.#refreshTerminalPhase();
+      this.#syncCurrentRequestReceipt();
     } catch (error) {
       this.#setBlocked(toMessage(error));
+      this.#syncCurrentRequestReceipt();
     }
   }
 
@@ -739,9 +832,33 @@ export class SnapshotCaptureRuntime {
       return;
     }
     const record = this.#manager.read(this.#transactionId);
-    if (!record ||
-        (record.status !== 'recovery-pending' &&
-          record.status !== 'terminal-pending')) {
+    if (!record) {
+      this.#setBlocked(
+        `Capture transaction ${this.#transactionId} does not require recovery.`,
+      );
+      return;
+    }
+    if (record.status === 'succeeded' || record.status === 'failed') {
+      // Terminal state never reopens. Recovery here only drains resources
+      // owned by the original transaction, once per explicit call.
+      const cleanup = this.#executor.cleanupTerminalResources();
+      this.#syncRuntimeOwner();
+      if (cleanup.status === 'failed') {
+        this.#lastError = cleanup.message;
+        this.#message =
+          `Capture transaction ${record.transactionId} remains ${record.status}; ` +
+          `owned resources still require cleanup: ${cleanup.message}`;
+      } else {
+        this.#lastError = null;
+        this.#message =
+          `Capture transaction ${record.transactionId} remains ${record.status}; ` +
+          `${cleanup.message}`;
+      }
+      this.#syncCurrentRequestReceipt();
+      return;
+    }
+    if (record.status !== 'recovery-pending' &&
+        record.status !== 'terminal-pending') {
       this.#setBlocked(
         `Capture transaction ${this.#transactionId} does not require recovery.`,
       );
@@ -795,9 +912,19 @@ export class SnapshotCaptureRuntime {
         ownedByCapture: this.#owner !== undefined && lock.held,
       }),
       frozenObjectIds: Object.freeze([...this.#source.frozenTemporaryObjectIds]),
+      resourceOwnership: Object.freeze({
+        executorOwnerHeld: executor.executorOwnerHeld,
+        freezeOwnedByCapture: executor.freezeOwnedByCapture,
+        lockOwnedByCapture: executor.lockOwnedByCapture,
+        resourcesReleased:
+          !executor.freezeOwnedByCapture && !executor.lockOwnedByCapture,
+      }),
       captureAttempts: executor.captureAttempts,
       commitAttempts: executor.commitAttempts,
       successfulCommits: executor.successfulCommits,
+      cleanupAttempts: executor.cleanupAttempts,
+      cleanupFailures: executor.cleanupFailures,
+      lastCleanupError: executor.lastCleanupError,
       originalAcknowledged: this.#originalAcknowledged,
       originalRetired: this.#originalRetired,
       resultAcknowledged: this.#resultAcknowledged,
@@ -839,6 +966,7 @@ export class SnapshotCaptureRuntime {
       this.#commandId ??= delivery.commandId ?? null;
       this.#transactionId ??= delivery.transactionId ?? null;
       if (this.#phase === 'request-pending') this.#phase = 'accepted';
+      this.#syncCurrentRequestReceipt();
       return;
     }
     if (delivery.status === 'rejected' ||
@@ -918,6 +1046,7 @@ export class SnapshotCaptureRuntime {
           ? `Checkpoint ${this.#store.current?.checkpointId ?? '-'} committed atomically.`
           : `Checkpoint capture failed; previous record was preserved.`;
     }
+    this.#syncCurrentRequestReceipt();
   }
 
   #publishResult(simulationTick: number): void {
@@ -967,6 +1096,7 @@ export class SnapshotCaptureRuntime {
       this.#message =
         `Result Event #${association.resultEventId} waits for a fixed coordination phase.`;
     }
+    this.#syncCurrentRequestReceipt();
   }
 
   #consumeResult(
@@ -1049,7 +1179,7 @@ export class SnapshotCaptureRuntime {
     if (this.#phase === 'blocked' || this.#phase === 'recovery-pending') return;
     if (this.#originalRetired && this.#resultRetired &&
         this.#terminal?.status === 'succeeded') {
-      if (!this.#executor.resourceOwnerHeld) this.#owner = undefined;
+      this.#syncRuntimeOwner();
       this.#phase = 'succeeded';
       this.#message =
         `Capture ${this.#store.current?.checkpointId ?? '-'} completed; ` +
@@ -1058,11 +1188,30 @@ export class SnapshotCaptureRuntime {
     }
     if (this.#originalRetired && this.#resultRetired &&
         this.#terminal?.status === 'failed') {
-      if (!this.#executor.resourceOwnerHeld) this.#owner = undefined;
+      this.#syncRuntimeOwner();
       this.#phase = 'failed';
       this.#message =
         `Capture ended Failed: ${this.#terminal.reasonCode}; previous checkpoint preserved.`;
     }
+  }
+
+  #syncRuntimeOwner(): void {
+    if (!this.#executor.resourceOwnerHeld) this.#owner = undefined;
+  }
+
+  #syncCurrentRequestReceipt(): void {
+    const requestId = this.#authorizationRequestId;
+    const checkpointId = this.#requestedCheckpointId;
+    const eventId = this.#eventId;
+    if (requestId === null || checkpointId === null || eventId === null) return;
+    this.#requestReceipts.set(requestId, Object.freeze({
+      checkpointId,
+      eventId,
+      commandId: this.#commandId,
+      transactionId: this.#transactionId,
+      resultEventId: this.#resultEventId,
+      phase: this.#phase,
+    }));
   }
 
   #setBlocked(message: string): void {
@@ -1085,6 +1234,20 @@ function rejectedCaptureRequest(
   feedback: string,
 ): SnapshotCaptureRequestResult {
   return Object.freeze({ status: 'rejected' as const, reason, feedback });
+}
+
+function describeExistingRequest(receipt: CaptureRequestReceipt): string {
+  const command = receipt.commandId === null
+    ? ''
+    : `, Command #${receipt.commandId}`;
+  const transaction = receipt.transactionId === null
+    ? ''
+    : `, Transaction #${receipt.transactionId}`;
+  const result = receipt.resultEventId === null
+    ? ''
+    : `, Result Event #${receipt.resultEventId}`;
+  return `Checkpoint ${receipt.checkpointId} request ${receipt.phase} for ` +
+    `Event #${receipt.eventId}${command}${transaction}${result}.`;
 }
 
 function toMessage(error: unknown): string {

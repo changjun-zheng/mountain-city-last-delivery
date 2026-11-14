@@ -59,9 +59,17 @@ function authorization(instance, checkpointId, requestId = `request-${checkpoint
 }
 
 function request(instance, checkpointId) {
+  return requestWithId(
+    instance,
+    checkpointId,
+    `request-${checkpointId}`,
+  );
+}
+
+function requestWithId(instance, checkpointId, requestId) {
   return instance.core.requestCheckpointCapture(
     checkpointId,
-    authorization(instance, checkpointId),
+    authorization(instance, checkpointId, requestId),
   );
 }
 
@@ -540,4 +548,290 @@ test('D10-A2 CT06 target E and capture share one runtime but use distinct comman
   assert.equal(CHECKPOINT_CAPTURE_EVENT_TYPE, 'prototype.checkpoint.capture.requested');
   assert.equal(CHECKPOINT_CAPTURE_COMMAND_TYPE, 'prototype.snapshot.capture');
   assert.equal(CHECKPOINT_CAPTURE_TARGET_ID, 'prototype.snapshot.target');
+});
+
+test('D10-A2-R1 R01 external freeze conflict does not retain ownership and new request IDs can proceed', () => {
+  const instance = fixture();
+  const externalOwner = {};
+  const objectIds = GRAYBOX_SNAPSHOT_REGISTRY.map(entry => entry.objectId);
+  assert.equal(
+    instance.world.freezeTemporaryObjects(objectIds, externalOwner).status,
+    'frozen',
+  );
+
+  const firstRequestId = 'external-conflict-first';
+  assert.equal(
+    requestWithId(
+      instance,
+      GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID,
+      firstRequestId,
+    ).status,
+    'created',
+  );
+  const activeIndependent = requestWithId(
+    instance,
+    GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID,
+    'external-conflict-independent-active',
+  );
+  assert.equal(activeIndependent.status, 'rejected');
+  assert.equal(activeIndependent.reason, 'lock-busy');
+
+  advanceToTerminal(instance);
+  let capture = instance.core.snapshot.checkpointCapture;
+  assert.equal(capture.phase, 'failed');
+  assert.equal(capture.lock.held, false);
+  assert.equal(capture.captureAttempts, 0);
+  assert.deepEqual(capture.frozenObjectIds, objectIds);
+  assert.deepEqual(instance.world.frozenTemporaryObjectIds, objectIds);
+  assert.deepEqual(capture.resourceOwnership, {
+    executorOwnerHeld: false,
+    freezeOwnedByCapture: false,
+    lockOwnedByCapture: false,
+    resourcesReleased: true,
+  });
+  assert.equal(
+    instance.core.snapshot.checkpointSnapshot.current.checkpointId,
+    GRAYBOX_CHECKPOINT_ID,
+  );
+
+  const whileConflict = requestWithId(
+    instance,
+    GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID,
+    'external-conflict-second',
+  );
+  assert.equal(whileConflict.status, 'created');
+  advanceToTerminal(instance);
+  capture = instance.core.snapshot.checkpointCapture;
+  assert.equal(capture.phase, 'failed');
+  assert.equal(capture.eventId, 3);
+  assert.equal(capture.commandId, 2);
+  assert.equal(capture.transactionId, 2);
+  assert.equal(capture.resultEventId, 4);
+  assert.equal(capture.lock.held, false);
+  assert.equal(capture.captureAttempts, 0);
+  assert.deepEqual(instance.world.frozenTemporaryObjectIds, objectIds);
+
+  assert.equal(
+    instance.world.releaseTemporaryObjects(externalOwner).status,
+    'released',
+  );
+  const afterRelease = requestWithId(
+    instance,
+    GRAYBOX_CHECKPOINT_ID,
+    'external-conflict-after-release',
+  );
+  assert.equal(afterRelease.status, 'created');
+  advanceToTerminal(instance);
+  capture = instance.core.snapshot.checkpointCapture;
+  assert.equal(capture.phase, 'succeeded');
+  assert.equal(capture.eventId, 5);
+  assert.equal(capture.commandId, 3);
+  assert.equal(capture.transactionId, 3);
+  assert.equal(capture.resultEventId, 6);
+  assert.equal(capture.currentCheckpointId, GRAYBOX_CHECKPOINT_ID);
+  assert.equal(capture.captureAttempts, 1);
+  assert.equal(capture.commitAttempts, 1);
+
+  const originalAgain = requestWithId(
+    instance,
+    GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID,
+    firstRequestId,
+  );
+  assert.equal(originalAgain.status, 'existing');
+  assert.match(originalAgain.feedback, /Event #1/);
+  assert.match(originalAgain.feedback, /Transaction #1/);
+  assert.match(originalAgain.feedback, /Result Event #2/);
+});
+
+test('D10-A2-R1 R02 terminal cleanup releases a failed transaction lock after one interrupted release', () => {
+  let interruptCapture = true;
+  let interruptLockRelease = true;
+  const instance = fixture({
+    captureFaultInjector: (phase, details) => {
+      if (interruptCapture &&
+          phase === 'capture' &&
+          details.objectId === 'moving-vertical-a') {
+        interruptCapture = false;
+        throw new Error('injected capture failure before lock cleanup');
+      }
+    },
+    resourceFaultInjector: point => {
+      if (point === 'before-release-lock' && interruptLockRelease) {
+        interruptLockRelease = false;
+        throw new Error('injected failed-terminal lock release');
+      }
+    },
+  });
+  const originalRecord =
+    JSON.stringify(instance.core.snapshot.checkpointSnapshot.current);
+  assert.equal(
+    requestWithId(
+      instance,
+      GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID,
+      'failed-terminal-lock',
+    ).status,
+    'created',
+  );
+  advanceToTerminal(instance);
+
+  let capture = instance.core.snapshot.checkpointCapture;
+  assert.equal(capture.phase, 'failed');
+  assert.equal(capture.lock.held, true);
+  assert.equal(capture.captureAttempts, 1);
+  assert.equal(capture.commitAttempts, 0);
+  assert.deepEqual(capture.resourceOwnership, {
+    executorOwnerHeld: true,
+    freezeOwnedByCapture: false,
+    lockOwnedByCapture: true,
+    resourcesReleased: false,
+  });
+  assert.equal(
+    JSON.stringify(instance.core.snapshot.checkpointSnapshot.current),
+    originalRecord,
+  );
+
+  const blockedSuccessor = requestWithId(
+    instance,
+    GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID,
+    'failed-terminal-lock-blocked-successor',
+  );
+  assert.equal(blockedSuccessor.status, 'rejected');
+  assert.equal(blockedSuccessor.reason, 'lock-busy');
+  assert.equal(
+    instance.core.snapshot.checkpointCapture.eventId,
+    capture.eventId,
+  );
+
+  instance.core.recoverCheckpointCapture();
+  capture = instance.core.snapshot.checkpointCapture;
+  assert.equal(capture.phase, 'failed');
+  assert.equal(capture.lock.held, false);
+  assert.equal(capture.captureAttempts, 1);
+  assert.equal(capture.commitAttempts, 0);
+  assert.equal(capture.cleanupAttempts, 1);
+  assert.deepEqual(capture.resourceOwnership, {
+    executorOwnerHeld: false,
+    freezeOwnedByCapture: false,
+    lockOwnedByCapture: false,
+    resourcesReleased: true,
+  });
+
+  instance.core.recoverCheckpointCapture();
+  capture = instance.core.snapshot.checkpointCapture;
+  assert.equal(capture.phase, 'failed');
+  assert.equal(capture.cleanupAttempts, 2);
+  assert.equal(capture.captureAttempts, 1);
+  assert.equal(capture.commitAttempts, 0);
+
+  assert.equal(
+    requestWithId(
+      instance,
+      GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID,
+      'failed-terminal-lock-successor',
+    ).status,
+    'created',
+  );
+  advanceToTerminal(instance);
+  capture = instance.core.snapshot.checkpointCapture;
+  assert.equal(capture.phase, 'succeeded');
+  // Capture diagnostics are runtime-cumulative: the failed request attempted
+  // capture once, and the explicitly started successor attempted it once more.
+  assert.equal(capture.captureAttempts, 2);
+  assert.equal(capture.commitAttempts, 1);
+});
+
+test('D10-A2-R1 R02 failed-terminal freeze cleanup is bounded, idempotent and never recaptures', () => {
+  let interruptCapture = true;
+  let remainingFreezeReleaseFaults = 2;
+  const instance = fixture({
+    captureFaultInjector: (phase, details) => {
+      if (interruptCapture &&
+          phase === 'capture' &&
+          details.objectId === 'moving-vertical-a') {
+        interruptCapture = false;
+        throw new Error('injected capture failure before freeze cleanup');
+      }
+    },
+    resourceFaultInjector: point => {
+      if (point === 'before-release-freeze' && remainingFreezeReleaseFaults > 0) {
+        remainingFreezeReleaseFaults--;
+        throw new Error('injected failed-terminal freeze release');
+      }
+    },
+  });
+  const originalRecord =
+    JSON.stringify(instance.core.snapshot.checkpointSnapshot.current);
+  assert.equal(
+    requestWithId(
+      instance,
+      GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID,
+      'failed-terminal-freeze',
+    ).status,
+    'created',
+  );
+  advanceToTerminal(instance);
+
+  let capture = instance.core.snapshot.checkpointCapture;
+  assert.equal(capture.phase, 'failed');
+  assert.equal(capture.lock.held, false);
+  assert.equal(capture.captureAttempts, 1);
+  assert.equal(capture.commitAttempts, 0);
+  assert.deepEqual(
+    capture.frozenObjectIds,
+    GRAYBOX_SNAPSHOT_REGISTRY.map(entry => entry.objectId),
+  );
+  assert.deepEqual(capture.resourceOwnership, {
+    executorOwnerHeld: true,
+    freezeOwnedByCapture: true,
+    lockOwnedByCapture: false,
+    resourcesReleased: false,
+  });
+
+  instance.core.recoverCheckpointCapture();
+  capture = instance.core.snapshot.checkpointCapture;
+  assert.equal(capture.phase, 'failed');
+  assert.equal(capture.lock.held, false);
+  assert.equal(capture.cleanupAttempts, 1);
+  assert.equal(capture.captureAttempts, 1);
+  assert.equal(capture.resourceOwnership.freezeOwnedByCapture, true);
+
+  instance.core.recoverCheckpointCapture();
+  capture = instance.core.snapshot.checkpointCapture;
+  assert.equal(capture.phase, 'failed');
+  assert.equal(capture.lock.held, false);
+  assert.deepEqual(capture.frozenObjectIds, []);
+  assert.equal(capture.cleanupAttempts, 2);
+  assert.equal(capture.captureAttempts, 1);
+  assert.equal(capture.commitAttempts, 0);
+  assert.deepEqual(capture.resourceOwnership, {
+    executorOwnerHeld: false,
+    freezeOwnedByCapture: false,
+    lockOwnedByCapture: false,
+    resourcesReleased: true,
+  });
+  assert.equal(
+    JSON.stringify(instance.core.snapshot.checkpointSnapshot.current),
+    originalRecord,
+  );
+
+  instance.core.recoverCheckpointCapture();
+  capture = instance.core.snapshot.checkpointCapture;
+  assert.equal(capture.phase, 'failed');
+  assert.equal(capture.cleanupAttempts, 3);
+  assert.equal(capture.captureAttempts, 1);
+  assert.equal(capture.commitAttempts, 0);
+
+  assert.equal(
+    requestWithId(
+      instance,
+      GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID,
+      'failed-terminal-freeze-successor',
+    ).status,
+    'created',
+  );
+  advanceToTerminal(instance);
+  capture = instance.core.snapshot.checkpointCapture;
+  assert.equal(capture.phase, 'succeeded');
+  assert.equal(capture.captureAttempts, 2);
+  assert.equal(capture.commitAttempts, 1);
 });

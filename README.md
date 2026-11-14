@@ -1574,11 +1574,54 @@ CT01–CT06：
 release/layered-city-adventures/win-unpacked/Layered City Adventures.exe
 ```
 
-本段结论限共享核心捕获事务、真实 Matter 局部冻结、故障恢复单元／集成验证及既有 A1 三端回归。Matter 仍是物理验证候选；D10-A2 等待 Work 审查，不进入 D11，不 Commit／Push／发布。
+本段结论限共享核心捕获事务、真实 Matter 局部冻结、故障恢复单元／集成验证及既有 A1 三端回归。Matter 仍是物理验证候选；D10-A2 主体保留原审查记录。
+
+## D10-A2-R1：失败资源清理与重新准入
+
+2026-11-14 完成 D10-A2-R1 的核心资源生命周期修复。原问题保留为已确认缺陷：真实 Matter 中的外部冻结会让本事务错误保留 owner；提交前失败叠加一次锁释放中断后，正式 Failed 事务无法通过原有 Manager recovery 清理锁。
+
+捕获执行器现在分别记录“本事务确实取得的对象冻结”和“本事务仍持有的关卡锁”。只有冻结返回 `frozen` 或同一 owner 的 `existing` 时才标记冻结所有权；`busy` 表示本事务从未取得冻结。清理时冻结释放与锁释放分别尝试，任一步失败不会阻止另一步。外部冻结非空不参与本事务 owner 判定，也不会被本事务释放。
+
+事务进入 Succeeded／Failed 后仍是原终态。显式 `recoverCheckpointCapture()` 对终态只执行一次有界资源清理，不调用 Manager recovery，不重新 accept、capture、commit、发布结果或改写终态。持续故障保留真实 `resourceOwnership`、`cleanupAttempts`、`cleanupFailures` 和 `lastCleanupError`；故障解除后的调用幂等完成清理。
+
+请求准入使用独立 requestId 回执。相同 requestId 返回原 Event／Command／Transaction／Result 身份且不新增记录；不同 requestId 在旧生命周期或真实资源仍占用时明确返回 `lock-busy`，不排队，也不会在资源释放后自动补发。资源清理完成后，仍需调用方显式提交新的 requestId。
+
+R01–R04：
+
+| 用例 | 状态 | 实际证据 |
+| --- | --- | --- |
+| R01 外部冻结冲突与解除后重试 | PASS | 外部 owner 先冻结两平台；首请求以 Event／Command／Transaction／Result `1／1／1／2` Formal Failed 后 `executorOwnerHeld=false`、本事务冻结／锁均为 `false`，外部冻结仍保持。冲突持续时新 requestId 形成独立失败请求 `3／2／2／4`；外部解冻后新的同检查点请求以 `5／3／3／6` 成功提交。再次提交最初 requestId 返回 `existing` 并保留原 `1／1／1／2`，没有创建新链路。 |
+| R02 失败后的锁清理中断 | PASS | 第二对象捕获失败且 `before-release-lock` 首次中断后，原快照和 Failed 终态保留，诊断为自身锁 held、冻结已释放。新请求在清理前返回 `lock-busy`；一次显式清理释放锁，第二次调用为幂等 `already-released`，捕获／提交次数没有因清理增加。后续新 requestId 可完成成功捕获。 |
+| R02 失败后的冻结清理中断 | PASS | `before-release-freeze` 连续两次中断时，锁仍独立释放，冻结所有权保持真实占用；每次显式清理只尝试一次。故障解除后一次调用完成冻结释放，后续调用幂等。旧快照和原 Failed 终态不变，新 requestId 才启动后继捕获。 |
+| R03 准入与外部资源隔离 | PASS | 不同 requestId 在旧资源未收尾时均被拒绝，没有 Event／Command／Transaction 合并或隐式排队；旧 requestId 始终返回原身份。外部冻结不被释放；初始化控制 owner、Pause Token、玩家控制锁和永久进度测试未回归。 |
+| R04 原语义回归 | PASS | 原 136 项全部保留，包括 CT05 提交回执丢失、终态登记中断、`1/1/1` 捕获／提交计数、平台无追赶、目标 E 共用 Runtime 和永久奖励幂等；新增 3 项 R1 回归后为 `139/139`。 |
+
+实际执行：
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| 修复前定向回归 | FAIL | 新增 3 项按预期失败：R01 新 requestId 返回 `existing`；锁／冻结清理中断场景未进入正式 Failed，诊断 phase 为 `blocked`。失败结果保留为 R1 的先红依据。 |
+| `node --experimental-strip-types --test tests/snapshot-capture.test.mjs` | PASS | 当前捕获专项 `12/12`；包含原 9 项及新增 R1 3 项。 |
+| `npm.cmd test` | PASS | TypeScript 核心／Renderer 检查、Electron Main 编译及 `139/139` 通过，0 fail、0 skipped；原 136 项语义保留。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建 27 modules，Electron Main 编译及 Windows x64 免安装目录构建成功；仅保留 bundle 体积、缺少 author 和默认 Electron 图标警告。 |
+| D10-A1 三端定向 | NOT RUN | 本轮只修改纯共享核心及对应测试，没有修改物理冻结适配、平台接线或宿主入口；旧 `run-sJQsTu` 不作为新源码版本的端到端证据。 |
+| 新捕获 GUI／正式触发／仲裁 | NOT RUN | 继续未实现；R1 结果不表示 D10-A2 GUI 或完整检查点系统通过。 |
+| Edge | NOT RUN | 本轮没有浏览器端改动或三端重跑。 |
+| `git diff --check` | PASS | 无空白错误；仅有仓库既有 LF／CRLF 提示。 |
+
+版本证据：
+
+- 基线提交：`7921b13`。
+- `src/core/snapshot-capture-runtime.ts`：`4A0955E2905876FF9F5994B4D50DCF83CFDD9C7A1AC835D7EF5D9E19B1D9FE4A`。
+- `tests/snapshot-capture.test.mjs`：`AD07E83B93C3F6EB76C09416C732DB2C403CAD338A3248812F662D731024264B`。
+- 生产 ASAR：`80E19824EE4CB6355C66D76951EF9074B9E309D49FDCE54CB95E5CDAFCE06042`。
+- Windows EXE：`80AEA3008BBBB41B148E6A6879088739BF1EC89EFA85665514575BDD6751C19B`。
+
+D10-A2-R1 当前为 DONE（待 Work 审查）；父项 D10-A2 仍等待 Work 收口。未进入正式触发区域、D11 恢复或存档，不 Commit／Push／发布。
 
 ## 当前限制
 
-- 最新执行（D10-A2，2026-11-14）：共享核心已建立单关卡捕获锁、可信检查点配置、同安全边界完整捕获、跨 Tick 验证／原子替换、提交后中断核查和真实 Matter 局部冻结；`136/136` 自动化测试、类型检查和生产构建 PASS，当前构建的 A1 Chrome Web／Electron 开发版／独立包定向回归 PASS。正式捕获触发区域、宿主入口、坠落传送和完整恢复仍 NOT RUN。
+- 最新执行（D10-A2-R1，2026-11-14）：共享核心已建立单关卡捕获锁、可信检查点配置、同安全边界完整捕获、跨 Tick 验证／原子替换、提交后中断核查、真实 Matter 局部冻结，以及失败终态后的有界／幂等资源清理和重新准入；`139/139` 自动化测试、类型检查和生产构建 PASS。正式捕获触发区域、宿主入口、坠落传送和完整恢复仍 NOT RUN。
 - Web 主包约 332.14 KB gzip，Vite 有体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
