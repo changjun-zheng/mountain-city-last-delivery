@@ -178,6 +178,49 @@ const parseSample = data => ({ tick: +data.tick, x: +data.x, y: +data.y, vx: +da
   checkpointCaptureLockHeld: data.checkpointCaptureLockHeld === 'true',
   checkpointCaptureResourcesReleased:
     data.checkpointCaptureResourcesReleased === 'true',
+  failureZoneOccupied: data.failureZoneOccupied === 'true',
+  failureZoneEnter: +(data.failureZoneEnter || 0),
+  failureZoneExit: +(data.failureZoneExit || 0),
+  failureZoneLastTick: data.failureZoneLastTick === ''
+    ? null : +data.failureZoneLastTick,
+  recoveryRuntimeInstanceId: data.recoveryRuntimeInstanceId || '',
+  recoveryPhase: data.recoveryPhase || '',
+  recoveryMessage: data.recoveryMessage || '',
+  recoveryDetectionCount: +(data.recoveryDetectionCount || 0),
+  recoveryCount: +(data.recoveryCount || 0),
+  recoveryIgnoredSignalCount: +(data.recoveryIgnoredSignalCount || 0),
+  recoveryControlLockHeld: data.recoveryControlLockHeld === 'true',
+  recoveryTriggersShielded: data.recoveryTriggersShielded === 'true',
+  recoveryFadeElapsed: +(data.recoveryFadeElapsed || 0),
+  recoveryFadeAlpha: +(data.recoveryFadeAlpha || 0),
+  recoveryCaptureWaitTicks: +(data.recoveryCaptureWaitTicks || 0),
+  recoveryFailureId: data.recoveryFailureId || '',
+  recoveryFailureEventId: data.recoveryFailureEventId === ''
+    ? null : +data.recoveryFailureEventId,
+  recoveryFailureAcknowledged: data.recoveryFailureAcknowledged === 'true',
+  recoveryFailureRetired: data.recoveryFailureRetired === 'true',
+  recoveryDetectedTick: data.recoveryDetectedTick === ''
+    ? null : +data.recoveryDetectedTick,
+  recoveryAdmittedTick: data.recoveryAdmittedTick === ''
+    ? null : +data.recoveryAdmittedTick,
+  recoverySourceSelectedTick: data.recoverySourceSelectedTick === ''
+    ? null : +data.recoverySourceSelectedTick,
+  recoveryRestoredTick: data.recoveryRestoredTick === ''
+    ? null : +data.recoveryRestoredTick,
+  recoveryValidatedTick: data.recoveryValidatedTick === ''
+    ? null : +data.recoveryValidatedTick,
+  recoveryPlacedTick: data.recoveryPlacedTick === ''
+    ? null : +data.recoveryPlacedTick,
+  recoveryFadeInCompletedTick: data.recoveryFadeInCompletedTick === ''
+    ? null : +data.recoveryFadeInCompletedTick,
+  recoveryReleasedTick: data.recoveryReleasedTick === ''
+    ? null : +data.recoveryReleasedTick,
+  recoverySourceCheckpointId: data.recoverySourceCheckpointId || '',
+  recoverySourceAnchor: data.recoverySourceAnchor || '',
+  recoverySourcePayload: data.recoverySourcePayload || '',
+  recoveryAnchorValidation: data.recoveryAnchorValidation || '',
+  recoveryLastError: data.recoveryLastError || '',
+  recoveryPhaseHistory: data.recoveryPhaseHistory || '',
 });
 const sample = async page => parseSample(await rawSample(page));
 
@@ -2772,6 +2815,381 @@ export async function checkCheckpointCapture(ctx, record, capture) {
       currentCheckpointId: reentered.checkpointCurrentId,
       saves: reentered.checkpointCaptureSaves,
       rewardCount: reentered.progressRewardCount,
+    };
+  });
+
+  await up();
+  assert.deepEqual(ctx.errors, []);
+}
+
+// D11-A1 uses the visible early gap and real movement input. It covers both the
+// initial fallback and an active A checkpoint, including a real lifecycle pause
+// while the recovery state machine is mid-fade.
+export async function checkRecovery(ctx, record, capture) {
+  const page = ctx.page;
+  const key = (code, down) => ctx.monitor.key(code, down);
+  const focusedPoll = { polling: 'raf', timeout: 15000 };
+  const up = async () => {
+    for (const code of [
+      'KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'Escape',
+      'KeyR',
+    ]) await key(code, false);
+  };
+  const waitStablePausedSample = async () => {
+    let previous;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(100);
+      const current = await sample(page);
+      if (previous && JSON.stringify(current) === JSON.stringify(previous)) {
+        return current;
+      }
+      previous = current;
+    }
+    throw new Error('Paused D11-A1 diagnostics did not settle');
+  };
+  const resetViaR = async () => {
+    await ctx.show();
+    await up();
+    const before = await sample(page);
+    await key('KeyR', true);
+    await key('KeyR', false);
+    await page.waitForFunction(({ resets, tick }) => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return Number(data?.resets) > resets && Number(data?.tick) >= tick &&
+        Number(data?.x) <= 81 && data?.grounded === 'true' &&
+        data?.controlAllowed === 'true';
+    }, { resets: before.resets, tick: before.tick }, focusedPoll);
+    return sample(page);
+  };
+  const triggerFailureThroughGap = async () => {
+    await key('KeyD', true);
+    await page.waitForFunction(() =>
+      Number(document.querySelector('#diagnostics')?.dataset.x) > 500,
+    undefined, focusedPoll);
+    await key('Space', true);
+    await page.waitForFunction(() =>
+      Number(document.querySelector('#diagnostics')?.dataset.x) > 555,
+    undefined, focusedPoll);
+    await key('KeyD', false);
+    await key('KeyA', true);
+    // Keep both Space and E held through recovery. The player reset must retain
+    // separate release gates without replaying the jump or interaction.
+    await key('KeyE', true);
+    await page.waitForFunction(() =>
+      Number(document.querySelector('#diagnostics')?.dataset.vx) <= 0,
+    undefined, focusedPoll);
+    await key('KeyA', false);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return data?.recoveryPhase === 'fading-out' &&
+        data?.recoveryControlLockHeld === 'true';
+    }, undefined, focusedPoll);
+    return sample(page);
+  };
+  const waitRecovery = async (count, checkpointId) => {
+    await page.waitForFunction(({ count, checkpointId }) => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return data?.recoveryPhase === 'succeeded' &&
+        Number(data?.recoveryCount) === count &&
+        data?.recoverySourceCheckpointId === checkpointId &&
+        data?.recoveryControlLockHeld === 'false' &&
+        data?.recoveryTriggersShielded === 'false' &&
+        data?.controlAllowed === 'true';
+    }, { count, checkpointId }, { polling: 100, timeout: 15000 });
+    return sample(page);
+  };
+  const openGoalRoute = async () => {
+    await key('KeyD', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.interactionSelected ===
+        'prototype-goal-e',
+    undefined, focusedPoll);
+    await key('KeyD', false);
+    await key('KeyE', true);
+    await key('KeyE', false);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return data?.goalPhase === 'succeeded' &&
+        data?.progressRouteOpen === 'true' &&
+        data?.progressRewardCount === '1' &&
+        data?.checkpointTriggersEnabled === 'true';
+    }, undefined, { polling: 100, timeout: 15000 });
+    return sample(page);
+  };
+  const navigateToCheckpointA = async () => {
+    await key('KeyD', true);
+    await page.waitForFunction(() =>
+      Number(document.querySelector('#diagnostics')?.dataset.x) > 425,
+    undefined, focusedPoll);
+    await key('Space', true);
+    await page.waitForFunction(() =>
+      Number(document.querySelector('#diagnostics')?.dataset.x) > 600,
+    undefined, focusedPoll);
+    await key('Space', false);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return Number(data?.x) > 880 && data?.grounded === 'false';
+    }, undefined, focusedPoll);
+    const edgeJumps = (await sample(page)).jumps;
+    await key('Space', true);
+    await page.waitForFunction(jumps =>
+      Number(document.querySelector('#diagnostics')?.dataset.jumps) > jumps,
+    edgeJumps, focusedPoll);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return Number(data?.x) > 1030 && data?.grounded === 'true';
+    }, undefined, focusedPoll);
+    await key('Space', false);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.checkpointZoneAOccupied ===
+        'true',
+    undefined, focusedPoll);
+    await key('KeyD', false);
+  };
+  const waitCheckpointA = async () => {
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return data?.checkpointCurrentId === 'graybox-test-capture-a' &&
+        data?.checkpointCapturePhase === 'succeeded' &&
+        Number(data?.checkpointCaptureSaves) === 1 &&
+        data?.checkpointCaptureResourcesReleased === 'true' &&
+        data?.checkpointCaptureLockHeld === 'false';
+    }, undefined, { polling: 100, timeout: 15000 });
+    return sample(page);
+  };
+  const run = async (name, fn) => {
+    ctx.operation = 'graybox-' + name;
+    ctx.stage = ctx.operation;
+    await ctx.show();
+    await page.waitForFunction(() =>
+      document.visibilityState === 'visible' && document.hasFocus(),
+    undefined, { polling: 100, timeout: 15000 });
+    const result = await ctx.monitor.race(fn);
+    record(name, { status: 'PASS', ...result });
+    console.log('PASS', ctx.label, 'graybox', name, JSON.stringify(result));
+  };
+
+  await chooseScene(ctx, 'graybox');
+  await run('D11-A1-RF01-RF05-initial-fallback-paused-recovery', async () => {
+    const reset = await resetViaR();
+    assert.equal(reset.recoveryCount, 0);
+    assert.equal(reset.checkpointCurrentId, 'graybox-initial-spawn');
+    assert.equal(reset.progressGoalCount, 0);
+    const runtime = reset.goalRuntimeInstanceId;
+    const tickBeforeFall = reset.tick;
+    const detected = await triggerFailureThroughGap();
+    assert.equal(detected.recoveryFailureAcknowledged, true);
+    assert.equal(detected.recoveryFailureRetired, true);
+    assert.equal(detected.recoveryTriggersShielded, true);
+    assert.equal(detected.interactionNeedsRelease, true);
+    assert.equal(detected.recoveryDetectedTick, detected.failureZoneLastTick);
+    await capture('D11-A1-initial-real-fall-fade-out', true);
+
+    ctx.stage = 'D11-A1-initial-recovery-hide';
+    await ctx.hide();
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return document.visibilityState === 'hidden' && data?.paused === 'true';
+    }, undefined, { polling: 100 });
+    const frozen = await waitStablePausedSample();
+    assert.equal(frozen.recoveryPhase, 'fading-out');
+    assert.equal(frozen.recoveryControlLockHeld, true);
+    assert.equal(frozen.control, false);
+    const frozenFade = frozen.recoveryFadeElapsed;
+    const frozenPlatformClock = frozen.platformClock;
+    await page.waitForTimeout(1000);
+    assert.deepEqual(await sample(page), frozen,
+      'Hidden recovery, fade clock and platforms must remain frozen');
+    await capture('D11-A1-initial-recovery-hidden-frozen', true);
+
+    ctx.stage = 'D11-A1-initial-recovery-show';
+    await ctx.show();
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return document.visibilityState === 'visible' &&
+        document.hasFocus() && data?.paused === 'false';
+    }, undefined, focusedPoll);
+    const resumed = await sample(page);
+    assert.ok(resumed.tick - frozen.tick <= 5, 'No background Tick catch-up');
+    assert.equal(resumed.discarded, frozen.discarded);
+    assert.ok(resumed.recoveryFadeElapsed >= frozenFade);
+    assert.ok(resumed.platformClock >= frozenPlatformClock);
+
+    const completed = await waitRecovery(1, 'graybox-initial-spawn');
+    assert.equal(completed.goalRuntimeInstanceId, runtime);
+    assert.equal(completed.recoverySourceAnchor, '80,472,1');
+    assert.equal(completed.recoveryAnchorValidation, 'valid:ground-a');
+    assert.equal(completed.needsRelease, true);
+    assert.equal(completed.interactionNeedsRelease, true);
+    assert.equal(completed.jumps, 0);
+    assert.equal(completed.recoveryIgnoredSignalCount, 0);
+    assert.ok(completed.tick > tickBeforeFall);
+    assert.ok(completed.physicsSteps > reset.physicsSteps);
+    assert.equal(completed.checkpointCaptureSaves, 0);
+    assert.notEqual(completed.recoveryAdmittedTick, null);
+    assert.notEqual(completed.recoverySourceSelectedTick, null);
+    assert.notEqual(completed.recoveryRestoredTick, null);
+    assert.notEqual(completed.recoveryValidatedTick, null);
+    assert.notEqual(completed.recoveryPlacedTick, null);
+    assert.notEqual(completed.recoveryFadeInCompletedTick, null);
+    assert.ok(
+      completed.recoveryAdmittedTick <= completed.recoverySourceSelectedTick &&
+      completed.recoverySourceSelectedTick <= completed.recoveryRestoredTick &&
+      completed.recoveryRestoredTick <= completed.recoveryValidatedTick &&
+      completed.recoveryValidatedTick <= completed.recoveryPlacedTick &&
+      completed.recoveryPlacedTick <= completed.recoveryFadeInCompletedTick,
+    );
+    await capture('D11-A1-initial-anchor-restored', true);
+    await up();
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.needsRelease === 'false' &&
+      document.querySelector('#diagnostics')?.dataset.interactionNeedsRelease === 'false',
+    undefined, focusedPoll);
+    assert.equal((await sample(page)).jumps, 0,
+      'Releasing held Space after recovery must not replay a jump');
+    return {
+      runtime,
+      startTick: reset.tick,
+      detectedTick: detected.recoveryDetectedTick,
+      frozenTick: frozen.tick,
+      resumedTick: resumed.tick,
+      completedTick: completed.tick,
+      failureEventId: detected.recoveryFailureEventId,
+      sourceCheckpointId: completed.recoverySourceCheckpointId,
+      sourceAnchor: completed.recoverySourceAnchor,
+      anchorSupport: completed.recoveryAnchorValidation,
+      phaseHistory: completed.recoveryPhaseHistory,
+    };
+  });
+
+  let captured;
+  let capturedPayload;
+  await run('D11-A1-RF02-real-A-capture-before-active-recovery', async () => {
+    const progress = await openGoalRoute();
+    assert.equal(progress.progressGoalCount, 1);
+    assert.equal(progress.progressRewardCount, 1);
+    assert.equal(progress.progressEffectCount, 1);
+    await navigateToCheckpointA();
+    captured = await waitCheckpointA();
+    capturedPayload = JSON.parse(captured.checkpointPayload);
+    assert.equal(captured.checkpointId, 'graybox-test-capture-a');
+    assert.equal(captured.recoveryCount, 1);
+    assert.equal(captured.progressRouteOpen, true);
+    await capture('D11-A1-active-A-captured-before-fall', true);
+    return {
+      checkpointId: captured.checkpointId,
+      capturedAtTick: captured.checkpointCapturedAtTick,
+      anchor: captured.checkpointAnchor,
+      platformClocks: capturedPayload.objects.map(
+        object => object.state.clockMs,
+      ),
+      captureEventId: captured.checkpointCaptureEventId,
+      commandId: captured.checkpointCaptureCommandId,
+      transactionId: captured.checkpointCaptureTransactionId,
+      resultEventId: captured.checkpointCaptureResultEventId,
+      progress: [
+        captured.progressGoalCount,
+        captured.progressRewardCount,
+        captured.progressEffectCount,
+      ],
+    };
+  });
+
+  await run('D11-A1-RF02-RF04-active-A-recovery-restores-world-not-business', async () => {
+    await page.waitForTimeout(350);
+    const moved = await sample(page);
+    const expectedClock = capturedPayload.objects[0].state.clockMs;
+    assert.ok(moved.platformClock > expectedClock,
+      'The live platform must move after capture so rollback is observable');
+    const reset = await resetViaR();
+    assert.equal(reset.checkpointId, 'graybox-test-capture-a');
+    assert.equal(reset.progressGoalCount, 1);
+    assert.equal(reset.progressRewardCount, 1);
+    assert.equal(reset.progressEffectCount, 1);
+    assert.equal(reset.progressRouteOpen, true);
+    assert.equal(reset.recoveryCount, 1);
+    assert.ok(reset.platformClock < moved.platformClock);
+
+    const entriesBefore = reset.checkpointEntryEventCount;
+    const savesBefore = reset.checkpointCaptureSaves;
+    const resetsBefore = reset.resets;
+    const detected = await triggerFailureThroughGap();
+    await capture('D11-A1-active-A-real-fall-fade-out', true);
+    await key('KeyR', true);
+    await key('KeyR', false);
+    await page.waitForTimeout(80);
+    const resetAttempt = await sample(page);
+    assert.equal(resetAttempt.resets, resetsBefore,
+      'R must not interrupt or replace active fall recovery');
+    assert.equal(resetAttempt.recoveryFailureEventId,
+      detected.recoveryFailureEventId);
+
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.recoveryPhase ===
+        'fading-in',
+    undefined, focusedPoll);
+    const restored = await sample(page);
+    // The page observation is polled at 100 ms cadence, so the restored world
+    // may advance for a few real fixed steps before this diagnostic sample.
+    assert.ok(
+      Math.abs(restored.platformClock - expectedClock) <= 100,
+      `Platform clock should continue from ${expectedClock}, got ${restored.platformClock}`,
+    );
+    await capture('D11-A1-active-A-snapshot-restored-fade-in', true);
+
+    const completed = await waitRecovery(2, 'graybox-test-capture-a');
+    assert.equal(completed.checkpointCurrentId, 'graybox-test-capture-a');
+    assert.equal(completed.checkpointPayload, captured.checkpointPayload);
+    assert.equal(completed.recoverySourceAnchor, '1200,472,1');
+    assert.equal(completed.recoveryAnchorValidation, 'valid:ground-b');
+    assert.equal(completed.progressGoalCount, 1);
+    assert.equal(completed.progressRewardCount, 1);
+    assert.equal(completed.progressEffectCount, 1);
+    assert.equal(completed.progressRouteOpen, true);
+    assert.equal(completed.checkpointCaptureSaves, savesBefore);
+    assert.equal(completed.checkpointEntryEventCount, entriesBefore);
+    assert.equal(completed.goalRuntimeInstanceId,
+      captured.goalRuntimeInstanceId);
+    assert.equal(completed.recoveryIgnoredSignalCount, 0);
+    assert.equal(completed.needsRelease, true);
+    assert.equal(completed.interactionNeedsRelease, true);
+    assert.equal(completed.jumps, 0);
+    await capture('D11-A1-active-A-recovered-route-preserved', true);
+    await up();
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.needsRelease === 'false' &&
+      document.querySelector('#diagnostics')?.dataset.interactionNeedsRelease === 'false',
+    undefined, focusedPoll);
+    await page.waitForTimeout(100);
+    const released = await sample(page);
+    assert.equal(released.recoveryControlLockHeld, false);
+    assert.equal(released.control, true);
+    assert.equal(released.jumps, 0);
+    return {
+      runtime: completed.goalRuntimeInstanceId,
+      capturedAtTick: captured.checkpointCapturedAtTick,
+      platformClockBeforeCapture: expectedClock,
+      platformClockAfterMove: moved.platformClock,
+      platformClockAtRestore: restored.platformClock,
+      detectedTick: detected.recoveryDetectedTick,
+      sourceSelectedTick: completed.recoverySourceSelectedTick,
+      restoredTick: completed.recoveryRestoredTick,
+      validatedTick: completed.recoveryValidatedTick,
+      placedTick: completed.recoveryPlacedTick,
+      fadeInCompletedTick: completed.recoveryFadeInCompletedTick,
+      failureEventId: detected.recoveryFailureEventId,
+      sourceCheckpointId: completed.recoverySourceCheckpointId,
+      sourceAnchor: completed.recoverySourceAnchor,
+      anchorSupport: completed.recoveryAnchorValidation,
+      recoveryCount: completed.recoveryCount,
+      captureSaves: completed.checkpointCaptureSaves,
+      checkpointEntries: completed.checkpointEntryEventCount,
+      progress: [
+        completed.progressGoalCount,
+        completed.progressRewardCount,
+        completed.progressEffectCount,
+      ],
+      routeOpen: completed.progressRouteOpen,
     };
   });
 

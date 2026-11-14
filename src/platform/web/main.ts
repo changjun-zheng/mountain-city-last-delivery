@@ -79,6 +79,7 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
     const checkpointRecord = checkpointSnapshot.current;
     const checkpointTriggers = sample.checkpointTriggers;
     const checkpointCapture = sample.checkpointCapture;
+    const recovery = sample.recovery;
     common.push(
       `D10-A1 initial snapshot ${checkpointSnapshot.status}` +
       ` | attempts ${checkpointSnapshot.captureAttempts}` +
@@ -108,6 +109,17 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       ` lock ${checkpointCapture.lock.held ? 'HELD' : 'FREE'}` +
       ` resources ${checkpointCapture.resourceOwnership.resourcesReleased ? 'RELEASED' : 'HELD'}`,
     );
+    common.push(
+      `D11-A1 recovery ${recovery.phase.toUpperCase()}` +
+      ` | fall event ${recovery.failureEventId ?? '-'}` +
+      ` | source ${recovery.sourceCheckpointId ?? '-'}` +
+      ` | anchor ${recovery.sourceAnchor
+        ? `${recovery.sourceAnchor.x},${recovery.sourceAnchor.y},${recovery.sourceAnchor.facing}`
+        : '-'}` +
+      ` | recovered ${recovery.recoveryCount}` +
+      ` | control ${recovery.controlLockHeld ? 'LOCKED' : 'OPEN'}` +
+      ` | ${recovery.message}`,
+    );
     const horizontal = grayboxDiagnostics?.movingPlatforms.find(platform => platform.axis === 'horizontal');
     const vertical = grayboxDiagnostics?.movingPlatforms.find(platform => platform.axis === 'vertical');
     const zoneA = grayboxDiagnostics?.diagnosticZones.find(zone => zone.label === 'diagnostic-zone-a');
@@ -116,6 +128,7 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       zone.triggerId === 'checkpoint-trigger-a');
     const checkpointZoneB = checkpointTriggers.zones.find(zone =>
       zone.triggerId === 'checkpoint-trigger-b');
+    const failureZone = grayboxDiagnostics?.failureZone;
     Object.assign(diagnostics.dataset, {
       x: String(p.x), y: String(p.y), vx: String(p.vx), vy: String(p.vy),
       worldVx: String(p.worldVx), worldVy: String(p.worldVy),
@@ -317,6 +330,57 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       checkpointCaptureLockHeld: String(checkpointCapture.lock.held),
       checkpointCaptureResourcesReleased:
         String(checkpointCapture.resourceOwnership.resourcesReleased),
+      failureZoneOccupied: failureZone ? String(failureZone.occupied) : '',
+      failureZoneEnter: failureZone ? String(failureZone.enterCount) : '',
+      failureZoneExit: failureZone ? String(failureZone.exitCount) : '',
+      failureZoneLastTick: failureZone?.lastTransitionTick == null
+        ? '' : String(failureZone.lastTransitionTick),
+      recoveryRuntimeInstanceId: recovery.runtimeInstanceId,
+      recoveryPhase: recovery.phase,
+      recoveryMessage: recovery.message,
+      recoveryDetectionCount: String(recovery.detectionCount),
+      recoveryCount: String(recovery.recoveryCount),
+      recoveryIgnoredSignalCount: String(recovery.ignoredSignalCount),
+      recoveryControlLockHeld: String(recovery.controlLockHeld),
+      recoveryTriggersShielded: String(recovery.triggersShielded),
+      recoveryFadeElapsed: String(recovery.fadeElapsedMs),
+      recoveryFadeAlpha: String(recovery.fadeAlpha),
+      recoveryCaptureWaitTicks: String(recovery.captureWaitTicks),
+      recoveryFailureId: recovery.currentFailureId ?? '',
+      recoveryFailureEventId: recovery.failureEventId == null
+        ? '' : String(recovery.failureEventId),
+      recoveryFailureAcknowledged: String(recovery.failureEventAcknowledged),
+      recoveryFailureRetired: String(recovery.failureEventRetired),
+      recoveryDetectedTick: recovery.detectedTick == null
+        ? '' : String(recovery.detectedTick),
+      recoveryAdmittedTick: recovery.admittedTick == null
+        ? '' : String(recovery.admittedTick),
+      recoverySourceSelectedTick: recovery.sourceSelectedTick == null
+        ? '' : String(recovery.sourceSelectedTick),
+      recoveryRestoredTick: recovery.restoredTick == null
+        ? '' : String(recovery.restoredTick),
+      recoveryValidatedTick: recovery.validatedTick == null
+        ? '' : String(recovery.validatedTick),
+      recoveryPlacedTick: recovery.placedTick == null
+        ? '' : String(recovery.placedTick),
+      recoveryFadeInCompletedTick: recovery.fadeInCompletedTick == null
+        ? '' : String(recovery.fadeInCompletedTick),
+      recoveryReleasedTick: recovery.releasedTick == null
+        ? '' : String(recovery.releasedTick),
+      recoverySourceCheckpointId: recovery.sourceCheckpointId ?? '',
+      recoverySourceAnchor: recovery.sourceAnchor
+        ? `${recovery.sourceAnchor.x},${recovery.sourceAnchor.y},${recovery.sourceAnchor.facing}`
+        : '',
+      recoverySourcePayload: recovery.sourceSnapshot
+        ? JSON.stringify(recovery.sourceSnapshot) : '',
+      recoveryAnchorValidation: recovery.anchorValidation
+        ? recovery.anchorValidation.status === 'valid'
+          ? `valid:${recovery.anchorValidation.support}`
+          : `invalid:${recovery.anchorValidation.reason}`
+        : '',
+      recoveryLastError: recovery.lastError ?? '',
+      recoveryPhaseHistory: recovery.phaseHistory
+        .map(record => `${record.phase}@${record.tick}`).join(','),
     });
   }
   diagnostics.textContent = common.join('\n');

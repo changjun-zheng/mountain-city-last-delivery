@@ -143,6 +143,8 @@ export type EventCreationOptions = Readonly<{
   // Restricted commandless completion is intentionally limited to the
   // checkpoint-entry coordination event selected by the host composition.
   checkpointEntryEventType?: string;
+  // Player-failure recovery has its own restricted commandless completion.
+  playerFailureEventType?: string;
   dispatchHandler?: EventDispatchHandler;
   commandReceiptTestDouble?: CommandReceiptTestDouble;
   realCommandDelivery?: RealCommandDeliveryOptions;
@@ -205,6 +207,7 @@ export type EventLifecycleRecord = Readonly<{
   testCommandReference?: string;
   realCommand?: RealCommandAssociation;
   checkpointEntryResult?: CheckpointEntryCoordinationResult;
+  playerFailureResult?: PlayerFailureCoordinationResult;
   transactionResult?: TransactionResultAssociation;
   transactionResultConsumed?: boolean;
 }>;
@@ -239,6 +242,35 @@ export type CheckpointEntryCompletionResult =
     status: 'completed';
     eventId: number;
     result: CheckpointEntryCoordinationResult;
+  }>
+  | Readonly<{
+    status: 'rejected';
+    reason:
+      | 'not-configured'
+      | 'invalid-producer'
+      | 'unknown-event'
+      | 'not-pending'
+      | 'integrity-mismatch'
+      | 'invalid-result'
+      | 'dispatch-active';
+    message: string;
+  }>;
+
+export type PlayerFailureCoordinationResult = Readonly<{
+  status: 'player-failure-recovery-admitted';
+  failureId: string;
+  zoneId: string;
+  detectedTick: number;
+  admittedTick: number;
+  decision: 'admitted';
+  reason: string;
+}>;
+
+export type PlayerFailureCompletionResult =
+  | Readonly<{
+    status: 'completed';
+    eventId: number;
+    result: PlayerFailureCoordinationResult;
   }>
   | Readonly<{
     status: 'rejected';
@@ -334,6 +366,7 @@ export type CompletedEventResult = Readonly<{
   testCommandReference?: string;
   realCommand?: RealCommandAssociation;
   checkpointEntryResult?: CheckpointEntryCoordinationResult;
+  playerFailureResult?: PlayerFailureCoordinationResult;
   transactionResult?: TransactionResultAssociation;
 }>;
 
@@ -663,6 +696,7 @@ class EventLifecycleRegistry {
       testCommandReference?: string;
       realCommand?: RealCommandAssociation;
       checkpointEntryResult?: CheckpointEntryCoordinationResult;
+      playerFailureResult?: PlayerFailureCoordinationResult;
       transactionResultConsumed?: boolean;
     }>,
   ): EventLifecycleRecord {
@@ -693,6 +727,12 @@ class EventLifecycleRegistry {
         ? {
           checkpointEntryResult:
             details.checkpointEntryResult ?? current.checkpointEntryResult,
+        }
+        : {}),
+      ...(details.playerFailureResult ?? current.playerFailureResult
+        ? {
+          playerFailureResult:
+            details.playerFailureResult ?? current.playerFailureResult,
         }
         : {}),
       ...(current.transactionResult === undefined
@@ -868,6 +908,7 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
   readonly #transactionResultCapacity: number;
   readonly #allowedEventTypes: ReadonlySet<string> | undefined;
   readonly #checkpointEntryEventType: string | undefined;
+  readonly #playerFailureEventType: string | undefined;
   readonly #faultInjector: EventCreationFaultInjector | undefined;
   readonly #dispatchFaultInjector: EventDispatchFaultInjector | undefined;
   readonly #retirementFaultInjector: EventRetirementFaultInjector | undefined;
@@ -929,6 +970,7 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
       ? new Set(options.allowedEventTypes)
       : undefined;
     this.#checkpointEntryEventType = options.checkpointEntryEventType;
+    this.#playerFailureEventType = options.playerFailureEventType;
     this.#faultInjector = options.faultInjector;
     this.#dispatchFaultInjector = options.dispatchFaultInjector;
     this.#retirementFaultInjector = options.retirementFaultInjector;
@@ -1441,6 +1483,102 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
     });
   }
 
+  completePlayerFailure(
+    producer: EventProducerHandle,
+    eventId: number,
+    candidate: PlayerFailureCoordinationResult,
+  ): PlayerFailureCompletionResult {
+    if (!this.#playerFailureEventType) {
+      return rejectedPlayerFailureCompletion(
+        'not-configured',
+        'Commandless player-failure completion is not configured.',
+      );
+    }
+    const producerId = this.#resolveProducer(producer);
+    if (!producerId) {
+      return rejectedPlayerFailureCompletion(
+        'invalid-producer',
+        'Event producer handle is not owned by this coordinator.',
+      );
+    }
+    if (this.#dispatching) {
+      return rejectedPlayerFailureCompletion(
+        'dispatch-active',
+        'Player-failure completion cannot run inside an event dispatch.',
+      );
+    }
+    const event = this.#inbox.get(eventId);
+    const record = this.#lifecycle.get(eventId);
+    if (!event || !record) {
+      return rejectedPlayerFailureCompletion(
+        'unknown-event',
+        `Player-failure event ${eventId} is not registered as Pending.`,
+      );
+    }
+    if (record.runtimeInstanceId !== this.#runtimeInstanceId ||
+        record.producerId !== producerId ||
+        record.status !== 'pending' ||
+        event.runtimeInstanceId !== this.#runtimeInstanceId ||
+        event.type !== this.#playerFailureEventType ||
+        fingerprintEvent(event) !== record.eventFingerprint) {
+      return rejectedPlayerFailureCompletion(
+        record.status === 'pending' ? 'integrity-mismatch' : 'not-pending',
+        `Player-failure event ${eventId} is not eligible for restricted completion.`,
+      );
+    }
+    const result = normalizePlayerFailureResult(candidate, event);
+    if (!result.ok) {
+      return rejectedPlayerFailureCompletion('invalid-result', result.message);
+    }
+
+    try {
+      this.#lifecycle.transition(
+        eventId,
+        'pending',
+        'processing',
+        { simulationTick: result.value.admittedTick },
+      );
+      this.#inbox.remove(eventId);
+      this.#lifecycle.transition(
+        eventId,
+        'processing',
+        'completed',
+        {
+          simulationTick: result.value.admittedTick,
+          playerFailureResult: result.value,
+        },
+      );
+    } catch (error) {
+      const current = this.#lifecycle.get(eventId);
+      if (current?.status === 'processing' && !this.#inbox.contains(eventId)) {
+        try {
+          this.#lifecycle.transition(
+            eventId,
+            'processing',
+            'pending',
+            { simulationTick: result.value.admittedTick },
+          );
+          this.#inbox.commit(event);
+        } catch (rollbackError) {
+          return rejectedPlayerFailureCompletion(
+            'integrity-mismatch',
+            `Player-failure completion failed and could not restore Pending: ` +
+              `${toMessage(error)}; ${toMessage(rollbackError)}`,
+          );
+        }
+      }
+      return rejectedPlayerFailureCompletion(
+        'integrity-mismatch',
+        `Player-failure completion failed: ${toMessage(error)}`,
+      );
+    }
+    return Object.freeze({
+      status: 'completed' as const,
+      eventId,
+      result: result.value,
+    });
+  }
+
   readFinalResult(
     producer: EventProducerHandle,
     eventId: number,
@@ -1464,6 +1602,7 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
         (!record.testCommandReference &&
           !record.realCommand &&
           !record.checkpointEntryResult &&
+          !record.playerFailureResult &&
           !record.transactionResult)) {
       return rejectedFinalResult(
         'not-completed',
@@ -1484,6 +1623,9 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
         ...(record.realCommand ? { realCommand: record.realCommand } : {}),
         ...(record.checkpointEntryResult
           ? { checkpointEntryResult: record.checkpointEntryResult }
+          : {}),
+        ...(record.playerFailureResult
+          ? { playerFailureResult: record.playerFailureResult }
           : {}),
         ...(record.transactionResult
           ? { transactionResult: record.transactionResult }
@@ -3171,6 +3313,20 @@ function rejectedCheckpointEntryCompletion(
   });
 }
 
+function rejectedPlayerFailureCompletion(
+  reason: Extract<
+    PlayerFailureCompletionResult,
+    { status: 'rejected' }
+  >['reason'],
+  message: string,
+): PlayerFailureCompletionResult {
+  return Object.freeze({
+    status: 'rejected' as const,
+    reason,
+    message,
+  });
+}
+
 function normalizeCheckpointEntryResult(
   value: CheckpointEntryCoordinationResult,
   event: PendingEvent,
@@ -3227,6 +3383,55 @@ function normalizeCheckpointEntryResult(
     return Object.freeze({
       ok: false as const,
       message: `Checkpoint-entry arbitration result could not be read: ${toMessage(error)}`,
+    });
+  }
+}
+
+function normalizePlayerFailureResult(
+  value: PlayerFailureCoordinationResult,
+  event: PendingEvent,
+):
+  | Readonly<{ ok: true; value: PlayerFailureCoordinationResult }>
+  | Readonly<{ ok: false; message: string }> {
+  try {
+    if (!isPlainRecord(value) ||
+        value.status !== 'player-failure-recovery-admitted' ||
+        typeof value.failureId !== 'string' || value.failureId.length === 0 ||
+        typeof value.zoneId !== 'string' || value.zoneId.length === 0 ||
+        !Number.isSafeInteger(value.detectedTick) || value.detectedTick < 1 ||
+        !Number.isSafeInteger(value.admittedTick) ||
+        value.admittedTick < value.detectedTick ||
+        value.decision !== 'admitted' ||
+        typeof value.reason !== 'string' || value.reason.length === 0) {
+      return Object.freeze({
+        ok: false as const,
+        message: 'Player-failure coordination result has an unsupported shape.',
+      });
+    }
+    if (event.payload.failureId !== value.failureId ||
+        event.payload.zoneId !== value.zoneId ||
+        event.payload.detectedTick !== value.detectedTick) {
+      return Object.freeze({
+        ok: false as const,
+        message: 'Player-failure result does not match its Pending event.',
+      });
+    }
+    return Object.freeze({
+      ok: true as const,
+      value: Object.freeze({
+        status: 'player-failure-recovery-admitted' as const,
+        failureId: value.failureId,
+        zoneId: value.zoneId,
+        detectedTick: value.detectedTick,
+        admittedTick: value.admittedTick,
+        decision: 'admitted' as const,
+        reason: value.reason,
+      }),
+    });
+  } catch (error) {
+    return Object.freeze({
+      ok: false as const,
+      message: `Player-failure result could not be read: ${toMessage(error)}`,
     });
   }
 }
@@ -3463,6 +3668,9 @@ function publicLifecycleRecord(record: StoredLifecycleRecord): EventLifecycleRec
     ...(record.realCommand === undefined
       ? {}
       : { realCommand: record.realCommand }),
+    ...(record.playerFailureResult === undefined
+      ? {}
+      : { playerFailureResult: record.playerFailureResult }),
     ...(record.transactionResult === undefined
       ? {}
       : { transactionResult: record.transactionResult }),

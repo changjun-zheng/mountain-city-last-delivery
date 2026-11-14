@@ -241,6 +241,25 @@ export class InteractionController {
     this.#feedbackCount = 0;
   }
 
+  interruptTransientSession(): void {
+    const interrupted = this.#needsInteractRelease ||
+      this.#held.has(INTERACTION_PROTOTYPE.interactKey) ||
+      this.#investigationId !== null;
+    this.#controls.request(this.#owner, false);
+    this.#held.clear();
+    if (interrupted) this.#needsInteractRelease = true;
+    this.#selectedId = null;
+    this.#candidateCount = 0;
+    this.#investigationId = null;
+    this.#feedbackId = null;
+    this.#feedbackText = null;
+    this.#feedbackRemainingMs = 0;
+  }
+
+  restoreFacing(facing: -1 | 1): void {
+    this.#facing = facing;
+  }
+
   get snapshot(): InteractionSnapshot {
     const active = this.#objects.find(object => object.id === this.#investigationId);
     const feedback = this.#objects.find(object => object.id === this.#feedbackId);

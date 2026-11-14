@@ -7,7 +7,8 @@ import { PROTOTYPE_PROGRESS_CONTENT } from '../../core/progress.ts';
 import type { RuntimeUuidProvider } from '../../core/events.ts';
 import { GRAYBOX_CHECKPOINT_TRIGGERS } from '../../core/checkpoint-triggers.ts';
 import {
-  MatterGrayboxWorld, ONE_WAY_PLATFORM, PROGRESS_TEST_ROUTE_GATE,
+  FAILURE_ZONE_PROTOTYPE, MatterGrayboxWorld, ONE_WAY_PLATFORM,
+  PROGRESS_TEST_ROUTE_GATE,
   type MatterGrayboxDiagnostics, type MatterLibrary,
 } from '../../physics/matter/graybox-world';
 
@@ -46,7 +47,8 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
           label(480, 370, '墙壁');
           label(690, 360, '实体平台：上下均阻挡');
           label(1005, 382, '单向平台：下方跳穿 ↑');
-          label(887, 520, '间隙 · R 重置');
+          label(887, 520, '后段间隙 · R 重置');
+          label(506, 585, '早期测试缺口 ↓ 真实坠落');
           label(1350, 350, '连续坡面');
           label(1618, 266, '水平移动平台 ↔');
           label(1848, 190, '垂直升降平台 ↕');
@@ -160,12 +162,33 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
           }).setOrigin(1, 0).setScrollFactor(0).setDepth(42).setVisible(false)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => core.closeInteraction());
+          const recoveryHud = this.add.text(20, 350, '', {
+            fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '13px',
+            color: '#ffe9dc', backgroundColor: '#3d2523',
+            padding: { x: 8, y: 6 }, wordWrap: { width: 470, useAdvancedWrap: true },
+          }).setScrollFactor(0).setDepth(34);
+          const failureZoneVisual = this.add.rectangle(
+            FAILURE_ZONE_PROTOTYPE.x,
+            FAILURE_ZONE_PROTOTYPE.y,
+            FAILURE_ZONE_PROTOTYPE.width,
+            FAILURE_ZONE_PROTOTYPE.height,
+            0xd45757,
+            0.12,
+          ).setStrokeStyle(2, 0xf06b6b);
           const player = this.add.rectangle(80, 472, PLAYER_PROTOTYPE.width, PLAYER_PROTOTYPE.height, 0xf0bd71)
             .setStrokeStyle(2, 0xffe6b6);
           const foot = this.add.rectangle(80, 495, 22, 8).setStrokeStyle(1, 0x84e1be);
           const camera = this.cameras.main;
           camera.setBounds(0, 0, 2000, 680);
           camera.startFollow(player, true, 0.15, 0.15);
+          const recoveryFade = this.add.rectangle(
+            500,
+            290,
+            1000,
+            580,
+            0x111416,
+            1,
+          ).setScrollFactor(0).setDepth(100).setVisible(false);
           this.add.text(20, 16, `${PROJECT_IDENTITY.title} · ${PROJECT_IDENTITY.subtitle}\nM1.2.2 物理灰盒  /  ${platform}\nA/D 或 ←/→ 移动 · Space 跳跃（短按低跳／长按高跳）\n调查 A／B：E 打开；丢弃 C：E 只显示短反馈\nD08 / D09-D1：E 收藏 D；目标 E 经 Event→Command→Transaction→Result 后开门\nD10-A3：开门后走入金／绿检查点 A/B；低 priority 胜出，离开再进入才重试\nR 重置临时世界但保留本次运行身份、进度、有效检查点和已开放路线\n蓝／粉区域、橙／青平台、金／绿检查点和测试路线门：只作灰盒验证\nR /「重置灰盒」回到出生点 · 失焦恢复后先松开按键再按\nMatter 优先验证中；非最终物理方案。所有数值为原型。`, {
             fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '17px', color: '#f4eddc',
             backgroundColor: '#152632', padding: { x: 8, y: 6 },
@@ -180,6 +203,7 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
             const goalRoute = snapshot.goalRoute;
             const checkpointSnapshot = snapshot.checkpointSnapshot;
             const checkpointTriggers = snapshot.checkpointTriggers;
+            const recovery = snapshot.recovery;
             for (const platformState of world.movingPlatforms) {
               movingVisuals.get(platformState.label)?.setPosition(platformState.x, platformState.y);
             }
@@ -209,6 +233,26 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
             player.setFillStyle(state.controlAllowed ? 0xf0bd71 : 0xa5adb3);
             foot.setPosition(state.x, state.y + PLAYER_PROTOTYPE.height / 2 + 1);
             foot.setStrokeStyle(1, state.grounded ? 0x84e1be : 0xec7878);
+            failureZoneVisual
+              .setFillStyle(0xd45757, world.failureZone.occupied ? 0.28 : 0.12)
+              .setStrokeStyle(world.failureZone.occupied ? 4 : 2, 0xf06b6b);
+            recoveryFade
+              .setAlpha(recovery.fadeAlpha)
+              .setVisible(recovery.fadeAlpha > 0.001);
+            recoveryHud.setText(
+              `D11-A1 坠落恢复 ${recovery.phase.toUpperCase()}` +
+              ` · fall ${world.failureZone.occupied ? 'ON' : 'OFF'}` +
+              ` · E${recovery.failureEventId ?? '-'}\n` +
+              `${recovery.message}\n` +
+              `source ${recovery.sourceCheckpointId ?? '-'}` +
+              ` · anchor ${recovery.sourceAnchor
+                ? `${recovery.sourceAnchor.x},${recovery.sourceAnchor.y},${recovery.sourceAnchor.facing}`
+                : '-'}` +
+              ` · recovered ${recovery.recoveryCount}` +
+              ` · control ${recovery.controlLockHeld ? 'LOCKED' : 'OPEN'}`,
+            ).setVisible(
+              recovery.phase !== 'idle' || world.failureZone.occupied,
+            );
             progressGateState.setText(world.progressRouteOpen ? 'OPEN' : 'CLOSED')
               .setColor(world.progressRouteOpen ? '#b8efc8' : '#ffb3b8')
               .setBackgroundColor(world.progressRouteOpen ? '#1d3c2d' : '#3a2428');

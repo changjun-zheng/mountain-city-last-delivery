@@ -9,11 +9,17 @@ import { PROTOTYPE_PROGRESS_CONTENT } from '../../core/progress.ts';
 import type {
   MovingPlatformLogicalState,
   SnapshotAnchor,
+  TemporarySnapshotObject,
 } from '../../core/snapshot.ts';
 import {
   GRAYBOX_CHECKPOINT_TRIGGERS,
   type CheckpointTriggerOccupancySnapshot,
 } from '../../core/checkpoint-triggers.ts';
+import {
+  PLAYER_FAILURE_ZONE_ID,
+  type FailureZoneSnapshot,
+  type RecoveryAnchorValidationResult,
+} from '../../core/recovery.ts';
 
 // Uses Phaser's bundled Matter, injected so the identical world can run in deterministic tests.
 export type MatterLibrary = {
@@ -40,6 +46,16 @@ export const DIAGNOSTIC_ZONE_PROTOTYPES = Object.freeze([
   Object.freeze({ label: 'diagnostic-zone-a', x: 400, y: 462, width: 120, height: 76 }),
   Object.freeze({ label: 'diagnostic-zone-b', x: 450, y: 462, width: 120, height: 76 }),
 ]);
+export const FAILURE_ZONE_PROTOTYPE: Readonly<{
+  zoneId: string; label: string; x: number; y: number; width: number; height: number;
+}> = Object.freeze({
+  zoneId: PLAYER_FAILURE_ZONE_ID,
+  label: '灰盒测试坠落区',
+  x: 560,
+  y: 620,
+  width: 300,
+  height: 42,
+});
 export type MovingPlatformSnapshot = Readonly<{
   label: string; axis: 'horizontal' | 'vertical';
   x: number; y: number; width: number; height: number;
@@ -62,6 +78,7 @@ export type MatterGrayboxDiagnostics = Readonly<{
   supportRelativeX: number | null;
   supportRelativeY: number | null;
   diagnosticZones: readonly DiagnosticZoneSnapshot[];
+  failureZone: FailureZoneSnapshot;
   diagnosticBaselineTick: number;
   diagnosticBaselineCount: number;
   frozenObjectIds: readonly string[];
@@ -72,6 +89,7 @@ const ONE_WAY_CATEGORY = 0x0004;
 const DIAGNOSTIC_ZONE_CATEGORY = 0x0008;
 const TEST_ROUTE_GATE_CATEGORY = 0x0010;
 const CHECKPOINT_TRIGGER_CATEGORY = 0x0020;
+const FAILURE_ZONE_CATEGORY = 0x0040;
 // Matter contact slop can leave the body about 2 px inside the top face on the first supported tick.
 const TOP_TOLERANCE_PX = 4;
 const MOTION_EPSILON = 0.01;
@@ -124,6 +142,15 @@ type CheckpointTriggerRuntime = {
   exitCount: number;
   lastTransitionTick: number | null;
 };
+type FailureZoneRuntime = {
+  occupied: boolean;
+  occupiedSteps: number;
+  lastOccupiedSteps: number;
+  enterCount: number;
+  exitCount: number;
+  lastTransitionTick: number | null;
+  enteredThisStep: boolean;
+};
 
 export class MatterGrayboxWorld implements GrayboxPhysics {
   readonly terrain: MatterJS.BodyType[] = [];
@@ -133,6 +160,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   readonly progressRouteGate: MatterJS.BodyType;
   readonly diagnosticZoneBodies: MatterJS.BodyType[] = [];
   readonly checkpointTriggerBodies: MatterJS.BodyType[] = [];
+  readonly failureZoneBody: MatterJS.BodyType;
   readonly #matter: MatterLibrary;
   readonly #engine: MatterJS.Engine;
   readonly #advance: (deltaMs: number) => void;
@@ -143,6 +171,16 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   readonly #diagnosticZones: DiagnosticZoneRuntime[];
   readonly #diagnosticZoneByLabel: Map<string, DiagnosticZoneRuntime>;
   readonly #checkpointTriggers: CheckpointTriggerRuntime[];
+  readonly #failureZone: FailureZoneRuntime = {
+    occupied: false,
+    occupiedSteps: 0,
+    lastOccupiedSteps: 0,
+    enterCount: 0,
+    exitCount: 0,
+    lastTransitionTick: null,
+    enteredThisStep: false,
+  };
+  readonly #recoveryPlatformPositions = new Map<string, { x: number; y: number }>();
   readonly spawnAnchor: SnapshotAnchor = Object.freeze({ x: 80, y: 472, facing: 1 });
   #platformClockMs = 0;
   #progressRouteOpen = false;
@@ -171,7 +209,11 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       this.terrain.push(body);
       return body;
     };
-    rectangle(440, 535, 880, 70, 'ground-a');
+    // The early route has a narrow real fall gap before the progress gate. It
+    // keeps the initial fallback independently testable without opening the
+    // later A/B checkpoint route.
+    rectangle(265, 535, 530, 70, 'ground-a');
+    rectangle(735, 535, 290, 70, 'ground-a');
     rectangle(1165, 535, 310, 70, 'ground-b');
     rectangle(1790, 415, 340, 70, 'upper-ground');
     rectangle(10, 250, 20, 500, 'left-boundary');
@@ -270,6 +312,22 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
         lastTransitionTick: null,
       };
     });
+    this.failureZoneBody = matter.Bodies.rectangle(
+      FAILURE_ZONE_PROTOTYPE.x,
+      FAILURE_ZONE_PROTOTYPE.y,
+      FAILURE_ZONE_PROTOTYPE.width,
+      FAILURE_ZONE_PROTOTYPE.height,
+      {
+        isStatic: true,
+        isSensor: true,
+        label: FAILURE_ZONE_PROTOTYPE.zoneId,
+        collisionFilter: {
+          category: FAILURE_ZONE_CATEGORY,
+          mask: PLAYER_CATEGORY,
+          group: 0,
+        },
+      },
+    );
     const slope = matter.Bodies.fromVertices(0, 0, [[
       { x: 0, y: 120 }, { x: 300, y: 0 }, { x: 300, y: 180 }, { x: 0, y: 180 },
     ]], { isStatic: true, friction: 1, label: 'continuous-slope' });
@@ -287,7 +345,8 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     // The sensor is a query-only independent region: it never blocks or changes player mass.
     for (const body of [
       ...this.terrain, ...this.#movingPlatforms.map(platform => platform.body),
-      ...this.diagnosticZoneBodies, ...this.checkpointTriggerBodies, this.player,
+      ...this.diagnosticZoneBodies, ...this.checkpointTriggerBodies,
+      this.failureZoneBody, this.player,
     ]) {
       matter.Composite.add(engine.world as unknown as MatterJS.CompositeType, body);
     }
@@ -391,8 +450,209 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     });
   }
 
+  applyTemporarySnapshot(objects: readonly TemporarySnapshotObject[]): void {
+    if (objects.length !== this.#movingPlatforms.length) {
+      throw new Error('Recovery snapshot object set does not match the fixed registry.');
+    }
+    const clockValues = new Set(objects.map(object => object.state.clockMs));
+    if (clockValues.size !== 1) {
+      throw new Error('Recovery snapshot platform clocks are inconsistent.');
+    }
+    for (const object of objects) {
+      const platform = this.#movingByLabel.get(object.objectId);
+      if (!platform || object.state.axis !== platform.definition.axis) {
+        throw new Error(
+          `Recovery snapshot object ${object.objectId} does not match the live world.`,
+        );
+      }
+    }
+    this.#recoveryPlatformPositions.clear();
+    for (const object of objects) {
+      const platform = this.#movingByLabel.get(object.objectId);
+      if (!platform || object.state.axis !== platform.definition.axis) {
+        throw new Error(
+          `Recovery snapshot object ${object.objectId} does not match the live world.`,
+        );
+      }
+      platform.direction = object.state.direction;
+      platform.phase = object.state.phase;
+      platform.cycle = object.state.cycle;
+      platform.deltaX = platform.deltaY = platform.vx = platform.vy = 0;
+      this.#recoveryPlatformPositions.set(object.objectId, {
+        x: object.state.position.x,
+        y: object.state.position.y,
+      });
+    }
+    this.#platformClockMs = clockValues.values().next().value as number;
+    this.#driveVelocity = { x: 0, y: 0 };
+    this.#carriedBy = undefined;
+  }
+
+  rebuildRecoveryWorld(): void {
+    if (this.#recoveryPlatformPositions.size !== this.#movingPlatforms.length) {
+      throw new Error('Recovery platform positions were not fully prepared.');
+    }
+    for (const platform of this.#movingPlatforms) {
+      const position = this.#recoveryPlatformPositions.get(platform.definition.label);
+      if (!position) {
+        throw new Error(
+          `Recovery position is missing for ${platform.definition.label}.`,
+        );
+      }
+      this.#matter.Body.setPosition(platform.body, position);
+      this.#matter.Body.setVelocity(platform.body, { x: 0, y: 0 });
+    }
+    this.#recoveryPlatformPositions.clear();
+    this.#oneWay.passThrough = false;
+    this.#setOneWayCollision(false);
+    this.#matter.Engine.clear(this.#engine);
+    this.#matter.Composite.setModified(
+      this.#engine.world as unknown as MatterJS.CompositeType,
+      true,
+      false,
+      true,
+    );
+  }
+
+  validateRecoveryAnchor(
+    anchor: SnapshotAnchor,
+    _checkpointId: string,
+  ): RecoveryAnchorValidationResult {
+    const m = this.#matter;
+    const worldBodies = [
+      ...this.terrain,
+      ...this.#movingPlatforms.map(platform => platform.body),
+    ];
+    const probe = m.Bodies.rectangle(
+      anchor.x,
+      anchor.y,
+      PLAYER_PROTOTYPE.width,
+      PLAYER_PROTOTYPE.height,
+      {
+        isSensor: true,
+        label: 'recovery-anchor-body-probe',
+        collisionFilter: { category: PLAYER_CATEGORY, mask: -1, group: 0 },
+      },
+    );
+    const blockerLabels = m.Query.collides(probe, worldBodies)
+      .map(collision => collision.bodyA === probe ? collision.bodyB : collision.bodyA)
+      .filter(body => !body.isSensor && collisionAllowed(probe, body))
+      .map(body => body.label);
+    if (blockerLabels.length > 0) {
+      return Object.freeze({
+        status: 'invalid' as const,
+        reason: 'player body overlaps a solid object',
+        blockerLabels: Object.freeze(blockerLabels),
+      });
+    }
+
+    const supportProbe = m.Bodies.rectangle(
+      anchor.x,
+      anchor.y + PLAYER_PROTOTYPE.height / 2 + 5,
+      22,
+      12,
+      {
+        isSensor: true,
+        label: 'recovery-anchor-support-probe',
+        collisionFilter: { category: PLAYER_CATEGORY, mask: -1, group: 0 },
+      },
+    );
+    const supportCandidates = m.Query.collides(supportProbe, worldBodies)
+      .map(collision =>
+        collision.bodyA === supportProbe ? collision.bodyB : collision.bodyA)
+      .filter(body =>
+        !body.isSensor &&
+        collisionAllowed(supportProbe, body) &&
+        body.bounds.min.y >= anchor.y + PLAYER_PROTOTYPE.height / 2 - TOP_TOLERANCE_PX &&
+        body.bounds.min.y <= anchor.y + PLAYER_PROTOTYPE.height / 2 + 12);
+    if (supportCandidates.length === 0) {
+      return Object.freeze({
+        status: 'invalid' as const,
+        reason: 'no effective non-sensor support below the fixed anchor',
+        blockerLabels: Object.freeze([]),
+      });
+    }
+    return Object.freeze({
+      status: 'valid' as const,
+      support: supportCandidates[0].label,
+      blockerLabels: Object.freeze([]),
+    });
+  }
+
+  placePlayerAtAnchor(anchor: SnapshotAnchor): void {
+    const m = this.#matter;
+    m.Body.setPosition(this.player, { x: anchor.x, y: anchor.y });
+    m.Body.setAngle(this.player, 0);
+    m.Body.setVelocity(this.player, { x: 0, y: 0 });
+    m.Body.setAngularVelocity(this.player, 0);
+    this.player.force.x = this.player.force.y = 0;
+    this.player.torque = 0;
+    const impulse = (
+      this.player as MatterJS.BodyType &
+      { positionImpulse: { x: number; y: number } }
+    ).positionImpulse;
+    impulse.x = impulse.y = 0;
+    m.Body.setPosition(this.foot, {
+      x: anchor.x,
+      y: anchor.y + PLAYER_PROTOTYPE.height / 2 + 1,
+    });
+    this.#oneWay.passThrough = false;
+    this.#setOneWayCollision(false);
+    this.#driveVelocity = { x: 0, y: 0 };
+    this.#carriedBy = undefined;
+    m.Engine.clear(this.#engine);
+    m.Composite.setModified(
+      this.#engine.world as unknown as MatterJS.CompositeType,
+      true,
+      false,
+      true,
+    );
+    this.#state = {
+      x: anchor.x,
+      y: anchor.y,
+      vx: 0,
+      vy: 0,
+      worldVx: 0,
+      worldVy: 0,
+      supportVx: 0,
+      supportVy: 0,
+      grounded: false,
+      normalX: 0,
+      normalY: -1,
+      support: '',
+      wall: false,
+      ceiling: false,
+    };
+  }
+
+  synchronizeRecoveryOccupancy(tick: number): void {
+    this.#synchronizeOccupancyWithoutTransitions(
+      tick,
+      this.#diagnosticZones.map(zone => zone.body),
+      this.#diagnosticZones,
+    );
+    this.#synchronizeOccupancyWithoutTransitions(
+      tick,
+      this.checkpointTriggerBodies,
+      this.#checkpointTriggers,
+    );
+    const occupied = this.#matter.Query.collides(
+      this.player,
+      [this.failureZoneBody],
+    ).length > 0;
+    if (occupied !== this.#failureZone.occupied) {
+      this.#failureZone.lastTransitionTick = tick;
+    }
+    this.#failureZone.occupied = occupied;
+    this.#failureZone.occupiedSteps = occupied
+      ? this.#failureZone.occupiedSteps + 1 : 0;
+    if (!occupied) this.#failureZone.lastOccupiedSteps = 0;
+    this.#failureZone.enteredThisStep = false;
+  }
+
   step(deltaMs: number, tick: number): void {
     this.#lastSimulationTick = tick;
+    this.#failureZone.enteredThisStep = false;
     const previousSupport = this.#movingByLabel.get(this.#state.support);
     this.#advanceMovingPlatforms(deltaMs);
     this.#matter.Body.setVelocity(this.player, {
@@ -446,6 +706,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       supportVx, supportVy, grounded: Boolean(support), normalX, normalY, support, wall, ceiling };
     this.#updateDiagnosticZones(tick);
     this.#updateCheckpointTriggers(tick);
+    this.#updateFailureZone(tick);
   }
 
   reset(): void {
@@ -488,6 +749,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       normalX: 0, normalY: -1, support: '', wall: false, ceiling: false };
     this.#synchronizeDiagnosticBaseline();
     this.#synchronizeCheckpointTriggerBaseline();
+    this.#synchronizeFailureZoneBaseline();
   }
   get state(): PlayerState { return this.#state; }
   get steps(): number { return this.#steps; }
@@ -540,6 +802,18 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   get checkpointTriggersEnabled(): boolean {
     return this.#progressRouteOpen;
   }
+  get failureZone(): FailureZoneSnapshot {
+    return Object.freeze({
+      ...FAILURE_ZONE_PROTOTYPE,
+      occupied: this.#failureZone.occupied,
+      occupiedSteps: this.#failureZone.occupiedSteps,
+      lastOccupiedSteps: this.#failureZone.lastOccupiedSteps,
+      enterCount: this.#failureZone.enterCount,
+      exitCount: this.#failureZone.exitCount,
+      lastTransitionTick: this.#failureZone.lastTransitionTick,
+      enteredThisStep: this.#failureZone.enteredThisStep,
+    });
+  }
   get diagnostics(): MatterGrayboxDiagnostics {
     const support = this.#movingByLabel.get(this.#state.support);
     return {
@@ -550,6 +824,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       supportRelativeX: support ? this.#state.x - support.body.position.x : null,
       supportRelativeY: support ? this.#state.y - support.body.position.y : null,
       diagnosticZones: this.diagnosticZones,
+      failureZone: this.failureZone,
       diagnosticBaselineTick: this.#diagnosticBaselineTick,
       diagnosticBaselineCount: this.#diagnosticBaselineCount,
       frozenObjectIds: this.frozenTemporaryObjectIds,
@@ -612,6 +887,31 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     }
   }
 
+  #updateFailureZone(tick: number): void {
+    const occupied = this.#matter.Query.collides(
+      this.player,
+      [this.failureZoneBody],
+    ).length > 0;
+    if (occupied === this.#failureZone.occupied) {
+      this.#failureZone.enteredThisStep = false;
+      if (occupied) this.#failureZone.occupiedSteps++;
+      return;
+    }
+    this.#failureZone.occupied = occupied;
+    this.#failureZone.lastTransitionTick = tick;
+    this.#failureZone.enteredThisStep = occupied;
+    if (occupied) {
+      this.#failureZone.enterCount++;
+      this.#failureZone.occupiedSteps = 1;
+      this.#failureZone.lastOccupiedSteps = 0;
+    } else {
+      this.#failureZone.exitCount++;
+      this.#failureZone.lastOccupiedSteps = this.#failureZone.occupiedSteps;
+      this.#failureZone.occupiedSteps = 0;
+      this.#failureZone.enteredThisStep = false;
+    }
+  }
+
   #synchronizeDiagnosticBaseline(): void {
     const occupiedLabels = new Set(this.#matter.Query.collides(
       this.player, this.diagnosticZoneBodies,
@@ -642,6 +942,49 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       trigger.enterCount = 0;
       trigger.exitCount = 0;
       trigger.lastTransitionTick = this.#lastSimulationTick;
+    }
+  }
+
+  #synchronizeFailureZoneBaseline(): void {
+    const occupied = this.#matter.Query.collides(
+      this.player,
+      [this.failureZoneBody],
+    ).length > 0;
+    this.#failureZone.occupied = occupied;
+    this.#failureZone.occupiedSteps = occupied ? 1 : 0;
+    this.#failureZone.lastOccupiedSteps = 0;
+    this.#failureZone.enterCount = 0;
+    this.#failureZone.exitCount = 0;
+    this.#failureZone.lastTransitionTick = this.#lastSimulationTick;
+    this.#failureZone.enteredThisStep = false;
+  }
+
+  #synchronizeOccupancyWithoutTransitions<
+    T extends {
+      body: MatterJS.BodyType;
+      occupied: boolean;
+      occupiedSteps: number;
+      lastOccupiedSteps: number;
+      lastTransitionTick: number | null;
+    },
+  >(
+    tick: number,
+    bodies: readonly MatterJS.BodyType[],
+    states: T[],
+  ): void {
+    const occupiedLabels = new Set(this.#matter.Query.collides(
+      this.player,
+      [...bodies],
+    ).map(collision =>
+      collision.bodyA === this.player
+        ? collision.bodyB.label
+        : collision.bodyA.label));
+    for (const state of states) {
+      const occupied = occupiedLabels.has(state.body.label);
+      if (occupied !== state.occupied) state.lastTransitionTick = tick;
+      state.occupied = occupied;
+      state.occupiedSteps = occupied ? 1 : 0;
+      if (!occupied) state.lastOccupiedSteps = 0;
     }
   }
 
@@ -716,4 +1059,14 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       this.#engine.world as unknown as MatterJS.CompositeType, true, false, true,
     );
   }
+}
+
+function collisionAllowed(
+  left: MatterJS.BodyType,
+  right: MatterJS.BodyType,
+): boolean {
+  return (
+    (left.collisionFilter.mask & right.collisionFilter.category) !== 0 &&
+    (right.collisionFilter.mask & left.collisionFilter.category) !== 0
+  );
 }

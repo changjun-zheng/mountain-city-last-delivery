@@ -17,7 +17,7 @@ import {
 import {
   chooseScene, checkDiagnosticZones, checkGraybox, checkInMemoryProgress,
   checkInteractions, checkMovingPlatformLifecycle, checkGoalRouteRuntime,
-  checkInitialSnapshot, checkCheckpointCapture,
+  checkInitialSnapshot, checkCheckpointCapture, checkRecovery,
 } from './graybox-browser.mjs';
 import { createPlatformObserver } from './platform-observer.mjs';
 
@@ -41,15 +41,16 @@ const focusedD08 = cliArgs.includes('--d08');
 const focusedD09D1 = cliArgs.includes('--d09-d1');
 const focusedD10A1 = cliArgs.includes('--d10-a1');
 const focusedD10A3 = cliArgs.includes('--d10-a3');
+const focusedD11A1 = cliArgs.includes('--d11-a1');
 if ([
   focusedD04R1, focusedD05, focusedD07, focusedD08, focusedD09D1,
-  focusedD10A1, focusedD10A3,
+  focusedD10A1, focusedD10A3, focusedD11A1,
 ]
   .filter(Boolean).length > 1) {
   throw new Error('Select only one focused platform scenario');
 }
 const focused = focusedD04R1 || focusedD05 || focusedD07 || focusedD08 ||
-  focusedD09D1 || focusedD10A1 || focusedD10A3;
+  focusedD09D1 || focusedD10A1 || focusedD10A3 || focusedD11A1;
 const webOnly = cliArgs.includes('--web-only') || Boolean(injection);
 let browserResolution;
 let browserResolutionError;
@@ -63,7 +64,8 @@ const report = {
     : focusedD07 ? 'D07-R1' : focusedD08 ? 'D08'
       : focusedD09D1 ? 'D09-D1'
         : focusedD10A1 ? 'D10-A1'
-          : focusedD10A3 ? 'D10-A3' : 'D04',
+          : focusedD10A3 ? 'D10-A3'
+            : focusedD11A1 ? 'D11-A1' : 'D04',
   scope: focusedD04R1 ? 'moving-platform-lifecycle'
     : focusedD05 ? 'diagnostic-zones'
       : focusedD07 ? 'interaction-prompt-and-release-gate'
@@ -71,7 +73,8 @@ const report = {
           : focusedD09D1 ? 'goal-route-real-event-command-transaction-result'
             : focusedD10A1 ? 'initial-snapshot-registry-and-atomic-capture'
               : focusedD10A3 ? 'checkpoint-trigger-arbitration-and-playable-capture'
-                : 'full-platform-regression',
+                : focusedD11A1 ? 'normal-fall-recovery-closed-loop'
+                  : 'full-platform-regression',
   startedAt: new Date().toISOString(), evidenceDir, injection,
   commandLine: cliArgs,
   runtime: { node: process.version, platform: process.platform, arch: process.arch },
@@ -92,14 +95,15 @@ report.version = Object.fromEntries(await Promise.all([
   'tests/platform-observer.mjs', 'scripts/test.mjs',
   'tests/foreground-window.ps1',
   'src/core/player.ts', 'src/core/graybox.ts', 'src/core/snapshot.ts',
-  'src/core/checkpoint-triggers.ts',
+  'src/core/checkpoint-triggers.ts', 'src/core/recovery.ts',
   'src/physics/matter/graybox-world.ts',
   'src/core/interaction.ts', 'src/core/progress.ts', 'src/platform/web/player-input.ts',
   'src/core/goal-route-runtime.ts', 'src/core/events.ts', 'src/core/commands.ts',
   'src/core/delivery.ts', 'src/core/transactions.ts', 'src/core/transaction-results.ts',
   'src/rendering/phaser/graybox.ts', 'src/platform/web/main.ts',
   'tests/goal-route-runtime.test.mjs', 'tests/snapshot.test.mjs',
-  'tests/player-physics.test.mjs', 'tests/checkpoint-triggers.test.mjs', 'package.json',
+  'tests/player-physics.test.mjs', 'tests/checkpoint-triggers.test.mjs',
+  'tests/recovery.test.mjs', 'package.json',
   'release/layered-city-adventures/win-unpacked/resources/app.asar',
 ].map(async path => [path, createHash('sha256').update(await readFile(path)).digest('hex')])));
 let captureNumber = 0;
@@ -529,6 +533,9 @@ async function checkDesktop(ctx, executablePath, devURL) {
     } else if (focusedD10A3) {
       await checkCheckpointCapture(ctx, (name, data) => note(ctx.label, 'd10-a3-' + name, data),
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
+    } else if (focusedD11A1) {
+      await checkRecovery(ctx, (name, data) => note(ctx.label, 'd11-a1-' + name, data),
+        (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else {
       await hiddenStartup(ctx);
       for (let i = 1; i <= 2; i++) await checkPause(ctx, i);
@@ -647,6 +654,9 @@ async function checkWeb(ctx, devURL) {
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else if (focusedD10A3) {
       await checkCheckpointCapture(ctx, (name, data) => note(ctx.label, 'd10-a3-' + name, data),
+        (phase, screenshot) => snapshot(ctx, phase, screenshot));
+    } else if (focusedD11A1) {
+      await checkRecovery(ctx, (name, data) => note(ctx.label, 'd11-a1-' + name, data),
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else {
       await hiddenStartup(ctx);

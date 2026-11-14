@@ -15,6 +15,7 @@ import {
   FixedTemporarySnapshotStore,
   type SnapshotAnchor,
   type SnapshotFaultInjector,
+  type TemporarySnapshot,
   type TemporarySnapshotSource,
   type TemporarySnapshotState,
 } from './snapshot.ts';
@@ -31,6 +32,13 @@ import {
 } from './checkpoint-triggers.ts';
 import { TRANSACTION_RESULT_EVENT_TYPE } from './transaction-results.ts';
 import type { TransactionExecutionFaultInjector } from './transactions.ts';
+import {
+  PLAYER_FAILURE_EVENT_TYPE,
+  PlayerRecoveryRuntime,
+  type FailureZoneSnapshot,
+  type PlayerRecoveryOptions,
+  type RecoveryAnchorValidationResult,
+} from './recovery.ts';
 
 export const GRAYBOX_SIMULATION = Object.freeze({ fixedDeltaMs: 1000 / 60, maxStepsPerFrame: 5 });
 export type TemporaryObjectFreezeResult = Readonly<{
@@ -52,6 +60,7 @@ export type GrayboxPhysics = TemporarySnapshotSource & {
   readonly spawnAnchor: SnapshotAnchor;
   readonly checkpointTriggers: readonly CheckpointTriggerOccupancySnapshot[];
   readonly checkpointTriggersEnabled: boolean;
+  readonly failureZone: FailureZoneSnapshot;
   drive(vx: number, vy: number): void;
   step(deltaMs: number, tick: number): void;
   setPermanentEffect(effectId: string, expectedActive: boolean): void;
@@ -59,6 +68,14 @@ export type GrayboxPhysics = TemporarySnapshotSource & {
   releaseTemporaryObjects(owner: object): TemporaryObjectReleaseResult;
   isTemporaryObjectChangeAllowed(objectId: string): boolean;
   readonly frozenTemporaryObjectIds: readonly string[];
+  applyTemporarySnapshot(objects: TemporarySnapshot['objects']): void;
+  rebuildRecoveryWorld(): void;
+  validateRecoveryAnchor(
+    anchor: SnapshotAnchor,
+    checkpointId: string,
+  ): RecoveryAnchorValidationResult;
+  placePlayerAtAnchor(anchor: SnapshotAnchor): void;
+  synchronizeRecoveryOccupancy(tick: number): void;
   reset(): void;
 };
 
@@ -70,6 +87,7 @@ export type GrayboxCoreOptions = Readonly<{
   checkpointCaptureOptions?: Omit<SnapshotCaptureRuntimeOptions, 'transactionFaultInjector'> & Readonly<{
     transactionFaultInjector?: TransactionExecutionFaultInjector;
   }>;
+  recoveryOptions?: PlayerRecoveryOptions;
 }>;
 
 export function createGrayboxCore(
@@ -85,8 +103,10 @@ export function createGrayboxCore(
       CHECKPOINT_ENTRY_EVENT_TYPE,
       CHECKPOINT_CAPTURE_EVENT_TYPE,
       TRANSACTION_RESULT_EVENT_TYPE,
+      PLAYER_FAILURE_EVENT_TYPE,
     ],
     checkpointEntryEventType: CHECKPOINT_ENTRY_EVENT_TYPE,
+    playerFailureEventType: PLAYER_FAILURE_EVENT_TYPE,
     initialNextEventId: goalOptions.initialNextEventId,
     initialNextCommandId: goalOptions.initialNextCommandId,
     initialNextTransactionId: goalOptions.initialNextTransactionId,
@@ -175,19 +195,45 @@ export function createGrayboxCore(
     undefined,
     activateProgress,
   );
+  let recovery!: PlayerRecoveryRuntime;
+  recovery = new PlayerRecoveryRuntime({
+    bus: businessBus,
+    controls: motor.controls,
+    world: physics,
+    getCurrentSnapshot: () => snapshotStore.current,
+    getCaptureSnapshot: () => checkpointCapture.snapshot,
+    reconcilePermanentEffects,
+    interruptInteraction: () => interaction.interruptTransientSession(),
+    resetInputsAfterPlacement: () => {
+      motor.reset();
+      interaction.interruptTransientSession();
+    },
+    restoreFacing: facing => interaction.restoreFacing(facing),
+    synchronizeCheckpointBaseline: (states, enabled, tick) => {
+      checkpointTriggers.synchronizeBaseline(states, enabled, tick);
+    },
+    getCheckpointStates: () => physics.checkpointTriggers,
+    getCheckpointEnabled: () => physics.checkpointTriggersEnabled,
+    options: options.recoveryOptions,
+  });
   let resets = 0;
   simulation = new FixedStepSimulation(GRAYBOX_SIMULATION, (deltaMs, tick) => {
     checkpointTriggers.beginTick(tick);
-    const velocity = motor.beforeStep(physics.state, deltaMs);
+    const velocity = recovery.controlLockHeld
+      ? Object.freeze({ vx: 0, vy: 0 })
+      : motor.beforeStep(physics.state, deltaMs);
     physics.drive(velocity.vx, velocity.vy);
     physics.step(deltaMs, tick); // Exactly one Matter update per actual SimulationTick.
+    recovery.detectFailureAfterPhysics(tick, physics.failureZone);
     checkpointTriggers.observeAfterPhysics(
       tick,
       physics.checkpointTriggers,
-      physics.checkpointTriggersEnabled,
+      physics.checkpointTriggersEnabled && !recovery.triggersShielded,
     );
     checkpointTriggers.closeAndArbitrate(tick);
-    motor.afterStep(physics.state, deltaMs);
+    if (!recovery.controlLockHeld) {
+      motor.afterStep(physics.state, deltaMs);
+    }
     interaction.updatePlayerState(physics.state);
     interaction.afterStep(physics.state, deltaMs);
     // Business coordination happens once after the actual world, physics and
@@ -202,6 +248,7 @@ export function createGrayboxCore(
       dispatch,
       checkpointCapture.snapshot,
     );
+    recovery.advanceAfterCoordination(tick, deltaMs);
     reconcilePermanentEffects();
   });
   const lifecycle = new RuntimeLifecycleController(simulation);
@@ -235,6 +282,12 @@ export function createGrayboxCore(
       motor.controls.request(availabilityOwner, !available);
     },
     reset(): DebugResetResult {
+      if (recovery.blocksDebugActions) {
+        const message =
+          'Debug reset is unavailable while fall recovery owns the control lock.';
+        checkpointTriggers.noteResetBlocked(message);
+        return Object.freeze({ status: 'blocked' as const, message });
+      }
       if (physics.frozenTemporaryObjectIds.length > 0) {
         const message =
           'Debug reset is unavailable while checkpoint objects are frozen.';
@@ -274,6 +327,7 @@ export function createGrayboxCore(
         }),
         checkpointCapture: checkpointCapture.snapshot,
         checkpointTriggers: checkpointTriggers.snapshot,
+        recovery: recovery.snapshot,
         frozenTemporaryObjectIds: physics.frozenTemporaryObjectIds,
       };
     },
