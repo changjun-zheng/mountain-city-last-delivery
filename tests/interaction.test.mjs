@@ -15,9 +15,19 @@ function player(x, y = 478, vx = 0) {
   };
 }
 
-function setup(x = 240, isPaused = () => false) {
+function setup(
+  x = 240,
+  isPaused = () => false,
+  objects = INTERACTION_OBJECTS,
+  activateProgress,
+) {
   const controls = new PlayerControlCoordinator(() => {});
-  const interaction = new InteractionController(controls, isPaused);
+  const interaction = new InteractionController(
+    controls,
+    isPaused,
+    objects,
+    activateProgress,
+  );
   interaction.afterStep(player(x), 0);
   return { controls, interaction };
 }
@@ -216,4 +226,62 @@ test('R02 reset preserves the pending E release gate through the original loss s
   assert.equal(interaction.snapshot.mode, 'investigation');
   assert.equal(controls.allowed, false);
   interaction.requestClose();
+});
+
+test('D12-A2 investigation completion runs only on a normal close and never replays', () => {
+  const completed = [];
+  const object = {
+    id: 'normal-completion-target',
+    kind: 'investigation',
+    activateOnClose: true,
+    label: '测试目标',
+    title: '正常结束测试',
+    content: '只有玩家正常关闭时才提交。',
+    x: 100,
+    y: 478,
+    rangeX: 40,
+    rangeY: 100,
+  };
+  const { controls, interaction } = setup(
+    100,
+    () => false,
+    [object],
+    target => {
+      completed.push(target.id);
+      return '正常结束已提交';
+    },
+  );
+
+  interaction.key(INTERACTION_PROTOTYPE.interactKey, true);
+  assert.equal(interaction.snapshot.mode, 'investigation');
+  assert.deepEqual(completed, [], 'Opening a dialogue must not complete it');
+  interaction.key(INTERACTION_PROTOTYPE.interactKey, true, true);
+  assert.deepEqual(completed, []);
+  interaction.key(INTERACTION_PROTOTYPE.interactKey, false);
+
+  const other = Symbol('other-control');
+  controls.request(other, true);
+  assert.equal(interaction.requestClose(), true);
+  assert.deepEqual(completed, ['normal-completion-target']);
+  assert.equal(interaction.snapshot.feedbackText, '正常结束已提交');
+  assert.equal(controls.allowed, false,
+    'Normal close must release only the interaction owner');
+  assert.equal(interaction.requestClose(), false,
+    'Repeated close must be a no-op');
+  assert.deepEqual(completed, ['normal-completion-target']);
+  controls.request(other, false);
+
+  interaction.key(INTERACTION_PROTOTYPE.interactKey, true);
+  interaction.key(INTERACTION_PROTOTYPE.interactKey, false);
+  interaction.interruptTransientSession();
+  assert.equal(interaction.snapshot.mode, 'idle');
+  assert.deepEqual(completed, ['normal-completion-target'],
+    'A system interruption must discard the unfinished dialogue');
+
+  interaction.key(INTERACTION_PROTOTYPE.interactKey, true);
+  interaction.key(INTERACTION_PROTOTYPE.interactKey, false);
+  interaction.reset();
+  assert.equal(interaction.snapshot.mode, 'idle');
+  assert.deepEqual(completed, ['normal-completion-target'],
+    'Reset must discard the unfinished dialogue');
 });

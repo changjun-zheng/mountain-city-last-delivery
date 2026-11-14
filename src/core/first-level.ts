@@ -76,8 +76,8 @@ export const FIRST_LEVEL_INTERACTIONS: readonly InteractionObject[] =
       label: 'A',
       title: 'A 区 · 出发提示',
       content:
-        'A/D 或方向键移动，Space 跳跃，靠近对象后按 E 交互。' +
-        '先向右登上观景层，与游客交谈。',
+        'A/D 或方向键移动，Space 跳跃。' +
+        '靠近游客后按 E 开始对话；读完内容再主动结束对话。',
       x: 180,
       y: 498,
       rangeX: 70,
@@ -87,12 +87,12 @@ export const FIRST_LEVEL_INTERACTIONS: readonly InteractionObject[] =
       id: FIRST_LEVEL_INTERACTION_IDS.npc,
       kind: 'investigation' as const,
       actionId: FIRST_LEVEL_ACTIONS.talkToNpc,
-      activateOnOpen: true,
+      activateOnClose: true,
       label: 'B · 游客',
       title: 'B 区 · 年轻游客',
       content:
-        '“我想把今晚的夜景寄给远方。替我看看线索，' +
-        '再把观景点拍下来吧。” 对话结束后自动接取委托。',
+        '“我想把今晚的夜景寄给远方。能顺着山势灯带，' +
+        '替我找到拍摄观景点吗？”\n\n结束对话后自动接取委托。',
       x: 650,
       y: 448,
       rangeX: 70,
@@ -104,7 +104,7 @@ export const FIRST_LEVEL_INTERACTIONS: readonly InteractionObject[] =
       label: 'B · 线索',
       title: 'B 区 · 唯一环境线索',
       content:
-        '沿山势连续亮起的是左侧灯带；左侧吊臂会接入山城线路。',
+        '灯带沿山势转向 C 区装置左侧；装置上的两个控制位都能尝试。',
       x: 790,
       y: 448,
       rangeX: 75,
@@ -114,10 +114,10 @@ export const FIRST_LEVEL_INTERACTIONS: readonly InteractionObject[] =
       id: FIRST_LEVEL_INTERACTION_IDS.leverLeft,
       kind: 'goal' as const,
       actionId: FIRST_LEVEL_ACTIONS.operateLeftLever,
-      actionLabel: '操作',
-      label: 'C · 左侧吊臂',
-      title: '左侧吊臂',
-      content: '按环境线索接入左侧灯带。',
+      actionLabel: '选择控制位',
+      label: 'C · 装置左侧',
+      title: 'C 区 · 装置左侧控制位',
+      content: '同一装置的两个控制位之一。',
       x: 1135,
       y: 518,
       rangeX: 66,
@@ -127,10 +127,10 @@ export const FIRST_LEVEL_INTERACTIONS: readonly InteractionObject[] =
       id: FIRST_LEVEL_INTERACTION_IDS.leverRight,
       kind: 'goal' as const,
       actionId: FIRST_LEVEL_ACTIONS.operateRightLever,
-      actionLabel: '操作',
-      label: 'C · 右侧吊臂',
-      title: '右侧吊臂',
-      content: '与当前线索不符，可以安全重试。',
+      actionLabel: '选择控制位',
+      label: 'C · 装置右侧',
+      title: 'C 区 · 装置右侧控制位',
+      content: '同一装置的两个控制位之一。',
       x: 1235,
       y: 518,
       rangeX: 66,
@@ -391,18 +391,18 @@ function objectiveFor(phase: FirstLevelPhase): string {
     case 'intro':
       return 'A：练习移动与跳跃，向右前往 B 区观景层。';
     case 'quest-in-progress':
-      return 'B：等待游客委托完成固定阶段登记。';
+      return 'B：正在登记游客委托……';
     case 'quest-accepted':
-      return 'B：观察唯一线索，然后前往 C 区。';
+      return 'C：对照山势灯带，试运行同一吊臂装置。';
     case 'lift-in-progress':
-      return 'C：等待左侧吊臂完成接线与路线开放。';
+      return 'C：平台启动中，等待路线开放。';
     case 'route-open':
       return 'C → D：乘升降平台抵达观景点并主动拍摄分享。';
     case 'completion-in-progress':
-      return 'D：等待拍摄与分享结果完成登记。';
+      return 'D：正在模拟拍摄与分享……';
     case 'completed':
       return '首关完成：夜景已寄给远方。';
     case 'blocked':
-      return '流程异常：查看调试诊断，不会把未完成步骤标记为成功。';
+      return '当前步骤未能完成；观察场景线索后可重试。';
   }
 }

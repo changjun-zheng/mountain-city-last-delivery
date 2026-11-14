@@ -27,6 +27,7 @@ export function mountFirstLevelScene(
   uuidProvider: RuntimeUuidProvider,
   created: (core: GrayboxCore) => void,
   sampled: (diagnostics?: FirstLevelMatterDiagnostics) => void,
+  debugVisible: () => boolean,
 ): Promise<{ destroy: () => Promise<void> }> {
   parent.setAttribute(
     'aria-label',
@@ -96,6 +97,27 @@ export function mountFirstLevelScene(
             terrain.strokePoints(body.vertices ?? [], true);
           }
 
+          const clueLight = this.add.graphics();
+          clueLight.lineStyle(7, 0x80d8e8, 0.18);
+          clueLight.beginPath();
+          clueLight.moveTo(535, 388);
+          clueLight.lineTo(665, 388);
+          clueLight.lineTo(790, 455);
+          clueLight.strokePath();
+          clueLight.lineStyle(3, 0x9deaf2, 0.92);
+          clueLight.beginPath();
+          clueLight.moveTo(535, 388);
+          clueLight.lineTo(665, 388);
+          clueLight.lineTo(790, 455);
+          clueLight.strokePath();
+          this.add.text(535, 355, 'B 线索 · 山势灯带转向装置左侧', {
+            fontFamily: 'Microsoft YaHei, sans-serif',
+            fontSize: '14px',
+            color: '#c9f7fb',
+            backgroundColor: '#17333c',
+            padding: { x: 7, y: 4 },
+          });
+
           const label = (x: number, y: number, text: string, color = '#f5eddb') =>
             this.add.text(x, y, text, {
               fontFamily: 'Microsoft YaHei, sans-serif',
@@ -114,8 +136,15 @@ export function mountFirstLevelScene(
             549,
             100,
             18,
-            0xc77d4d,
-          ).setStrokeStyle(3, 0xffc087);
+            0xa96f44,
+          ).setStrokeStyle(3, 0xe6ae78);
+          const liftLabel = this.add.text(1460, 512, '升降平台', {
+            fontFamily: 'Microsoft YaHei, sans-serif',
+            fontSize: '13px',
+            color: '#ffe0bd',
+            backgroundColor: '#3d2d25',
+            padding: { x: 5, y: 2 },
+          }).setOrigin(0.5);
           const gate = this.add.rectangle(
             FIRST_LEVEL_ROUTE_GATE.x,
             FIRST_LEVEL_ROUTE_GATE.y,
@@ -135,8 +164,8 @@ export function mountFirstLevelScene(
             ['first-level-a-tutorial', 0x58b6c8],
             ['first-level-b-npc', 0xf1c15f],
             ['first-level-b-clue', 0xa88cdb],
-            ['first-level-c-lever-left', 0x6fc38a],
-            ['first-level-c-lever-right', 0xd47775],
+            ['first-level-c-lever-left', 0xd4bd75],
+            ['first-level-c-lever-right', 0xd4bd75],
             ['first-level-d-photo', 0x6fc7c0],
           ]);
           const interactionVisuals = new Map(
@@ -169,6 +198,53 @@ export function mountFirstLevelScene(
             }),
           );
 
+          const device = this.add.rectangle(
+            1185,
+            486,
+            174,
+            76,
+            0x3e5058,
+            0.96,
+          ).setStrokeStyle(3, 0x81979d);
+          const deviceStem = this.add.rectangle(1185, 538, 18, 42, 0x5f737a)
+            .setStrokeStyle(2, 0x98abb0);
+          const deviceBase = this.add.rectangle(1185, 558, 112, 10, 0x2f4149)
+            .setStrokeStyle(2, 0x879b9f);
+          this.add.text(1185, 449, 'C · 单一吊臂控制装置', {
+            fontFamily: 'Microsoft YaHei, sans-serif',
+            fontSize: '14px',
+            color: '#f5e9c7',
+            backgroundColor: '#26373f',
+            padding: { x: 6, y: 3 },
+          }).setOrigin(0.5);
+
+          const npc = this.add.container(650, 448);
+          const npcHead = this.add.circle(0, -23, 11, 0xf2c79f)
+            .setStrokeStyle(2, 0xffead3);
+          const npcHair = this.add.ellipse(0, -32, 22, 10, 0x37414c);
+          const npcBody = this.add.rectangle(0, 0, 25, 34, 0x67a9b6)
+            .setStrokeStyle(2, 0xb6e5e8);
+          const npcLegs = this.add.rectangle(0, 24, 20, 15, 0x394b5b);
+          const npcBag = this.add.rectangle(-17, 2, 10, 22, 0xd6a95d);
+          npc.add([npcLegs, npcBody, npcHair, npcHead, npcBag]);
+
+          const photoFrame = this.add.rectangle(
+            1830,
+            258,
+            42,
+            30,
+            0x2f4851,
+            0.96,
+          ).setStrokeStyle(3, 0x8dd8d4);
+          this.add.circle(1830, 258, 9, 0x13232a).setStrokeStyle(2, 0x8dd8d4);
+          const photoLabel = this.add.text(1830, 292, 'D · 拍摄标记', {
+            fontFamily: 'Microsoft YaHei, sans-serif',
+            fontSize: '13px',
+            color: '#d4fbf7',
+            backgroundColor: '#203a40',
+            padding: { x: 5, y: 2 },
+          }).setOrigin(0.5);
+
           const objective = this.add.text(18, 18, '', {
             fontFamily: 'Microsoft YaHei, sans-serif',
             fontSize: '17px',
@@ -187,8 +263,8 @@ export function mountFirstLevelScene(
           }).setOrigin(1, 0).setScrollFactor(0).setDepth(30);
           const controls = this.add.text(
             18,
-            530,
-            'A/D 或 ←/→ 移动 · Space 跳跃 · E 主动交互 · Escape 关闭 · R 调试重置',
+            552,
+            'A/D 或 ←/→ 移动 · Space 跳跃 · E 主动交互 · Escape 关闭 · R 重置临时世界',
             {
               fontFamily: 'Microsoft YaHei, sans-serif',
               fontSize: '14px',
@@ -197,14 +273,14 @@ export function mountFirstLevelScene(
               padding: { x: 9, y: 6 },
             },
           ).setScrollFactor(0).setDepth(30);
-          const prompt = this.add.text(500, 548, '', {
+          const prompt = this.add.text(500, 514, '', {
             fontFamily: 'Microsoft YaHei, sans-serif',
             fontSize: '18px',
             color: '#fff4cd',
             backgroundColor: '#294b54',
             padding: { x: 11, y: 6 },
           }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(40).setVisible(false);
-          const feedback = this.add.text(500, 486, '', {
+          const feedback = this.add.text(500, 480, '', {
             fontFamily: 'Microsoft YaHei, sans-serif',
             fontSize: '16px',
             color: '#183128',
@@ -279,20 +355,28 @@ export function mountFirstLevelScene(
             world.failureZone.height,
             0xc55252,
             0.1,
-          ).setStrokeStyle(1, 0xd77979, 0.5);
-          const player = this.add.rectangle(
-            world.state.x,
-            world.state.y,
-            PLAYER_PROTOTYPE.width,
-            PLAYER_PROTOTYPE.height,
-            0xf0bd71,
-          ).setStrokeStyle(2, 0xffe6b6);
+          ).setStrokeStyle(1, 0xd77979, 0.5).setVisible(false);
+          const player = this.add.container(world.state.x, world.state.y);
+          const playerShadow = this.add.ellipse(0, 24, 32, 8, 0x0b1318, 0.45);
+          const playerLegs = this.add.rectangle(0, 16, 18, 16, 0x624f36);
+          const playerBody = this.add.rectangle(0, -1, 24, 30, 0xf0bd71)
+            .setStrokeStyle(2, 0xffe6b6);
+          const playerHead = this.add.circle(0, -23, 11, 0xf2c79f)
+            .setStrokeStyle(2, 0xffe6c4);
+          const playerHair = this.add.ellipse(0, -31, 22, 9, 0x4b3526);
+          player.add([
+            playerShadow,
+            playerLegs,
+            playerBody,
+            playerHair,
+            playerHead,
+          ]);
           const foot = this.add.rectangle(
             world.state.x,
             world.state.y + 23,
             22,
             8,
-          ).setStrokeStyle(1, 0x84e1be);
+          ).setStrokeStyle(1, 0x84e1be).setVisible(false);
           const camera = this.cameras.main;
           camera.setBounds(0, 0, FIRST_LEVEL_SIZE.width, FIRST_LEVEL_SIZE.height);
           camera.startFollow(player, true, 0.12, 0.12);
@@ -305,30 +389,50 @@ export function mountFirstLevelScene(
             1,
           ).setScrollFactor(0).setDepth(100).setVisible(false);
 
+          let observedPhase: FirstLevelRuntimeSnapshot['phase'] | null = null;
+          let phaseAnnouncement = '';
+          let phaseAnnouncementUntil = 0;
           this.events.on(Phaser.Scenes.Events.UPDATE, () => {
-            core.frame(now());
+            const frameTime = now();
+            core.frame(frameTime);
             const snapshot = core.snapshot;
             const state = snapshot.player;
             const interaction = snapshot.interaction;
             const firstLevel =
               snapshot.gameplay as FirstLevelRuntimeSnapshot | null;
+            if (firstLevel && firstLevel.phase !== observedPhase) {
+              observedPhase = firstLevel.phase;
+              phaseAnnouncement = firstLevel.phase === 'intro'
+                ? ''
+                : firstLevel.feedback;
+              phaseAnnouncementUntil = phaseAnnouncement
+                ? frameTime + 2800
+                : 0;
+            }
             const recovery = snapshot.recovery;
+            const showDebug = debugVisible();
             lift.setPosition(world.liftBody.position.x, world.liftBody.position.y)
-              .setFillStyle(world.routeOpen ? 0x63b984 : 0x8c6d63);
+              .setFillStyle(world.routeOpen ? 0x63b984 : 0xa96f44);
+            liftLabel.setPosition(
+              world.liftBody.position.x,
+              world.liftBody.position.y - 30,
+            );
             gate.setFillStyle(world.routeOpen ? 0x417f62 : 0x9b5058)
               .setStrokeStyle(3, world.routeOpen ? 0x9ee3bd : 0xf3c4c7)
               .setVisible(!world.routeOpen);
             gateText.setText(world.routeOpen ? 'D 路线开放' : 'D 路线关闭')
               .setColor(world.routeOpen ? '#baf0ce' : '#ffc3c7')
               .setBackgroundColor(world.routeOpen ? '#1d3c2d' : '#3d2529');
-            player.setPosition(state.x, state.y)
-              .setFillStyle(state.controlAllowed ? 0xf0bd71 : 0x9ca8ad);
+            player.setPosition(state.x, state.y);
+            playerBody.setFillStyle(state.controlAllowed ? 0xf0bd71 : 0x9ca8ad);
+            playerHead.setFillStyle(state.controlAllowed ? 0xf2c79f : 0xb5bdc0);
             foot.setPosition(state.x, state.y + PLAYER_PROTOTYPE.height / 2 + 1)
-              .setStrokeStyle(1, state.grounded ? 0x84e1be : 0xe17979);
+              .setStrokeStyle(1, state.grounded ? 0x84e1be : 0xe17979)
+              .setVisible(showDebug);
             failureZone.setFillStyle(
               0xc55252,
               world.failureZone.occupied ? 0.22 : 0.1,
-            );
+            ).setVisible(showDebug);
             fade.setAlpha(recovery.fadeAlpha).setVisible(recovery.fadeAlpha > 0.001);
             objective.setText(firstLevel?.objective ?? '首关状态加载中');
             status.setText(
@@ -336,23 +440,34 @@ export function mountFirstLevelScene(
               `路线 ${world.routeOpen ? 'OPEN' : 'CLOSED'}\n` +
               `完成 ${firstLevel?.completed ? '✓' : '—'}\n` +
               `Tick ${snapshot.tick} · ${snapshot.paused ? 'PAUSED' : 'RUNNING'}\n` +
-              `D12-A1 · ${platform}`,
-            );
+              `DEBUG · ${platform}`,
+            ).setVisible(showDebug);
             prompt.setText(interaction.prompt ?? '')
-              .setVisible(Boolean(interaction.prompt));
+              .setVisible(Boolean(interaction.prompt) && !firstLevel?.completed);
+            const runtimeFailure = firstLevel?.phase === 'blocked'
+              ? firstLevel.feedback
+              : null;
             feedback.setText(
+              (frameTime < phaseAnnouncementUntil ? phaseAnnouncement : null) ??
               interaction.feedbackText ??
-              firstLevel?.feedback ??
+              runtimeFailure ??
               '',
             ).setVisible(Boolean(
+              frameTime < phaseAnnouncementUntil ||
               interaction.feedbackText ||
-              firstLevel?.feedback && firstLevel.phase !== 'completed',
+              runtimeFailure,
             ));
             const dialogOpen = interaction.mode === 'investigation';
+            const activeObject = FIRST_LEVEL_INTERACTIONS.find(
+              object => object.id === interaction.activeId,
+            );
             dialogPanel.setVisible(dialogOpen);
             dialogTitle.setText(interaction.title ?? '').setVisible(dialogOpen);
             dialogContent.setText(interaction.content ?? '').setVisible(dialogOpen);
-            close.setVisible(dialogOpen);
+            close.setText(activeObject?.activateOnClose
+              ? '[ 完成对话 · Escape ]'
+              : '[ 关闭 · Escape ]')
+              .setVisible(dialogOpen);
             completion.setVisible(Boolean(firstLevel?.completionVisible));
             for (const object of FIRST_LEVEL_INTERACTIONS) {
               const visual = interactionVisuals.get(object.id);
@@ -362,9 +477,14 @@ export function mountFirstLevelScene(
               const selected = selectedId === object.id;
               visual.range
                 .setStrokeStyle(selected ? 3 : 1, visual.color, selected ? 0.9 : 0.45)
-                .setFillStyle(visual.color, selected ? 0.1 : 0.035);
+                .setFillStyle(visual.color, selected ? 0.1 : 0.035)
+                .setVisible(showDebug);
               visual.marker.setScale(selected ? 1.3 : 1);
             }
+            parent.dataset.debugVisible = String(showDebug);
+            parent.dataset.dialogCompletesOnClose = String(
+              Boolean(activeObject?.activateOnClose),
+            );
             sampled(world.diagnostics);
           });
 

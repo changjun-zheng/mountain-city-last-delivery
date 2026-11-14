@@ -2009,7 +2009,7 @@ D11-A3-R1 在当前修复范围完成，等待 Work 审查。未进入 D12；Mat
 
 ## D12-A1：首关最小可玩流程
 
-2026-11-14 完成首关占位切片，状态为 DONE（待 Work 审查）。普通 Web 与 Windows 启动默认进入首关；顶部「调试入口」继续提供既有固定步诊断场景和实验室灰盒，测试入口也明确选择首关，避免默认场景变化后测错页面。
+以下为 D12-A1 当时的执行记录。Work 后续核对主体闭环有效，但复现了 NPC 对话仍打开时就已接取的问题，因此 A1 整体暂标 BLOCKED；修正与当前版本验收见下方的 [D12-A2](#d12-a2首关对话完成时序与游玩可读性)。2026-11-14 完成首关占位切片，普通 Web 与 Windows 启动默认进入首关；顶部「调试入口」继续提供既有固定步诊断场景和实验室灰盒，测试入口也明确选择首关，避免默认场景变化后测错页面。
 
 ### 首关结构
 
@@ -2076,12 +2076,89 @@ Complete: Event 7 / Command 3 / Transaction 3 / Result 8
 
 本次不表示已完成最终美术、现实地理叙事适配、正式任务／奖励系统、跨会话存档、正式检查点或完整 MVP-G01–G06 验收。Edge、独立人工长期手感和 D13 均 NOT RUN；Matter 仍是物理验证候选。
 
+## D12-A2：首关对话完成时序与游玩可读性
+
+2026-11-14 完成当前首关交互修正与可读性整理，状态为 DONE（待 Work 审查）。普通 Web 和 Windows 启动仍默认进入首关；实验室与完整诊断继续保留在默认收起的「调试与实验室入口」中。
+
+打开 B 区游客对话现在只进入调查状态并限制本交互自己的移动与跳跃，不创建接取业务身份或永久记录。玩家正常按 Escape 或点击「完成对话 · Escape」后，才通过原首关流程创建唯一 Quest Event／Command／Transaction，事务成功后才更新目标。隐藏／最小化、重置、坠落恢复和场景关闭只中断未完成的交互，不提交委托；持 E、重复关闭和恢复旧输入都不会重复接取。
+
+正常画面不再常驻交互范围椭圆、脚底／失败 sensor、Tick、Runtime／事务编号和开发阶段标签。当前目标只显示一份；A 区起点、B 区游客与山势灯带、C 区的单一吊臂装置、升降平台和 D 区拍摄点使用现有 Phaser 图形提供占位表现。C 区两个控制位是同装置的两部分，操作前均为中性黄色，B 区线索指向左侧；错误操作仍可重试，正确后才能开放路线。
+
+### UX01–UX05 结果
+
+| 用例 | 状态 | 实际结果 |
+| --- | --- | --- |
+| UX01：先红后绿与正常结束 | PASS | 修复前测试证明打开对话并等待时已接取；修复后打开、持续等待和暂停期间均为零接取身份，正常关闭后才产生唯一业务链。 |
+| UX02：中断／重复隔离 | PASS | 隐藏恢复和系统中断不提交；正常恢复后仍等待玩家完成；重复关闭、持 E、重复对话与恢复旧输入不新增业务身份。 |
+| UX03：默认画面与线索 | PASS | 默认调试内容不可见，调试展开只改变显示；无旧重复 HUD；控制位不提前使用成功绿色／失败红色，B 线索可见且指向左侧。 |
+| UX04：主线与恢复回归 | PASS | 三端完成 A–D 主线，包含 NPC 完成后接取、接取后坠落恢复、C 区错误／正确操作、机关后恢复、真实升降平台、完成条件与暂停。 |
+| UX05：窗口与操作 | PASS | Web 1280×720、1920×1080 与 Electron 客户区的主画面、目标、E 提示和对话完成按钮均在窗口内。该结果不冒充独立人工长期手感。 |
+
+### 操作路线
+
+1. A 区按 `A/D` 或方向键向右移动，按 `Space` 跳跃。
+2. 到 B 区靠近游客，按 `E`；阅读后按 `Escape` 或点击「完成对话 · Escape」，委托才会接取。
+3. 观察山势灯带转向左侧，到 C 区面向同一装置的两个控制位，按 `E` 操作。右侧可重试错误；左侧正确后会启动真实升降平台并开放 D 路线。
+4. 站上升降平台，通过其真实承载前往 D 区；进入拍摄点范围后按 `E` 完成拍摄与分享。
+5. `R` 重置临时世界并保留当前运行内永久进度；页面停留期间不会跨会话存档。完整诊断可在顶部调试入口展开。
+
+### 三端与布局证据
+
+Web 定向 [run-jowRc3](test-results/platform/run-jowRc3/report.json) PASS。最终完整三端 [run-k5NJOY](test-results/platform/run-k5NJOY/report.json) 的 Chrome Web、Electron 开发版、仓库外独立包全部 PASS。
+
+| 环境 | 状态 | 关键结果 |
+| --- | --- | --- |
+| Chrome Web | PASS | Google Chrome `156.0.8078.74`；完整主线、两次恢复、暂停和 R 通过。 |
+| Electron 开发版 | PASS | 原生最小化／恢复、真实输入和完整 A–D 通过。 |
+| 仓库外独立包 | PASS | 从仓库外复制入口启动，完整 A–D、恢复和清理通过。 |
+
+三个测试自有进程退出码均为 `0`、`cleanupStatus=PASS`、`cleanupFailures=[]`；报告中的 36 项脚本、源码、测试和 ASAR 哈希均匹配当前文件。Chrome 实际路径为 `C:\Users\24839\AppData\Local\Google\Chrome\Application\chrome.exe`。
+
+正常模式布局实测：
+
+| 环境 | 视口 | 画布范围 | 页面滚动 |
+| --- | --- | --- | --- |
+| Chrome 1280×720 | `1280×720` | 约 `x=96.9..1183.1`、`y=40.5..670.5` | 否 |
+| Chrome 1920×1080 | `1920×1080` | 约 `x=320..1600`、`y=40.5..782.5` | 否 |
+| Electron 客户区 | `1011×685` | 约 `x=12..999`、`y=40.5..613.0` | 否 |
+
+升降平台暂停／恢复首 Tick 分别保持 Chrome `2187→2187`、Electron 开发版 `2168→2168`、独立包 `2178→2178`；lift clock 分别保持 `15283.33 ms`、`15183.33 ms`、`15216.67 ms`，恢复后持键新增跳跃为 0。三端业务身份保持在 Quest `1/1/1/2`、Lift `4/2/2/5`、Complete `7/3/3/8`。
+
+截图保存在 [D12-A2 证据目录](test-results/d12-a2-20261114/)：[A 区出生](test-results/d12-a2-20261114/web-a-spawn.png)、[对话尚未提交](test-results/d12-a2-20261114/web-dialogue-before-commit.png)、[B 区完成对话后接取](test-results/d12-a2-20261114/web-b-quest-accepted.png)、[C 区中性控制位](test-results/d12-a2-20261114/web-c-wrong-control.png)、[路线开放](test-results/d12-a2-20261114/web-c-route-open.png)、[乘坐升降平台](test-results/d12-a2-20261114/web-lift-ride.png)、[D 区待拍摄](test-results/d12-a2-20261114/web-d-ready.png)、[Web 完成](test-results/d12-a2-20261114/web-completed.png)、[1280×720](test-results/d12-a2-20261114/web-1280x720.png)、[1920×1080](test-results/d12-a2-20261114/web-1920x1080.png)、[Electron 开发版完成](test-results/d12-a2-20261114/electron-dev-completed.png)及[独立包完成](test-results/d12-a2-20261114/electron-packaged-completed.png)。
+
+### 实际执行与版本
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `npm.cmd test` | PASS | 类型检查、Electron Main 编译通过；`171/171` 测试 PASS，0 fail、0 skipped；原 168 项有效语义保留。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建 32 modules，Electron Main 编译及 Windows x64 免安装目录构建成功；仅有既有 bundle 体积、缺少 author 和默认图标警告。 |
+| `npm.cmd run test:d12-a1 -- --web-only --browser=chrome` | PASS | [run-jowRc3](test-results/platform/run-jowRc3/report.json) Web 定向 PASS。 |
+| `npm.cmd run test:d12-a1 -- --browser=chrome` | PASS | [run-k5NJOY](test-results/platform/run-k5NJOY/report.json) 三端全部 PASS。 |
+| `git diff --check` | PASS | 文档收口后执行通过；只出现既有 LF／CRLF 提示。 |
+
+版本证据：
+
+- 基线提交：`858f7fb`。
+- 生产入口：`release/layered-city-adventures/win-unpacked/Layered City Adventures.exe`。
+- ASAR：`4E8F103A748514CE8C917DC66863074A4C1700275E35BA9E0939EFA479D1F5A9`。
+- Windows EXE：`3CA5C7F6260E5DF21F8EC446F971A4AFD75B0C4257D1C9329EEDEFA652503CFA`。
+- `run-k5NJOY/report.json`／`timeline.jsonl`：`68B13DFE636F4D54840DEC970F6FC5D6771FB0DC2C853E10C310A9235E653CC8`／`C6D2696EE27A744358FB6772EF2954E1A3A1054D24743F7DEC762C6C3CA81D1D`。
+- `src/core/first-level.ts`／`src/core/interaction.ts`：`AB91C473CCD1CB40D68474C307670356603704933AA26A275300507C5C2A3D23`／`152C3BA9139DEC6DE839A029C94FAEA6ACE75E004525A636BE181A4D194DD0DE`。
+- `src/rendering/phaser/first-level.ts`／`src/platform/web/main.ts`：`56AE45E119E9ECC89C6A61F17C4E4E8CC743EBE076501C9D759AC675BA296BCC`／`0F18DE901CD55885DDEB0E0460610955DA2EDEDE29DCA9750641DBC5420265A2`。
+- `tests/first-level.test.mjs`／`tests/interaction.test.mjs`：`6851F49A5EE49063A0DB32BF484C87D4D47615ECF9B956B5DD2B0A721E4DE5C9`／`15C82F044E6DB20928152B7455D5C3AF53496C2ED021AF2DACB90CB6E82DE307`。
+
+首轮三端 [run-zzdhkc](test-results/platform/run-zzdhkc/report.json) 保持为 FAIL：三端均已完成主要主线与恢复，但测试仍点击已移到折叠调试区中的 `#reset-graybox`，因元素不可见而超时。该报告、时间线和截图未删除；测试改用真实 `KeyR` 后，`run-k5NJOY` 三端通过。该历史 FAIL 不被改写为 PASS。
+
+当前版本的正常 Electron 开发窗口使用 `npm.cmd run electron` 启动并保持运行：PID `38568`、HWND `224396378`、标题“叠城大冒险 | Layered City Adventures”、URL `http://127.0.0.1:62707/?platform=windows`。[体验窗口截图](test-results/d12-a2-20261114/experience.png)与[启动记录](test-results/d12-a2-20261114/experience-launch.json)已保存；窗口未由测试关闭或重启。
+
+Edge、独立人工长期手感、正式美术、现实地理叙事适配、正式任务／奖励、跨会话存档、正式检查点与完整 MVP-G01–G06 仍 NOT RUN。Matter 仍是验证候选；D12-A2 完成后等待 Work 审查，不进入 D13。
+
 ## 当前限制
 
-- 最新执行（D12-A1，2026-11-14）：默认首关 A–D 主线、错误操作、任务／机关后失败恢复、真实升降平台、暂停、完成与 R 保留在 `168/168` 自动化测试及 Chrome／Electron 开发版／独立包三端定向中 PASS。最终美术、现实地理叙事适配、正式任务／奖励、跨会话存档、正式检查点、Edge、独立人工长期手感和完整 MVP-G01–G06 仍 NOT RUN。
+- 最新执行（D12-A2，2026-11-14）：默认首关 A–D 主线、对话完成后再接取、错误操作、任务／机关后失败恢复、真实升降平台、暂停、完成与 R 保留在 `171/171` 自动化测试及 Chrome／Electron 开发版／独立包三端定向中 PASS。最终美术、现实地理叙事适配、正式任务／奖励、跨会话存档、正式检查点、Edge、独立人工长期手感和完整 MVP-G01–G06 仍 NOT RUN。
 - Web 主包仍有 Vite 体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前 D12-A1 首关使用功能标签和占位场景，已接入主动 NPC 交互、一个可试错单机关、真实升降平台和主动拍摄／分享完成条件；它不是正式美术、现实地理路线或最终叙事。任务和奖励仍只覆盖本切片；当前“永久”仅指页面运行内保留，页面刷新会创建新运行。D10 捕获与 D11 恢复继续只在调试灰盒中展示扩展原型，首关仅登记其初始备用快照，不代表正式检查点网络或跨会话存档。当前等待 Work 对 D12-A1 的审查，不自动进入 D13。
+- 当前 D12-A2 首关使用功能标签和占位场景，已接入完成后接取的 NPC 交互、一个可试错单机关、真实升降平台和主动拍摄／分享完成条件；它不是正式美术、现实地理路线或最终叙事。任务和奖励仍只覆盖本切片；当前“永久”仅指页面运行内保留，页面刷新会创建新运行。D10 捕获与 D11 恢复继续只在调试灰盒中展示扩展原型，首关仅登记其初始备用快照，不代表正式检查点网络或跨会话存档。当前等待 Work 对 D12-A2 的审查，不自动进入 D13。

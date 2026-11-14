@@ -11,9 +11,10 @@ import { bindPlayerInput } from './player-input';
 import './style.css';
 
 const parent = document.querySelector<HTMLElement>('#game');
-const restart = document.querySelector<HTMLButtonElement>('#restart');
 const error = document.querySelector<HTMLElement>('#error');
 const diagnostics = document.querySelector<HTMLElement>('#diagnostics');
+const debugTools = document.querySelector<HTMLDetailsElement>('#debug-tools');
+const restart = document.querySelector<HTMLButtonElement>('#restart');
 const sceneSelect = document.querySelector<HTMLSelectElement>('#scene-select');
 const reset = document.querySelector<HTMLButtonElement>('#reset-graybox');
 const recoveryErrorPanel = document.querySelector<HTMLElement>('#recovery-error-panel');
@@ -25,17 +26,10 @@ const recoveryRetry = document.querySelector<HTMLButtonElement>('#recovery-retry
 const recoveryTitleButton = document.querySelector<HTMLButtonElement>('#recovery-title');
 const recoveryTitlePanel = document.querySelector<HTMLElement>('#recovery-title-panel');
 const recoveryReturn = document.querySelector<HTMLButtonElement>('#recovery-return');
-const firstLevelHud = document.querySelector<HTMLElement>('#first-level-hud');
-const firstLevelObjective = document.querySelector<HTMLElement>('#first-level-objective');
-const firstLevelFeedback = document.querySelector<HTMLElement>('#first-level-feedback');
-const firstLevelSteps = document.querySelector<HTMLElement>('#first-level-steps');
-
-if (!parent || !restart || !error || !diagnostics || !sceneSelect || !reset ||
+if (!parent || !restart || !error || !diagnostics || !debugTools || !sceneSelect || !reset ||
     !recoveryErrorPanel || !recoveryErrorSummary || !recoveryErrorStage ||
     !recoveryErrorCheckpoint || !recoveryErrorDiagnostics || !recoveryRetry ||
-    !recoveryTitleButton || !recoveryTitlePanel || !recoveryReturn ||
-    !firstLevelHud || !firstLevelObjective || !firstLevelFeedback ||
-    !firstLevelSteps) {
+    !recoveryTitleButton || !recoveryTitlePanel || !recoveryReturn) {
   throw new Error('Missing Web host elements.');
 }
 
@@ -50,6 +44,7 @@ const storedMode = sessionStorage.getItem('scene');
 const mode = storedMode === 'graybox' || storedMode === 'diagnostic'
   ? storedMode
   : 'first-level';
+const debugVisible = () => debugTools.open;
 sceneSelect.value = mode;
 reset.hidden = mode === 'diagnostic';
 reset.textContent = mode === 'first-level'
@@ -103,14 +98,7 @@ const showDiagnostics = (diagnosticsState?: RuntimeDiagnostics) => {
       'gameplay' in sample && sample.gameplay
         ? sample.gameplay as FirstLevelRuntimeSnapshot
         : null;
-    firstLevelHud.hidden = mode !== 'first-level' || !firstLevel;
     if (firstLevel) {
-      firstLevelObjective.textContent = firstLevel.objective;
-      firstLevelFeedback.textContent = firstLevel.feedback;
-      firstLevelSteps.textContent =
-        `委托 ${firstLevel.questAccepted ? '已接取' : '未接取'} · ` +
-        `路线 ${firstLevel.routeUnlocked ? '已开放' : '未开放'} · ` +
-        `首关 ${firstLevel.completed ? '已完成' : '进行中'}`;
       common.push(
         `首关 ${firstLevel.phase.toUpperCase()} | ${firstLevel.objective}`,
         firstLevel.feedback,
@@ -586,7 +574,10 @@ const showDiagnostics = (diagnosticsState?: RuntimeDiagnostics) => {
     tick: String(sample.tick), marker: String('player' in sample ? sample.player.x : sample.markerX), mode,
     paused: String(sample.paused), tokens: String(sample.pauseCount),
     steps: String(sample.stepsLastFrame), discarded: String(sample.discardedMs),
+    debugVisible: String(debugVisible()),
   });
+  parent.dataset.debugVisible = String(debugVisible());
+  parent.dataset.scene = mode;
 };
 const wire = (next: GameCore | GrayboxCore) => {
   core = next;
@@ -627,6 +618,7 @@ const launch = async () => {
       { generate: () => crypto.randomUUID() },
       wire,
       showDiagnostics,
+      debugVisible,
     );
     destroy = game.destroy;
   } catch (cause) {
@@ -654,6 +646,7 @@ sceneSelect.addEventListener('change', () => {
   void reload();
 });
 reset.addEventListener('click', () => { if (core && 'reset' in core) { core.reset(); showDiagnostics(); } });
+debugTools.addEventListener('toggle', () => showDiagnostics());
 recoveryRetry.addEventListener('click', () => {
   if (core && 'requestRecoveryRetry' in core) {
     core.requestRecoveryRetry();

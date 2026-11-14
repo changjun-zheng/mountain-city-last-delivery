@@ -78,7 +78,7 @@ const report = {
           : focusedD10A3 ? 'D10-A3'
             : focusedD11A1 ? 'D11-A1'
               : focusedD11A3 ? 'D11-A3'
-                : focusedD12A1 ? 'D12-A1' : 'D04',
+                : focusedD12A1 ? 'D12-A2' : 'D04',
   scope: focusedD04R1 ? 'moving-platform-lifecycle'
     : focusedD05 ? 'diagnostic-zones'
       : focusedD07 ? 'interaction-prompt-and-release-gate'
@@ -90,7 +90,7 @@ const report = {
                   : focusedD11A3
                     ? 'bounded-auto-rebuild-and-recovery-error'
                     : focusedD12A1
-                      ? 'first-level-playable-a-to-d'
+                      ? 'first-level-dialogue-completion-and-play-readability'
                       : 'full-platform-regression',
   startedAt: new Date().toISOString(), evidenceDir, injection,
   commandLine: cliArgs,
@@ -118,6 +118,7 @@ report.version = Object.fromEntries(await Promise.all([
   'src/core/goal-route-runtime.ts', 'src/core/events.ts', 'src/core/commands.ts',
   'src/core/delivery.ts', 'src/core/transactions.ts', 'src/core/transaction-results.ts',
   'src/rendering/phaser/graybox.ts', 'src/platform/web/main.ts',
+  'src/platform/web/style.css', 'index.html',
   'src/core/first-level.ts', 'src/physics/matter/first-level-world.ts',
   'src/rendering/phaser/first-level.ts', 'tests/first-level.test.mjs',
   'tests/goal-route-runtime.test.mjs', 'tests/snapshot.test.mjs',
@@ -830,7 +831,7 @@ async function runCase(label, fn) {
                   : focusedD11A3
                     ? 'D11-A3 bounded rebuild and RecoveryError controls; owned process exited'
                     : focusedD12A1
-                      ? 'D12-A1 playable A-B-C-D, recovery, pause and completion; owned process exited'
+                      ? 'D12-A2 dialogue completion, readable A-B-C-D, recovery, pause and completion; owned process exited'
                       : 'loaded / scene / running; hidden start; 2 hide cycles; 3 restarts; graybox controls / collisions / pause; owned process exited');
   } catch (error) {
     Object.assign(result, { status: ['ENOENT', 'ENVIRONMENT_PRECONDITION'].includes(error.code) ? 'BLOCKED' : 'FAIL', stage: ctx.stage,

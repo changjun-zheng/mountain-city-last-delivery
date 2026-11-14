@@ -8,74 +8,88 @@
 body {
   margin: 0;
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  place-items: center;
+  background: radial-gradient(circle at 50% 20%, #1c3038 0, #101921 55%);
 }
 
 main {
-  width: min(1000px, calc(100% - 32px));
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
 }
 
 #game {
-  width: 100%;
-  height: min(58vw, calc(100vh - 220px));
-  min-height: 280px;
+  width: min(1280px, calc(100vw - 24px), calc((100vh - 90px) * 1.724137931));
+  height: min(742px, calc((100vw - 24px) * 0.58), calc(100vh - 90px));
+  min-width: 320px;
+  min-height: 186px;
   overflow: hidden;
   background: #162632;
 }
 
-#debug-tools,
-#diagnostics-disclosure {
-  margin: 8px 0;
+#game canvas {
+  display: block;
+}
+
+#debug-tools {
+  box-sizing: border-box;
+  width: min(1280px, calc(100vw - 24px));
+  margin: 0 0 8px;
   color: #bfced4;
   text-align: left;
 }
 
-#debug-tools summary,
-#diagnostics-disclosure summary {
+#debug-tools summary {
   cursor: pointer;
-  padding: 6px 0;
+  padding: 4px 6px;
+  color: #aebdc7;
+  font-size: 13px;
 }
 
-#first-level-hud {
-  margin: 10px 0 4px;
-  padding: 12px 16px;
+.debug-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0;
+  padding: 12px;
   border: 1px solid #45626d;
   border-radius: 8px;
   background: #172a33;
-  text-align: left;
 }
 
-#first-level-hud[hidden] {
-  display: none;
+.debug-grid label {
+  margin: 0;
 }
 
-#first-level-hud p {
-  margin: 4px 0;
-  line-height: 1.5;
-}
-
-#first-level-objective {
-  margin: 7px 0;
-  color: #ffe3a3;
-  font-size: clamp(18px, 2.4vw, 24px);
+.debug-note {
+  margin: 6px 0;
+  color: #c9d7da;
+  font-size: 13px;
 }
 
 button {
-  margin-top: 16px;
+  margin: 0;
   padding: 8px 16px;
   font: inherit;
 }
 
 #diagnostics {
+  box-sizing: border-box;
+  max-height: 36vh;
+  overflow: auto;
+  margin: 6px 0 0;
+  padding: 10px;
+  border: 1px solid #334b56;
+  background: #111d24;
   white-space: pre-wrap;
   font: 13px/1.6 ui-monospace, monospace;
   color: #dce6e9;
 }
 
-label { display: block; margin-bottom: 10px; }
 select { padding: 4px 10px; font: inherit; }
 
 .recovery-overlay {

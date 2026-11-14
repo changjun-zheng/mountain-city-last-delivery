@@ -14,7 +14,9 @@ export type InteractionObject = Readonly<{
   progress?: InteractionProgressReference;
   actionId?: string;
   actionLabel?: string;
-  activateOnOpen?: boolean;
+  // Investigation content is read-only until a normal player close. Reset,
+  // recovery and scene destruction clear the session without activating it.
+  activateOnClose?: boolean;
   label: string;
   title: string;
   content: string;
@@ -309,7 +311,6 @@ export class InteractionController {
       this.#investigationId = target.id;
       this.#investigationStarts++;
       this.#controls.request(this.#owner, true);
-      if (target.activateOnOpen) this.#activateProgress?.(target);
     } else {
       this.#feedbackId = target.id;
       this.#feedbackText = target.kind === 'pickup'
@@ -322,8 +323,20 @@ export class InteractionController {
 
   #closeInvestigation(): boolean {
     if (!this.#investigationId) return false;
+    const active = this.#objects.find(
+      object => object.id === this.#investigationId,
+    );
     this.#investigationId = null;
     this.#controls.request(this.#owner, false);
+    if (active?.activateOnClose) {
+      const feedback = this.#activateProgress?.(active);
+      if (feedback !== undefined) {
+        this.#feedbackId = active.id;
+        this.#feedbackText = feedback;
+        this.#feedbackRemainingMs = INTERACTION_PROTOTYPE.pickupFeedbackMs;
+        this.#feedbackCount++;
+      }
+    }
     return true;
   }
 

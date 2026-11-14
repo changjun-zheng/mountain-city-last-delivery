@@ -9,21 +9,16 @@
   <body>
     <main>
       <details id="debug-tools">
-        <summary>调试入口</summary>
-        <label>场景：<select id="scene-select"><option value="first-level">首关最小可玩流程</option><option value="graybox">实验室物理灰盒</option><option value="diagnostic">固定步诊断</option></select></label>
-      </details>
-      <div id="game" aria-label="游戏画面"></div>
-      <section id="first-level-hud" aria-label="首关目标" hidden>
-        <p id="first-level-steps"></p>
-        <h2 id="first-level-objective"></h2>
-        <p id="first-level-feedback"></p>
-      </section>
-      <details id="diagnostics-disclosure">
-        <summary>模拟诊断（默认收起）</summary>
+        <summary>调试与实验室入口</summary>
+        <div class="debug-grid">
+          <label>场景：<select id="scene-select"><option value="first-level">首关最小可玩流程</option><option value="graybox">实验室物理灰盒</option><option value="diagnostic">固定步诊断</option></select></label>
+          <button id="reset-graybox" type="button" disabled>重置临时世界（R）</button>
+          <button id="restart" type="button" disabled>重新启动</button>
+        </div>
+        <p class="debug-note">打开此区域会显示范围圈、碰撞辅助、Tick 与业务身份诊断。</p>
         <pre id="diagnostics" aria-label="模拟诊断"></pre>
       </details>
-      <button id="reset-graybox" type="button" disabled>重置首关临时世界（R）</button>
-      <button id="restart" type="button" disabled>重新启动</button>
+      <div id="game" aria-label="游戏画面"></div>
       <p id="error" role="alert" hidden></p>
     </main>
     <section id="recovery-error-panel" class="recovery-overlay" role="alertdialog"

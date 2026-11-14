@@ -2854,7 +2854,7 @@ export async function checkRecovery(ctx, record, capture) {
   const focusedPoll = { polling: 'raf', timeout: 15000 };
   const up = async () => {
     for (const code of [
-      'KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'Escape',
+      'KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'Escape', 'KeyR',
       'KeyR',
     ]) await key(code, false);
   };
@@ -3541,7 +3541,7 @@ export async function checkRecoveryError(ctx, record, capture) {
   assert.deepEqual(ctx.errors, []);
 }
 
-// D12-A1 uses the production first-level scene and real keyboard input. The
+// D12-A2 uses the production first-level scene and real keyboard input. The
 // only diagnostic reads below are assertions on observable simulation state;
 // no test helper writes positions, progress or checkpoint records.
 export async function checkFirstLevel(ctx, record, capture) {
@@ -3658,19 +3658,72 @@ export async function checkFirstLevel(ctx, record, capture) {
     await key(code, true);
     await key(code, false);
   };
-  const closeNpcDialogue = async () => {
+  const clickCanvasPoint = async (x, y) => {
+    const canvas = page.locator('#game canvas');
+    const box = await canvas.boundingBox();
+    assert.ok(box, 'The first-level canvas must have a visible bounding box');
+    const dimensions = await canvas.evaluate(element => ({
+      width: element.width,
+      height: element.height,
+    }));
+    await page.mouse.click(
+      box.x + x * box.width / dimensions.width,
+      box.y + y * box.height / dimensions.height,
+    );
+  };
+  const openNpcDialogue = async () => {
+    await key('KeyE', false);
+    await press('KeyE');
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionMode ===
+        'investigation',
+    undefined, poll);
+  };
+  const closeNpcDialogue = async (method = 'escape') => {
     await page.waitForFunction(() =>
       document.querySelector('#diagnostics').dataset.interactionMode ===
         'investigation',
     undefined, poll);
     await key('KeyE', false);
-    await press('Escape');
+    if (method === 'button') await clickCanvasPoint(880, 174);
+    else await press('Escape');
     await page.waitForFunction(() => {
       const data = document.querySelector('#diagnostics').dataset;
-      return data.interactionMode === 'idle' &&
+      return data.interactionMode !== 'investigation' &&
         data.interactionControlBlocked === 'false';
     }, undefined, poll);
   };
+  const layoutProbe = () => page.evaluate(() => {
+    const game = document.querySelector('#game');
+    const canvas = document.querySelector('#game canvas');
+    const debug = document.querySelector('#debug-tools');
+    const gameRect = game.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    return {
+      viewport: { width: innerWidth, height: innerHeight },
+      game: {
+        left: gameRect.left,
+        top: gameRect.top,
+        right: gameRect.right,
+        bottom: gameRect.bottom,
+        width: gameRect.width,
+        height: gameRect.height,
+      },
+      canvas: {
+        left: canvasRect.left,
+        top: canvasRect.top,
+        right: canvasRect.right,
+        bottom: canvasRect.bottom,
+        width: canvasRect.width,
+        height: canvasRect.height,
+      },
+      debugOpen: debug?.open ?? false,
+      debugVisible: game?.dataset.debugVisible === 'true',
+      diagnosticsInDebug: Boolean(debug?.querySelector('#diagnostics')),
+      legacyHudPresent: Boolean(document.querySelector('#first-level-hud')),
+      documentScrolls: document.documentElement.scrollHeight > innerHeight,
+    };
+  });
   const reachNpc = async () => {
     await up();
     await key('KeyD', true);
@@ -3745,7 +3798,7 @@ export async function checkFirstLevel(ctx, record, capture) {
     await visibleFocused();
     const result = await ctx.monitor.race(fn);
     record(name, { status: 'PASS', ...result });
-    console.log('PASS', ctx.label, 'D12-A1', name, JSON.stringify(result));
+    console.log('PASS', ctx.label, 'D12-A2', name, JSON.stringify(result));
   };
 
   const initial = await firstLevel();
@@ -3755,7 +3808,79 @@ export async function checkFirstLevel(ctx, record, capture) {
   assert.equal(initial.phase, 'intro');
   assert.match(initial.objective, /A：/);
   assert.equal(initial.progressGoals, 0);
-  await capture('D12-A1-A-spawn', true);
+  await capture('D12-A2-A-spawn', true);
+
+  await run('UX03-UX05-default-layout-debug-toggle-and-viewports', async () => {
+    const initialLayout = await layoutProbe();
+    assert.equal(initialLayout.debugOpen, false);
+    assert.equal(initialLayout.debugVisible, false,
+      'Range guides and developer HUD must be hidden by default');
+    assert.equal(initialLayout.diagnosticsInDebug, true,
+      'Full simulation diagnostics must belong to the collapsed debug area');
+    assert.equal(initialLayout.legacyHudPresent, false,
+      'The duplicate page-level objective panel must stay removed');
+    await capture('D12-A2-default-layout', true);
+
+    await page.locator('#debug-tools summary').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#game').dataset.debugVisible === 'true',
+    undefined, poll);
+    const debugLayout = await layoutProbe();
+    assert.equal(debugLayout.debugOpen, true);
+    assert.equal(debugLayout.debugVisible, true);
+    await capture('D12-A2-debug-expanded', true);
+    await page.locator('#debug-tools summary').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#game').dataset.debugVisible === 'false',
+    undefined, poll);
+
+    const measured = [];
+    if (ctx.label === 'web') {
+      const viewportSession = await page.context().newCDPSession(page);
+      try {
+        for (const size of [
+          { width: 1280, height: 720 },
+          { width: 1920, height: 1080 },
+        ]) {
+          await viewportSession.send('Emulation.setDeviceMetricsOverride', {
+            width: size.width,
+            height: size.height,
+            deviceScaleFactor: 1,
+            mobile: false,
+          });
+          await page.waitForTimeout(120);
+          const layout = await layoutProbe();
+          assert.equal(layout.viewport.width, size.width);
+          assert.equal(layout.viewport.height, size.height);
+          assert.ok(layout.canvas.width > 0 && layout.canvas.height > 0);
+          assert.ok(layout.canvas.left >= 0 && layout.canvas.top >= 0);
+          assert.ok(layout.canvas.right <= size.width + 1);
+          assert.ok(layout.canvas.bottom <= size.height + 1,
+            'The complete game canvas must remain inside the required client size');
+          measured.push(layout);
+          await capture(`D12-A2-web-${size.width}x${size.height}`, true);
+        }
+        await viewportSession.send('Emulation.setDeviceMetricsOverride', {
+          width: 1280,
+          height: 720,
+          deviceScaleFactor: 1,
+          mobile: false,
+        });
+      } finally {
+        await viewportSession.detach();
+      }
+    } else {
+      const layout = await layoutProbe();
+      assert.ok(layout.canvas.width > 0 && layout.canvas.height > 0);
+      measured.push(layout);
+      await capture('D12-A2-electron-window-layout', true);
+    }
+    return {
+      initial: initialLayout,
+      debug: debugLayout,
+      measured,
+    };
+  });
 
   await run('LV01-LV03-A-B-quest-and-quest-recovery', async () => {
     await reachNpc();
@@ -3763,8 +3888,40 @@ export async function checkFirstLevel(ctx, record, capture) {
     assert.equal(proximity.questAccepted, false,
       'Reaching the NPC must not auto-accept the commission');
     assert.match(proximity.interactionPrompt, /E 调查 B · 游客/);
-    await press('KeyE');
-    await closeNpcDialogue();
+    await openNpcDialogue();
+    const opened = await firstLevel();
+    assert.equal(opened.interactionMode, 'investigation');
+    assert.equal(opened.questAccepted, false);
+    assert.equal(opened.questEventId, null,
+      'Opening the NPC dialogue must not allocate a quest event');
+    assert.equal(opened.progressGoals, 0);
+    assert.equal(
+      await page.locator('#game').getAttribute('data-dialog-completes-on-close'),
+      'true',
+    );
+
+    ctx.stage = 'D12-A2-dialogue-hidden-resume';
+    await key('KeyE', true);
+    await ctx.hide();
+    await page.waitForFunction(() =>
+      document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics').dataset.paused === 'true',
+    undefined, poll);
+    const hiddenDialogue = await firstLevel();
+    assert.equal(hiddenDialogue.interactionMode, 'investigation',
+      'Lifecycle pause must keep the unfinished dialogue open');
+    assert.equal(hiddenDialogue.questEventId, null);
+    assert.equal(hiddenDialogue.progressGoals, 0);
+    await capture('D12-A2-dialogue-paused', true);
+    ctx.stage = 'D12-A2-dialogue-resume';
+    await ctx.show();
+    await visibleFocused();
+    const resumedDialogue = await firstLevel();
+    assert.equal(resumedDialogue.interactionMode, 'investigation');
+    assert.equal(resumedDialogue.questEventId, null);
+    assert.equal(resumedDialogue.progressGoals, 0);
+
+    await closeNpcDialogue('button');
     await page.waitForFunction(() => {
       const data = document.querySelector('#diagnostics').dataset;
       return data.firstLevelQuestAccepted === 'true' &&
@@ -3781,7 +3938,7 @@ export async function checkFirstLevel(ctx, record, capture) {
     assert.ok(accepted.questResultEventId > 0);
     assert.equal(accepted.questRetired, true);
     assert.equal(accepted.questResultRetired, true);
-    await capture('D12-A1-B-quest-accepted', true);
+    await capture('D12-A2-B-quest-accepted', true);
 
     const runtimeId = accepted.runtimeInstanceId;
     await key('KeyD', true);
@@ -3804,11 +3961,15 @@ export async function checkFirstLevel(ctx, record, capture) {
     assert.equal(recovered.questResultEventId, accepted.questResultEventId);
     assert.ok(Math.abs(recovered.x - 80) < 1);
     assert.equal(recovered.recoveryWorldValidation, 'valid');
-    await capture('D12-A1-B-quest-recovery', true);
+    await capture('D12-A2-B-quest-recovery', true);
 
     await reachNpc();
-    await press('KeyE');
-    await closeNpcDialogue();
+    await openNpcDialogue();
+    const duplicateOpened = await firstLevel();
+    assert.equal(duplicateOpened.interactionMode, 'investigation');
+    assert.equal(duplicateOpened.questEventId, accepted.questEventId,
+      'Already accepted dialogue must expose the same quest identity');
+    await closeNpcDialogue('escape');
     await page.waitForTimeout(200);
     const duplicate = await firstLevel();
     assert.equal(duplicate.questEventId, accepted.questEventId,
@@ -3831,6 +3992,11 @@ export async function checkFirstLevel(ctx, record, capture) {
         anchor: recovered.recoverySelectedAnchor,
       },
       duplicateQuestIdentityPreserved: true,
+      openedWithoutQuest: {
+        eventId: opened.questEventId,
+        goals: opened.progressGoals,
+      },
+      hiddenDialoguePreserved: hiddenDialogue.interactionMode,
     };
   });
 
@@ -3847,7 +4013,7 @@ export async function checkFirstLevel(ctx, record, capture) {
     assert.equal(wrong.routeUnlocked, false);
     assert.equal(wrong.progressGoals, beforeWrong.progressGoals);
     assert.equal(wrong.liftEventId, beforeWrong.liftEventId);
-    await capture('D12-A1-C-wrong-lever', true);
+    await capture('D12-A2-C-wrong-control', true);
 
     await key('KeyA', true);
     await page.waitForFunction(() =>
@@ -3876,7 +4042,7 @@ export async function checkFirstLevel(ctx, record, capture) {
     assert.equal(unlocked.progressGoals, 2);
     assert.equal(unlocked.progressRewards, 0);
     assert.equal(unlocked.progressEffects, 2);
-    await capture('D12-A1-C-route-open', true);
+    await capture('D12-A2-C-route-open', true);
 
     await page.waitForFunction(() =>
       +document.querySelector('#diagnostics').dataset.firstLevelLiftY < 400,
@@ -3899,7 +4065,7 @@ export async function checkFirstLevel(ctx, record, capture) {
     assert.equal(recovered.liftEventId, unlocked.liftEventId);
     assert.equal(recovered.liftResultEventId, unlocked.liftResultEventId);
     assert.equal(recovered.recoveryWorldValidation, 'valid');
-    await capture('D12-A1-C-route-recovery', true);
+    await capture('D12-A2-C-route-recovery', true);
 
     await reachNpc();
     await reachCControls();
@@ -3961,9 +4127,9 @@ export async function checkFirstLevel(ctx, record, capture) {
       return data.support === 'first-level-service-lift' &&
         +data.firstLevelLiftY < 500;
     }, undefined, poll);
-    await capture('D12-A1-lift-ride', true);
+    await capture('D12-A2-lift-ride', true);
 
-    ctx.stage = 'D12-A1-lift-minimize-pause';
+    ctx.stage = 'D12-A2-lift-minimize-pause';
     await ctx.hide();
     await page.waitForFunction(() =>
       document.visibilityState === 'hidden' &&
@@ -3977,10 +4143,10 @@ export async function checkFirstLevel(ctx, record, capture) {
     assert.equal(frozenAgain.tick, frozen.tick);
     assert.equal(frozenAgain.liftY, frozen.liftY);
     assert.equal(frozenAgain.platformClock, frozen.platformClock);
-    await capture('D12-A1-lift-paused', true);
+    await capture('D12-A2-lift-paused', true);
 
     await installResumeProbe();
-    ctx.stage = 'D12-A1-lift-restore';
+    ctx.stage = 'D12-A2-lift-restore';
     await ctx.show();
     const resumedRaw = await page.evaluate(() => window.__d12Resume);
     const resumedTick = +resumedRaw.tick;
@@ -4003,7 +4169,7 @@ export async function checkFirstLevel(ctx, record, capture) {
     assert.equal(heldAfterRestore.jumps, jumpsAtRestore,
       'The restore release gate must consume a held jump request without jumping');
     await key('Space', false);
-    await capture('D12-A1-lift-resumed', true);
+    await capture('D12-A2-lift-resumed', true);
 
     await page.waitForFunction(() => {
       const data = document.querySelector('#diagnostics').dataset;
@@ -4030,7 +4196,7 @@ export async function checkFirstLevel(ctx, record, capture) {
       'Reaching D without the explicit interaction must not complete the level');
     assert.equal(dReady.questAccepted, true);
     assert.equal(dReady.routeUnlocked, true);
-    await capture('D12-A1-D-ready', true);
+    await capture('D12-A2-D-ready', true);
 
     await press('KeyE');
     await page.waitForFunction(() => {
@@ -4065,7 +4231,7 @@ export async function checkFirstLevel(ctx, record, capture) {
       completed.liftResultEventId,
       completed.completeResultEventId,
     ]).size, 3);
-    await capture('D12-A1-completed', true);
+    await capture('D12-A2-completed', true);
 
     await press('KeyE');
     await page.waitForTimeout(200);
@@ -4076,7 +4242,7 @@ export async function checkFirstLevel(ctx, record, capture) {
     assert.equal(duplicate.progressGoals, 3);
 
     const beforeReset = await firstLevel();
-    await page.locator('#reset-graybox').click();
+    await press('KeyR');
     await page.waitForFunction(value => {
       const data = document.querySelector('#diagnostics').dataset;
       return +data.resets !== value &&
@@ -4090,7 +4256,7 @@ export async function checkFirstLevel(ctx, record, capture) {
     assert.equal(afterReset.questEventId, completed.questEventId);
     assert.equal(afterReset.liftEventId, completed.liftEventId);
     assert.equal(afterReset.completeEventId, completed.completeEventId);
-    await capture('D12-A1-reset-preserves-completion', true);
+    await capture('D12-A2-reset-preserves-completion', true);
     await up();
     assert.deepEqual(ctx.errors, []);
     return {

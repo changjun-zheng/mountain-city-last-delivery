@@ -111,6 +111,23 @@ function completeQuest(instance) {
       ?.flow.phase === 'succeeded', 20);
 }
 
+function openNpcDialogue(instance) {
+  instance.place(650, 448);
+  instance.core.key('KeyE', false);
+  assert.equal(
+    instance.core.snapshot.interaction.selectedId,
+    'first-level-b-npc',
+  );
+  instance.core.key('KeyE', true);
+  instance.step();
+  instance.core.key('KeyE', false);
+  assert.equal(instance.core.snapshot.interaction.mode, 'investigation');
+  assert.equal(
+    instance.core.snapshot.interaction.activeId,
+    'first-level-b-npc',
+  );
+}
+
 function unlockRoute(instance) {
   instance.place(1135, 518);
   assert.equal(
@@ -233,6 +250,95 @@ test('D12-A1 LV02 proximity and missing prerequisites do not complete; wrong lev
   unlockRoute(instance);
   assert.equal(gameplay(instance).routeUnlocked, true);
   assert.equal(instance.progress.snapshot.counts.goals, 2);
+});
+
+test('D12-A2 UX01 opening NPC dialogue allocates no quest identity until normal completion', () => {
+  const instance = fixture();
+  openNpcDialogue(instance);
+  const opened = gameplay(instance);
+  assert.equal(opened.questAccepted, false);
+  assert.equal(
+    opened.actions.find(action => action.action === 'quest').flow.eventId,
+    null,
+  );
+  assert.equal(instance.progress.snapshot.counts.goals, 0);
+
+  instance.step(30);
+  assert.equal(
+    gameplay(instance).actions.find(action => action.action === 'quest')
+      .flow.eventId,
+    null,
+    'Waiting while the dialogue remains open must not accept the quest',
+  );
+
+  assert.equal(instance.core.closeInteraction(), true);
+  instance.stepUntil(snapshot => snapshot.gameplay?.questAccepted, 30);
+  instance.stepUntil(snapshot =>
+    snapshot.gameplay?.actions.find(action => action.action === 'quest')
+      ?.flow.phase === 'succeeded', 30);
+  const accepted = gameplay(instance);
+  const quest = accepted.actions.find(action => action.action === 'quest').flow;
+  assert.equal(accepted.questAccepted, true);
+  assert.equal(instance.progress.snapshot.counts.goals, 1);
+  assert.ok(quest.eventId > 0);
+  assert.ok(quest.commandId > 0);
+  assert.ok(quest.transactionId > 0);
+  assert.ok(quest.resultEventId > 0);
+
+  assert.equal(instance.core.closeInteraction(), false);
+  instance.step(10);
+  assert.equal(
+    gameplay(instance).actions.find(action => action.action === 'quest')
+      .flow.eventId,
+    quest.eventId,
+  );
+  assert.equal(instance.progress.snapshot.counts.goals, 1);
+});
+
+test('D12-A2 UX02 pause, reset and recovery discard unfinished dialogue without accepting', () => {
+  const instance = fixture();
+  openNpcDialogue(instance);
+
+  const pauseOwner = {};
+  const pauseToken = instance.core.lifecycle.acquire(
+    pauseOwner,
+    Symbol('dialogue-hidden'),
+  );
+  assert.ok(pauseToken);
+  instance.step(20);
+  assert.equal(instance.core.snapshot.interaction.mode, 'investigation');
+  assert.equal(
+    gameplay(instance).actions.find(action => action.action === 'quest')
+      .flow.eventId,
+    null,
+  );
+  assert.equal(instance.core.lifecycle.release(pauseOwner, pauseToken), 'released');
+
+  assert.equal(instance.core.reset().status, 'reset');
+  instance.step(5);
+  assert.equal(instance.core.snapshot.interaction.mode, 'idle');
+  assert.equal(gameplay(instance).questAccepted, false);
+  assert.equal(instance.progress.snapshot.counts.goals, 0);
+
+  openNpcDialogue(instance);
+  instance.world.placePlayerAtAnchor({ x: 1025, y: 720, facing: 1 });
+  instance.stepUntil(snapshot =>
+    snapshot.recovery.phase === 'succeeded' &&
+    snapshot.recovery.recoveryCount === 1, 700);
+  assert.equal(instance.core.snapshot.interaction.mode, 'idle');
+  assert.equal(gameplay(instance).questAccepted, false);
+  assert.equal(instance.progress.snapshot.counts.goals, 0);
+
+  openNpcDialogue(instance);
+  instance.core.key('KeyE', true, true);
+  instance.core.key('KeyE', false);
+  assert.equal(instance.core.closeInteraction(), true);
+  assert.equal(instance.core.closeInteraction(), false);
+  instance.core.key('Escape', true);
+  instance.core.key('Escape', true, true);
+  instance.core.key('Escape', false);
+  instance.stepUntil(snapshot => snapshot.gameplay?.questAccepted, 30);
+  assert.equal(instance.progress.snapshot.counts.goals, 1);
 });
 
 test('D12-A1 LV03 recovery after dialogue preserves the accepted quest and does not duplicate it', () => {
