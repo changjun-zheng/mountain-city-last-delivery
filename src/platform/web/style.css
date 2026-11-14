@@ -26,6 +26,43 @@ main {
   background: #162632;
 }
 
+#debug-tools,
+#diagnostics-disclosure {
+  margin: 8px 0;
+  color: #bfced4;
+  text-align: left;
+}
+
+#debug-tools summary,
+#diagnostics-disclosure summary {
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+#first-level-hud {
+  margin: 10px 0 4px;
+  padding: 12px 16px;
+  border: 1px solid #45626d;
+  border-radius: 8px;
+  background: #172a33;
+  text-align: left;
+}
+
+#first-level-hud[hidden] {
+  display: none;
+}
+
+#first-level-hud p {
+  margin: 4px 0;
+  line-height: 1.5;
+}
+
+#first-level-objective {
+  margin: 7px 0;
+  color: #ffe3a3;
+  font-size: clamp(18px, 2.4vw, 24px);
+}
+
 button {
   margin-top: 16px;
   padding: 8px 16px;
@@ -40,3 +77,99 @@ button {
 
 label { display: block; margin-bottom: 10px; }
 select { padding: 4px 10px; font: inherit; }
+
+.recovery-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(7 12 16 / 88%);
+  backdrop-filter: blur(4px);
+}
+
+.recovery-overlay[hidden] {
+  display: none;
+}
+
+.recovery-card {
+  box-sizing: border-box;
+  width: min(680px, 100%);
+  padding: 28px;
+  border: 2px solid #e98972;
+  border-radius: 14px;
+  background: #1d252d;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 55%);
+  text-align: left;
+}
+
+.recovery-card h1 {
+  margin: 0 0 14px;
+  color: #ffd9cb;
+  font-size: clamp(24px, 5vw, 38px);
+}
+
+.recovery-card p {
+  line-height: 1.65;
+}
+
+.recovery-kicker {
+  margin: 0;
+  color: #e98972;
+  font: 700 13px/1.2 ui-monospace, monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.recovery-card dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 14px;
+  margin: 20px 0;
+  padding: 14px;
+  background: #131b22;
+}
+
+.recovery-card dt {
+  color: #aebdc7;
+}
+
+.recovery-card dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.recovery-actions button {
+  margin-top: 0;
+  border: 1px solid #849aa8;
+  border-radius: 6px;
+  background: #2c3d48;
+  color: #fff4dc;
+  cursor: pointer;
+}
+
+.recovery-actions button:first-child {
+  border-color: #e98972;
+  background: #693d36;
+}
+
+.recovery-title-card {
+  border-color: #78c7b1;
+  text-align: center;
+}
+
+.recovery-title-card h1 {
+  color: #dcfff5;
+}
+
+.recovery-title-card .recovery-actions {
+  justify-content: center;
+}

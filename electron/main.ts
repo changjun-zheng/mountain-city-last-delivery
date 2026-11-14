@@ -21,6 +21,11 @@ app.whenReady().then(async () => {
     ? developmentURL(process.env.MCLD_DEV_URL) : undefined;
   const entry = new URL(dev ?? 'app://game/index.html');
   entry.searchParams.set('platform', 'windows');
+  // Test-only, named recovery fixture. Unknown values are ignored; no renderer
+  // API or IPC endpoint is exposed for fault selection.
+  if (process.env.MCLD_RECOVERY_FAULT === 'd11-a3-suite') {
+    entry.searchParams.set('recoveryFault', 'd11-a3-suite');
+  }
   const rendererRoot = join(app.getAppPath(), 'dist');
   const csp = [
     "default-src 'none'",

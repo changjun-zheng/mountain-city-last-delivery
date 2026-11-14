@@ -119,7 +119,7 @@ type OneWayState = {
 };
 type MovingPlatformRuntime = {
   readonly definition: (typeof MOVING_PLATFORM_PROTOTYPES)[number];
-  readonly body: MatterJS.BodyType;
+  body: MatterJS.BodyType;
   deltaX: number;
   deltaY: number;
   vx: number;
@@ -203,6 +203,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     worldVx: 0, worldVy: 0, supportVx: 0, supportVy: 0,
     normalX: 0, normalY: -1, support: '', wall: false, ceiling: false };
   #steps = 0;
+  #managedWorldRebuildCount = 0;
 
   constructor(matter: MatterLibrary, engine: MatterJS.Engine, advance: (deltaMs: number) => void) {
     this.#matter = matter;
@@ -499,6 +500,14 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     if (this.#recoveryPlatformPositions.size !== this.#movingPlatforms.length) {
       throw new Error('Recovery platform positions were not fully prepared.');
     }
+    // This is a real managed-object rebuild: every registered temporary body is
+    // removed and recreated. The fixed object IDs stay in the runtime entries.
+    for (const platform of this.#movingPlatforms) {
+      this.#matter.Composite.remove(
+        this.#engine.world as unknown as MatterJS.CompositeType,
+        platform.body,
+      );
+    }
     for (const platform of this.#movingPlatforms) {
       const position = this.#recoveryPlatformPositions.get(platform.definition.label);
       if (!position) {
@@ -506,12 +515,29 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
           `Recovery position is missing for ${platform.definition.label}.`,
         );
       }
-      this.#matter.Body.setPosition(platform.body, position);
-      this.#matter.Body.setVelocity(platform.body, { x: 0, y: 0 });
+      const body = this.#matter.Bodies.rectangle(
+        position.x,
+        position.y,
+        platform.definition.width,
+        platform.definition.height,
+        {
+          isStatic: true,
+          friction: 1,
+          label: platform.definition.label,
+        },
+      );
+      platform.body = body;
+      platform.deltaX = platform.deltaY = platform.vx = platform.vy = 0;
+      this.#matter.Body.setVelocity(body, { x: 0, y: 0 });
+      this.#matter.Composite.add(
+        this.#engine.world as unknown as MatterJS.CompositeType,
+        body,
+      );
     }
     this.#recoveryPlatformPositions.clear();
     this.#oneWay.passThrough = false;
     this.#setOneWayCollision(false);
+    this.#carriedBy = undefined;
     this.#matter.Engine.clear(this.#engine);
     this.#matter.Composite.setModified(
       this.#engine.world as unknown as MatterJS.CompositeType,
@@ -519,6 +545,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       false,
       true,
     );
+    this.#managedWorldRebuildCount++;
   }
 
   validateRecoveryWorld(
@@ -798,6 +825,45 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     this.#failureZone.enteredThisStep = false;
   }
 
+  removeManagedBodyForRecoveryTest(objectId: string): boolean {
+    const platform = this.#movingByLabel.get(objectId);
+    if (!platform) return false;
+    const world = this.#engine.world as unknown as MatterJS.CompositeType;
+    const before = this.#matter.Composite.allBodies(world);
+    if (!before.includes(platform.body)) return false;
+    this.#matter.Composite.remove(world, platform.body);
+    return !this.#matter.Composite.allBodies(world).includes(platform.body);
+  }
+
+  blockRecoveryAnchorForTest(
+    anchor: SnapshotAnchor,
+    label: string,
+  ): boolean {
+    const world = this.#engine.world as unknown as MatterJS.CompositeType;
+    if (this.#matter.Composite.allBodies(world).some(body => body.label === label)) {
+      return true;
+    }
+    const blocker = this.#matter.Bodies.rectangle(
+      anchor.x,
+      anchor.y,
+      40,
+      40,
+      { isStatic: true, label },
+    );
+    this.#matter.Composite.add(world, blocker);
+    return this.#matter.Composite.allBodies(world).includes(blocker);
+  }
+
+  removeRecoveryBodyForTest(label: string): boolean {
+    if (!label.startsWith('d11-a3-')) return false;
+    const world = this.#engine.world as unknown as MatterJS.CompositeType;
+    const body = this.#matter.Composite.allBodies(world)
+      .find(candidate => candidate.label === label);
+    if (!body) return false;
+    this.#matter.Composite.remove(world, body);
+    return !this.#matter.Composite.allBodies(world).includes(body);
+  }
+
   step(deltaMs: number, tick: number): void {
     this.#lastSimulationTick = tick;
     this.#failureZone.enteredThisStep = false;
@@ -902,6 +968,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   get state(): PlayerState { return this.#state; }
   get steps(): number { return this.#steps; }
   get timestamp(): number { return this.#engine.timing.timestamp; }
+  get managedWorldRebuildCount(): number { return this.#managedWorldRebuildCount; }
   get oneWayCollisionEnabled(): boolean { return this.#oneWay.collisionEnabled; }
   get progressRouteOpen(): boolean { return this.#progressRouteOpen; }
   get platformClockMs(): number { return this.#platformClockMs; }

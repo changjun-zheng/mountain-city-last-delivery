@@ -2,7 +2,10 @@ import { createGameCore, type GameCore } from '../../core/game';
 import type { GrayboxCore } from '../../core/graybox';
 import { mountStartupScene } from '../../rendering/phaser/startup';
 import { mountGrayboxScene } from '../../rendering/phaser/graybox';
+import { mountFirstLevelScene } from '../../rendering/phaser/first-level';
 import type { MatterGrayboxDiagnostics } from '../../physics/matter/graybox-world';
+import type { FirstLevelMatterDiagnostics } from '../../physics/matter/first-level-world';
+import type { FirstLevelRuntimeSnapshot } from '../../core/first-level';
 import { bindVisibilityPause } from './visibility';
 import { bindPlayerInput } from './player-input';
 import './style.css';
@@ -13,22 +16,57 @@ const error = document.querySelector<HTMLElement>('#error');
 const diagnostics = document.querySelector<HTMLElement>('#diagnostics');
 const sceneSelect = document.querySelector<HTMLSelectElement>('#scene-select');
 const reset = document.querySelector<HTMLButtonElement>('#reset-graybox');
+const recoveryErrorPanel = document.querySelector<HTMLElement>('#recovery-error-panel');
+const recoveryErrorSummary = document.querySelector<HTMLElement>('#recovery-error-summary');
+const recoveryErrorStage = document.querySelector<HTMLElement>('#recovery-error-stage');
+const recoveryErrorCheckpoint = document.querySelector<HTMLElement>('#recovery-error-checkpoint');
+const recoveryErrorDiagnostics = document.querySelector<HTMLElement>('#recovery-error-diagnostics');
+const recoveryRetry = document.querySelector<HTMLButtonElement>('#recovery-retry');
+const recoveryTitleButton = document.querySelector<HTMLButtonElement>('#recovery-title');
+const recoveryTitlePanel = document.querySelector<HTMLElement>('#recovery-title-panel');
+const recoveryReturn = document.querySelector<HTMLButtonElement>('#recovery-return');
+const firstLevelHud = document.querySelector<HTMLElement>('#first-level-hud');
+const firstLevelObjective = document.querySelector<HTMLElement>('#first-level-objective');
+const firstLevelFeedback = document.querySelector<HTMLElement>('#first-level-feedback');
+const firstLevelSteps = document.querySelector<HTMLElement>('#first-level-steps');
 
-if (!parent || !restart || !error || !diagnostics || !sceneSelect || !reset) {
+if (!parent || !restart || !error || !diagnostics || !sceneSelect || !reset ||
+    !recoveryErrorPanel || !recoveryErrorSummary || !recoveryErrorStage ||
+    !recoveryErrorCheckpoint || !recoveryErrorDiagnostics || !recoveryRetry ||
+    !recoveryTitleButton || !recoveryTitlePanel || !recoveryReturn ||
+    !firstLevelHud || !firstLevelObjective || !firstLevelFeedback ||
+    !firstLevelSteps) {
   throw new Error('Missing Web host elements.');
 }
 
 let destroy: (() => Promise<void>) | undefined;
 let core: GameCore | GrayboxCore | undefined;
 let unbind = () => {};
-let lastGrayboxDiagnostics: MatterGrayboxDiagnostics | undefined;
-const mode = sessionStorage.getItem('scene') === 'diagnostic' ? 'diagnostic' : 'graybox';
+type RuntimeDiagnostics =
+  | MatterGrayboxDiagnostics
+  | FirstLevelMatterDiagnostics;
+let lastRuntimeDiagnostics: RuntimeDiagnostics | undefined;
+const storedMode = sessionStorage.getItem('scene');
+const mode = storedMode === 'graybox' || storedMode === 'diagnostic'
+  ? storedMode
+  : 'first-level';
 sceneSelect.value = mode;
-reset.hidden = mode !== 'graybox';
-const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
+reset.hidden = mode === 'diagnostic';
+reset.textContent = mode === 'first-level'
+  ? '重置首关临时世界（R）'
+  : '重置灰盒（R）';
+const showDiagnostics = (diagnosticsState?: RuntimeDiagnostics) => {
   if (!core) return;
-  if (diagnosticsState) lastGrayboxDiagnostics = diagnosticsState;
-  const grayboxDiagnostics = diagnosticsState ?? lastGrayboxDiagnostics;
+  if (diagnosticsState) lastRuntimeDiagnostics = diagnosticsState;
+  const runtimeDiagnostics = diagnosticsState ?? lastRuntimeDiagnostics;
+  const grayboxDiagnostics =
+    runtimeDiagnostics && !('lift' in runtimeDiagnostics)
+      ? runtimeDiagnostics
+      : undefined;
+  const firstLevelDiagnostics =
+    runtimeDiagnostics && 'lift' in runtimeDiagnostics
+      ? runtimeDiagnostics
+      : undefined;
   const sample = core.snapshot;
   const marker = 'player' in sample ? sample.player.x : sample.markerX;
   const common = [
@@ -61,6 +99,23 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       ` | feedback ${interaction.feedbackCount}${interaction.feedbackRemainingMs > 0 ? ` (${interaction.feedbackRemainingMs.toFixed(0)} ms)` : ''}`,
     );
     const progress = sample.progress;
+    const firstLevel =
+      'gameplay' in sample && sample.gameplay
+        ? sample.gameplay as FirstLevelRuntimeSnapshot
+        : null;
+    firstLevelHud.hidden = mode !== 'first-level' || !firstLevel;
+    if (firstLevel) {
+      firstLevelObjective.textContent = firstLevel.objective;
+      firstLevelFeedback.textContent = firstLevel.feedback;
+      firstLevelSteps.textContent =
+        `委托 ${firstLevel.questAccepted ? '已接取' : '未接取'} · ` +
+        `路线 ${firstLevel.routeUnlocked ? '已开放' : '未开放'} · ` +
+        `首关 ${firstLevel.completed ? '已完成' : '进行中'}`;
+      common.push(
+        `首关 ${firstLevel.phase.toUpperCase()} | ${firstLevel.objective}`,
+        firstLevel.feedback,
+      );
+    }
     common.push(
       `Progress C${progress.counts.collections} G${progress.counts.goals}` +
       ` R${progress.counts.rewards} F${progress.counts.effects}` +
@@ -110,7 +165,7 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       ` resources ${checkpointCapture.resourceOwnership.resourcesReleased ? 'RELEASED' : 'HELD'}`,
     );
     common.push(
-      `D11-A2 recovery ${recovery.phase.toUpperCase()}` +
+      `D11-A3 recovery ${recovery.phase.toUpperCase()} / ${recovery.view}` +
       ` | fall event ${recovery.failureEventId ?? '-'}` +
       ` | source ${recovery.sourceCheckpointId ?? '-'}` +
       ` | primary ${recovery.sourceAnchor
@@ -124,10 +179,35 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       ` (${recovery.worldValidation?.critical.length ?? 0} critical,` +
       ` ${recovery.worldValidation?.warnings.length ?? 0} warning)` +
       ` | attempts ${recovery.anchorAttempts.length}` +
+      ` | auto rebuild ${recovery.automaticRebuildCount}/${recovery.automaticRebuildAttempts}` +
+      ` | managed rebuilds ${recovery.managedWorldRebuildCount}` +
+      ` | manual ${recovery.manualRetryCount}` +
+      ` | error pause ${recovery.errorPauseHeld ? 'HELD' : 'FREE'}` +
       ` | recovered ${recovery.recoveryCount}` +
       ` | control ${recovery.controlLockHeld ? 'LOCKED' : 'OPEN'}` +
       ` | ${recovery.message}`,
     );
+    const showError = recovery.phase === 'failed' &&
+      recovery.view === 'recovery-error';
+    const showTitle = recovery.phase === 'failed' &&
+      recovery.view === 'title';
+    recoveryErrorPanel.hidden = !showError;
+    recoveryTitlePanel.hidden = !showTitle;
+    recoveryErrorSummary.textContent =
+      recovery.lastError ?? recovery.message;
+    recoveryErrorStage.textContent =
+      `${recovery.lastFailureStage ?? '-'} (${recovery.lastFailureCode ?? '-'})`;
+    recoveryErrorCheckpoint.textContent = recovery.sourceCheckpointId ?? '-';
+    recoveryErrorDiagnostics.textContent =
+      `自动重建 ${recovery.automaticRebuildCount}/` +
+      `${recovery.automaticRebuildAttempts}，受管世界重建 ` +
+      `${recovery.managedWorldRebuildCount}，手动重试 ${recovery.manualRetryCount}，` +
+      `错误暂停 ${recovery.errorPauseHeld ? 'HELD' : 'FREE'}，` +
+      `控制 ${recovery.controlLockHeld ? 'LOCKED' : 'OPEN'}，` +
+      `触发屏蔽 ${recovery.triggersShielded ? 'ON' : 'OFF'}`;
+    recoveryRetry.disabled = !showError;
+    recoveryTitleButton.disabled = !showError;
+    recoveryReturn.disabled = !showTitle;
     const horizontal = grayboxDiagnostics?.movingPlatforms.find(platform => platform.axis === 'horizontal');
     const vertical = grayboxDiagnostics?.movingPlatforms.find(platform => platform.axis === 'vertical');
     const zoneA = grayboxDiagnostics?.diagnosticZones.find(zone => zone.label === 'diagnostic-zone-a');
@@ -136,7 +216,18 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       zone.triggerId === 'checkpoint-trigger-a');
     const checkpointZoneB = checkpointTriggers.zones.find(zone =>
       zone.triggerId === 'checkpoint-trigger-b');
-    const failureZone = grayboxDiagnostics?.failureZone;
+    const failureZone =
+      grayboxDiagnostics?.failureZone ??
+      firstLevelDiagnostics?.failureZone;
+    const firstLevelActions = firstLevel
+      ? Object.fromEntries(firstLevel.actions.map(action => [
+        action.action,
+        action.flow,
+      ]))
+      : {};
+    const questFlow = firstLevelActions.quest;
+    const liftFlow = firstLevelActions.lift;
+    const completeFlow = firstLevelActions.complete;
     Object.assign(diagnostics.dataset, {
       x: String(p.x), y: String(p.y), vx: String(p.vx), vy: String(p.vy),
       worldVx: String(p.worldVx), worldVy: String(p.worldVy),
@@ -197,6 +288,74 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       progressRewardIds: progress.rewards.join(','),
       progressEffects: progress.effects.map(effect =>
         `${effect.id}:${effect.expectedActive ? 'active' : 'inactive'}`).join(','),
+      firstLevelRuntimeInstanceId: firstLevel?.runtimeInstanceId ?? '',
+      firstLevelPhase: firstLevel?.phase ?? '',
+      firstLevelObjective: firstLevel?.objective ?? '',
+      firstLevelFeedback: firstLevel?.feedback ?? '',
+      firstLevelQuestAccepted: String(firstLevel?.questAccepted ?? false),
+      firstLevelRouteUnlocked: String(firstLevel?.routeUnlocked ?? false),
+      firstLevelCompleted: String(firstLevel?.completed ?? false),
+      firstLevelCompletionVisible: String(firstLevel?.completionVisible ?? false),
+      firstLevelLiftActive: String(firstLevelDiagnostics?.lift.active ?? false),
+      firstLevelLiftX: firstLevelDiagnostics ? String(firstLevelDiagnostics.lift.x) : '',
+      firstLevelLiftY: firstLevelDiagnostics ? String(firstLevelDiagnostics.lift.y) : '',
+      firstLevelLiftVy: firstLevelDiagnostics ? String(firstLevelDiagnostics.lift.vy) : '',
+      firstLevelLiftDirection: firstLevelDiagnostics
+        ? String(firstLevelDiagnostics.lift.direction) : '',
+      firstLevelLiftPhase: firstLevelDiagnostics
+        ? String(firstLevelDiagnostics.lift.phase) : '',
+      firstLevelPlatformClock: firstLevelDiagnostics
+        ? String(firstLevelDiagnostics.platformClockMs) : '',
+      firstLevelGateMask: firstLevelDiagnostics
+        ? String(firstLevelDiagnostics.gateMask) : '',
+      firstLevelSupportRelativeX: firstLevelDiagnostics?.supportRelativeX == null
+        ? '' : String(firstLevelDiagnostics.supportRelativeX),
+      firstLevelSupportRelativeY: firstLevelDiagnostics?.supportRelativeY == null
+        ? '' : String(firstLevelDiagnostics.supportRelativeY),
+      firstLevelQuestPhase: questFlow?.phase ?? '',
+      firstLevelQuestEventId: questFlow?.eventId == null
+        ? '' : String(questFlow.eventId),
+      firstLevelQuestCommandId: questFlow?.commandId == null
+        ? '' : String(questFlow.commandId),
+      firstLevelQuestTransactionId: questFlow?.transactionId == null
+        ? '' : String(questFlow.transactionId),
+      firstLevelQuestResultEventId: questFlow?.resultEventId == null
+        ? '' : String(questFlow.resultEventId),
+      firstLevelQuestResultConsumedTick:
+        questFlow?.resultConsumedTick == null
+          ? '' : String(questFlow.resultConsumedTick),
+      firstLevelQuestRetired: String(questFlow?.originalRetired ?? false),
+      firstLevelQuestResultRetired: String(questFlow?.resultRetired ?? false),
+      firstLevelLiftPhaseName: liftFlow?.phase ?? '',
+      firstLevelLiftEventId: liftFlow?.eventId == null
+        ? '' : String(liftFlow.eventId),
+      firstLevelLiftCommandId: liftFlow?.commandId == null
+        ? '' : String(liftFlow.commandId),
+      firstLevelLiftTransactionId: liftFlow?.transactionId == null
+        ? '' : String(liftFlow.transactionId),
+      firstLevelLiftResultEventId: liftFlow?.resultEventId == null
+        ? '' : String(liftFlow.resultEventId),
+      firstLevelLiftResultConsumedTick:
+        liftFlow?.resultConsumedTick == null
+          ? '' : String(liftFlow.resultConsumedTick),
+      firstLevelLiftRetired: String(liftFlow?.originalRetired ?? false),
+      firstLevelLiftResultRetired: String(liftFlow?.resultRetired ?? false),
+      firstLevelCompletePhase: completeFlow?.phase ?? '',
+      firstLevelCompleteEventId: completeFlow?.eventId == null
+        ? '' : String(completeFlow.eventId),
+      firstLevelCompleteCommandId: completeFlow?.commandId == null
+        ? '' : String(completeFlow.commandId),
+      firstLevelCompleteTransactionId: completeFlow?.transactionId == null
+        ? '' : String(completeFlow.transactionId),
+      firstLevelCompleteResultEventId: completeFlow?.resultEventId == null
+        ? '' : String(completeFlow.resultEventId),
+      firstLevelCompleteResultConsumedTick:
+        completeFlow?.resultConsumedTick == null
+          ? '' : String(completeFlow.resultConsumedTick),
+      firstLevelCompleteRetired:
+        String(completeFlow?.originalRetired ?? false),
+      firstLevelCompleteResultRetired:
+        String(completeFlow?.resultRetired ?? false),
       goalRuntimeInstanceId: goalRoute.runtimeInstanceId,
       goalPhase: goalRoute.phase,
       goalMessage: goalRoute.message,
@@ -345,6 +504,7 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
         ? '' : String(failureZone.lastTransitionTick),
       recoveryRuntimeInstanceId: recovery.runtimeInstanceId,
       recoveryPhase: recovery.phase,
+      recoveryView: recovery.view,
       recoveryMessage: recovery.message,
       recoveryDetectionCount: String(recovery.detectionCount),
       recoveryCount: String(recovery.recoveryCount),
@@ -402,6 +562,20 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
           : `invalid:${recovery.anchorValidation.reason}`
         : '',
       recoveryLastError: recovery.lastError ?? '',
+      recoveryLastFailureStage: recovery.lastFailureStage ?? '',
+      recoveryLastFailureCode: recovery.lastFailureCode ?? '',
+      recoveryAutomaticRebuildAttempts:
+        String(recovery.automaticRebuildAttempts),
+      recoveryAutomaticRebuildCount:
+        String(recovery.automaticRebuildCount),
+      recoveryManagedWorldRebuildCount:
+        String(recovery.managedWorldRebuildCount),
+      recoveryManualRetryCount: String(recovery.manualRetryCount),
+      recoveryManualRetryPending: String(recovery.manualRetryPending),
+      recoveryErrorPauseHeld: String(recovery.errorPauseHeld),
+      recoveryErrorPauseRequestCount:
+        String(recovery.errorPauseRequestCount),
+      recoveryTitleRoundTrips: String(recovery.titleRoundTrips),
       recoveryPhaseHistory: recovery.phaseHistory
         .map(record => `${record.phase}@${record.tick}`).join(','),
     });
@@ -421,9 +595,14 @@ const wire = (next: GameCore | GrayboxCore) => {
   unbind = () => { input(); visibility(); };
   showDiagnostics();
 };
+const launchParameters = new URLSearchParams(window.location.search);
 // Display metadata only; this does not grant native capabilities to the renderer.
-const platform = new URLSearchParams(window.location.search).get('platform') === 'windows'
+const platform = launchParameters.get('platform') === 'windows'
   ? 'Windows (Electron)' : 'Web';
+const recoveryFaultScenario =
+  launchParameters.get('recoveryFault') === 'd11-a3-suite'
+    ? 'd11-a3-suite' as const
+    : undefined;
 
 const launch = async () => {
   try {
@@ -432,7 +611,16 @@ const launch = async () => {
       const diagnostic = createGameCore();
       wire(diagnostic);
       game = await mountStartupScene(parent, diagnostic, platform, () => performance.now(), showDiagnostics);
-    } else game = await mountGrayboxScene(
+    } else if (mode === 'graybox') game = await mountGrayboxScene(
+      parent,
+      platform,
+      () => performance.now(),
+      { generate: () => crypto.randomUUID() },
+      wire,
+      showDiagnostics,
+      recoveryFaultScenario,
+    );
+    else game = await mountFirstLevelScene(
       parent,
       platform,
       () => performance.now(),
@@ -466,4 +654,22 @@ sceneSelect.addEventListener('change', () => {
   void reload();
 });
 reset.addEventListener('click', () => { if (core && 'reset' in core) { core.reset(); showDiagnostics(); } });
+recoveryRetry.addEventListener('click', () => {
+  if (core && 'requestRecoveryRetry' in core) {
+    core.requestRecoveryRetry();
+    showDiagnostics();
+  }
+});
+recoveryTitleButton.addEventListener('click', () => {
+  if (core && 'showRecoveryTitle' in core) {
+    core.showRecoveryTitle();
+    showDiagnostics();
+  }
+});
+recoveryReturn.addEventListener('click', () => {
+  if (core && 'returnToRecoveryError' in core) {
+    core.returnToRecoveryError();
+    showDiagnostics();
+  }
+});
 void launch();

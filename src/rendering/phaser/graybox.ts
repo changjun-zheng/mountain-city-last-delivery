@@ -15,7 +15,8 @@ import {
 export function mountGrayboxScene(parent: HTMLElement, platform: string, now: () => number,
   uuidProvider: RuntimeUuidProvider,
   created: (core: GrayboxCore) => void,
-  sampled: (diagnostics?: MatterGrayboxDiagnostics) => void): Promise<{ destroy: () => Promise<void> }> {
+  sampled: (diagnostics?: MatterGrayboxDiagnostics) => void,
+  recoveryFaultScenario?: 'd11-a3-suite'): Promise<{ destroy: () => Promise<void> }> {
   parent.setAttribute('aria-label', `${PROJECT_IDENTITY.title} · ${PROJECT_IDENTITY.subtitle} · 可操作物理灰盒`);
   return new Promise(resolve => {
     new Phaser.Game({
@@ -27,7 +28,10 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
         create(this: Phaser.Scene) {
           const matter = (Phaser.Physics.Matter as unknown as { Matter: MatterLibrary }).Matter;
           const world = new MatterGrayboxWorld(matter, this.matter.world.engine, dt => this.matter.world.step(dt));
-          const core = createGrayboxCore(world, { uuidProvider });
+          const core = createGrayboxCore(world, {
+            uuidProvider,
+            recoveryFaultScenario,
+          });
           created(core);
           const terrain = this.add.graphics();
           for (const body of world.terrain) {
@@ -240,7 +244,8 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
               .setAlpha(recovery.fadeAlpha)
               .setVisible(recovery.fadeAlpha > 0.001);
             recoveryHud.setText(
-              `D11-A2 坠落恢复 ${recovery.phase.toUpperCase()}` +
+              `D11-A3 坠落恢复 ${recovery.phase.toUpperCase()}` +
+              ` / ${recovery.view}` +
               ` · fall ${world.failureZone.occupied ? 'ON' : 'OFF'}` +
               ` · E${recovery.failureEventId ?? '-'}\n` +
               `${recovery.message}\n` +
@@ -255,8 +260,11 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
               `world ${recovery.worldValidation?.status ?? '-'}` +
               ` · attempts ${recovery.anchorAttempts.length}` +
               ` · warnings ${recovery.worldValidation?.warnings.length ?? 0}` +
+              ` · auto ${recovery.automaticRebuildCount}/${recovery.automaticRebuildAttempts}` +
+              ` · manual ${recovery.manualRetryCount}` +
               ` · recovered ${recovery.recoveryCount}` +
-              ` · control ${recovery.controlLockHeld ? 'LOCKED' : 'OPEN'}`,
+              ` · control ${recovery.controlLockHeld ? 'LOCKED' : 'OPEN'}` +
+              ` · error-pause ${recovery.errorPauseHeld ? 'HELD' : 'FREE'}`,
             ).setVisible(
               recovery.phase !== 'idle' || world.failureZone.occupied,
             );

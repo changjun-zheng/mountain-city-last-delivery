@@ -4,11 +4,13 @@
 
 《叠城大冒险》（Layered City Adventures）是一款以具有山城特色的虚构立体城市为舞台的 2D 横版平台探索冒险游戏，核心体验是跳跃、探索、解谜与发现（CONFIRMED，2026-11-12）。
 
-当前默认打开已加入 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互原型、D08 运行内进度原型、D09-D1 目标 E 真实事件链、D10 可玩检查点捕获、D11-A1 正常坠落恢复及 D11-A2 安全锚点／世界一致性验证的 M1.2.2 可操作物理灰盒，Web 与 Windows 使用同一份角色、地形、交互、进度、事件、快照、触发仲裁、恢复及模拟代码。顶部「场景」可切回原固定步诊断场景。「重新启动」先销毁 Phaser 实例，再重新加载原页面并创建新完整测试运行；「重置灰盒」只重置原型角色、移动平台、诊断区域与临时交互状态，保留 D08 的本次运行内记录、D09-D1 的运行身份／编号／接受记录／路线效果、当前有效检查点及初始备用快照，也不是检查点恢复。
+当前默认打开 D12-A1 首关最小可玩流程：从 A 区出生，经移动／跳跃教学到 B 区主动与占位游客交互并接取《把山城夜景寄给远方》，在 C 区试错唯一机关并乘坐真实升降平台，最后在 D 区主动完成拍摄与分享后显示通关反馈。A–D 功能标签、NPC、线索和文案均为占位原型；默认 HUD 显示当前目标，完整身份及 Tick 诊断收在「模拟诊断」中。顶部「调试入口」保留原固定步诊断场景和包含 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互、D08 运行内进度、D09-D1 目标 E、D10 检查点捕获及 D11 恢复能力的基础灰盒。Web 与 Windows 使用同一份首关配置、角色、物理、交互、进度、事件、快照、恢复及模拟代码。「重新启动」先销毁 Phaser 实例，再创建新运行；「重置灰盒」在首关中复位角色和升降平台临时状态，保留本次运行内的任务、机关、路线、完成、业务身份和永久效果，不重新捕获或覆盖初始备用快照，也不是正式检查点恢复。
 
 Mountain City: Last Delivery／山城有路：最后一单为历史名称。下文旧里程碑的日志、截图及证据保留当时名称，不改写为新名执行过的测试。真实地标资料与旧首关方案保留参考，其虚构世界叙事尚待适配；本次不新增玩法、不重写任务或通关条件。内部包名、appId、用户数据身份及项目目录不变。
 
-操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；靠近调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束；R 或「重置灰盒」回到出生点。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过，并从上方落地行走；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。调查 A／B 的范围局部重叠，界面始终只选一个主要目标；拾取 C 只提供短暂反馈，不发放奖励。D 仍由 D08 原型直接登记一次测试收藏；目标 E 的按 E 只创建 Pending Event，真实命令接收和跨 Tick 事务完成后才登记目标／奖励／永久效果并开门。路线开启后，走过门、跨过间隙并向右进入金色检查点 A 或绿色检查点 B；两区局部重叠，同一实际 Tick 内按数字较小 priority 唯一胜出，当前原型为 A `10`、B `20`。HUD 显示保存中／已保存／被阻挡／失败、当前与候选检查点、闭批 Tick、进入 Event、捕获 Event、Command、Transaction、Result Event、锁与资源状态。R 保留本次页面运行内的 D08 记录、D09-D1 身份链与 OPEN 状态、当前有效检查点以及 D10-A1 初始备份；捕获局部冻结期间 R 会被安全拒绝并显示反馈。整页刷新或场景重载会创建新的运行、进度和初始备份。出生点右侧的蓝色 A 与粉色 B 是局部重叠的非实体诊断区域，只显示占用和进入／离开记录，不阻挡、不提供支撑。沿右侧跨过墙壁和间隙，再经连续坡面可到达两条移动平台；掉出间隙后按 R。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
+首关操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；在 B 区靠近游客后按 E 主动对话，只有对话完成才自动接取委托。根据 B 区唯一线索，在 C 区两个吊臂中按 E 试错；右侧错误操作可重试，左侧正确操作启动升降平台并开放通往 D 的真实碰撞路线。乘平台到 D 区指定范围后按 E 拍摄并分享；只有已接委托、机关完成、路线开放且主动交互全部满足时才完成，按 R 或「重置灰盒」回到出生点并保留上述永久进度。升到 D 后按住 D 走到观景点，再按 E 完成拍摄。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
+
+调试灰盒操作：调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过并从上方落地；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。D 由 D08 原型直接登记一次测试收藏；目标 E 的按 E 只创建 Pending Event，真实命令接收和跨 Tick 事务完成后才登记目标／奖励／永久效果并开门。检查点与恢复原型、诊断区域和两条移动平台保留在「调试入口」；这些能力不等于正式存档或首关检查点。
 
 ## 技术栈与安装
 
@@ -93,7 +95,10 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `index.html` | 共同页面入口、场景选择、调试重置与重启。 |
 | `src/platform/web/` | Web 适配层。 `main.ts` 调用核心、挂载 Phaser、处理销毁和重启，并将启动错误写入浏览器日志。 |
 | `src/core/game.ts` | 共享入口，装配模拟与生命周期控制器，维护诊断标记状态。 |
-| `src/core/graybox.ts` | 共享灰盒入口，装配角色、固定步、物理端口、生命周期、目标 E 运行组合与永久效果协调。 |
+| `src/core/first-level.ts` | D12-A1 首关共享规则：A–D 阶段、委托／机关／完成三项独立 Event→Command→Transaction→Result 链、前置条件、永久进度及重置语义；不依赖 DOM、Electron 或 Phaser。 |
+| `src/physics/matter/first-level-world.ts` | 首关 Matter 适配：占位地形、试错吊臂、真实升降平台、路线门、初始快照登记对象、世界验证和恢复接口；与实验室灰盒分离但共用玩家物理合同。 |
+| `src/rendering/phaser/first-level.ts` | 首关共享 Phaser 绘制、A–D 占位空间、交互目标、升降平台同步和摄像机；关闭 Matter 自动更新，由固定步推进。 |
+| `src/core/graybox.ts` | 原实验室灰盒入口，装配角色、固定步、物理端口、生命周期、目标 E 运行组合与永久效果协调。 |
 | `src/core/player.ts` | 原型参数、PC-01 输入许可、PC-02 请求及移动／跳跃规则；不依赖平台或 Phaser。 |
 | `src/core/interaction.ts` | 原型调查／拾取对象、稳定目标选择、单次按键消费、临时反馈及交互自身控制限制；不依赖平台或 Phaser。 |
 | `src/core/progress.ts` | D08 运行内进度仓库：四类稳定业务 ID、幂等登记、显式奖励关系、期望效果状态与只读快照；无平台或存储 API。 |
@@ -107,7 +112,7 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `src/core/business-runtime-bus.ts` | D10-A2／A3 单次运行共享一套 Runtime UUID、Event ID、命令协调器和结果路由；目标 E、检查点进入与捕获使用不同目标模块或受限处理路径，不另造业务运行实例。 |
 | `src/core/checkpoint-triggers.ts` | D10-A3 原型触发器定义、玩家进入边沿、实际 Tick 收集批次、数字小 priority 仲裁、受限无命令事件完成及捕获胜负／反馈；不直接冻结或提交快照。 |
 | `src/core/snapshot-capture-runtime.ts` | D10-A2／A3 单关卡捕获锁、准入、局部冻结、同 Tick 完整捕获、跨 Tick 验证／提交、原事务核查／恢复、唯一结果、资源释放及进入 Event 关联；不实现恢复或存档。 |
-| `src/physics/matter/graybox-world.ts` | 两端共用 Matter 世界、静态地形、独立脚底区域、实际接触法线及只读检查点占用 sensor；sensor 不承载也不授予跳跃资格。 |
+| `src/physics/matter/graybox-world.ts` | 实验室 Matter 世界、静态地形、独立脚底区域、实际接触法线及只读检查点占用 sensor；sensor 不承载也不授予跳跃资格。 |
 | `src/core/simulation.ts` | 固定步累加器、实际 Tick、有界补算及余量／丢弃统计。 |
 | `src/core/lifecycle.ts` | Owner + Key 去重、Token 所有权、退役与有效暂停集合。 |
 | `src/platform/web/visibility.ts` | 两端共用的 Renderer 可见性适配，转发 Acquire／Release，不直接修改模拟。 |
@@ -125,6 +130,7 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `tests/player-physics.test.mjs` | 受控时间运行 Phaser 内置的真实 Matter，验证控制、接触、平台、区域及 D08 进度／效果协调。 |
 | `tests/interaction.test.mjs` | D07 交互目标、单次消费、控制锁、提示资格与生命周期门槛。 |
 | `tests/progress.test.mjs` | D08 四类记录、非法请求、只读快照、目标／奖励幂等及永久效果期望状态。 |
+| `tests/first-level.test.mjs` | D12-A1 LV01–LV06 核心与真实 Matter 集成：完整 A–D、前置条件、接任务／解锁后恢复、平台承载、暂停、重置和身份隔离。 |
 | `tests/events.test.mjs` | D09-A1 运行时 UUID、Event ID、Pending 登记、有限 Inbox、原子回滚、编号边界及未确认回滚阻断。 |
 | `tests/events-dispatch.test.mjs` | D09-A2 固定阶段、逐事件转换、后生事件延后、递归拒绝、防重、测试接收替身合同、异常保留及历史容量。 |
 | `tests/events-retirement.test.mjs` | D09-A3 生产者结果能力、显式确认、乱序退役、缺口合并、旧 ID 拒绝、组合容量与清理故障。 |
@@ -136,7 +142,7 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `tests/snapshot-capture.test.mjs` | D10-A2 CT01–CT06：真实 Matter 捕获、局部冻结、单锁防重、提交前失败、提交后中断恢复及共享运行隔离。 |
 | `tests/checkpoint-triggers.test.mjs` | D10-A3 TR01–TR05：进入／停留／重入、闭批顺序、配置冲突、忙碌消耗、失败保留、暂停与安全 R；使用真实 Matter 世界和共享捕获链。 |
 | `tests/graybox-browser.mjs` | 真实窗口键盘操作、物理暂停、平台、区域、D07 交互、D08 收藏／目标／奖励／效果及 D10-A3 检查点捕获断言。 |
-| `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1／D05／D07／D08／D09-D1／D10-A1／D10-A3 定向入口。 |
+| `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1／D05／D07／D08／D09-D1／D10-A1／D10-A3／D11／D12-A1 定向入口。 |
 | `tests/browser-selection.mjs` | 解析 `--browser`、查找标准安装路径并核验 CDP 实际浏览器身份；缺失时不回退。 |
 | `scripts/test.mjs` | 无参数时运行自动化单测，有参数时把平台测试参数原样转发给 `test:platform`。 |
 | `docs/` | 策划、决策与赛事原始材料。 |
@@ -176,6 +182,9 @@ npm.cmd run test:d10-a1
 
 # D10-A3 检查点进入、批次仲裁与真实捕获三端定向验收
 npm.cmd run test:d10-a3
+
+# D12-A1 首关 A–D、真实升降平台、失败恢复、暂停与完成三端定向验收
+npm.cmd run test:d12-a1
 ```
 
 平台测试只接受 `chrome`、`edge`，使用每次新建的临时用户配置目录，并通过 CDP `Browser.getVersion` 核对实际品牌。`report.json` 记录候选／实际路径、品牌、版本、进程 PID、启动参数、临时配置目录、页面与进程时间线，以及测试脚本和 ASAR 的 SHA-256。所选浏览器缺失时结果为 `BLOCKED`，不会静默切换浏览器、安装软件或使用个人资料。
@@ -1864,14 +1873,215 @@ D11-A1 在当前正常成功恢复与必要失败关闭范围内完成，等待 
 - `tests/platform-smoke.mjs`：`306C6CF6574AA1C734096C194CEF8575BBB52C9ED304E06477409E6633D902B6`。
 - 体验截图：`6411E356C269220680E938F0F0D64B73A52E75E635FEF5197131A6DBFA7790F4`。
 
-历史 `run-d9OOXw`、`run-SxTbQP`、`run-7y0Bor` 等失败记录保持原状态；D11-A2 的 `run-zxQUDC`、`run-bcMZCA`、`run-7J4q1n` 也保留为测试脚本采样假设修正前的 FAIL。`run-uSMH74`、`run-cu1i2u` 只作为 D11-A1／较早 D11-A2 历史证据，不冒充最终版本。D11-A2 当前为 DONE（待 Work 审查），不自动进入完整异常恢复、RecoveryError 或存档，不 Commit／Push／发布。
+历史 `run-d9OOXw`、`run-SxTbQP`、`run-7y0Bor` 等失败记录保持原状态；D11-A2 的 `run-zxQUDC`、`run-bcMZCA`、`run-7J4q1n` 也保留为测试脚本采样假设修正前的 FAIL。`run-uSMH74`、`run-cu1i2u` 只作为 D11-A1／较早 D11-A2 历史证据，不冒充最终版本。
+
+## D11-A3：一次自动完整重建与 RecoveryError 交互闭环
+
+2026-11-14 在既有恢复链上增加有界异常处理。首次选定恢复来源时保存原始只读证据；版本不兼容使用类型化错误直接进入 RecoveryError，不自动重建。其他可适用错误在明确后续阶段最多执行一次完整受管世界重建，不在异常捕获内递归重试。手动重试始终从预检查开始并复用同一原始来源，不扩充自动重建额度。
+
+### 实现边界
+
+- `src/core/recovery.ts` 新增 `auto-rebuilding`、`manual-retry-pending`、`recovery-error` 与同运行实例内的最小 `title` 视图。错误和标题操作在固定步暂停时仍可点击；错误界面持有独立 Lifecycle Pause Token，只释放自身令牌。
+- 自动重建只重置动作预算，不重置 Runtime UUID、SimulationTick、源快照、检查点、永久进度或业务序列。失败阶段、原因、自动尝试数、实际重建数和手动重试数保留在有界诊断中。
+- 完整受管对象重建由现有 Matter 适配器执行：移除登记的移动平台旧 Body，按固定逻辑对象 ID 创建新 Body，替换运行时引用，清理 pair、broadphase、速度和承载状态；不反序列化或回拨 Matter Engine 全局时钟。
+- RecoveryError 展示失败阶段、原因、检查点、自动／手动次数、暂停、控制与触发状态，并提供“手动重试”“返回标题”；标题视图提供“返回恢复界面”。按钮只调用共享 Core 的受控入口。
+- 默认关闭的测试夹具使用 `?recoveryFault=d11-a3-suite`；Electron 通过受限的 `MCLD_RECOVERY_FAULT=d11-a3-suite` 环境变量接入。它不接受任意快照、代码或 IPC，不增加玩家常驻故障按钮或 Preload 接口。
+- 测试专用的 `removeRecoveryBodyForTest()` 只允许删除 `d11-a3-` 前缀的夹具 Body，用于清除备用锚点场景遮挡；普通生产调用不能借该入口删除静态地形或业务对象。
+
+### ER01–ER06 结果
+
+| 用例 | 状态 | 实际结果 |
+| --- | --- | --- |
+| ER01 自动重建成功 | PASS | 真实 Matter 与三端故障夹具移除必要水平平台 Body 后，恰好执行 `1` 次自动重建；全部登记平台获得新 Body，旧引用退出碰撞／支撑，逻辑 ID、Runtime、快照、永久进度保持不变。 |
+| ER02 持续错误与版本例外 | PASS | 持续 Body 故障最多一次自动尝试后进入 Error；`schemaVersion=999` 的自动尝试数与重建数均为 `0`，连续手动重试仍验证同一非法原始来源，恢复性世界写入保持 `0`。 |
+| ER03 主动重试 | PASS | 错误界面拒绝并发手动请求；解除测试故障后，连续一次失败、下一次成功，自动次数保持 `1/1`，不会因手动重试补额度、重新捕获或重复发奖。 |
+| ER04 标题与暂停隔离 | PASS | Error → 标题 → 返回 Error 保持同一运行身份、快照和错误数据；错误暂停持有期间 Tick 冻结，标题操作不依赖 Tick；隐藏／最小化暂停与错误 pause token 可共存，只释放自身令牌。 |
+| ER05 世界与锚点回归 | PASS | 自动重建和手动路径均重新执行世界一致性及有序锚点检查；备用场景中主点 `80,472,1` 被实体遮挡时选择首个备用 `160,472,1`，世界验证为 valid。正常 A 记录恢复、目标 E、奖励、路线和坠落路径保持可玩。 |
+| ER06 三端故障闭环 | PASS | [run-2nj3IC](test-results/platform/run-2nj3IC/report.json) 的 Chrome Web、Electron 开发版和仓库外独立生产包均完成自动重建、备用锚点、Error、标题往返、手动失败／成功及版本拒绝；三端进程退出码 `0`，清理失败、页面错误和非预期中断均为 `0`。 |
+
+三端共用场景的关键结果：
+
+| 环境 | 自动重建成功 | 备用锚点 | 持续错误 / 手动重试 | 版本拒绝 |
+| --- | --- | --- | --- | --- |
+| Chrome Web | 自动 `1` 次，受管世界重建计数 `2` | 主点失败，选中 `160,472,1` | 自动 `1` 次；手动失败 `1` 后成功；标题往返 `1` | 自动 `0`，重建 `0`，保留原检查点 |
+| Electron 开发版 | 自动 `1` 次，受管世界重建计数 `2` | 主点失败，选中 `160,472,1` | 自动 `1` 次；手动失败 `1` 后成功；标题往返 `1` | 自动 `0`，重建 `0`，保留原检查点 |
+| 独立生产包 | 自动 `1` 次，受管世界重建计数 `2` | 主点失败，选中 `160,472,1` | 自动 `1` 次；手动失败 `1` 后成功；标题往返 `1` | 自动 `0`，重建 `0`，保留原检查点 |
+
+`managedWorldRebuilds=2` 是该次恢复流程的受管世界重建总计数，包含进入故障检查前的常规恢复重建与随后的一次自动完整重建；独立自动重建次数仍为 `1`。
+
+### 实际执行
+
+| 检查 | 状态 | 结果 |
+| --- | --- | --- |
+| `npm.cmd test` | PASS | TypeScript 核心／Renderer 检查、Electron Main 编译 PASS；`157/157`，0 fail、0 skipped；保留原 `154` 项并新增 ER01–ER03 三组回归。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建 29 modules、Electron Main 编译及 Windows x64 免安装目录构建成功；仅保留 bundle 体积、缺少 author 和默认图标警告。 |
+| `npm.cmd run test:d11-a3 -- --web-only --browser=chrome` | PASS | [run-cDBIYS](test-results/platform/run-cDBIYS/report.json) 完成四个故障场景。 |
+| `npm.cmd run test:d11-a3 -- --browser=chrome` | PASS | [run-2nj3IC](test-results/platform/run-2nj3IC/report.json) 三端 PASS；Chrome `156.0.8078.74`，三端退出码 `0`，`cleanupFailures=[]`。 |
+| `npm.cmd run test:d11-a1 -- --browser=chrome` | PASS | [run-nBb5pI](test-results/platform/run-nBb5pI/report.json) 的当前版本正常恢复三端回归 PASS；初始备用与 A 快照恢复均 `worldValidation=valid`、主锚点尝试数 `1`，永久进度 `1/1/1` 与 OPEN 路线保留。 |
+| `git diff --check` | PASS | 仅有 Git 的 LF/CRLF 提示，无空白错误。 |
+| Edge | NOT RUN | 本任务没有重测 Edge，Chrome 通过不能推定 Edge 兼容性。 |
+| 独立人工手感 | NOT RUN | 自动化使用真实窗口、按钮和键盘操作，但不冒充独立人工长期手感验收。 |
+
+历史失败证据保留，不改写为 PASS：
+
+- `run-Woq1KB`：故障夹具重复移除同一个已缺失 Body。
+- `run-ScUKJZ`：备用锚点场景未先进入自动重建分支。
+- `run-zCZULe`：备用场景的主锚点遮挡物未及时清理，导致后续恢复持续落入备用锚点；修复后 Web-only 定向 `run-cDBIYS` 通过。
+- `run-rte6R5`：测试把 `?recoveryFault=...` 附加到 `MCLD_DEV_URL`，被 Electron 的 loopback 根 URL 校验拒绝，Electron 开发版因而未进入场景。应用仍由独立 `MCLD_RECOVERY_FAULT` 白名单接收同一夹具；测试只修正环境变量后，[run-2nj3IC](test-results/platform/run-2nj3IC/report.json) 三端通过。该失败不是恢复业务缺陷。
+
+真实截图：
+
+- [Web RecoveryError 与手动重试入口](test-results/platform/run-2nj3IC/003-web-D11-A3-recovery-error-persistent.png)
+- [Web 标题视图往返后返回 Error](test-results/platform/run-2nj3IC/004-web-D11-A3-title-roundtrip-returned.png)
+- [Web 手动重试成功并恢复控制](test-results/platform/run-2nj3IC/006-web-D11-A3-manual-retry-success.png)
+- [独立生产包 RecoveryError](test-results/platform/run-2nj3IC/023-electron-packaged-D11-A3-recovery-error-persistent.png)
+- [独立生产包手动重试成功](test-results/platform/run-2nj3IC/026-electron-packaged-D11-A3-manual-retry-success.png)
+- [当前源码正常体验窗口](test-results/d11-a3-final-20261114/experience-cua.png)
+
+正常体验窗口使用 `npm.cmd run electron` 启动，当前源码不带故障夹具。PID `45808`、HWND `45026026`，标题“叠城大冒险 | Layered City Adventures”，URL `http://127.0.0.1:54427/?platform=windows`；[启动记录](test-results/d11-a3-final-20261114/experience-launch.json)，截图 SHA-256 为 `7FB6B037603DE28825889481DF9FEA5149DE8A9019DCBDD103D2D41D942DA790`。窗口留待用户自行操作与关闭。
+
+版本证据：
+
+- 基线提交：`5b08af4`。
+- 生产入口：`release/layered-city-adventures/win-unpacked/Layered City Adventures.exe`。
+- ASAR：`391A1027FA84D7561234EB517501A8D790D56549272A45F5D4F24063E5ACE964`。
+- Windows EXE：`76170801121572EF0E2C79D9C5AAE7E1A43A98D3911C71EF1A412595ACBF7371`。
+- D11-A3 报告：`054F2547312972F2E1AB374ED5D1FC0DA3719904658DF6958E94FA40FF3066DC`；时间线：`86FA35BF8B3B7714E2EC42AA8A66FBFC2DB566A9183B293872F9CCF9D9F7DD39`。
+- 正常恢复报告：`549CF0E943484AB4C7CFB350FE26181FE19496CC21256E346AD32B185A203AEB`；时间线：`2F14387DC63A54D156790B7F8D3BA14A01885BBBBCF52B7EEC736DE186C08FFE`。
+- `src/core/recovery.ts`：`87C9AD8D313D451CB93B05D1CE48ED0A8A0A0514851550F81D69DDB7D40764D8`。
+- `src/physics/matter/graybox-world.ts`：`2286CB211313623E8ACB5003FB9106B905A79FF17648D4D14F977D517135314C`。
+- `tests/recovery.test.mjs`：`FE6AF6D82CE2F3E78D1456399B076E4900F13ED882ECE4A2F8EAA01A22516495`。
+- `tests/graybox-browser.mjs`：`DA233CF3C02334C8617DA55BC08925C16DFD54AFF71E0CA8C6EB702536E595E8`。
+- `tests/platform-smoke.mjs`：`0C1E12205BA1D9DA9A8A209FF9EFADAC0E59FED86DC29878886EB3CF4CC807FB`。
+
+D11-A3 主体在当前灰盒异常恢复范围完成；Work 后续发现恢复前资源安全门槛回归并将其标记为 BLOCKED，修复与回归证据见下一节。Matter 仍是物理验证候选；正式任务、正式关卡、跨会话存档、完整标题美术、正式错误码体系与最终物理选型均未由本任务完成。
+
+## D11-A3-R1：恢复前资源安全门槛补修
+
+2026-11-14 修复 Work 已复现的所有权冲突：正常首次恢复、自动完整重建和手动完整重试现在在产生任何恢复性世界写入前，统一检查捕获锁、执行 owner 的资源释放状态及当前临时对象冻结集合。不安全时保持原恢复阶段并累计既有 `captureWaitTicks`，只等待其他 owner 主动释放；不应用快照、不重新应用永久效果、不替换 Body、不放置玩家、不解除控制或触发屏蔽。超过既有 120 Tick 等待上限后进入失败关闭。
+
+### 修复边界
+
+- `src/core/recovery.ts` 增加单一 `#resourceSafeForWorldWrites()` 准入门槛，由正常首尝试、自动重建阶段与手动重试阶段共同使用。
+- 等待期间保留原来源、尝试模式、Runtime、Event／Command／Transaction 身份及自动重建额度；资源释放后继续原流程，不重新捕获或创建第二份身份。
+- `tests/recovery.test.mjs` 使用真实 Matter `freezeTemporaryObjects()`、真实已提交捕获资源状态、旧 Body 身份和恢复写入计数补充 R01–R03；R03 同时覆盖自动重建与手动重试两条入口。
+- `tests/graybox-browser.mjs` 仅修正生产包进入缺口的测试准备：保持真实反向输入直到 `fading-out` 且控制锁生效。恢复阶段、暂停、锚点和业务断言未削弱。
+
+### R01–R03 结果
+
+| 用例 | 状态 | 实际结果 |
+| --- | --- | --- |
+| R01 外部冻结的正常恢复 | PASS | 外部 owner 冻结两条登记平台后，淡出结束保持 `waiting-for-capture`，恢复世界写入为 `0`，旧 Body、原快照、控制锁和触发屏蔽保持；释放后完成恢复。 |
+| R02 捕获锁／资源未收尾 | PASS | 已提交捕获但锁或资源释放未完成时等待且零恢复写入；超时进入 Error 并继续锁定，清理后主动重试成功，`successfulCommits` 不增加。 |
+| R03 自动重建资源门槛 | PASS | 进入 `auto-rebuilding` 后插入外部冻结，不替换 Body、不消费第二次自动预算；释放后按原模式和原身份完成。 |
+| R03 手动重试资源门槛 | PASS | 手动点击只登记一次；外部冻结期间保持 `manual-retry-pending` 且零世界写入，释放后继续原手动尝试。 |
+
+新增四项回归在修复前为 `0/4 PASS`，分别实际进入恢复或未产生等待；修复后为 `4/4 PASS`，先红后绿记录已保留。
+
+### 实际执行
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `npm.cmd test` | PASS | TypeScript 核心／Renderer 检查、Electron Main 编译 PASS；`161/161` 测试通过，0 fail、0 skipped；原 157 项保留。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建 29 modules、Electron Main 编译及 Windows x64 免安装目录构建成功；仅有既有 bundle 体积、缺少 author 和默认图标警告。 |
+| `npm.cmd run test:d11-a3 -- --browser=chrome` | PASS | [run-7mtcju](test-results/platform/run-7mtcju/report.json) 的 Chrome Web、Electron 开发版和仓库外独立包 PASS；三端退出码 `0`、清理失败／页面错误／非预期中断均为 `0`。 |
+| `npm.cmd run test:d11-a1 -- --browser=chrome` | PASS | [run-vEjpyw](test-results/platform/run-vEjpyw/report.json) 的正常恢复三端回归 PASS；初始与 A 记录恢复、永久进度及 OPEN 路线保持。 |
+| 外部冻结三端 GUI 注入 | NOT RUN | 资源冲突分支由真实 Matter／完整恢复流程覆盖；未增加三端 GUI 故障注入，也不把三端正常／现有故障闭环冒充该分支。 |
+| Edge／独立人工 | NOT RUN | 本轮未执行 Edge 或独立人工长期手感。 |
+
+历史失败证据保持不变：
+
+- [run-VVXP9H](test-results/platform/run-VVXP9H/report.json)：Web 与 Electron 开发版 PASS，独立生产包 FAIL；测试准备在进入缺口前过早释放 `KeyA`，角色停在边缘，15 秒内未触发真实恢复。修正准备后 `run-vEjpyw` 三端通过，该失败不删除或改写。
+
+版本证据：
+
+- 基线提交：`5b08af4`。
+- 生产入口：`release/layered-city-adventures/win-unpacked/Layered City Adventures.exe`。
+- ASAR：`898C93CF4F6D4E113EF9D85A26BCC2E2C6285F43B8EA4B4DE82F4A0481AB3579`。
+- Windows EXE：`72D51F7D4870101D6C22BBE66589987A25583645FCF48DC4C465847CB490AF3A`。
+- 故障闭环报告／时间线：`FD4E3BDCC9C59452F22A886DE01E7F42A5ACCC5B02F0F4E6386B85E452B064DD`／`3827C64533D8F9C3F92D35208CF70199D13D193B7064899F301D8F39495191BC`。
+- 正常恢复报告／时间线：`5957793E867AB0327B4A5022A6419D638335FAB7347FAFC5B612B58692E19D18`／`D74B389D1A6C95BB1F86548CC76C39D9FF086E3FA6DADFE3D9CA9EEAA10F35B1`。
+- `src/core/recovery.ts`：`E9CF428DB8BEC648C6605494FA32B70A4D9A8C172BAA583CC318F8CCEF4A7F87`。
+- `tests/recovery.test.mjs`：`ECE45D7E34FD8290067FE5415CE511F52E51F14500F5612C09E8EDD56900F2B6`。
+- `tests/graybox-browser.mjs`：`A952BA0080EC5BA4C6D44F4F2A38DDAEE4A2993D735A27B8000C01BB4A5CA3F4`。
+
+D11-A3-R1 在当前修复范围完成，等待 Work 审查。未进入 D12；Matter 仍是验证候选。
+
+## D12-A1：首关最小可玩流程
+
+2026-11-14 完成首关占位切片，状态为 DONE（待 Work 审查）。普通 Web 与 Windows 启动默认进入首关；顶部「调试入口」继续提供既有固定步诊断场景和实验室灰盒，测试入口也明确选择首关，避免默认场景变化后测错页面。
+
+### 首关结构
+
+- A 区从 `first-level-initial-spawn` 安全出生，显示移动、跳跃与交互提示，经台阶和高差进入 B。
+- B 区游客 `first-level-b-npc` 必须由玩家按 E 主动交互，对话完成后才自动接取《把山城夜景寄给远方》；靠近不会接取。B 区唯一线索与 C 区左侧吊臂一致。
+- C 区只有一组装置，左、右两个吊臂属于同一装置的两个操作选项。右侧 `first-level-c-lever-right` 为可重试错误，左侧 `first-level-c-lever-left` 为正确操作。正确事务完成后才开放路线门并启动可承载玩家的 `first-level-service-lift`。
+- D 区 `first-level-d-photo` 要求委托已接取、机关完成、路线开放、玩家实际进入范围并主动按 E；仅抵达不会完成。完成后显示「首关完成：夜景已寄给远方」反馈。
+- 委托、升降机关和最终完成分别使用独立 Event、Command、Transaction 与唯一 Result Event，不直接由交互回调写永久进度。当前没有奖励内容，因此基准记录为 `goals=3`、`rewards=0`、`effects=3`。
+- 首关 Runtime／Level／Checkpoint 与实验室隔离；Level 为 `first-level-night-postcard`，Checkpoint 为 `first-level-initial-spawn`，登记临时对象为 `first-level-service-lift`。
+
+### LV01–LV06 结果
+
+| 用例 | 状态 | 实际结果 |
+| --- | --- | --- |
+| LV01 完整可玩主线 | PASS | 三端用真实键盘从 A 走跳到 B，主动对话接取委托，试错 C 机关，乘真实升降平台进入 D，并在主动按 E 后才显示完成反馈；无传送或调试按钮捷径。 |
+| LV02 错误与前置条件 | PASS | 靠近 NPC 不接任务；右侧错误吊臂可重试；到 D 或缺少条件不会自动完成；补齐条件后能够完成。Core 边界夹具覆盖缺失前置，三端路线覆盖普通游玩。 |
+| LV03 接任务后失败 | PASS | 接任务后触发真实坠落恢复，任务仍在、控制恢复、交互可继续；重复 NPC 对话不生成第二套身份或重复记录。 |
+| LV04 机关完成后失败 | PASS | 正确机关后触发真实坠落恢复，路线保持 OPEN，真实 lift 与门可通行；不要求重新解谜，重复机关／拍摄不新增业务记录。 |
+| LV05 暂停与身份隔离 | PASS | 乘平台期间 Web 隐藏与 Windows 原生最小化均冻结 Tick、lift 和平台时钟；恢复首帧不补算后台时间，持键恢复不自动跳跃或交互。首关与实验室 Runtime／Level／Checkpoint 不串用。 |
+| LV06 三端交付 | PASS | Chrome `156.0.8078.74`、Electron 开发版和仓库外独立包使用同一构建与用例，完整 A–D、两次失败恢复、重复交互、暂停和 R 均通过。 |
+
+### 三端运行证据
+
+[run-TJOXd1](test-results/platform/run-TJOXd1/report.json) 的 Chrome Web、Electron 开发版和仓库外独立包全部 PASS。三端进程退出码均为 `0`，`cleanupFailures=[]`；时间线中的 browser disconnect 均为测试自有进程的预期关闭。
+
+| 环境 | 冻结 Tick／lift clock | 恢复首 Tick／lift clock | 持键恢复新增跳跃 |
+| --- | --- | --- | --- |
+| Chrome Web | `2099`／`15316.67 ms` | `2099`／`15316.67 ms` | 0 |
+| Electron 开发版 | `2116`／`15200 ms` | `2116`／`15200 ms` | 0 |
+| 独立生产包 | `2119`／`15233.33 ms` | `2119`／`15233.33 ms` | 0 |
+
+三端业务身份一致：
+
+```text
+Quest:    Event 1 / Command 1 / Transaction 1 / Result 2
+Lift:     Event 4 / Command 2 / Transaction 2 / Result 5
+Complete: Event 7 / Command 3 / Transaction 3 / Result 8
+```
+
+截图保存在 [D12-A1 证据目录](test-results/d12-a1-20261114/)：[A 区出生](test-results/d12-a1-20261114/web-a-spawn.png)、[B 区委托](test-results/d12-a1-20261114/web-b-quest.png)、[C 区路线开放](test-results/d12-a1-20261114/web-c-route-open.png)、[乘坐升降平台](test-results/d12-a1-20261114/web-lift-ride.png)、[D 区待拍摄](test-results/d12-a1-20261114/web-d-ready.png)、[Web 完成反馈](test-results/d12-a1-20261114/web-completed.png)、[Electron 开发版完成](test-results/d12-a1-20261114/electron-dev-completed.png)及[独立生产包完成](test-results/d12-a1-20261114/electron-packaged-completed.png)。
+
+### 实际执行与版本
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `npm.cmd test` | PASS | 类型检查、Electron Main 编译通过；`168/168` 测试 PASS，0 fail、0 skipped；原 161 项保留，新增首关 LV01–LV06 七项。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建 32 modules，Electron Main 编译及 Windows x64 免安装目录构建成功；仅保留既有 bundle 体积、缺少 author 和默认图标警告。 |
+| `npm.cmd run test:d12-a1 -- --browser=chrome` | PASS | [run-TJOXd1](test-results/platform/run-TJOXd1/report.json) 三端 PASS，覆盖 LV01–LV06。 |
+| `git diff --check` | PASS | 文档收口后执行通过；只出现 Git 的 LF／CRLF 提示。 |
+
+版本证据：
+
+- 基线提交：`5b08af4`。
+- 生产入口：`release/layered-city-adventures/win-unpacked/Layered City Adventures.exe`。
+- ASAR：`73D72C361441EE48BE602A6BF7123AD06314C635125707070A246585DD08A9D7`。
+- Windows EXE：`CEF97C4284DDAFC38B3F4D9263016B7A448815E184358B7EBF2517D66D8A1AA7`。
+- `report.json`／`timeline.jsonl`：`F69FDB3ECD3D3CFCBDAC7A58E03A543627E39524A251F063BECD911B19CCCA35`／`E4206952FBE5B6EA9AFA1E52EF38445FA93967F381E322088AE1F1EF9F0DD3FD`。
+- `src/core/first-level.ts`／`src/physics/matter/first-level-world.ts`：`2DA080285CDACE853F5796373BF1EB6E66D3D269BB32A26945A7E2AC0061EBE2`／`09DE7792544E59F15A1F297B2A18CB5018E625F40E5C1B1D82FC22992862E1E1`。
+- `src/rendering/phaser/first-level.ts`／`tests/first-level.test.mjs`：`266F777F543C3E66F340C8A00515CCC83206B9F6AA750FE2E9BC063AFC2DC313`／`18381F4C28C0A8BEA82A86C5375BBEFC4602674BE5C830B0848296028E226213`。
+
+历史失败证据保留：[run-Q8HwAh](test-results/platform/run-Q8HwAh/report.json) 为静态 lift Body 移动后未刷新 Matter broadphase；[run-hdsvW4](test-results/platform/run-hdsvW4/report.json) 为多余 `upper-back-wall` 阻挡 D 入口；[run-7RefUf](test-results/platform/run-7RefUf/report.json) 为 D 范围测试过早松开方向键。对应实现和测试准备已修正，旧报告未改写为 PASS。
+
+当前开发版体验窗口保持运行：PID `42164`、HWND `345178514`、标题“叠城大冒险 | Layered City Adventures”，地址 `http://127.0.0.1:63018/?platform=windows`。[体验截图](test-results/d12-a1-20261114/experience.png)及[启动记录](test-results/d12-a1-20261114/experience-launch.json)已保存。窗口未由测试关闭或重启，留给用户操作。
+
+本次不表示已完成最终美术、现实地理叙事适配、正式任务／奖励系统、跨会话存档、正式检查点或完整 MVP-G01–G06 验收。Edge、独立人工长期手感和 D13 均 NOT RUN；Matter 仍是物理验证候选。
 
 ## 当前限制
 
-- 最新执行（D11-A2，2026-11-14）：灰盒已在正常坠落恢复中加入有限备用锚点、真实 Composite 碰撞查询、有效支撑／失败区检查、平台与永久路线一致性报告、Critical／Warning 分级和完整预检查零写入保护；`154/154` 自动化测试、生产构建及 Chrome Web／Electron 开发版／独立生产包正常恢复回归 PASS。备用／故障 GUI、完整自动重建、RecoveryError 交互、跨会话存档与正式关卡内容仍 NOT RUN。
+- 最新执行（D12-A1，2026-11-14）：默认首关 A–D 主线、错误操作、任务／机关后失败恢复、真实升降平台、暂停、完成与 R 保留在 `168/168` 自动化测试及 Chrome／Electron 开发版／独立包三端定向中 PASS。最终美术、现实地理叙事适配、正式任务／奖励、跨会话存档、正式检查点、Edge、独立人工长期手感和完整 MVP-G01–G06 仍 NOT RUN。
 - Web 主包仍有 Vite 体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互、D08 运行内进度、D09-D1 目标 E 真实链、D10 检查点捕获、D11-A1 正常坠落恢复及 D11-A2 安全锚点／世界一致性验证是工程灰盒。未接入移动单向平台、旋转／挤压、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、完整异常重建或 RecoveryError 交互。D08 的“永久”仅限当前页面运行内；D09-D1 Accepted 只表示真实目标接收，业务成功只在正式事务终态和结果消费后显示；R 仍是调试重置，不读取备用快照恢复世界。D11-A2 不表示完整 Checkpoint Recovery、异常恢复或存档已通过。当前灰盒不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 对 D11-A2 的审查，不自动进入 D11 后续任务。
+- 当前 D12-A1 首关使用功能标签和占位场景，已接入主动 NPC 交互、一个可试错单机关、真实升降平台和主动拍摄／分享完成条件；它不是正式美术、现实地理路线或最终叙事。任务和奖励仍只覆盖本切片；当前“永久”仅指页面运行内保留，页面刷新会创建新运行。D10 捕获与 D11 恢复继续只在调试灰盒中展示扩展原型，首关仅登记其初始备用快照，不代表正式检查点网络或跨会话存档。当前等待 Work 对 D12-A1 的审查，不自动进入 D13。

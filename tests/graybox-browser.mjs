@@ -185,6 +185,7 @@ const parseSample = data => ({ tick: +data.tick, x: +data.x, y: +data.y, vx: +da
     ? null : +data.failureZoneLastTick,
   recoveryRuntimeInstanceId: data.recoveryRuntimeInstanceId || '',
   recoveryPhase: data.recoveryPhase || '',
+  recoveryView: data.recoveryView || '',
   recoveryMessage: data.recoveryMessage || '',
   recoveryDetectionCount: +(data.recoveryDetectionCount || 0),
   recoveryCount: +(data.recoveryCount || 0),
@@ -228,6 +229,20 @@ const parseSample = data => ({ tick: +data.tick, x: +data.x, y: +data.y, vx: +da
   recoverySourcePayload: data.recoverySourcePayload || '',
   recoveryAnchorValidation: data.recoveryAnchorValidation || '',
   recoveryLastError: data.recoveryLastError || '',
+  recoveryLastFailureStage: data.recoveryLastFailureStage || '',
+  recoveryLastFailureCode: data.recoveryLastFailureCode || '',
+  recoveryAutomaticRebuildAttempts:
+    +(data.recoveryAutomaticRebuildAttempts || 0),
+  recoveryAutomaticRebuildCount:
+    +(data.recoveryAutomaticRebuildCount || 0),
+  recoveryManagedWorldRebuildCount:
+    +(data.recoveryManagedWorldRebuildCount || 0),
+  recoveryManualRetryCount: +(data.recoveryManualRetryCount || 0),
+  recoveryManualRetryPending: data.recoveryManualRetryPending === 'true',
+  recoveryErrorPauseHeld: data.recoveryErrorPauseHeld === 'true',
+  recoveryErrorPauseRequestCount:
+    +(data.recoveryErrorPauseRequestCount || 0),
+  recoveryTitleRoundTrips: +(data.recoveryTitleRoundTrips || 0),
   recoveryPhaseHistory: data.recoveryPhaseHistory || '',
 });
 const sample = async page => parseSample(await rawSample(page));
@@ -2886,12 +2901,15 @@ export async function checkRecovery(ctx, record, capture) {
     await page.waitForFunction(() =>
       Number(document.querySelector('#diagnostics')?.dataset.vx) <= 0,
     undefined, focusedPoll);
-    await key('KeyA', false);
+    // Keep the real reverse input through the ledge so the packaged runtime
+    // enters the gap regardless of render timing. Release it only after the
+    // failure event has acquired the recovery control lock.
     await page.waitForFunction(() => {
       const data = document.querySelector('#diagnostics')?.dataset;
       return data?.recoveryPhase === 'fading-out' &&
         data?.recoveryControlLockHeld === 'true';
     }, undefined, focusedPoll);
+    await key('KeyA', false);
     return sample(page);
   };
   const waitRecovery = async (count, checkpointId) => {
@@ -3254,4 +3272,869 @@ export async function checkRecovery(ctx, record, capture) {
 
   await up();
   assert.deepEqual(ctx.errors, []);
+}
+
+// D11-A3 is driven through the same real gap and controls as normal recovery.
+// The named URL fixture only injects the four bounded recovery failures; the
+// core state machine, Matter world and UI actions remain on the production path.
+export async function checkRecoveryError(ctx, record, capture) {
+  const page = ctx.page;
+  const key = (code, down) => ctx.monitor.key(code, down);
+  const up = async () => {
+    for (const code of [
+      'KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'Escape',
+      'KeyR',
+    ]) await key(code, false);
+  };
+  const waitVisibleFocused = () => page.waitForFunction(() =>
+    document.visibilityState === 'visible' && document.hasFocus(),
+  undefined, { polling: 100, timeout: 15000 });
+  const triggerFailureThroughGap = async () => {
+    await up();
+    await key('KeyD', true);
+    await page.waitForFunction(() =>
+      Number(document.querySelector('#diagnostics')?.dataset.x) > 500,
+    undefined, poll);
+    await key('Space', true);
+    await page.waitForFunction(() =>
+      Number(document.querySelector('#diagnostics')?.dataset.x) > 555,
+    undefined, poll);
+    await key('KeyD', false);
+    await key('KeyA', true);
+    await page.waitForFunction(() =>
+      Number(document.querySelector('#diagnostics')?.dataset.vx) <= 0,
+    undefined, poll);
+    await key('KeyA', false);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return data?.recoveryPhase === 'fading-out' &&
+        data?.recoveryControlLockHeld === 'true';
+    }, undefined, poll);
+    await up();
+    return sample(page);
+  };
+  const resetViaR = async () => {
+    await waitVisibleFocused();
+    await up();
+    const before = await sample(page);
+    await key('KeyR', true);
+    await key('KeyR', false);
+    await page.waitForFunction(({ resets, tick }) => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return Number(data?.resets) > resets && Number(data?.tick) >= tick &&
+        Number(data?.x) <= 81 && data?.controlAllowed === 'true' &&
+        (data?.recoveryPhase === 'idle' ||
+          data?.recoveryPhase === 'succeeded');
+    }, { resets: before.resets, tick: before.tick }, { polling: 100, timeout: 15000 });
+    return sample(page);
+  };
+  const waitSuccess = async (count, checkpointId = 'graybox-initial-spawn') => {
+    await page.waitForFunction(({ count, checkpointId }) => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return data?.recoveryPhase === 'succeeded' &&
+        Number(data?.recoveryCount) === count &&
+        data?.recoverySourceCheckpointId === checkpointId &&
+        data?.recoveryControlLockHeld === 'false' &&
+        data?.controlAllowed === 'true';
+    }, { count, checkpointId }, { polling: 100, timeout: 15000 });
+    return sample(page);
+  };
+  const waitError = async (manualCount) => {
+    await page.waitForFunction(manualCount => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return data?.recoveryPhase === 'failed' &&
+        data?.recoveryView === 'recovery-error' &&
+        Number(data?.recoveryManualRetryCount) === manualCount &&
+        data?.recoveryErrorPauseHeld === 'true' &&
+        data?.paused === 'true';
+    }, manualCount, { polling: 100, timeout: 15000 });
+    await page.locator('#recovery-error-panel').waitFor({
+      state: 'visible',
+      timeout: 5000,
+    });
+    return sample(page);
+  };
+  const run = async (name, fn) => {
+    ctx.operation = 'graybox-' + name;
+    ctx.stage = ctx.operation;
+    await ctx.show();
+    await waitVisibleFocused();
+    const result = await ctx.monitor.race(fn);
+    record(name, { status: 'PASS', ...result });
+    console.log('PASS', ctx.label, 'graybox', name, JSON.stringify(result));
+  };
+
+  await chooseScene(ctx, 'graybox');
+  await run('D11-A3-ER01-auto-rebuild-success', async () => {
+    await resetViaR();
+    const runtime = (await sample(page)).goalRuntimeInstanceId;
+    const detected = await triggerFailureThroughGap();
+    const completed = await waitSuccess(1);
+    assert.equal(completed.goalRuntimeInstanceId, runtime);
+    assert.equal(completed.recoveryAutomaticRebuildAttempts, 1);
+    assert.equal(completed.recoveryAutomaticRebuildCount, 1);
+    assert.ok(completed.recoveryManagedWorldRebuildCount >= 2);
+    assert.equal(completed.recoverySelectedAnchorRole, 'primary');
+    assert.equal(completed.recoveryWorldValidationStatus, 'valid');
+    assert.equal(completed.recoveryControlLockHeld, false);
+    assert.equal(completed.recoveryErrorPauseHeld, false);
+    assert.equal(detected.recoveryFailureRetired, true);
+    await capture('D11-A3-auto-rebuild-success', true);
+    return {
+      runtime,
+      detectedTick: detected.recoveryDetectedTick,
+      completedTick: completed.tick,
+      failureEventId: detected.recoveryFailureEventId,
+      automaticAttempts: completed.recoveryAutomaticRebuildAttempts,
+      automaticRebuilds: completed.recoveryAutomaticRebuildCount,
+      managedWorldRebuilds: completed.recoveryManagedWorldRebuildCount,
+      anchor: completed.recoverySelectedAnchor,
+      source: completed.recoverySourceCheckpointId,
+      phaseHistory: completed.recoveryPhaseHistory,
+    };
+  });
+
+  await run('D11-A3-ER05-auto-fallback-anchor', async () => {
+    await resetViaR();
+    await triggerFailureThroughGap();
+    const completed = await waitSuccess(2);
+    assert.equal(completed.recoveryAutomaticRebuildCount, 1);
+    assert.equal(completed.recoverySelectedAnchorRole, 'fallback');
+    assert.equal(completed.recoverySelectedFallbackIndex, '0');
+    assert.equal(completed.recoverySelectedAnchor, '160,472,1');
+    assert.equal(completed.recoveryAnchorAttemptCount, 2);
+    assert.match(completed.recoveryAnchorAttempts,
+      /d11-a3-primary-anchor-blocker/);
+    assert.equal(completed.recoveryWorldValidationStatus, 'valid');
+    await capture('D11-A3-auto-fallback-anchor', true);
+    return {
+      selectedAnchor: completed.recoverySelectedAnchor,
+      selectedRole: completed.recoverySelectedAnchorRole,
+      attempts: completed.recoveryAnchorAttempts,
+      automaticRebuilds: completed.recoveryAutomaticRebuildCount,
+      worldValidation: completed.recoveryWorldValidationStatus,
+    };
+  });
+
+  await run('D11-A3-ER02-ER03-ER04-persistent-error-title-manual', async () => {
+    await resetViaR();
+    await triggerFailureThroughGap();
+    const initialError = await waitError(0);
+    assert.equal(initialError.recoveryAutomaticRebuildAttempts, 1);
+    assert.equal(initialError.recoveryAutomaticRebuildCount, 1);
+    assert.equal(initialError.recoveryLastFailureStage, 'world-validation');
+    assert.equal(initialError.recoveryLastFailureCode, 'world-validation-failed');
+    assert.equal(initialError.recoveryControlLockHeld, true);
+    assert.equal(initialError.recoveryTriggersShielded, true);
+    assert.equal(initialError.recoveryErrorPauseRequestCount, 1);
+    assert.equal(initialError.tokens, 1);
+    const errorTick = initialError.tick;
+    await capture('D11-A3-recovery-error-persistent', true);
+
+    await page.locator('#recovery-title').click();
+    await page.locator('#recovery-title-panel').waitFor({
+      state: 'visible',
+      timeout: 5000,
+    });
+    assert.equal((await sample(page)).recoveryView, 'title');
+    ctx.stage = 'D11-A3-title-hidden';
+    await ctx.hide();
+    await page.waitForFunction(() =>
+      document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics')?.dataset.paused === 'true',
+    undefined, { polling: 100, timeout: 15000 });
+    const hiddenTitle = await sample(page);
+    await page.waitForTimeout(300);
+    assert.equal((await sample(page)).tick, hiddenTitle.tick);
+    ctx.stage = 'D11-A3-title-return';
+    await ctx.show();
+    await waitVisibleFocused();
+    await page.locator('#recovery-return').click();
+    await page.locator('#recovery-error-panel').waitFor({
+      state: 'visible',
+      timeout: 5000,
+    });
+    const returned = await sample(page);
+    assert.equal(returned.tick, errorTick);
+    assert.equal(returned.recoveryTitleRoundTrips, 1);
+    assert.equal(returned.recoveryErrorPauseHeld, true);
+    await capture('D11-A3-title-roundtrip-returned', true);
+
+    // Two synchronous clicks still register one active manual attempt.
+    await page.evaluate(() => {
+      const button = document.querySelector('#recovery-retry');
+      button.click();
+      button.click();
+    });
+    const manualFailure = await waitError(1);
+    assert.equal(manualFailure.recoveryAutomaticRebuildAttempts, 1,
+      'Manual retry must not replenish the automatic rebuild budget');
+    assert.equal(manualFailure.recoveryErrorPauseRequestCount, 2);
+    await capture('D11-A3-manual-retry-failed', true);
+
+    await page.locator('#recovery-retry').click();
+    const manualSuccess = await waitSuccess(3);
+    assert.equal(manualSuccess.recoveryManualRetryCount, 2);
+    assert.equal(manualSuccess.recoveryAutomaticRebuildAttempts, 1);
+    assert.equal(manualSuccess.recoveryAutomaticRebuildCount, 1);
+    assert.equal(manualSuccess.recoveryErrorPauseHeld, false);
+    assert.equal(manualSuccess.recoveryWorldValidationStatus, 'valid');
+    assert.equal(manualSuccess.recoveryControlLockHeld, false);
+    await capture('D11-A3-manual-retry-success', true);
+    return {
+      initialStage: initialError.recoveryLastFailureStage,
+      initialCode: initialError.recoveryLastFailureCode,
+      initialTick: errorTick,
+      hiddenTick: hiddenTitle.tick,
+      titleRoundTrips: returned.recoveryTitleRoundTrips,
+      failedManualCount: manualFailure.recoveryManualRetryCount,
+      automaticAttempts: manualSuccess.recoveryAutomaticRebuildAttempts,
+      automaticRebuilds: manualSuccess.recoveryAutomaticRebuildCount,
+      successfulManualCount: manualSuccess.recoveryManualRetryCount,
+      pauseRequests: {
+        initial: initialError.recoveryErrorPauseRequestCount,
+        failedManual: manualFailure.recoveryErrorPauseRequestCount,
+      },
+    };
+  });
+
+  await run('D11-A3-ER02-version-rejection', async () => {
+    await resetViaR();
+    const recordBefore = (await sample(page)).checkpointPayload;
+    await triggerFailureThroughGap();
+    const error = await waitError(0);
+    assert.equal(error.recoveryLastFailureStage, 'preflight');
+    assert.equal(error.recoveryLastFailureCode,
+      'snapshot-version-incompatible');
+    assert.equal(error.recoveryAutomaticRebuildAttempts, 0);
+    assert.equal(error.recoveryAutomaticRebuildCount, 0);
+    assert.equal(error.recoveryManagedWorldRebuildCount, 0);
+    assert.equal(error.recoveryControlLockHeld, true);
+    assert.equal(error.recoveryTriggersShielded, true);
+    assert.equal(error.checkpointPayload, recordBefore,
+      'Version rejection must preserve the original checkpoint record');
+    await capture('D11-A3-version-recovery-error', true);
+
+    await page.evaluate(() => {
+      const button = document.querySelector('#recovery-retry');
+      button.click();
+      button.click();
+    });
+    const retried = await waitError(1);
+    assert.equal(retried.recoveryLastFailureCode,
+      'snapshot-version-incompatible');
+    assert.equal(retried.recoveryAutomaticRebuildAttempts, 0);
+    assert.equal(retried.recoveryManagedWorldRebuildCount, 0);
+    assert.equal(retried.checkpointPayload, recordBefore);
+    await capture('D11-A3-version-retry-still-error', true);
+    return {
+      stage: error.recoveryLastFailureStage,
+      code: error.recoveryLastFailureCode,
+      automaticAttempts: error.recoveryAutomaticRebuildAttempts,
+      managedWorldRebuilds: error.recoveryManagedWorldRebuildCount,
+      retryManualCount: retried.recoveryManualRetryCount,
+      checkpointPreserved: retried.checkpointPayload === recordBefore,
+    };
+  });
+
+  await up();
+  assert.deepEqual(ctx.errors, []);
+}
+
+// D12-A1 uses the production first-level scene and real keyboard input. The
+// only diagnostic reads below are assertions on observable simulation state;
+// no test helper writes positions, progress or checkpoint records.
+export async function checkFirstLevel(ctx, record, capture) {
+  const page = ctx.page;
+  const key = (code, down) => ctx.monitor.key(code, down);
+  const up = async () => {
+    for (const code of [
+      'KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'Escape',
+    ]) {
+      await key(code, false);
+    }
+  };
+  const firstLevel = async () => {
+    const data = await rawSample(page);
+    return {
+      tick: +data.tick,
+      x: +data.x,
+      y: +data.y,
+      vx: +data.vx,
+      vy: +data.vy,
+      grounded: data.grounded === 'true',
+      support: data.support || '',
+      jumps: +data.jumps,
+      paused: data.paused === 'true',
+      tokens: +data.tokens,
+      control: data.controlAllowed === 'true',
+      needsRelease: data.needsRelease === 'true',
+      physicsSteps: +data.physicsSteps,
+      discarded: +data.discarded,
+      interactionMode: data.interactionMode || '',
+      interactionSelected: data.interactionSelected || '',
+      interactionPrompt: data.interactionPrompt || '',
+      interactionFeedback: data.interactionFeedback || '',
+      interactionConsumed: +data.interactionConsumed,
+      interactionStarts: +data.interactionStarts,
+      runtimeInstanceId: data.firstLevelRuntimeInstanceId || '',
+      phase: data.firstLevelPhase || '',
+      objective: data.firstLevelObjective || '',
+      feedback: data.firstLevelFeedback || '',
+      questAccepted: data.firstLevelQuestAccepted === 'true',
+      routeUnlocked: data.firstLevelRouteUnlocked === 'true',
+      completed: data.firstLevelCompleted === 'true',
+      completionVisible: data.firstLevelCompletionVisible === 'true',
+      liftActive: data.firstLevelLiftActive === 'true',
+      liftX: +data.firstLevelLiftX,
+      liftY: +data.firstLevelLiftY,
+      liftVy: +data.firstLevelLiftVy,
+      liftDirection: +data.firstLevelLiftDirection,
+      liftPhase: +data.firstLevelLiftPhase,
+      platformClock: +data.firstLevelPlatformClock,
+      gateMask: +data.firstLevelGateMask,
+      supportRelativeX: data.firstLevelSupportRelativeX === ''
+        ? null : +data.firstLevelSupportRelativeX,
+      supportRelativeY: data.firstLevelSupportRelativeY === ''
+        ? null : +data.firstLevelSupportRelativeY,
+      questPhase: data.firstLevelQuestPhase || '',
+      questEventId: data.firstLevelQuestEventId === ''
+        ? null : +data.firstLevelQuestEventId,
+      questCommandId: data.firstLevelQuestCommandId === ''
+        ? null : +data.firstLevelQuestCommandId,
+      questTransactionId: data.firstLevelQuestTransactionId === ''
+        ? null : +data.firstLevelQuestTransactionId,
+      questResultEventId: data.firstLevelQuestResultEventId === ''
+        ? null : +data.firstLevelQuestResultEventId,
+      questRetired: data.firstLevelQuestRetired === 'true',
+      questResultRetired: data.firstLevelQuestResultRetired === 'true',
+      liftPhaseName: data.firstLevelLiftPhaseName || '',
+      liftEventId: data.firstLevelLiftEventId === ''
+        ? null : +data.firstLevelLiftEventId,
+      liftCommandId: data.firstLevelLiftCommandId === ''
+        ? null : +data.firstLevelLiftCommandId,
+      liftTransactionId: data.firstLevelLiftTransactionId === ''
+        ? null : +data.firstLevelLiftTransactionId,
+      liftResultEventId: data.firstLevelLiftResultEventId === ''
+        ? null : +data.firstLevelLiftResultEventId,
+      liftRetired: data.firstLevelLiftRetired === 'true',
+      liftResultRetired: data.firstLevelLiftResultRetired === 'true',
+      completePhase: data.firstLevelCompletePhase || '',
+      completeEventId: data.firstLevelCompleteEventId === ''
+        ? null : +data.firstLevelCompleteEventId,
+      completeCommandId: data.firstLevelCompleteCommandId === ''
+        ? null : +data.firstLevelCompleteCommandId,
+      completeTransactionId: data.firstLevelCompleteTransactionId === ''
+        ? null : +data.firstLevelCompleteTransactionId,
+      completeResultEventId: data.firstLevelCompleteResultEventId === ''
+        ? null : +data.firstLevelCompleteResultEventId,
+      completeRetired: data.firstLevelCompleteRetired === 'true',
+      completeResultRetired: data.firstLevelCompleteResultRetired === 'true',
+      progressGoals: +data.progressGoalCount,
+      progressRewards: +data.progressRewardCount,
+      progressEffects: +data.progressEffectCount,
+      progressGoalIds: data.progressGoalIds || '',
+      progressEffectIds: data.progressEffects || '',
+      checkpointId: data.checkpointId || '',
+      checkpointLevelId: data.checkpointLevelId || '',
+      checkpointObjectIds: data.checkpointObjectIds || '',
+      recoveryPhase: data.recoveryPhase || '',
+      recoveryCount: +data.recoveryCount,
+      recoverySourceCheckpointId: data.recoverySourceCheckpointId || '',
+      recoverySourceAnchor: data.recoverySourceAnchor || '',
+      recoverySelectedAnchor: data.recoverySelectedAnchor || '',
+      recoveryWorldValidation: data.recoveryWorldValidationStatus || '',
+      recoveryControlLockHeld: data.recoveryControlLockHeld === 'true',
+      failureEnter: +data.failureZoneEnter,
+      resets: +data.resets,
+    };
+  };
+  const visibleFocused = () => page.waitForFunction(() =>
+    document.visibilityState === 'visible' &&
+    document.hasFocus() &&
+    document.querySelector('#diagnostics')?.dataset.paused === 'false',
+  undefined, poll);
+  const press = async code => {
+    await key(code, true);
+    await key(code, false);
+  };
+  const closeNpcDialogue = async () => {
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionMode ===
+        'investigation',
+    undefined, poll);
+    await key('KeyE', false);
+    await press('Escape');
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.interactionMode === 'idle' &&
+        data.interactionControlBlocked === 'false';
+    }, undefined, poll);
+  };
+  const reachNpc = async () => {
+    await up();
+    await key('KeyD', true);
+    await page.waitForFunction(() =>
+      +document.querySelector('#diagnostics').dataset.x > 340,
+    undefined, poll);
+    await key('Space', true);
+    await page.waitForFunction(() =>
+      +document.querySelector('#diagnostics').dataset.x > 500,
+    undefined, poll);
+    await key('Space', false);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.grounded === 'true' &&
+        data.support === 'b-terrace' &&
+        +data.x > 550;
+    }, undefined, poll);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionSelected ===
+        'first-level-b-npc',
+    undefined, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() => Math.abs(
+      +document.querySelector('#diagnostics').dataset.vx,
+    ) < 1, undefined, poll);
+  };
+  const reachCControls = async () => {
+    await key('KeyD', true);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.grounded === 'true' &&
+        data.support === 'c-ground' &&
+        +data.x > 1050;
+    }, undefined, poll);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionSelected ===
+        'first-level-c-lever-right',
+    undefined, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() => Math.abs(
+      +document.querySelector('#diagnostics').dataset.vx,
+    ) < 1, undefined, poll);
+  };
+  const recoverFromFall = async previousCount => {
+    await page.waitForFunction(count =>
+      +document.querySelector('#diagnostics').dataset.recoveryCount > count,
+    previousCount, poll);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.recoveryPhase === 'succeeded' &&
+        data.recoveryControlLockHeld === 'false' &&
+        data.controlAllowed === 'true';
+    }, undefined, poll);
+    return firstLevel();
+  };
+  const installResumeProbe = () => page.evaluate(() => {
+    window.__d12Resume = new Promise(resolveLevel => {
+      const changed = () => {
+        if (document.visibilityState !== 'visible') return;
+        document.removeEventListener('visibilitychange', changed);
+        requestAnimationFrame(() => resolveLevel({
+          ...document.querySelector('#diagnostics').dataset,
+        }));
+      };
+      document.addEventListener('visibilitychange', changed);
+    });
+  });
+  const run = async (name, fn) => {
+    ctx.operation = 'first-level-' + name;
+    ctx.stage = ctx.operation;
+    await ctx.show();
+    await visibleFocused();
+    const result = await ctx.monitor.race(fn);
+    record(name, { status: 'PASS', ...result });
+    console.log('PASS', ctx.label, 'D12-A1', name, JSON.stringify(result));
+  };
+
+  const initial = await firstLevel();
+  assert.equal(initial.checkpointLevelId, 'first-level-night-postcard');
+  assert.equal(initial.checkpointId, 'first-level-initial-spawn');
+  assert.equal(initial.checkpointObjectIds, 'first-level-service-lift');
+  assert.equal(initial.phase, 'intro');
+  assert.match(initial.objective, /A：/);
+  assert.equal(initial.progressGoals, 0);
+  await capture('D12-A1-A-spawn', true);
+
+  await run('LV01-LV03-A-B-quest-and-quest-recovery', async () => {
+    await reachNpc();
+    const proximity = await firstLevel();
+    assert.equal(proximity.questAccepted, false,
+      'Reaching the NPC must not auto-accept the commission');
+    assert.match(proximity.interactionPrompt, /E 调查 B · 游客/);
+    await press('KeyE');
+    await closeNpcDialogue();
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.firstLevelQuestAccepted === 'true' &&
+        data.firstLevelQuestPhase === 'succeeded';
+    }, undefined, poll);
+    const accepted = await firstLevel();
+    assert.equal(accepted.questAccepted, true);
+    assert.equal(accepted.progressGoals, 1);
+    assert.equal(accepted.progressRewards, 0);
+    assert.equal(accepted.progressEffects, 1);
+    assert.ok(accepted.questEventId > 0);
+    assert.ok(accepted.questCommandId > 0);
+    assert.ok(accepted.questTransactionId > 0);
+    assert.ok(accepted.questResultEventId > 0);
+    assert.equal(accepted.questRetired, true);
+    assert.equal(accepted.questResultRetired, true);
+    await capture('D12-A1-B-quest-accepted', true);
+
+    const runtimeId = accepted.runtimeInstanceId;
+    await key('KeyD', true);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.support === 'c-ground' && +data.x > 1000;
+    }, undefined, poll);
+    await page.waitForFunction(() =>
+      +document.querySelector('#diagnostics').dataset.x > 1530,
+    undefined, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() =>
+      +document.querySelector('#diagnostics').dataset.recoveryDetectionCount > 0,
+    undefined, poll);
+    const recovered = await recoverFromFall(0);
+    assert.equal(recovered.questAccepted, true);
+    assert.equal(recovered.routeUnlocked, false);
+    assert.equal(recovered.runtimeInstanceId, runtimeId);
+    assert.equal(recovered.questEventId, accepted.questEventId);
+    assert.equal(recovered.questResultEventId, accepted.questResultEventId);
+    assert.ok(Math.abs(recovered.x - 80) < 1);
+    assert.equal(recovered.recoveryWorldValidation, 'valid');
+    await capture('D12-A1-B-quest-recovery', true);
+
+    await reachNpc();
+    await press('KeyE');
+    await closeNpcDialogue();
+    await page.waitForTimeout(200);
+    const duplicate = await firstLevel();
+    assert.equal(duplicate.questEventId, accepted.questEventId,
+      'Repeated NPC dialogue must not create a second quest event');
+    assert.equal(duplicate.questTransactionId, accepted.questTransactionId);
+    assert.equal(duplicate.progressGoals, 1);
+    assert.equal(duplicate.progressEffects, 1);
+    return {
+      runtimeInstanceId: runtimeId,
+      quest: {
+        eventId: accepted.questEventId,
+        commandId: accepted.questCommandId,
+        transactionId: accepted.questTransactionId,
+        resultEventId: accepted.questResultEventId,
+      },
+      recoveredAt: {
+        x: recovered.x,
+        y: recovered.y,
+        source: recovered.recoverySourceCheckpointId,
+        anchor: recovered.recoverySelectedAnchor,
+      },
+      duplicateQuestIdentityPreserved: true,
+    };
+  });
+
+  await run('LV02-LV04-C-wrong-right-correct-route-recovery', async () => {
+    await reachCControls();
+    const beforeWrong = await firstLevel();
+    await press('KeyE');
+    await page.waitForFunction(() =>
+      /右侧吊臂/.test(
+        document.querySelector('#diagnostics').dataset.interactionFeedback || '',
+      ),
+    undefined, poll);
+    const wrong = await firstLevel();
+    assert.equal(wrong.routeUnlocked, false);
+    assert.equal(wrong.progressGoals, beforeWrong.progressGoals);
+    assert.equal(wrong.liftEventId, beforeWrong.liftEventId);
+    await capture('D12-A1-C-wrong-lever', true);
+
+    await key('KeyA', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionSelected ===
+        'first-level-c-lever-left',
+    undefined, poll);
+    await key('KeyA', false);
+    await page.waitForFunction(() => Math.abs(
+      +document.querySelector('#diagnostics').dataset.vx,
+    ) < 1, undefined, poll);
+    await press('KeyE');
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.firstLevelRouteUnlocked === 'true' &&
+        data.firstLevelLiftPhaseName === 'succeeded' &&
+        data.firstLevelLiftActive === 'true' &&
+        data.firstLevelGateMask === '0';
+    }, undefined, poll);
+    const unlocked = await firstLevel();
+    assert.ok(unlocked.liftEventId > 0);
+    assert.ok(unlocked.liftCommandId > 0);
+    assert.ok(unlocked.liftTransactionId > 0);
+    assert.ok(unlocked.liftResultEventId > 0);
+    assert.equal(unlocked.liftRetired, true);
+    assert.equal(unlocked.liftResultRetired, true);
+    assert.equal(unlocked.progressGoals, 2);
+    assert.equal(unlocked.progressRewards, 0);
+    assert.equal(unlocked.progressEffects, 2);
+    await capture('D12-A1-C-route-open', true);
+
+    await page.waitForFunction(() =>
+      +document.querySelector('#diagnostics').dataset.firstLevelLiftY < 400,
+    undefined, poll);
+    await key('KeyD', true);
+    await page.waitForFunction(() =>
+      +document.querySelector('#diagnostics').dataset.x > 1530,
+    undefined, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() =>
+      +document.querySelector('#diagnostics').dataset.recoveryDetectionCount > 1,
+    undefined, poll);
+    const recovered = await recoverFromFall(1);
+    assert.equal(recovered.questAccepted, true);
+    assert.equal(recovered.routeUnlocked, true);
+    assert.equal(recovered.liftActive, true);
+    assert.equal(recovered.gateMask, 0);
+    assert.equal(recovered.progressGoals, 2);
+    assert.equal(recovered.progressEffects, 2);
+    assert.equal(recovered.liftEventId, unlocked.liftEventId);
+    assert.equal(recovered.liftResultEventId, unlocked.liftResultEventId);
+    assert.equal(recovered.recoveryWorldValidation, 'valid');
+    await capture('D12-A1-C-route-recovery', true);
+
+    await reachNpc();
+    await reachCControls();
+    await key('KeyA', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionSelected ===
+        'first-level-c-lever-left',
+    undefined, poll);
+    await key('KeyA', false);
+    await press('KeyE');
+    await page.waitForTimeout(200);
+    const duplicate = await firstLevel();
+    assert.equal(duplicate.liftEventId, unlocked.liftEventId);
+    assert.equal(duplicate.liftTransactionId, unlocked.liftTransactionId);
+    assert.equal(duplicate.progressGoals, 2);
+    return {
+      wrongLever: {
+        progressGoals: wrong.progressGoals,
+        routeUnlocked: wrong.routeUnlocked,
+      },
+      route: {
+        eventId: unlocked.liftEventId,
+        commandId: unlocked.liftCommandId,
+        transactionId: unlocked.liftTransactionId,
+        resultEventId: unlocked.liftResultEventId,
+        gateMask: unlocked.gateMask,
+      },
+      recovery: {
+        source: recovered.recoverySourceCheckpointId,
+        anchor: recovered.recoverySelectedAnchor,
+        routeOpen: recovered.routeUnlocked,
+        liftActive: recovered.liftActive,
+      },
+      duplicateLiftIdentityPreserved: true,
+    };
+  });
+
+  await run('LV05-LV06-lift-pause-D-completion-reset', async () => {
+    await key('KeyD', true);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.grounded === 'true' &&
+        data.support === 'c-ground' &&
+        +data.x > 1360;
+    }, undefined, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return +data.firstLevelLiftY > 545 &&
+        +data.firstLevelLiftDirection === 1;
+    }, undefined, poll);
+    await key('KeyD', true);
+    await page.waitForFunction(() =>
+      +document.querySelector('#diagnostics').dataset.x > 1430,
+    undefined, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.support === 'first-level-service-lift' &&
+        +data.firstLevelLiftY < 500;
+    }, undefined, poll);
+    await capture('D12-A1-lift-ride', true);
+
+    ctx.stage = 'D12-A1-lift-minimize-pause';
+    await ctx.hide();
+    await page.waitForFunction(() =>
+      document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics').dataset.paused === 'true',
+    undefined, { polling: 100 });
+    const frozen = await firstLevel();
+    assert.equal(frozen.control, false);
+    assert.equal(frozen.tokens, 1);
+    await page.waitForTimeout(1000);
+    const frozenAgain = await firstLevel();
+    assert.equal(frozenAgain.tick, frozen.tick);
+    assert.equal(frozenAgain.liftY, frozen.liftY);
+    assert.equal(frozenAgain.platformClock, frozen.platformClock);
+    await capture('D12-A1-lift-paused', true);
+
+    await installResumeProbe();
+    ctx.stage = 'D12-A1-lift-restore';
+    await ctx.show();
+    const resumedRaw = await page.evaluate(() => window.__d12Resume);
+    const resumedTick = +resumedRaw.tick;
+    const resumedSteps = +resumedRaw.physicsSteps;
+    const resumedClock = +resumedRaw.firstLevelPlatformClock;
+    assert.ok(resumedTick - frozen.tick <= 5,
+      'Restoring the first level must not catch up background time');
+    assert.ok(Math.abs(
+      resumedClock - frozen.platformClock -
+      (resumedSteps - frozen.physicsSteps) * (1000 / 60),
+    ) < 0.02, 'Only actual restored simulation steps may move the lift clock');
+    await visibleFocused();
+    const resumed = await firstLevel();
+    assert.equal(resumed.support, 'first-level-service-lift');
+    assert.equal(resumed.needsRelease, true);
+    const jumpsAtRestore = resumed.jumps;
+    await key('Space', true);
+    await page.waitForTimeout(300);
+    const heldAfterRestore = await firstLevel();
+    assert.equal(heldAfterRestore.jumps, jumpsAtRestore,
+      'The restore release gate must consume a held jump request without jumping');
+    await key('Space', false);
+    await capture('D12-A1-lift-resumed', true);
+
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.support === 'first-level-service-lift' &&
+        +data.firstLevelLiftY < 320;
+    }, undefined, { timeout: 12000, polling: 100 });
+    const top = await firstLevel();
+    await key('KeyD', true);
+    await key('Space', true);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.grounded === 'true' &&
+        data.support === 'd-upper-ground' &&
+        +data.x > 1580;
+    }, undefined, poll);
+    await key('Space', false);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics').dataset.interactionSelected ===
+        'first-level-d-photo',
+    undefined, poll);
+    await key('KeyD', false);
+    const dReady = await firstLevel();
+    assert.equal(dReady.completed, false,
+      'Reaching D without the explicit interaction must not complete the level');
+    assert.equal(dReady.questAccepted, true);
+    assert.equal(dReady.routeUnlocked, true);
+    await capture('D12-A1-D-ready', true);
+
+    await press('KeyE');
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return data.firstLevelCompleted === 'true' &&
+        data.firstLevelCompletionVisible === 'true' &&
+        data.firstLevelCompletePhase === 'succeeded';
+    }, undefined, poll);
+    const completed = await firstLevel();
+    assert.equal(completed.phase, 'completed');
+    assert.equal(completed.progressGoals, 3);
+    assert.equal(completed.progressRewards, 0);
+    assert.equal(completed.progressEffects, 3);
+    assert.ok(completed.completeEventId > 0);
+    assert.ok(completed.completeCommandId > 0);
+    assert.ok(completed.completeTransactionId > 0);
+    assert.ok(completed.completeResultEventId > 0);
+    assert.equal(completed.completeRetired, true);
+    assert.equal(completed.completeResultRetired, true);
+    assert.equal(new Set([
+      completed.questCommandId,
+      completed.liftCommandId,
+      completed.completeCommandId,
+    ]).size, 3);
+    assert.equal(new Set([
+      completed.questTransactionId,
+      completed.liftTransactionId,
+      completed.completeTransactionId,
+    ]).size, 3);
+    assert.equal(new Set([
+      completed.questResultEventId,
+      completed.liftResultEventId,
+      completed.completeResultEventId,
+    ]).size, 3);
+    await capture('D12-A1-completed', true);
+
+    await press('KeyE');
+    await page.waitForTimeout(200);
+    const duplicate = await firstLevel();
+    assert.equal(duplicate.completeEventId, completed.completeEventId);
+    assert.equal(duplicate.completeTransactionId,
+      completed.completeTransactionId);
+    assert.equal(duplicate.progressGoals, 3);
+
+    const beforeReset = await firstLevel();
+    await page.locator('#reset-graybox').click();
+    await page.waitForFunction(value => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return +data.resets !== value &&
+        data.firstLevelCompleted === 'true' &&
+        data.firstLevelRouteUnlocked === 'true';
+    }, beforeReset.resets, poll);
+    const afterReset = await firstLevel();
+    assert.ok(afterReset.tick >= beforeReset.tick);
+    assert.equal(afterReset.progressGoals, 3);
+    assert.equal(afterReset.progressEffects, 3);
+    assert.equal(afterReset.questEventId, completed.questEventId);
+    assert.equal(afterReset.liftEventId, completed.liftEventId);
+    assert.equal(afterReset.completeEventId, completed.completeEventId);
+    await capture('D12-A1-reset-preserves-completion', true);
+    await up();
+    assert.deepEqual(ctx.errors, []);
+    return {
+      runtimeInstanceId: completed.runtimeInstanceId,
+      platformPause: {
+        frozenTick: frozen.tick,
+        resumedTick,
+        frozenClock: frozen.platformClock,
+        resumedClock,
+        support: resumed.support,
+        jumpsAtRestore,
+        heldJumpCount: heldAfterRestore.jumps,
+      },
+      liftTop: { y: top.liftY, direction: top.liftDirection },
+      completion: {
+        phase: completed.phase,
+        goals: completed.progressGoals,
+        rewards: completed.progressRewards,
+        effects: completed.progressEffects,
+        quest: {
+          eventId: completed.questEventId,
+          commandId: completed.questCommandId,
+          transactionId: completed.questTransactionId,
+          resultEventId: completed.questResultEventId,
+        },
+        lift: {
+          eventId: completed.liftEventId,
+          commandId: completed.liftCommandId,
+          transactionId: completed.liftTransactionId,
+          resultEventId: completed.liftResultEventId,
+        },
+        complete: {
+          eventId: completed.completeEventId,
+          commandId: completed.completeCommandId,
+          transactionId: completed.completeTransactionId,
+          resultEventId: completed.completeResultEventId,
+        },
+      },
+      resetPreserved: {
+        tick: afterReset.tick,
+        goals: afterReset.progressGoals,
+        effects: afterReset.progressEffects,
+      },
+      duplicateCompletionIdentityPreserved: true,
+    };
+  });
 }

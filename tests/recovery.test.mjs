@@ -120,6 +120,37 @@ function recoveryFaultAfterRebuild(instance, callback) {
   };
 }
 
+function freezeRegisteredPlatforms(instance, owner) {
+  const objectIds = instance.world.movingPlatforms.map(platform => platform.label);
+  const result = instance.world.freezeTemporaryObjects(objectIds, owner);
+  assert.equal(result.status, 'frozen');
+  return objectIds;
+}
+
+function trackRecoveryWorldWrites(instance) {
+  let count = 0;
+  for (const method of [
+    'applyTemporarySnapshot',
+    'rebuildRecoveryWorld',
+    'placePlayerAtAnchor',
+    'setPermanentEffect',
+  ]) {
+    const original = instance.world[method].bind(instance.world);
+    instance.world[method] = (...args) => {
+      count++;
+      return original(...args);
+    };
+  }
+  return {
+    get count() {
+      return count;
+    },
+    reset() {
+      count = 0;
+    },
+  };
+}
+
 test('D11-A1 RF01 real initial fallback uses one coordinated recovery and finishes unlocked', () => {
   const instance = fixture();
   const initial = instance.core.snapshot;
@@ -769,4 +800,439 @@ test('D11-A2 AV05 fallback success preserves the source record, IDs, progress an
   );
   assert.equal(instance.world.progressRouteOpen, true);
   assert.equal(completed.player.controlAllowed, true);
+});
+
+test('D11-A3 ER01 one missing-body failure triggers one full managed rebuild', () => {
+  const progress = new InMemoryRunProgress();
+  progress.completeGoal(PROTOTYPE_PROGRESS_CONTENT.goal.businessId);
+  let installedFault = false;
+  const instance = fixture({
+    progress,
+    recoveryOptions: {
+      faultInjector(point) {
+        if (point !== 'after-rebuild' || installedFault) return;
+        installedFault = true;
+        M.Composite.remove(
+          instance.engine.world,
+          findWorldBody(instance, 'moving-horizontal-a'),
+        );
+      },
+    },
+  });
+  const originalRecord = instance.core.snapshot.checkpointSnapshot.current;
+  const originalBodies = [
+    findWorldBody(instance, 'moving-horizontal-a'),
+    findWorldBody(instance, 'moving-vertical-a'),
+  ];
+  instance.triggerFailure();
+  const completed = waitForRecovery(instance);
+  const actualBodies = M.Composite.allBodies(instance.engine.world);
+  const rebuiltBodies = [
+    findWorldBody(instance, 'moving-horizontal-a'),
+    findWorldBody(instance, 'moving-vertical-a'),
+  ];
+
+  assert.equal(installedFault, true);
+  assert.equal(completed.recovery.automaticRebuildAttempts, 1);
+  assert.equal(completed.recovery.automaticRebuildCount, 1);
+  assert.equal(completed.recovery.managedWorldRebuildCount, 2);
+  assert.equal(completed.recovery.lastFailureStage, null);
+  assert.equal(completed.recovery.worldValidation?.status, 'valid');
+  assert.equal(completed.recovery.selectedAnchorRole, 'primary');
+  assert.equal(completed.checkpointSnapshot.current, originalRecord);
+  assert.equal(completed.goalRoute.runtimeInstanceId, instance.runtimeInstanceId);
+  assert.deepEqual(
+    [
+      completed.progress.counts.goals,
+      completed.progress.counts.rewards,
+      completed.progress.counts.effects,
+    ],
+    [1, 1, 1],
+  );
+  assert.equal(instance.world.progressRouteOpen, true);
+  for (const oldBody of originalBodies) {
+    assert.equal(actualBodies.includes(oldBody), false,
+      `Old ${oldBody.label} body must no longer participate in Matter`);
+  }
+  for (const rebuiltBody of rebuiltBodies) {
+    assert.equal(actualBodies.includes(rebuiltBody), true);
+  }
+  assert.notEqual(rebuiltBodies[0], originalBodies[0]);
+  assert.notEqual(rebuiltBodies[1], originalBodies[1]);
+  assert.equal(instance.world.movingPlatforms.length, 2);
+});
+
+test('D11-A3 ER02 incompatible source enters Error without rebuild and retries same source', () => {
+  let sourceReads = 0;
+  let injected;
+  const instance = fixture({
+    recoveryOptions: {
+      sourceOverride() {
+        sourceReads++;
+        const current = instance.core.snapshot.checkpointSnapshot.current;
+        injected = { ...current, schemaVersion: 999 };
+        return injected;
+      },
+    },
+  });
+  const originalRecord = instance.core.snapshot.checkpointSnapshot.current;
+  let worldWrites = 0;
+  for (const method of [
+    'applyTemporarySnapshot',
+    'rebuildRecoveryWorld',
+    'placePlayerAtAnchor',
+    'setPermanentEffect',
+  ]) {
+    const original = instance.world[method].bind(instance.world);
+    instance.world[method] = (...args) => {
+      worldWrites++;
+      return original(...args);
+    };
+  }
+
+  instance.triggerFailure();
+  instance.stepUntil(snapshot => snapshot.recovery.phase === 'failed');
+  const firstError = instance.core.snapshot;
+  assert.equal(sourceReads, 1);
+  assert.equal(firstError.recovery.automaticRebuildAttempts, 0);
+  assert.equal(firstError.recovery.automaticRebuildCount, 0);
+  assert.equal(firstError.recovery.managedWorldRebuildCount, 0);
+  assert.equal(firstError.recovery.lastFailureStage, 'preflight');
+  assert.equal(
+    firstError.recovery.lastFailureCode,
+    'snapshot-version-incompatible',
+  );
+  assert.equal(firstError.recovery.errorPauseHeld, true);
+  assert.equal(firstError.recovery.view, 'recovery-error');
+  assert.equal(firstError.paused, true);
+  assert.equal(worldWrites, 0);
+  assert.equal(instance.core.snapshot.checkpointSnapshot.current, originalRecord);
+
+  assert.equal(instance.core.requestRecoveryRetry().status, 'started');
+  instance.stepUntil(snapshot =>
+    snapshot.recovery.phase === 'failed' &&
+    snapshot.recovery.manualRetryCount === 1);
+  const retriedError = instance.core.snapshot;
+  assert.equal(sourceReads, 1, 'Manual retry must reuse the retained raw source');
+  assert.equal(retriedError.recovery.automaticRebuildAttempts, 0);
+  assert.equal(retriedError.recovery.managedWorldRebuildCount, 0);
+  assert.equal(retriedError.recovery.lastFailureCode,
+    'snapshot-version-incompatible');
+  assert.equal(worldWrites, 0);
+  assert.equal(retriedError.checkpointSnapshot.current, originalRecord);
+});
+
+test('D11-A3 ER03 manual retry, title pause and persistent error stay bounded', () => {
+  let rebuildOrdinal = 0;
+  const instance = fixture({
+    recoveryOptions: {
+      faultInjector(point) {
+        if (point !== 'after-rebuild') return;
+        rebuildOrdinal++;
+        if (rebuildOrdinal <= 3) {
+          M.Composite.remove(
+            instance.engine.world,
+            findWorldBody(instance, 'moving-horizontal-a'),
+          );
+        }
+      },
+    },
+  });
+  instance.triggerFailure();
+  instance.stepUntil(snapshot => snapshot.recovery.phase === 'failed');
+  const initialError = instance.core.snapshot;
+  assert.equal(initialError.recovery.automaticRebuildAttempts, 1);
+  assert.equal(initialError.recovery.automaticRebuildCount, 1);
+  assert.equal(initialError.recovery.managedWorldRebuildCount, 2);
+  assert.equal(initialError.recovery.errorPauseHeld, true);
+  assert.equal(initialError.recovery.errorPauseRequestCount, 1);
+  assert.equal(initialError.recovery.controlLockHeld, true);
+  assert.equal(initialError.recovery.triggersShielded, true);
+  assert.equal(instance.core.reset().status, 'blocked');
+
+  const errorTick = initialError.tick;
+  assert.equal(instance.core.showRecoveryTitle().status, 'changed');
+  assert.equal(instance.core.snapshot.recovery.view, 'title');
+  assert.equal(instance.core.snapshot.tick, errorTick);
+  instance.step(4);
+  assert.equal(instance.core.snapshot.tick, errorTick,
+    'Title view must keep the simulation paused');
+  assert.equal(instance.core.returnToRecoveryError().status, 'changed');
+  assert.equal(instance.core.snapshot.recovery.titleRoundTrips, 1);
+
+  const externalOwner = Symbol('d11-a3-external-pause-owner');
+  const externalKey = Symbol('d11-a3-external-pause-key');
+  const externalToken = instance.core.lifecycle.acquire(externalOwner, externalKey);
+  assert.ok(externalToken);
+  assert.equal(instance.core.lifecycle.pauseCount, 2);
+  assert.equal(instance.core.requestRecoveryRetry().status, 'started');
+  assert.equal(instance.core.requestRecoveryRetry().status, 'ignored');
+  assert.equal(instance.core.snapshot.recovery.phase, 'manual-retry-pending');
+  assert.equal(instance.core.lifecycle.pauseCount, 1,
+    'Retry releases only the recovery owner pause token');
+  const pendingTick = instance.core.snapshot.tick;
+  instance.step(3);
+  assert.equal(instance.core.snapshot.tick, pendingTick,
+    'Another pause owner must continue to suspend the manual retry');
+  assert.equal(
+    instance.core.lifecycle.release(externalOwner, externalToken),
+    'released',
+  );
+  instance.stepUntil(snapshot =>
+    snapshot.recovery.phase === 'failed' &&
+    snapshot.recovery.manualRetryCount === 1);
+  const manualFailure = instance.core.snapshot;
+  assert.equal(manualFailure.recovery.automaticRebuildAttempts, 1);
+  assert.equal(manualFailure.recovery.automaticRebuildCount, 1);
+  assert.equal(manualFailure.recovery.errorPauseHeld, true);
+  assert.equal(manualFailure.recovery.errorPauseRequestCount, 2);
+
+  assert.equal(instance.core.requestRecoveryRetry().status, 'started');
+  const completed = waitForRecovery(instance);
+  assert.equal(completed.recovery.phase, 'succeeded');
+  assert.equal(completed.recovery.view, 'game');
+  assert.equal(completed.recovery.manualRetryCount, 2);
+  assert.equal(completed.recovery.automaticRebuildAttempts, 1);
+  assert.equal(completed.recovery.automaticRebuildCount, 1);
+  assert.equal(completed.recovery.managedWorldRebuildCount, 4);
+  assert.equal(completed.recovery.errorPauseHeld, false);
+  assert.equal(instance.core.lifecycle.pauseCount, 0);
+  assert.equal(completed.recovery.controlLockHeld, false);
+  assert.equal(completed.recovery.triggersShielded, false);
+  assert.equal(rebuildOrdinal, 4);
+});
+
+test('D11-A3-R1 R01 initial recovery waits for foreign temporary-object freeze', () => {
+  const instance = fixture();
+  const externalOwner = Object.freeze({ label: 'external-resource-owner' });
+  const objectIds = freezeRegisteredPlatforms(instance, externalOwner);
+  const originalRecord = instance.core.snapshot.checkpointSnapshot.current;
+  const currentBodies = objectIds.map(label => findWorldBody(instance, label));
+  const writes = trackRecoveryWorldWrites(instance);
+
+  instance.triggerFailure();
+  instance.stepUntil(snapshot => snapshot.recovery.phase !== 'fading-out');
+  const waiting = instance.core.snapshot;
+  const actualBodies = M.Composite.allBodies(instance.engine.world);
+
+  assert.equal(waiting.recovery.phase, 'waiting-for-capture');
+  assert.ok(waiting.recovery.captureWaitTicks > 0);
+  assert.equal(writes.count, 0);
+  assert.equal(waiting.checkpointSnapshot.current, originalRecord);
+  assert.deepEqual(waiting.frozenTemporaryObjectIds, objectIds);
+  assert.equal(waiting.recovery.controlLockHeld, true);
+  assert.equal(waiting.recovery.triggersShielded, true);
+  assert.equal(waiting.recovery.placedTick, null);
+  for (const body of currentBodies) {
+    assert.ok(
+      actualBodies.includes(body),
+      `${body.label} must remain untouched while another owner freezes it`,
+    );
+  }
+
+  assert.equal(
+    instance.world.releaseTemporaryObjects(externalOwner).status,
+    'released',
+  );
+  const completed = waitForRecovery(instance);
+  assert.equal(completed.recovery.phase, 'succeeded');
+  assert.equal(completed.checkpointSnapshot.current, originalRecord);
+  assert.equal(completed.recovery.controlLockHeld, false);
+  assert.equal(completed.recovery.triggersShielded, false);
+  assert.equal(completed.goalRoute.runtimeInstanceId, instance.runtimeInstanceId);
+});
+
+test('D11-A3-R1 R02 committed capture cleanup is a zero-write recovery gate', () => {
+  const runCaptureWithLockedRelease = () => {
+    let interruptLockRelease = true;
+    const instance = fixture({
+      checkpointCaptureOptions: {
+        resourceFaultInjector(point) {
+          if (point === 'before-release-lock' && interruptLockRelease) {
+            interruptLockRelease = false;
+            throw new Error('injected committed-capture lock release interruption');
+          }
+        },
+      },
+    });
+    assert.equal(
+      instance.core.requestCheckpointCapture(
+        GRAYBOX_TEST_CAPTURE_CHECKPOINT_A_ID,
+        captureAuthorization(instance, GRAYBOX_TEST_CAPTURE_CHECKPOINT_A_ID),
+      ).status,
+      'created',
+    );
+    instance.stepUntil(snapshot =>
+      snapshot.checkpointCapture.transactionStatus === 'recovery-pending' &&
+      snapshot.checkpointCapture.successfulCommits === 1,
+    );
+    assert.equal(instance.core.snapshot.checkpointCapture.lock.held, true);
+    assert.equal(
+      instance.core.snapshot.checkpointCapture.resourceOwnership.resourcesReleased,
+      false,
+    );
+    return instance;
+  };
+
+  const waitingRun = runCaptureWithLockedRelease();
+  const waitingWrites = trackRecoveryWorldWrites(waitingRun);
+  waitingRun.triggerFailure();
+  waitingRun.stepUntil(snapshot => snapshot.recovery.phase !== 'fading-out');
+  const waiting = waitingRun.core.snapshot;
+  assert.equal(waiting.recovery.phase, 'waiting-for-capture');
+  assert.ok(waiting.recovery.captureWaitTicks > 0);
+  assert.equal(waitingWrites.count, 0);
+  assert.equal(waiting.recovery.sourceSnapshot, null);
+  assert.equal(waiting.recovery.controlLockHeld, true);
+  assert.equal(waiting.checkpointCapture.lock.held, true);
+  assert.equal(waiting.checkpointCapture.resourceOwnership.resourcesReleased, false);
+
+  waitingRun.core.recoverCheckpointCapture();
+  const releasedCapture = waitingRun.core.snapshot.checkpointCapture;
+  assert.equal(releasedCapture.lock.held, false);
+  assert.equal(releasedCapture.resourceOwnership.resourcesReleased, true);
+  assert.equal(releasedCapture.successfulCommits, 1);
+
+  const completed = waitForRecovery(waitingRun);
+  assert.equal(
+    completed.recovery.sourceCheckpointId,
+    GRAYBOX_TEST_CAPTURE_CHECKPOINT_A_ID,
+  );
+  assert.equal(completed.checkpointCapture.successfulCommits, 1);
+  assert.equal(waitingWrites.count > 0, true);
+
+  const timeoutRun = runCaptureWithLockedRelease();
+  const timeoutWrites = trackRecoveryWorldWrites(timeoutRun);
+  const successfulCommits = timeoutRun.core.snapshot.checkpointCapture.successfulCommits;
+  timeoutRun.triggerFailure();
+  timeoutRun.stepUntil(snapshot => snapshot.recovery.phase === 'failed', 220);
+  const timedOut = timeoutRun.core.snapshot;
+  assert.ok(
+    timedOut.recovery.captureWaitTicks >
+      PLAYER_RECOVERY_PROTOTYPE.maxCaptureSettleTicks,
+  );
+  assert.equal(timeoutWrites.count, 0);
+  assert.equal(timedOut.recovery.controlLockHeld, true);
+  assert.equal(timedOut.recovery.triggersShielded, true);
+  assert.equal(timedOut.checkpointCapture.lock.held, true);
+  assert.equal(
+    timedOut.checkpointCapture.resourceOwnership.resourcesReleased,
+    false,
+  );
+  assert.equal(timeoutRun.core.reset().status, 'blocked');
+
+  timeoutRun.core.recoverCheckpointCapture();
+  assert.equal(timeoutRun.core.snapshot.checkpointCapture.lock.held, false);
+  assert.equal(timeoutRun.core.requestRecoveryRetry().status, 'started');
+  const retried = waitForRecovery(timeoutRun);
+  assert.equal(
+    retried.recovery.sourceCheckpointId,
+    GRAYBOX_TEST_CAPTURE_CHECKPOINT_A_ID,
+  );
+  assert.equal(
+    retried.checkpointCapture.successfulCommits,
+    successfulCommits,
+    'Retrying after cleanup must not create another capture commit',
+  );
+});
+
+test('D11-A3-R1 R03 automatic rebuild waits without consuming a second budget', () => {
+  let failInitialAttempt = true;
+  const instance = fixture({
+    recoveryOptions: {
+      faultInjector(point) {
+        if (point === 'after-rebuild' && failInitialAttempt) {
+          failInitialAttempt = false;
+          throw new Error('injected initial-attempt rebuild verification fault');
+        }
+      },
+    },
+  });
+  const externalOwner = Object.freeze({ label: 'automatic-rebuild-foreign-owner' });
+  instance.triggerFailure();
+  instance.stepUntil(snapshot => snapshot.recovery.phase === 'auto-rebuilding');
+  const autoBeforeWait = instance.core.snapshot;
+  const objectIds = freezeRegisteredPlatforms(instance, externalOwner);
+  const currentBodies = objectIds.map(label => findWorldBody(instance, label));
+  const writes = trackRecoveryWorldWrites(instance);
+
+  instance.step();
+  const waiting = instance.core.snapshot;
+  const actualBodies = M.Composite.allBodies(instance.engine.world);
+  assert.equal(waiting.recovery.phase, 'auto-rebuilding');
+  assert.ok(waiting.recovery.captureWaitTicks > 0);
+  assert.equal(writes.count, 0);
+  assert.equal(waiting.recovery.automaticRebuildAttempts, 1);
+  assert.equal(waiting.recovery.automaticRebuildCount, 0);
+  assert.equal(
+    waiting.recovery.managedWorldRebuildCount,
+    autoBeforeWait.recovery.managedWorldRebuildCount,
+  );
+  for (const body of currentBodies) {
+    assert.ok(actualBodies.includes(body));
+  }
+
+  assert.equal(
+    instance.world.releaseTemporaryObjects(externalOwner).status,
+    'released',
+  );
+  const completed = waitForRecovery(instance);
+  assert.equal(completed.recovery.phase, 'succeeded');
+  assert.equal(completed.recovery.automaticRebuildAttempts, 1);
+  assert.equal(completed.recovery.automaticRebuildCount, 1);
+  assert.equal(completed.recovery.managedWorldRebuildCount, 2);
+});
+
+test('D11-A3-R1 R03 manual retry obeys the same resource gate', () => {
+  let rebuildOrdinal = 0;
+  const instance = fixture({
+    recoveryOptions: {
+      faultInjector(point) {
+        if (point !== 'after-rebuild') return;
+        rebuildOrdinal++;
+        if (rebuildOrdinal <= 2) {
+          throw new Error(`injected rebuild failure ${rebuildOrdinal}`);
+        }
+      },
+    },
+  });
+  instance.triggerFailure();
+  instance.stepUntil(snapshot => snapshot.recovery.phase === 'failed');
+  const error = instance.core.snapshot;
+  assert.equal(error.recovery.automaticRebuildAttempts, 1);
+  assert.equal(error.recovery.automaticRebuildCount, 1);
+
+  const externalOwner = Object.freeze({ label: 'manual-retry-foreign-owner' });
+  const objectIds = freezeRegisteredPlatforms(instance, externalOwner);
+  const currentBodies = objectIds.map(label => findWorldBody(instance, label));
+  const writes = trackRecoveryWorldWrites(instance);
+  assert.equal(instance.core.requestRecoveryRetry().status, 'started');
+  assert.equal(instance.core.requestRecoveryRetry().status, 'ignored');
+
+  instance.stepUntil(snapshot =>
+    snapshot.recovery.captureWaitTicks > 0 ||
+    snapshot.recovery.phase !== 'manual-retry-pending',
+  );
+  const waiting = instance.core.snapshot;
+  const actualBodies = M.Composite.allBodies(instance.engine.world);
+  assert.equal(waiting.recovery.phase, 'manual-retry-pending');
+  assert.equal(waiting.recovery.manualRetryPending, true);
+  assert.equal(waiting.recovery.manualRetryCount, 1);
+  assert.equal(waiting.recovery.captureWaitTicks, 1);
+  assert.equal(writes.count, 0);
+  for (const body of currentBodies) {
+    assert.ok(actualBodies.includes(body));
+  }
+
+  assert.equal(
+    instance.world.releaseTemporaryObjects(externalOwner).status,
+    'released',
+  );
+  const completed = waitForRecovery(instance);
+  assert.equal(completed.recovery.phase, 'succeeded');
+  assert.equal(completed.recovery.manualRetryCount, 1);
+  assert.equal(completed.recovery.automaticRebuildAttempts, 1);
+  assert.equal(completed.recovery.automaticRebuildCount, 1);
+  assert.equal(completed.recovery.managedWorldRebuildCount, 3);
+  assert.equal(rebuildOrdinal, 3);
 });

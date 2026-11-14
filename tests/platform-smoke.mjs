@@ -17,7 +17,8 @@ import {
 import {
   chooseScene, checkDiagnosticZones, checkGraybox, checkInMemoryProgress,
   checkInteractions, checkMovingPlatformLifecycle, checkGoalRouteRuntime,
-  checkInitialSnapshot, checkCheckpointCapture, checkRecovery,
+  checkInitialSnapshot, checkCheckpointCapture, checkRecovery, checkRecoveryError,
+  checkFirstLevel,
 } from './graybox-browser.mjs';
 import { createPlatformObserver } from './platform-observer.mjs';
 
@@ -42,16 +43,26 @@ const focusedD09D1 = cliArgs.includes('--d09-d1');
 const focusedD10A1 = cliArgs.includes('--d10-a1');
 const focusedD10A3 = cliArgs.includes('--d10-a3');
 const focusedD11A1 = cliArgs.includes('--d11-a1');
+const focusedD11A3 = cliArgs.includes('--d11-a3');
+const focusedD12A1 = cliArgs.includes('--d12-a1');
 if ([
   focusedD04R1, focusedD05, focusedD07, focusedD08, focusedD09D1,
-  focusedD10A1, focusedD10A3, focusedD11A1,
+  focusedD10A1, focusedD10A3, focusedD11A1, focusedD11A3, focusedD12A1,
 ]
   .filter(Boolean).length > 1) {
   throw new Error('Select only one focused platform scenario');
 }
 const focused = focusedD04R1 || focusedD05 || focusedD07 || focusedD08 ||
-  focusedD09D1 || focusedD10A1 || focusedD10A3 || focusedD11A1;
+  focusedD09D1 || focusedD10A1 || focusedD10A3 || focusedD11A1 ||
+  focusedD11A3 || focusedD12A1;
 const webOnly = cliArgs.includes('--web-only') || Boolean(injection);
+const recoveryFaultScenario = focusedD11A3 ? 'd11-a3-suite' : undefined;
+const withRecoveryFault = url => {
+  if (!recoveryFaultScenario) return url;
+  const candidate = new URL(url);
+  candidate.searchParams.set('recoveryFault', recoveryFaultScenario);
+  return candidate.href;
+};
 let browserResolution;
 let browserResolutionError;
 try {
@@ -65,7 +76,9 @@ const report = {
       : focusedD09D1 ? 'D09-D1'
         : focusedD10A1 ? 'D10-A1'
           : focusedD10A3 ? 'D10-A3'
-            : focusedD11A1 ? 'D11-A1' : 'D04',
+            : focusedD11A1 ? 'D11-A1'
+              : focusedD11A3 ? 'D11-A3'
+                : focusedD12A1 ? 'D12-A1' : 'D04',
   scope: focusedD04R1 ? 'moving-platform-lifecycle'
     : focusedD05 ? 'diagnostic-zones'
       : focusedD07 ? 'interaction-prompt-and-release-gate'
@@ -74,7 +87,11 @@ const report = {
             : focusedD10A1 ? 'initial-snapshot-registry-and-atomic-capture'
               : focusedD10A3 ? 'checkpoint-trigger-arbitration-and-playable-capture'
                 : focusedD11A1 ? 'normal-fall-recovery-closed-loop'
-                  : 'full-platform-regression',
+                  : focusedD11A3
+                    ? 'bounded-auto-rebuild-and-recovery-error'
+                    : focusedD12A1
+                      ? 'first-level-playable-a-to-d'
+                      : 'full-platform-regression',
   startedAt: new Date().toISOString(), evidenceDir, injection,
   commandLine: cliArgs,
   runtime: { node: process.version, platform: process.platform, arch: process.arch },
@@ -101,6 +118,8 @@ report.version = Object.fromEntries(await Promise.all([
   'src/core/goal-route-runtime.ts', 'src/core/events.ts', 'src/core/commands.ts',
   'src/core/delivery.ts', 'src/core/transactions.ts', 'src/core/transaction-results.ts',
   'src/rendering/phaser/graybox.ts', 'src/platform/web/main.ts',
+  'src/core/first-level.ts', 'src/physics/matter/first-level-world.ts',
+  'src/rendering/phaser/first-level.ts', 'tests/first-level.test.mjs',
   'tests/goal-route-runtime.test.mjs', 'tests/snapshot.test.mjs',
   'tests/player-physics.test.mjs', 'tests/checkpoint-triggers.test.mjs',
   'tests/recovery.test.mjs', 'package.json',
@@ -452,7 +471,15 @@ async function checkRestart(ctx, index) {
 }
 
 async function checkDesktop(ctx, executablePath, devURL) {
-  const env = { ...process.env, MCLD_DEV_URL: devURL ?? 'https://example.invalid/' };
+  const env = {
+    ...process.env,
+    MCLD_DEV_URL: devURL
+      ? devURL
+      : 'https://example.invalid/',
+    ...(recoveryFaultScenario
+      ? { MCLD_RECOVERY_FAULT: recoveryFaultScenario }
+      : {}),
+  };
   delete env.ELECTRON_RUN_AS_NODE;
   ctx.native = launchNative(ctx, executablePath,
     ['--inspect=0', '--remote-debugging-port=0', ...(devURL ? [resolve('.')] : [])], env);
@@ -492,7 +519,7 @@ async function checkDesktop(ctx, executablePath, devURL) {
     ctx.monitor.attachBrowser(ctx.browser, context);
     await observe(ctx, page);
     await page.waitForURL(url => url.searchParams.get('platform') === 'windows', { waitUntil: 'load' });
-    await chooseScene(ctx, focused ? 'graybox' : 'diagnostic');
+    await chooseScene(ctx, focusedD12A1 ? 'first-level' : focused ? 'graybox' : 'diagnostic');
     await loaded(ctx);
     await snapshot(ctx, 'initial-load-before-activation', true);
     const identity = await ctx.windowState();
@@ -535,6 +562,12 @@ async function checkDesktop(ctx, executablePath, devURL) {
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else if (focusedD11A1) {
       await checkRecovery(ctx, (name, data) => note(ctx.label, 'd11-a1-' + name, data),
+        (phase, screenshot) => snapshot(ctx, phase, screenshot));
+    } else if (focusedD11A3) {
+      await checkRecoveryError(ctx, (name, data) => note(ctx.label, 'd11-a3-' + name, data),
+        (phase, screenshot) => snapshot(ctx, phase, screenshot));
+    } else if (focusedD12A1) {
+      await checkFirstLevel(ctx, (name, data) => note(ctx.label, 'd12-a1-' + name, data),
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else {
       await hiddenStartup(ctx);
@@ -628,9 +661,9 @@ async function checkWeb(ctx, devURL) {
     ctx.rawHide = ctx.hide;
     ctx.show = () => ctx.monitor.show(ctx.rawShow);
     ctx.hide = () => ctx.monitor.hide(ctx.rawHide);
-    await page.goto(devURL);
+    await page.goto(withRecoveryFault(devURL));
     if (injection) return injectInterruption(ctx);
-    await chooseScene(ctx, focused ? 'graybox' : 'diagnostic');
+    await chooseScene(ctx, focusedD12A1 ? 'first-level' : focused ? 'graybox' : 'diagnostic');
     await loaded(ctx);
     await snapshot(ctx, 'initial-load-before-activation');
     await (focused ? activeSceneReady(ctx) : visibleReady(ctx));
@@ -657,6 +690,12 @@ async function checkWeb(ctx, devURL) {
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else if (focusedD11A1) {
       await checkRecovery(ctx, (name, data) => note(ctx.label, 'd11-a1-' + name, data),
+        (phase, screenshot) => snapshot(ctx, phase, screenshot));
+    } else if (focusedD11A3) {
+      await checkRecoveryError(ctx, (name, data) => note(ctx.label, 'd11-a3-' + name, data),
+        (phase, screenshot) => snapshot(ctx, phase, screenshot));
+    } else if (focusedD12A1) {
+      await checkFirstLevel(ctx, (name, data) => note(ctx.label, 'd12-a1-' + name, data),
         (phase, screenshot) => snapshot(ctx, phase, screenshot));
     } else {
       await hiddenStartup(ctx);
@@ -788,7 +827,11 @@ async function runCase(label, fn) {
                 ? 'D10-A1 initial snapshot READY, lifecycle/reload stability and goal E; owned process exited'
                 : focusedD10A3
                   ? 'D10-A3 checkpoint trigger arbitration -> capture -> result confirmation; owned process exited'
-                  : 'loaded / scene / running; hidden start; 2 hide cycles; 3 restarts; graybox controls / collisions / pause; owned process exited');
+                  : focusedD11A3
+                    ? 'D11-A3 bounded rebuild and RecoveryError controls; owned process exited'
+                    : focusedD12A1
+                      ? 'D12-A1 playable A-B-C-D, recovery, pause and completion; owned process exited'
+                      : 'loaded / scene / running; hidden start; 2 hide cycles; 3 restarts; graybox controls / collisions / pause; owned process exited');
   } catch (error) {
     Object.assign(result, { status: ['ENOENT', 'ENVIRONMENT_PRECONDITION'].includes(error.code) ? 'BLOCKED' : 'FAIL', stage: ctx.stage,
       expectedFailure: Boolean(injection), interruption: ctx.interruption, error: String(error), stack: error.stack });

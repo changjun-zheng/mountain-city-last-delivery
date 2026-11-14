@@ -105,6 +105,13 @@ export type GoalRouteRuntimeSnapshot = Readonly<{
 }>;
 
 export type GoalRouteRuntimeOptions = Readonly<{
+  eventType?: string;
+  commandType?: string;
+  targetId?: string;
+  goalId?: string;
+  interactionId?: string;
+  initialMessage?: string;
+  successMessage?: string;
   inboxCapacity?: number;
   historyCapacity?: number;
   transactionResultCapacity?: number;
@@ -134,6 +141,12 @@ export class PrototypeGoalRouteRuntime {
   readonly runtimeInstanceId: string;
   readonly #progress: InMemoryRunProgress;
   readonly #bus: BusinessRuntimeBus;
+  readonly #eventType: string;
+  readonly #commandType: string;
+  readonly #targetId: string;
+  readonly #goalId: string;
+  readonly #interactionId: string;
+  readonly #successMessage: string;
   readonly #events: EventCreationCoordinator;
   readonly #commands: CommandCreationCoordinator;
   readonly #target: TargetTransactionModule;
@@ -144,7 +157,7 @@ export class PrototypeGoalRouteRuntime {
     GoalRouteRuntimeOptions['resultConsumerFaultInjector'];
   readonly #consumedResultEventIds = new Set<number>();
   #phase: GoalRoutePhase = 'idle';
-  #message = '按 E 请求开启测试路线。';
+  #message: string;
   #lastError: string | null = null;
   #lastStepTick = 0;
   #eventId: number | null = null;
@@ -179,9 +192,20 @@ export class PrototypeGoalRouteRuntime {
     sharedBus?: BusinessRuntimeBus,
   ) {
     this.#progress = progress;
+    this.#eventType = options.eventType ?? GOAL_ROUTE_EVENT_TYPE;
+    this.#commandType = options.commandType ?? GOAL_ROUTE_COMMAND_TYPE;
+    this.#targetId = options.targetId ?? GOAL_ROUTE_TARGET_ID;
+    this.#goalId =
+      options.goalId ?? PROTOTYPE_PROGRESS_CONTENT.goal.businessId;
+    this.#interactionId =
+      options.interactionId ?? PROTOTYPE_PROGRESS_CONTENT.goal.interactionId;
+    this.#successMessage =
+      options.successMessage ??
+      '链路完成：路线 OPEN，目标、奖励和效果各记录一次。';
+    this.#message = options.initialMessage ?? '按 E 请求开启测试路线。';
     this.#bus = sharedBus ?? new BusinessRuntimeBus(uuidProvider, {
       allowedEventTypes: [
-        GOAL_ROUTE_EVENT_TYPE,
+        this.#eventType,
         TRANSACTION_RESULT_EVENT_TYPE,
       ],
       initialNextEventId: options.initialNextEventId,
@@ -199,11 +223,11 @@ export class PrototypeGoalRouteRuntime {
     this.#events = this.#bus.events;
     this.#commands = this.#bus.commands;
     this.#target = this.#commands.createTargetTransactionModule(
-      GOAL_ROUTE_TARGET_ID,
+      this.#targetId,
       { capacity: 16 },
     );
     this.#resultSource = this.#events.createTransactionResultSource(
-      GOAL_ROUTE_TARGET_ID,
+      this.#targetId,
     );
     this.#producer = this.#events.createProducer();
     this.#manager = new RuntimeTransactionExecutionManager(
@@ -211,7 +235,7 @@ export class PrototypeGoalRouteRuntime {
       this.runtimeInstanceId,
       progress,
       new PrototypeProgressTransactionExecutor(progress, {
-        goalId: PROTOTYPE_PROGRESS_CONTENT.goal.businessId,
+        goalId: this.#goalId,
         faultInjector: options.executorFaultInjector,
       }),
       {
@@ -226,18 +250,18 @@ export class PrototypeGoalRouteRuntime {
       },
     );
     this.#bus.register({
-      eventType: GOAL_ROUTE_EVENT_TYPE,
+      eventType: this.#eventType,
       target: this.#target,
       createCommand: event => {
-        if (event.payload.goalId !== PROTOTYPE_PROGRESS_CONTENT.goal.businessId) {
+        if (event.payload.goalId !== this.#goalId) {
           throw new Error('The route event does not request the configured goal.');
         }
         return {
           sourceEvent: event,
-          targetId: GOAL_ROUTE_TARGET_ID,
-          commandType: GOAL_ROUTE_COMMAND_TYPE,
+          targetId: this.#targetId,
+          commandType: this.#commandType,
           payload: {
-            goalId: PROTOTYPE_PROGRESS_CONTENT.goal.businessId,
+            goalId: this.#goalId,
           },
         };
       },
@@ -245,10 +269,10 @@ export class PrototypeGoalRouteRuntime {
     });
     this.#resultConsumerFaultInjector = options.resultConsumerFaultInjector;
     if (this.#progress.snapshot.goals.includes(
-      PROTOTYPE_PROGRESS_CONTENT.goal.businessId,
+      this.#goalId,
     )) {
       this.#phase = 'succeeded';
-      this.#message = '目标 E 在共享运行进度中已经完成。';
+      this.#message = '该目标在共享运行进度中已经完成。';
       this.#terminalBusinessCounts = Object.freeze({
         ...this.#progress.snapshot.counts,
       });
@@ -257,10 +281,10 @@ export class PrototypeGoalRouteRuntime {
 
   requestGoal(): GoalRequestResult {
     if (this.#progress.snapshot.goals.includes(
-      PROTOTYPE_PROGRESS_CONTENT.goal.businessId,
+      this.#goalId,
     )) {
       this.#phase = this.#phase === 'idle' ? 'succeeded' : this.#phase;
-      this.#message = '目标 E 已完成；本次运行不重复发放奖励。';
+      this.#message = '该目标已完成；本次运行不重复写入。';
       return Object.freeze({
         status: 'completed' as const,
         feedback: this.#message,
@@ -277,10 +301,10 @@ export class PrototypeGoalRouteRuntime {
     }
 
     const created = this.#events.create({
-      type: GOAL_ROUTE_EVENT_TYPE,
+      type: this.#eventType,
       payload: {
-        goalId: PROTOTYPE_PROGRESS_CONTENT.goal.businessId,
-        interactionId: PROTOTYPE_PROGRESS_CONTENT.goal.interactionId,
+        goalId: this.#goalId,
+        interactionId: this.#interactionId,
       },
     }, this.#producer);
     if (created.status !== 'created') {
@@ -288,7 +312,7 @@ export class PrototypeGoalRouteRuntime {
       this.#lastError = created.status === 'blocked'
         ? created.failure.message
         : created.failure?.message ?? created.message;
-      this.#message = `目标 E 请求未创建：${created.message}`;
+      this.#message = `目标请求未创建：${created.message}`;
       return Object.freeze({
         status: created.status === 'blocked' ? 'blocked' as const : 'rejected' as const,
         feedback: this.#message,
@@ -353,10 +377,10 @@ export class PrototypeGoalRouteRuntime {
     const progress = this.#progress.snapshot.counts;
     return Object.freeze({
       runtimeInstanceId: this.runtimeInstanceId,
-      targetId: GOAL_ROUTE_TARGET_ID,
-      eventType: GOAL_ROUTE_EVENT_TYPE,
-      commandType: GOAL_ROUTE_COMMAND_TYPE,
-      goalId: PROTOTYPE_PROGRESS_CONTENT.goal.businessId,
+      targetId: this.#targetId,
+      eventType: this.#eventType,
+      commandType: this.#commandType,
+      goalId: this.#goalId,
       phase: this.#phase,
       message: this.#message,
       eventId: this.#eventId,
@@ -667,7 +691,7 @@ export class PrototypeGoalRouteRuntime {
     if (this.#resultRetired && this.#originalRetired &&
         this.#terminal?.status === 'succeeded') {
       this.#phase = 'succeeded';
-      this.#message = '链路完成：路线 OPEN，目标、奖励和效果各记录一次。';
+      this.#message = this.#successMessage;
       return;
     }
     if (this.#resultRetired && this.#originalRetired &&

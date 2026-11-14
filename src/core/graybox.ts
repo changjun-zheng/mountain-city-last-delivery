@@ -16,8 +16,10 @@ import { BusinessRuntimeBus } from './business-runtime-bus.ts';
 import {
   captureInitialTemporarySnapshot,
   FixedTemporarySnapshotStore,
+  GRAYBOX_SNAPSHOT_SCENARIO,
   type SnapshotAnchor,
   type SnapshotFaultInjector,
+  type SnapshotScenario,
   type TemporarySnapshot,
   type TemporarySnapshotSource,
   type TemporarySnapshotState,
@@ -57,11 +59,22 @@ export type DebugResetResult = Readonly<{
   status: 'reset' | 'blocked';
   message: string;
 }>;
+export type GrayboxGameplayRuntime = Readonly<{
+  readonly interactionObjects?: readonly InteractionObject[];
+  activate(actionId: string | undefined): string | undefined;
+  afterDispatch(
+    simulationTick: number,
+    dispatch: ReturnType<BusinessRuntimeBus['dispatch']>,
+  ): void;
+  readonly snapshot: unknown;
+}>;
 export type GrayboxPhysics = TemporarySnapshotSource & {
   readonly state: PlayerState;
   readonly steps: number;
   readonly timestamp: number;
+  readonly managedWorldRebuildCount: number;
   readonly spawnAnchor: SnapshotAnchor;
+  readonly snapshotScenario?: SnapshotScenario;
   readonly checkpointTriggers: readonly CheckpointTriggerOccupancySnapshot[];
   readonly checkpointTriggersEnabled: boolean;
   readonly failureZone: FailureZoneSnapshot;
@@ -84,18 +97,35 @@ export type GrayboxPhysics = TemporarySnapshotSource & {
   ): RecoveryAnchorValidationResult;
   placePlayerAtAnchor(anchor: SnapshotAnchor): void;
   synchronizeRecoveryOccupancy(tick: number): void;
+  removeManagedBodyForRecoveryTest?(objectId: string): boolean;
+  blockRecoveryAnchorForTest?(
+    anchor: SnapshotAnchor,
+    label: string,
+  ): boolean;
+  removeRecoveryBodyForTest?(label: string): boolean;
   reset(): void;
 };
 
 export type GrayboxCoreOptions = Readonly<{
   uuidProvider: RuntimeUuidProvider;
   progress?: InMemoryRunProgress;
+  interactionObjects?: readonly InteractionObject[];
+  extraEventTypes?: readonly string[];
+  createGameplayRuntime?: (
+    context: Readonly<{
+      bus: BusinessRuntimeBus;
+      progress: InMemoryRunProgress;
+    }>,
+  ) => GrayboxGameplayRuntime;
   goalRouteOptions?: GoalRouteRuntimeOptions;
   snapshotFaultInjector?: SnapshotFaultInjector;
   checkpointCaptureOptions?: Omit<SnapshotCaptureRuntimeOptions, 'transactionFaultInjector'> & Readonly<{
     transactionFaultInjector?: TransactionExecutionFaultInjector;
   }>;
   recoveryOptions?: PlayerRecoveryOptions;
+  // Narrow, named fixture used by the D11-A3 platform smoke entry. It is not a
+  // player feature and does not accept executable or arbitrary snapshot input.
+  recoveryFaultScenario?: 'd11-a3-suite';
 }>;
 
 export function createGrayboxCore(
@@ -103,11 +133,14 @@ export function createGrayboxCore(
   options: GrayboxCoreOptions,
 ) {
   const progress = options.progress ?? new InMemoryRunProgress();
-  const snapshotStore = new FixedTemporarySnapshotStore();
+  const snapshotScenario =
+    physics.snapshotScenario ?? GRAYBOX_SNAPSHOT_SCENARIO;
+  const snapshotStore = new FixedTemporarySnapshotStore(snapshotScenario);
   const goalOptions = options.goalRouteOptions ?? {};
   const businessBus = new BusinessRuntimeBus(options.uuidProvider, {
     allowedEventTypes: [
       GOAL_ROUTE_EVENT_TYPE,
+      ...(options.extraEventTypes ?? []),
       CHECKPOINT_ENTRY_EVENT_TYPE,
       CHECKPOINT_CAPTURE_EVENT_TYPE,
       TRANSACTION_RESULT_EVENT_TYPE,
@@ -130,6 +163,13 @@ export function createGrayboxCore(
     options.uuidProvider,
     options.goalRouteOptions,
     businessBus,
+  );
+  const recoveryOptions = createRecoveryOptionsForScenario(
+    options.recoveryOptions,
+    options.recoveryFaultScenario,
+    snapshotStore,
+    physics,
+    snapshotScenario,
   );
   const motor = new PlayerMotor();
   const availabilityOwner = Symbol('input-availability');
@@ -156,6 +196,7 @@ export function createGrayboxCore(
       },
       snapshotStore,
       options.snapshotFaultInjector,
+      snapshotScenario,
     );
     checkpointSnapshot = Object.freeze({ ...captured });
   } catch (error) {
@@ -172,6 +213,10 @@ export function createGrayboxCore(
     // retain their independent control restrictions.
     motor.controls.request(checkpointInitializationOwner, false);
   }
+  const gameplay = options.createGameplayRuntime?.({
+    bus: businessBus,
+    progress,
+  });
   const checkpointCapture = new SnapshotCaptureRuntime(
     businessBus,
     progress,
@@ -187,6 +232,8 @@ export function createGrayboxCore(
     getCaptureSnapshot: () => checkpointCapture.snapshot,
   });
   const activateProgress = (object: InteractionObject): string | undefined => {
+    const gameplayFeedback = gameplay?.activate(object.actionId);
+    if (gameplayFeedback !== undefined) return gameplayFeedback;
     if (!object.progress) return undefined;
     if (object.progress.category === 'collection') {
       const result = progress.recordCollection(object.progress.id);
@@ -200,9 +247,10 @@ export function createGrayboxCore(
   const interaction = new InteractionController(
     motor.controls,
     () => simulation.snapshot.paused,
-    undefined,
+    gameplay?.interactionObjects ?? options.interactionObjects,
     activateProgress,
   );
+  let lifecycle!: RuntimeLifecycleController;
   let recovery!: PlayerRecoveryRuntime;
   recovery = new PlayerRecoveryRuntime({
     bus: businessBus,
@@ -223,7 +271,8 @@ export function createGrayboxCore(
     },
     getCheckpointStates: () => physics.checkpointTriggers,
     getCheckpointEnabled: () => physics.checkpointTriggersEnabled,
-    options: options.recoveryOptions,
+    getLifecycle: () => lifecycle,
+    options: recoveryOptions,
   });
   let resets = 0;
   simulation = new FixedStepSimulation(GRAYBOX_SIMULATION, (deltaMs, tick) => {
@@ -250,6 +299,7 @@ export function createGrayboxCore(
     // for the next coordination dispatch.
     const dispatch = businessBus.dispatch(tick);
     goalRoute.afterDispatch(tick, dispatch);
+    gameplay?.afterDispatch(tick, dispatch);
     checkpointTriggers.startWinnerAfterDispatch(tick);
     checkpointCapture.afterDispatch(tick, dispatch);
     checkpointTriggers.afterDispatch(
@@ -260,7 +310,7 @@ export function createGrayboxCore(
     recovery.advanceAfterCoordination(tick, deltaMs);
     reconcilePermanentEffects();
   });
-  const lifecycle = new RuntimeLifecycleController(simulation);
+  lifecycle = new RuntimeLifecycleController(simulation);
   checkpointTriggers.synchronizeBaseline(
     physics.checkpointTriggers,
     physics.checkpointTriggersEnabled,
@@ -286,6 +336,9 @@ export function createGrayboxCore(
       authorization,
     ),
     recoverCheckpointCapture: () => checkpointCapture.recover(simulation.snapshot.tick),
+    requestRecoveryRetry: () => recovery.requestManualRetry(),
+    showRecoveryTitle: () => recovery.showRecoveryTitle(),
+    returnToRecoveryError: () => recovery.returnToRecoveryError(),
     setAvailable: (available: boolean) => {
       interaction.setAvailable(available);
       motor.controls.request(availabilityOwner, !available);
@@ -330,6 +383,7 @@ export function createGrayboxCore(
         player: { ...physics.state, ...motor.snapshot }, physicsSteps: physics.steps,
         physicsTimestamp: physics.timestamp, resets, interaction: interaction.snapshot,
         progress: progress.snapshot, goalRoute: goalRoute.snapshot,
+        gameplay: gameplay?.snapshot ?? null,
         checkpointSnapshot: Object.freeze({
           ...checkpointSnapshot,
           current: snapshotStore.current,
@@ -343,3 +397,80 @@ export function createGrayboxCore(
   };
 }
 export type GrayboxCore = ReturnType<typeof createGrayboxCore>;
+
+function createRecoveryOptionsForScenario(
+  base: PlayerRecoveryOptions | undefined,
+  scenario: GrayboxCoreOptions['recoveryFaultScenario'],
+  snapshotStore: FixedTemporarySnapshotStore,
+  physics: GrayboxPhysics,
+  snapshotScenario: SnapshotScenario,
+): PlayerRecoveryOptions | undefined {
+  const withScenario = {
+    ...base,
+    snapshotScenario,
+  } as const;
+  if (scenario !== 'd11-a3-suite') return withScenario;
+  if (typeof physics.removeManagedBodyForRecoveryTest !== 'function' ||
+      typeof physics.blockRecoveryAnchorForTest !== 'function' ||
+      typeof physics.removeRecoveryBodyForTest !== 'function') {
+    throw new Error('D11-A3 recovery fixture requires the Matter test hooks.');
+  }
+  let recoveryOrdinal = 0;
+  let attemptOrdinal = 0;
+  let fallbackBlockerInstalled = false;
+  return Object.freeze({
+    ...withScenario,
+    sourceOverride: () => {
+      const source = base?.sourceOverride
+        ? base.sourceOverride()
+        : snapshotStore.current;
+      recoveryOrdinal++;
+      attemptOrdinal = 0;
+      if (recoveryOrdinal === 4 && source) {
+        return { ...source, schemaVersion: 999 };
+      }
+      return source;
+    },
+    faultInjector: (point) => {
+      base?.faultInjector?.(point);
+      if (point === 'after-temporary-snapshot') {
+        attemptOrdinal++;
+      }
+      if (point === 'before-control-release' &&
+          recoveryOrdinal === 2 &&
+          fallbackBlockerInstalled) {
+        if (!physics.removeRecoveryBodyForTest?.(
+          'd11-a3-primary-anchor-blocker',
+        )) {
+          throw new Error('D11-A3 fixture could not clear the anchor blocker.');
+        }
+        fallbackBlockerInstalled = false;
+      }
+      if (point !== 'after-rebuild') return;
+      if (recoveryOrdinal === 1 && attemptOrdinal === 1) {
+        if (!physics.removeManagedBodyForRecoveryTest?.('moving-horizontal-a')) {
+          throw new Error('D11-A3 fixture could not remove the managed body.');
+        }
+      }
+      if (recoveryOrdinal === 2 && !fallbackBlockerInstalled) {
+        fallbackBlockerInstalled = true;
+        if (!physics.blockRecoveryAnchorForTest?.(
+          { x: 80, y: 472, facing: 1 },
+          'd11-a3-primary-anchor-blocker',
+        )) {
+          throw new Error('D11-A3 fixture could not block the primary anchor.');
+        }
+      }
+      if (recoveryOrdinal === 2 && attemptOrdinal === 1) {
+        if (!physics.removeManagedBodyForRecoveryTest?.('moving-horizontal-a')) {
+          throw new Error('D11-A3 fixture could not trigger the auto fallback path.');
+        }
+      }
+      if (recoveryOrdinal === 3 && attemptOrdinal <= 3) {
+        if (!physics.removeManagedBodyForRecoveryTest?.('moving-horizontal-a')) {
+          throw new Error('D11-A3 fixture could not persist the body fault.');
+        }
+      }
+    },
+  });
+}

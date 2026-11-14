@@ -1085,17 +1085,12 @@ export class PrototypeProgressTransactionExecutor implements TransactionExecutor
       }
 
       this.#fault('before-verify', request);
-      const snapshot = this.#progress.snapshot;
-      const goal = PROTOTYPE_PROGRESS_CONTENT.goal;
-      const complete = snapshot.goals.includes(goal.businessId) &&
-        snapshot.rewards.includes(goal.rewardId) &&
-        snapshot.effects.some(effect =>
-          effect.id === goal.effectId && effect.expectedActive);
+      const complete = this.#progress.verifyGoal(this.#goalId);
       return complete
         ? completedExecutor()
         : executorError(
           'prototype.progress-incomplete',
-          'Goal, reward and permanent effect are not all present.',
+          'Configured goal and its required permanent records are not all present.',
         );
     } catch (error) {
       const code = error instanceof PrototypeTransactionExecutorError

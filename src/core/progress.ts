@@ -61,22 +61,80 @@ export const PROTOTYPE_PROGRESS_CONTENT = Object.freeze({
   }),
 });
 
-const COLLECTION_IDS = new Set<string>([PROTOTYPE_PROGRESS_CONTENT.collection.businessId]);
-const GOAL_RELATIONS = new Map<string, Readonly<{ rewardId: string; effectId: string }>>([[
-  PROTOTYPE_PROGRESS_CONTENT.goal.businessId,
-  Object.freeze({
-    rewardId: PROTOTYPE_PROGRESS_CONTENT.goal.rewardId,
-    effectId: PROTOTYPE_PROGRESS_CONTENT.goal.effectId,
+// D12-A1 runtime-only stable business records. They are intentionally
+// independent from the laboratory prototype goal and from each other.
+export const FIRST_LEVEL_PROGRESS_CONTENT = Object.freeze({
+  questAccepted: Object.freeze({
+    goalId: 'goal.first-level.night-postcard.accepted',
+    effectId: 'effect.first-level.night-postcard.accepted',
   }),
-]]);
-const REWARD_RELATIONS = new Map<string, string>([[
-  PROTOTYPE_PROGRESS_CONTENT.goal.rewardId,
-  PROTOTYPE_PROGRESS_CONTENT.goal.businessId,
-]]);
-const EFFECT_RELATIONS = new Map<string, string>([[
-  PROTOTYPE_PROGRESS_CONTENT.goal.effectId,
-  PROTOTYPE_PROGRESS_CONTENT.goal.rewardId,
-]]);
+  liftRouteUnlocked: Object.freeze({
+    goalId: 'goal.first-level.lift-route.unlocked',
+    effectId: 'effect.first-level.lift-route.open',
+  }),
+  completed: Object.freeze({
+    goalId: 'goal.first-level.night-postcard.completed',
+    effectId: 'effect.first-level.night-postcard.completed',
+  }),
+});
+
+type GoalProgressDefinition = Readonly<{
+  rewardId?: string;
+  effectId?: string;
+}>;
+
+const COLLECTION_IDS = new Set<string>([PROTOTYPE_PROGRESS_CONTENT.collection.businessId]);
+const GOAL_RELATIONS = new Map<string, GoalProgressDefinition>([
+  [
+    PROTOTYPE_PROGRESS_CONTENT.goal.businessId,
+    Object.freeze({
+      rewardId: PROTOTYPE_PROGRESS_CONTENT.goal.rewardId,
+      effectId: PROTOTYPE_PROGRESS_CONTENT.goal.effectId,
+    }),
+  ],
+  [
+    FIRST_LEVEL_PROGRESS_CONTENT.questAccepted.goalId,
+    Object.freeze({
+      effectId: FIRST_LEVEL_PROGRESS_CONTENT.questAccepted.effectId,
+    }),
+  ],
+  [
+    FIRST_LEVEL_PROGRESS_CONTENT.liftRouteUnlocked.goalId,
+    Object.freeze({
+      effectId: FIRST_LEVEL_PROGRESS_CONTENT.liftRouteUnlocked.effectId,
+    }),
+  ],
+  [
+    FIRST_LEVEL_PROGRESS_CONTENT.completed.goalId,
+    Object.freeze({
+      effectId: FIRST_LEVEL_PROGRESS_CONTENT.completed.effectId,
+    }),
+  ],
+]);
+const REWARD_RELATIONS = new Map<string, string>([
+  [
+    PROTOTYPE_PROGRESS_CONTENT.goal.rewardId,
+    PROTOTYPE_PROGRESS_CONTENT.goal.businessId,
+  ],
+]);
+const EFFECT_RELATIONS = new Map<string, string>([
+  [
+    PROTOTYPE_PROGRESS_CONTENT.goal.effectId,
+    PROTOTYPE_PROGRESS_CONTENT.goal.businessId,
+  ],
+  [
+    FIRST_LEVEL_PROGRESS_CONTENT.questAccepted.effectId,
+    FIRST_LEVEL_PROGRESS_CONTENT.questAccepted.goalId,
+  ],
+  [
+    FIRST_LEVEL_PROGRESS_CONTENT.liftRouteUnlocked.effectId,
+    FIRST_LEVEL_PROGRESS_CONTENT.liftRouteUnlocked.goalId,
+  ],
+  [
+    FIRST_LEVEL_PROGRESS_CONTENT.completed.effectId,
+    FIRST_LEVEL_PROGRESS_CONTENT.completed.goalId,
+  ],
+]);
 
 const rejected = (category: ProgressCategory, id: unknown): ProgressMutation => Object.freeze({
   category,
@@ -109,8 +167,12 @@ export class InMemoryRunProgress {
       });
     }
     const status = this.#add(this.#goals, goalId);
-    const reward = this.claimReward(relation.rewardId, goalId);
-    const effect = this.setPermanentEffect(relation.effectId, true);
+    const reward = relation.rewardId
+      ? this.claimReward(relation.rewardId, goalId)
+      : rejected('reward', '');
+    const effect = relation.effectId
+      ? this.setPermanentEffect(relation.effectId, true)
+      : rejected('effect', '');
     return Object.freeze({
       status: status === 'added' || reward.status === 'added' || effect.status === 'added'
         ? 'added' as const
@@ -133,8 +195,8 @@ export class InMemoryRunProgress {
   }
 
   setPermanentEffect(effectId: string, expectedActive: boolean): ProgressMutation {
-    const rewardId = EFFECT_RELATIONS.get(effectId);
-    if (!rewardId || !this.#rewards.has(rewardId) || typeof expectedActive !== 'boolean') {
+    const goalId = EFFECT_RELATIONS.get(effectId);
+    if (!goalId || !this.#goals.has(goalId) || typeof expectedActive !== 'boolean') {
       return rejected('effect', effectId);
     }
     const exists = this.#effects.has(effectId);
@@ -144,6 +206,16 @@ export class InMemoryRunProgress {
       id: effectId,
       status: exists ? 'existing' as const : 'added' as const,
     });
+  }
+
+  verifyGoal(goalId: string): boolean {
+    const relation = GOAL_RELATIONS.get(goalId);
+    if (!relation || !this.#goals.has(goalId)) return false;
+    if (relation.rewardId && !this.#rewards.has(relation.rewardId)) return false;
+    if (relation.effectId) {
+      return this.#effects.get(relation.effectId) === true;
+    }
+    return true;
   }
 
   reconcileEffects(apply: (effectId: string, expectedActive: boolean) => void): void {

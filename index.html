@@ -8,13 +8,52 @@
   </head>
   <body>
     <main>
-      <label>场景：<select id="scene-select"><option value="graybox">可操作物理灰盒</option><option value="diagnostic">固定步诊断</option></select></label>
+      <details id="debug-tools">
+        <summary>调试入口</summary>
+        <label>场景：<select id="scene-select"><option value="first-level">首关最小可玩流程</option><option value="graybox">实验室物理灰盒</option><option value="diagnostic">固定步诊断</option></select></label>
+      </details>
       <div id="game" aria-label="游戏画面"></div>
-      <pre id="diagnostics" aria-label="模拟诊断"></pre>
-      <button id="reset-graybox" type="button" disabled>重置灰盒（R）</button>
+      <section id="first-level-hud" aria-label="首关目标" hidden>
+        <p id="first-level-steps"></p>
+        <h2 id="first-level-objective"></h2>
+        <p id="first-level-feedback"></p>
+      </section>
+      <details id="diagnostics-disclosure">
+        <summary>模拟诊断（默认收起）</summary>
+        <pre id="diagnostics" aria-label="模拟诊断"></pre>
+      </details>
+      <button id="reset-graybox" type="button" disabled>重置首关临时世界（R）</button>
       <button id="restart" type="button" disabled>重新启动</button>
       <p id="error" role="alert" hidden></p>
     </main>
+    <section id="recovery-error-panel" class="recovery-overlay" role="alertdialog"
+      aria-modal="true" aria-labelledby="recovery-error-title" hidden>
+      <div class="recovery-card">
+        <p class="recovery-kicker">RecoveryError</p>
+        <h1 id="recovery-error-title">恢复未能通过安全验证</h1>
+        <p id="recovery-error-summary"></p>
+        <dl>
+          <dt>阶段</dt><dd id="recovery-error-stage"></dd>
+          <dt>检查点</dt><dd id="recovery-error-checkpoint"></dd>
+          <dt>诊断</dt><dd id="recovery-error-diagnostics"></dd>
+        </dl>
+        <div class="recovery-actions">
+          <button id="recovery-retry" type="button">手动重试</button>
+          <button id="recovery-title" type="button">返回标题</button>
+        </div>
+      </div>
+    </section>
+    <section id="recovery-title-panel" class="recovery-overlay" role="dialog"
+      aria-modal="true" aria-labelledby="recovery-title-heading" hidden>
+      <div class="recovery-card recovery-title-card">
+        <p class="recovery-kicker">Layered City Adventures</p>
+        <h1 id="recovery-title-heading">叠城大冒险</h1>
+        <p>运行实例、原快照和本次运行进度仍在内存中保留。</p>
+        <div class="recovery-actions">
+          <button id="recovery-return" type="button">返回恢复界面</button>
+        </div>
+      </div>
+    </section>
     <script type="module" src="/src/platform/web/main.ts"></script>
   </body>
 </html>

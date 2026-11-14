@@ -12,6 +12,9 @@ export type InteractionObject = Readonly<{
   id: string;
   kind: InteractionKind;
   progress?: InteractionProgressReference;
+  actionId?: string;
+  actionLabel?: string;
+  activateOnOpen?: boolean;
   label: string;
   title: string;
   content: string;
@@ -306,6 +309,7 @@ export class InteractionController {
       this.#investigationId = target.id;
       this.#investigationStarts++;
       this.#controls.request(this.#owner, true);
+      if (target.activateOnOpen) this.#activateProgress?.(target);
     } else {
       this.#feedbackId = target.id;
       this.#feedbackText = target.kind === 'pickup'
@@ -351,6 +355,7 @@ export class InteractionController {
   }
 
   #actionLabel(object: InteractionObject): string {
+    if (object.actionLabel) return object.actionLabel;
     if (object.kind === 'pickup') return '拾取';
     if (object.kind === 'collection') return '收藏';
     if (object.kind === 'goal') return '完成目标';
