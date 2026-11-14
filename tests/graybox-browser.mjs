@@ -217,6 +217,14 @@ const parseSample = data => ({ tick: +data.tick, x: +data.x, y: +data.y, vx: +da
     ? null : +data.recoveryReleasedTick,
   recoverySourceCheckpointId: data.recoverySourceCheckpointId || '',
   recoverySourceAnchor: data.recoverySourceAnchor || '',
+  recoverySelectedAnchor: data.recoverySelectedAnchor || '',
+  recoverySelectedAnchorRole: data.recoverySelectedAnchorRole || '',
+  recoverySelectedFallbackIndex: data.recoverySelectedFallbackIndex || '',
+  recoveryAnchorAttemptCount: +(data.recoveryAnchorAttemptCount || 0),
+  recoveryAnchorAttempts: data.recoveryAnchorAttempts || '',
+  recoveryWorldValidationStatus: data.recoveryWorldValidationStatus || '',
+  recoveryWorldValidationCritical: data.recoveryWorldValidationCritical || '',
+  recoveryWorldValidationWarnings: data.recoveryWorldValidationWarnings || '',
   recoverySourcePayload: data.recoverySourcePayload || '',
   recoveryAnchorValidation: data.recoveryAnchorValidation || '',
   recoveryLastError: data.recoveryLastError || '',
@@ -3012,12 +3020,46 @@ export async function checkRecovery(ctx, record, capture) {
     const resumed = await sample(page);
     assert.ok(resumed.tick - frozen.tick <= 5, 'No background Tick catch-up');
     assert.equal(resumed.discarded, frozen.discarded);
-    assert.ok(resumed.recoveryFadeElapsed >= frozenFade);
-    assert.ok(resumed.platformClock >= frozenPlatformClock);
+    if (resumed.recoveryPhase === 'fading-out') {
+      assert.ok(
+        resumed.recoveryFadeElapsed >= frozenFade,
+        'Fade-out progress must remain monotonic while still fading out',
+      );
+    } else {
+      assert.ok(
+        ['fading-in', 'succeeded'].includes(resumed.recoveryPhase),
+        `Recovery advanced to unexpected phase ${resumed.recoveryPhase}`,
+      );
+    }
+    if (resumed.recoveryPhase === 'fading-out') {
+      assert.ok(
+        resumed.platformClock >= frozenPlatformClock,
+        'Platform clock must remain monotonic while the source snapshot is not restored',
+      );
+    } else {
+      const restoredPayload = JSON.parse(resumed.checkpointPayload);
+      const restoredPlatformClock = Math.min(
+        ...restoredPayload.objects.map(object => object.state.clockMs),
+      );
+      const maxStepsAfterShow = resumed.tick - frozen.tick;
+      assert.ok(
+        resumed.platformClock >= restoredPlatformClock &&
+          resumed.platformClock <=
+            restoredPlatformClock + maxStepsAfterShow * (1000 / 60) + 1e-5,
+        'Restored platform clock must advance from the snapshot without background catch-up',
+      );
+    }
 
     const completed = await waitRecovery(1, 'graybox-initial-spawn');
     assert.equal(completed.goalRuntimeInstanceId, runtime);
     assert.equal(completed.recoverySourceAnchor, '80,472,1');
+    assert.equal(completed.recoverySelectedAnchor, '80,472,1');
+    assert.equal(completed.recoverySelectedAnchorRole, 'primary');
+    assert.equal(completed.recoverySelectedFallbackIndex, '');
+    assert.equal(completed.recoveryAnchorAttemptCount, 1);
+    assert.equal(completed.recoveryWorldValidationStatus, 'valid');
+    assert.equal(completed.recoveryWorldValidationCritical, '[]');
+    assert.equal(completed.recoveryWorldValidationWarnings, '[]');
     assert.equal(completed.recoveryAnchorValidation, 'valid:ground-a');
     assert.equal(completed.needsRelease, true);
     assert.equal(completed.interactionNeedsRelease, true);
@@ -3057,6 +3099,10 @@ export async function checkRecovery(ctx, record, capture) {
       failureEventId: detected.recoveryFailureEventId,
       sourceCheckpointId: completed.recoverySourceCheckpointId,
       sourceAnchor: completed.recoverySourceAnchor,
+      selectedAnchor: completed.recoverySelectedAnchor,
+      selectedAnchorRole: completed.recoverySelectedAnchorRole,
+      worldValidation: completed.recoveryWorldValidationStatus,
+      anchorAttemptCount: completed.recoveryAnchorAttemptCount,
       anchorSupport: completed.recoveryAnchorValidation,
       phaseHistory: completed.recoveryPhaseHistory,
     };
@@ -3129,11 +3175,14 @@ export async function checkRecovery(ctx, record, capture) {
         'fading-in',
     undefined, focusedPoll);
     const restored = await sample(page);
-    // The page observation is polled at 100 ms cadence, so the restored world
-    // may advance for a few real fixed steps before this diagnostic sample.
+    const ticksAfterPlacement = restored.tick - restored.recoveryPlacedTick;
+    const expectedAdvancedClock =
+      expectedClock + ticksAfterPlacement * (1000 / 60);
     assert.ok(
-      Math.abs(restored.platformClock - expectedClock) <= 100,
-      `Platform clock should continue from ${expectedClock}, got ${restored.platformClock}`,
+      ticksAfterPlacement >= 0 &&
+        Math.abs(restored.platformClock - expectedAdvancedClock) <= 1e-5,
+      `Platform clock should advance from ${expectedClock} by ` +
+        `${ticksAfterPlacement} fixed steps, got ${restored.platformClock}`,
     );
     await capture('D11-A1-active-A-snapshot-restored-fade-in', true);
 
@@ -3141,6 +3190,12 @@ export async function checkRecovery(ctx, record, capture) {
     assert.equal(completed.checkpointCurrentId, 'graybox-test-capture-a');
     assert.equal(completed.checkpointPayload, captured.checkpointPayload);
     assert.equal(completed.recoverySourceAnchor, '1200,472,1');
+    assert.equal(completed.recoverySelectedAnchor, '1200,472,1');
+    assert.equal(completed.recoverySelectedAnchorRole, 'primary');
+    assert.equal(completed.recoveryAnchorAttemptCount, 1);
+    assert.equal(completed.recoveryWorldValidationStatus, 'valid');
+    assert.equal(completed.recoveryWorldValidationCritical, '[]');
+    assert.equal(completed.recoveryWorldValidationWarnings, '[]');
     assert.equal(completed.recoveryAnchorValidation, 'valid:ground-b');
     assert.equal(completed.progressGoalCount, 1);
     assert.equal(completed.progressRewardCount, 1);
@@ -3180,6 +3235,10 @@ export async function checkRecovery(ctx, record, capture) {
       failureEventId: detected.recoveryFailureEventId,
       sourceCheckpointId: completed.recoverySourceCheckpointId,
       sourceAnchor: completed.recoverySourceAnchor,
+      selectedAnchor: completed.recoverySelectedAnchor,
+      selectedAnchorRole: completed.recoverySelectedAnchorRole,
+      worldValidation: completed.recoveryWorldValidationStatus,
+      anchorAttemptCount: completed.recoveryAnchorAttemptCount,
       anchorSupport: completed.recoveryAnchorValidation,
       recoveryCount: completed.recoveryCount,
       captureSaves: completed.checkpointCaptureSaves,

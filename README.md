@@ -4,7 +4,7 @@
 
 《叠城大冒险》（Layered City Adventures）是一款以具有山城特色的虚构立体城市为舞台的 2D 横版平台探索冒险游戏，核心体验是跳跃、探索、解谜与发现（CONFIRMED，2026-11-12）。
 
-当前默认打开已加入 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互原型、D08 运行内进度原型、D09-D1 目标 E 真实事件链、D10-A1 固定清单初始备用快照及 D10-A3 可玩检查点捕获的 M1.2.2 可操作物理灰盒，Web 与 Windows 使用同一份角色、地形、交互、进度、事件、快照、触发仲裁及模拟代码。顶部「场景」可切回原固定步诊断场景。「重新启动」先销毁 Phaser 实例，再重新加载原页面并创建新完整测试运行；「重置灰盒」只重置原型角色、移动平台、诊断区域与临时交互状态，保留 D08 的本次运行内记录、D09-D1 的运行身份／编号／接受记录／路线效果、当前有效检查点及初始备用快照，也不是检查点恢复。
+当前默认打开已加入 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互原型、D08 运行内进度原型、D09-D1 目标 E 真实事件链、D10 可玩检查点捕获、D11-A1 正常坠落恢复及 D11-A2 安全锚点／世界一致性验证的 M1.2.2 可操作物理灰盒，Web 与 Windows 使用同一份角色、地形、交互、进度、事件、快照、触发仲裁、恢复及模拟代码。顶部「场景」可切回原固定步诊断场景。「重新启动」先销毁 Phaser 实例，再重新加载原页面并创建新完整测试运行；「重置灰盒」只重置原型角色、移动平台、诊断区域与临时交互状态，保留 D08 的本次运行内记录、D09-D1 的运行身份／编号／接受记录／路线效果、当前有效检查点及初始备用快照，也不是检查点恢复。
 
 Mountain City: Last Delivery／山城有路：最后一单为历史名称。下文旧里程碑的日志、截图及证据保留当时名称，不改写为新名执行过的测试。真实地标资料与旧首关方案保留参考，其虚构世界叙事尚待适配；本次不新增玩法、不重写任务或通关条件。内部包名、appId、用户数据身份及项目目录不变。
 
@@ -1794,12 +1794,84 @@ D10-A3 在当前灰盒触发、批次仲裁、可玩捕获和真实结果反馈�
 
 D11-A1 在当前正常成功恢复与必要失败关闭范围内完成，等待 Work 审查。Matter 仍是物理验证候选；完整异常恢复、RecoveryError 交互、多备用锚点搜索、跨会话存档、正式关卡内容和最终物理选型均未由本任务完成。
 
+## D11-A2：安全锚点与世界一致性验证
+
+2026-11-14 在既有正常坠落恢复链上增加有限、可信配置的备用锚点，以及恢复后真实 Matter 世界一致性检查。恢复仍只使用当前有效快照，不重捕、不刷新页面、不重置 Runtime、SimulationTick、检查点或永久进度。
+
+### 锚点与验证顺序
+
+- 初始检查点主锚点 `80,472,1`，备用顺序为 `160,472,1 → 700,472,-1`；A 检查点主锚点 `1200,472,1`，备用顺序为 `1160,472,1 → 1300,472,-1`。B 当前保留单一主锚点。坐标和列表均为灰盒工程配置。
+- 恢复在临时逻辑、永久效果和真实 Matter 碰撞重建完成后，先验证必要平台、真实 Composite 成员、平台时钟／方向／相位／周期／位置／碰撞尺寸、单向平台、路线门、检查点与诊断 sensor、永久路线逻辑与碰撞 mask，以及恢复期间控制锁和触发屏蔽。
+- 世界检查只有 Critical Error 会阻断恢复；纯非关键 Warning 不阻断。当前没有正式装饰系统，因此 Warning 分类使用明确标注的合成测试注入，尚未宣称真实画布装饰故障已覆盖。
+- 玩家完整碰撞体、真实非 sensor 支撑和失败区重叠逐点检查。锚点只在主点失败时按固定配置顺序检查，选中首个安全点后立即停止；不随机、不扫描地图，也不由请求 priority 推导锚点顺序。
+- 已从 Matter Composite 移除、但仍留在诊断数组中的碰撞体不能被当作幽灵阻挡或支撑；sensor 不能成为有效支撑，失败区内的落点始终无效。
+- 预检查通过最小只读测试源进入完整恢复流程。错误 Runtime／Level／Checkpoint、`schemaVersion`、对象 `stateVersion`、必要对象缺失和非有限载荷均在临时应用、永久效果、重建及玩家放置前拒绝，恢复性世界写入计数为 `0`。
+- 选择备用锚点只改变本次落点，不回写源快照的 primary anchor、Checkpoint ID、Runtime、Event／Command／Transaction 身份、目标、奖励、永久效果或 OPEN 路线。下一次恢复仍从主锚点重新检查。
+
+### AV01–AV06 结果
+
+| 用例 | 状态 | 实际结果 |
+| --- | --- | --- |
+| AV01 主点与预设顺序 | PASS | 真实 Matter 全流程中主点安全时只尝试 `1` 次；主点受阻后选择首个备用；首备用也受阻时选择第二个备用并恢复对应朝向；首个安全备用后不再探测后续点。 |
+| AV02 空间／支撑／坠落区 | PASS | 覆盖实体重叠、无支撑、仅 sensor 支撑、Composite 已移除但内部列表保留的 `ground-a`、失败区重叠；全部预设点失败时 `selectedAnchor=null`、`placedTick=null`，控制与触发屏蔽保持，R 被拒绝。 |
+| AV03 世界关键错误 | PASS | 必要平台 Body 缺失、平台真实位置与恢复逻辑不一致、永久 OPEN 路线与门碰撞 mask 不一致分别形成 Critical，恢复不进入备用循环、不放置玩家，原快照保持。 |
+| AV04 告警与前置保护 | PASS | 明确标记的合成 Warning 单独存在时恢复成功；Warning 与 Critical 并存时阻断；7 类非法身份／版本／缺对象／非有限载荷均在恢复性世界写入前失败，world write／rebuild／place／effect 调用均为 `0`。 |
+| AV05 幂等／暂停／原路径 | PASS | A 主点被阻挡后真实全流程选中备用 `1160,472,1`；源记录仍是 A、Checkpoint ID／Runtime／业务身份不变，目标／奖励／效果保持 `1/1/1`，路线 OPEN，不自动重捕。原 17 次失败循环、持 Space／E、暂停和 R 防护回归继续通过。 |
+| AV06 当前三端正常恢复 | PASS | Chrome Web、Electron 开发版和仓库外独立生产包均完成初始与 A 记录的两次正常恢复；三端均 `worldValidation=valid`、选中主锚点、`anchorAttemptCount=1`，目标／奖励／效果保持 `1/1/1`，路线 OPEN。 |
+| AV06 备用／故障 GUI | NOT RUN | 当前没有生产故障按钮或受控备用锚点场景；真实 Matter 核心与完整恢复流程有 AV01–AV05 证据，但不冒充三端 GUI 备用／故障分支已通过。 |
+
+实际执行：
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `npm.cmd test` | PASS | TypeScript 核心／Renderer 检查、Electron Main 编译 PASS；`154/154` 测试通过，0 fail、0 skipped。原 `149` 项保留，新增 D11-A2 AV01–AV05 五项。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建 29 modules、Electron Main 编译及 Windows x64 免安装目录构建成功；仅保留既有 bundle 体积、缺少 author 和默认 Electron 图标警告。 |
+| `npm.cmd run test:d11-a1 -- --browser=chrome` | PASS | [run-xrUFrD](test-results/platform/run-xrUFrD/report.json) 的 Chrome `156.0.8078.74`、Electron 开发版和仓库外独立包均 PASS；三端退出码 `0`，`cleanupFailures=[]`，页面错误与非预期中断均为 `0`。测试脚本修正期间的 `run-zxQUDC`、`run-bcMZCA`、`run-7J4q1n` 保留为 FAIL；它们分别暴露跨阶段淡入计时、快照重建后的平台时钟和按实际放置 Tick 推进的采样假设，未被改写为 PASS。 |
+| Edge | NOT RUN | 本轮没有执行 Edge；Chrome 与 Electron 通过不能推定 Edge 兼容性。 |
+| 完整自动重建／RecoveryError／手动重试／存档 | NOT RUN | 本段只完成安全锚点和世界一致性验证，不实现完整异常恢复交互。 |
+
+三端关键证据：
+
+| 环境 | 初始恢复 | A 记录恢复 | 平台时钟：捕获 → 恢复采样 |
+| --- | --- | --- | --- |
+| Chrome Web | 检测 `230`，完成 `292`；主点 `80,472,1` | 选中 Tick `916`；主点 `1200,472,1` | `6216.67 → 6316.67 ms` |
+| Electron 开发版 | 检测 `241`，完成 `302`；主点 `80,472,1` | 选中 Tick `903`；主点 `1200,472,1` | `6033.33 → 6033.33 ms` |
+| 独立生产包 | 检测 `237`，完成 `296`；主点 `80,472,1` | 选中 Tick `898`；主点 `1200,472,1` | `6000.00 → 6033.33 ms` |
+
+截图：
+
+- [Web 初始恢复完成](test-results/platform/run-xrUFrD/003-web-D11-A1-initial-anchor-restored.png)
+- [Web A 恢复后路线保留](test-results/platform/run-xrUFrD/007-web-D11-A1-active-A-recovered-route-preserved.png)
+- [Electron 开发版 A 恢复后路线保留](test-results/platform/run-xrUFrD/016-electron-dev-D11-A1-active-A-recovered-route-preserved.png)
+- [独立生产包 A 恢复后路线保留](test-results/platform/run-xrUFrD/025-electron-packaged-D11-A1-active-A-recovered-route-preserved.png)
+- [D11-A2 当前源码体验窗口](test-results/d11-a2-final-20261114/experience.png)
+
+新的正常体验窗口使用 `npm.cmd run electron` 启动：PID `464`、HWND `38144282`，标题“叠城大冒险 | Layered City Adventures”，Vite 地址 `http://127.0.0.1:50354/?platform=windows`。窗口由当前源码运行并显示 `D11-A2` 恢复诊断，[启动记录](test-results/d11-a2-final-20261114/experience-launch.json)。旧 D11-A1、较早 D11-A2 窗口及其他体验窗口均保留，未由本任务关闭。
+
+版本证据：
+
+- 基线提交：`d65859a`。
+- 生产入口：`release/layered-city-adventures/win-unpacked/Layered City Adventures.exe`。
+- ASAR：`F6DB54B409F009CE7511EFD836A3CCD57183DE1D6F22D1BAEF23DB366EAC91DF`。
+- Windows EXE：`84D84572EAD089C524880FF346FE6D0338809712F2315438D9225C329D8D4D56`。
+- `report.json`：`9F9F5763BF95EE13034D71A89BF41F0487983A1E81208E1C565A234596A1DC57`。
+- `timeline.jsonl`：`297CBFB1A06C1D3467FBA2E1B1FA25D8032E7586E7495C4C47F80A1E6C9CCF5C`。
+- `src/core/recovery.ts`：`945AD1C5CB13380BE961FE3DB549EF07919B32A3B50A8C35145B0468DBB15F0C`。
+- `src/physics/matter/graybox-world.ts`：`9DC1242FEF40E0E2EB44833873724F27494326FF79523055C54C9DAA1DA8C4EE`。
+- `src/core/snapshot.ts`：`BC922890C0ED335F5D226064A26724193F238F5DC697F19A2E956C0A0CF7433C`。
+- `tests/recovery.test.mjs`：`A69E76E8AE3F8B58E9E2008174D27345E32416BA267DE5887883667012B82AA6`。
+- `tests/graybox-browser.mjs`：`F6A82D91068003EAA837F40A625F2502E95DCB03A2C6BB6EF744890B42ECCE89`。
+- `tests/platform-smoke.mjs`：`306C6CF6574AA1C734096C194CEF8575BBB52C9ED304E06477409E6633D902B6`。
+- 体验截图：`6411E356C269220680E938F0F0D64B73A52E75E635FEF5197131A6DBFA7790F4`。
+
+历史 `run-d9OOXw`、`run-SxTbQP`、`run-7y0Bor` 等失败记录保持原状态；D11-A2 的 `run-zxQUDC`、`run-bcMZCA`、`run-7J4q1n` 也保留为测试脚本采样假设修正前的 FAIL。`run-uSMH74`、`run-cu1i2u` 只作为 D11-A1／较早 D11-A2 历史证据，不冒充最终版本。D11-A2 当前为 DONE（待 Work 审查），不自动进入完整异常恢复、RecoveryError 或存档，不 Commit／Push／发布。
+
 ## 当前限制
 
-- 最新执行（D11-A1，2026-11-14）：灰盒已接入真实坠落检测、单流程控制锁、淡出淡入、当前有效快照恢复、永久效果重协调、平台逻辑回滚、Matter 碰撞重建、固定锚点验证和触发基线同步；`149/149` 自动化测试、生产构建及 Chrome Web／Electron 开发版／独立生产包定向验证 PASS。完整异常恢复、RecoveryError 交互、多备用锚点搜索、跨会话存档与正式关卡内容仍 NOT RUN。
+- 最新执行（D11-A2，2026-11-14）：灰盒已在正常坠落恢复中加入有限备用锚点、真实 Composite 碰撞查询、有效支撑／失败区检查、平台与永久路线一致性报告、Critical／Warning 分级和完整预检查零写入保护；`154/154` 自动化测试、生产构建及 Chrome Web／Electron 开发版／独立生产包正常恢复回归 PASS。备用／故障 GUI、完整自动重建、RecoveryError 交互、跨会话存档与正式关卡内容仍 NOT RUN。
 - Web 主包仍有 Vite 体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互、D08 运行内进度、D09-D1 目标 E 真实链、D10 检查点捕获及 D11-A1 正常坠落恢复是工程灰盒。未接入移动单向平台、旋转／挤压、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、完整异常重建或 RecoveryError 交互。D08 的“永久”仅限当前页面运行内；D09-D1 Accepted 只表示真实目标接收，业务成功只在正式事务终态和结果消费后显示；R 仍是调试重置，不读取备用快照恢复世界。D11-A1 不表示完整 Checkpoint Recovery、异常恢复、多锚点容错或存档已通过。当前灰盒不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 对 D11-A1 的审查，不自动进入 D11 后续任务。
+- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互、D08 运行内进度、D09-D1 目标 E 真实链、D10 检查点捕获、D11-A1 正常坠落恢复及 D11-A2 安全锚点／世界一致性验证是工程灰盒。未接入移动单向平台、旋转／挤压、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、完整异常重建或 RecoveryError 交互。D08 的“永久”仅限当前页面运行内；D09-D1 Accepted 只表示真实目标接收，业务成功只在正式事务终态和结果消费后显示；R 仍是调试重置，不读取备用快照恢复世界。D11-A2 不表示完整 Checkpoint Recovery、异常恢复或存档已通过。当前灰盒不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 对 D11-A2 的审查，不自动进入 D11 后续任务。

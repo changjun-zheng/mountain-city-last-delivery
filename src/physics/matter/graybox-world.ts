@@ -5,12 +5,16 @@ import type {
   TemporaryObjectFreezeResult,
   TemporaryObjectReleaseResult,
 } from '../../core/graybox.ts';
-import { PROTOTYPE_PROGRESS_CONTENT } from '../../core/progress.ts';
+import {
+  PROTOTYPE_PROGRESS_CONTENT,
+  type PermanentEffectSnapshot,
+} from '../../core/progress.ts';
 import type {
   MovingPlatformLogicalState,
   SnapshotAnchor,
   TemporarySnapshotObject,
 } from '../../core/snapshot.ts';
+import { GRAYBOX_SNAPSHOT_REGISTRY } from '../../core/snapshot.ts';
 import {
   GRAYBOX_CHECKPOINT_TRIGGERS,
   type CheckpointTriggerOccupancySnapshot,
@@ -19,6 +23,8 @@ import {
   PLAYER_FAILURE_ZONE_ID,
   type FailureZoneSnapshot,
   type RecoveryAnchorValidationResult,
+  type RecoveryWorldValidationIssue,
+  type RecoveryWorldValidationResult,
 } from '../../core/recovery.ts';
 
 // Uses Phaser's bundled Matter, injected so the identical world can run in deterministic tests.
@@ -92,6 +98,7 @@ const CHECKPOINT_TRIGGER_CATEGORY = 0x0020;
 const FAILURE_ZONE_CATEGORY = 0x0040;
 // Matter contact slop can leave the body about 2 px inside the top face on the first supported tick.
 const TOP_TOLERANCE_PX = 4;
+const RECOVERY_WORLD_POSITION_TOLERANCE_PX = 0.01;
 const MOTION_EPSILON = 0.01;
 const MOVING_PLATFORM_PROTOTYPES = Object.freeze([
   Object.freeze({
@@ -514,15 +521,145 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     );
   }
 
+  validateRecoveryWorld(
+    objects: readonly TemporarySnapshotObject[],
+    expectedPermanentEffects: readonly PermanentEffectSnapshot[],
+  ): RecoveryWorldValidationResult {
+    const critical: RecoveryWorldValidationIssue[] = [];
+    const actualBodies = this.#matter.Composite.allBodies(
+      this.#engine.world as unknown as MatterJS.CompositeType,
+    );
+    const actualBodySet = new Set(actualBodies);
+    const fail = (code: string, message: string) => {
+      critical.push(Object.freeze({ code, message }));
+    };
+
+    if (objects.length !== GRAYBOX_SNAPSHOT_REGISTRY.length) {
+      fail(
+        'temporary-object-set-mismatch',
+        `恢复对象数为 ${objects.length}，注册清单要求 ` +
+          `${GRAYBOX_SNAPSHOT_REGISTRY.length}。`,
+      );
+    }
+    const objectsById = new Map(objects.map(object => [object.objectId, object]));
+    for (const registryEntry of GRAYBOX_SNAPSHOT_REGISTRY) {
+      const object = objectsById.get(registryEntry.objectId);
+      const platform = this.#movingByLabel.get(registryEntry.objectId);
+      if (!object || !platform) {
+        fail(
+          'required-platform-missing',
+          `必要平台 ${registryEntry.objectId} 缺少逻辑对象或恢复状态。`,
+        );
+        continue;
+      }
+      if (!actualBodySet.has(platform.body)) {
+        fail(
+          'required-platform-body-missing',
+          `必要平台 ${registryEntry.objectId} 的真实碰撞体不在 Matter World。`,
+        );
+      }
+      if (object.state.axis !== platform.definition.axis ||
+          platform.definition.axis !== registryEntry.axis) {
+        fail(
+          'required-platform-axis-mismatch',
+          `必要平台 ${registryEntry.objectId} 的轴类型不一致。`,
+        );
+      }
+      if (this.#platformClockMs !== object.state.clockMs) {
+        fail(
+          'platform-clock-mismatch',
+          `平台 ${registryEntry.objectId} 的恢复时钟与共享平台时钟不一致。`,
+        );
+      }
+      if (platform.direction !== object.state.direction ||
+          platform.phase !== object.state.phase ||
+          platform.cycle !== object.state.cycle) {
+        fail(
+          'platform-logical-state-mismatch',
+          `平台 ${registryEntry.objectId} 的方向、相位或周期与恢复状态不一致。`,
+        );
+      }
+      if (Math.abs(platform.body.position.x - object.state.position.x) >
+            RECOVERY_WORLD_POSITION_TOLERANCE_PX ||
+          Math.abs(platform.body.position.y - object.state.position.y) >
+            RECOVERY_WORLD_POSITION_TOLERANCE_PX) {
+        fail(
+          'platform-body-position-mismatch',
+          `平台 ${registryEntry.objectId} 的真实碰撞体位置与恢复逻辑位置不一致。`,
+        );
+      }
+      const actualWidth = platform.body.bounds.max.x - platform.body.bounds.min.x;
+      const actualHeight = platform.body.bounds.max.y - platform.body.bounds.min.y;
+      if (Math.abs(actualWidth - platform.definition.width) >
+            RECOVERY_WORLD_POSITION_TOLERANCE_PX ||
+          Math.abs(actualHeight - platform.definition.height) >
+            RECOVERY_WORLD_POSITION_TOLERANCE_PX) {
+        fail(
+          'platform-collision-size-mismatch',
+          `平台 ${registryEntry.objectId} 的真实碰撞尺寸异常。`,
+        );
+      }
+    }
+
+    for (const required of [
+      { label: 'one-way-platform', body: this.oneWayPlatform },
+      { label: 'progress-route-gate', body: this.progressRouteGate },
+      { label: 'failure-zone', body: this.failureZoneBody },
+      ...this.checkpointTriggerBodies.map(body => ({
+        label: `checkpoint-trigger:${body.label}`,
+        body,
+      })),
+      ...this.diagnosticZoneBodies.map(body => ({
+        label: `diagnostic-zone:${body.label}`,
+        body,
+      })),
+    ]) {
+      if (!actualBodySet.has(required.body)) {
+        fail(
+          'required-world-body-missing',
+          `必要对象 ${required.label} 的真实碰撞体不在 Matter World。`,
+        );
+      }
+    }
+
+    const expectedRouteOpen = expectedPermanentEffects.some(effect =>
+      effect.id === PROTOTYPE_PROGRESS_CONTENT.goal.effectId &&
+      effect.expectedActive);
+    if (this.#progressRouteOpen !== expectedRouteOpen) {
+      fail(
+        'permanent-route-effect-mismatch',
+        `永久路线期望为 ${expectedRouteOpen ? 'OPEN' : 'CLOSED'}，` +
+          `恢复世界逻辑为 ${this.#progressRouteOpen ? 'OPEN' : 'CLOSED'}。`,
+      );
+    }
+    const gateMask = this.progressRouteGate.collisionFilter.mask;
+    const gateCollisionOpen = gateMask === 0;
+    if (gateCollisionOpen !== this.#progressRouteOpen ||
+        (!gateCollisionOpen && gateMask !== PLAYER_CATEGORY)) {
+      fail(
+        'permanent-route-collision-mismatch',
+        `永久路线逻辑为 ${this.#progressRouteOpen ? 'OPEN' : 'CLOSED'}，` +
+          `门碰撞 mask 为 ${gateMask}。`,
+      );
+    }
+
+    return Object.freeze({
+      status: critical.length === 0 ? 'valid' as const : 'invalid' as const,
+      critical: Object.freeze(critical),
+      warnings: Object.freeze([]),
+    });
+  }
+
   validateRecoveryAnchor(
     anchor: SnapshotAnchor,
     _checkpointId: string,
   ): RecoveryAnchorValidationResult {
     const m = this.#matter;
-    const worldBodies = [
-      ...this.terrain,
-      ...this.#movingPlatforms.map(platform => platform.body),
-    ];
+    // Read the engine's current world so arrays retained for diagnostics cannot
+    // keep a removed collision body alive as a ghost blocker or support.
+    const worldBodies = m.Composite.allBodies(
+      this.#engine.world as unknown as MatterJS.CompositeType,
+    );
     const probe = m.Bodies.rectangle(
       anchor.x,
       anchor.y,
@@ -534,6 +671,17 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
         collisionFilter: { category: PLAYER_CATEGORY, mask: -1, group: 0 },
       },
     );
+    const failureZoneOverlap = m.Query.collides(
+      probe,
+      [this.failureZoneBody],
+    ).length > 0;
+    if (failureZoneOverlap) {
+      return Object.freeze({
+        status: 'invalid' as const,
+        reason: 'player body overlaps a failure region',
+        blockerLabels: Object.freeze([this.failureZoneBody.label]),
+      });
+    }
     const blockerLabels = m.Query.collides(probe, worldBodies)
       .map(collision => collision.bodyA === probe ? collision.bodyB : collision.bodyA)
       .filter(body => !body.isSensor && collisionAllowed(probe, body))

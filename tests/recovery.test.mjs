@@ -69,6 +69,7 @@ function fixture(options = {}) {
   return {
     core,
     world,
+    engine,
     progress,
     runtimeInstanceId,
     step,
@@ -95,6 +96,30 @@ function captureAuthorization(instance, checkpointId) {
   };
 }
 
+function addSolidBlocker(instance, label, x, y, width = 40, height = 40) {
+  const blocker = M.Bodies.rectangle(x, y, width, height, {
+    isStatic: true,
+    label,
+  });
+  M.Composite.add(instance.engine.world, blocker);
+  return blocker;
+}
+
+function findWorldBody(instance, label) {
+  const body = M.Composite.allBodies(instance.engine.world)
+    .find(candidate => candidate.label === label);
+  assert.ok(body, `Expected real Matter body ${label}`);
+  return body;
+}
+
+function recoveryFaultAfterRebuild(instance, callback) {
+  return {
+    faultInjector(point) {
+      if (point === 'after-rebuild') callback(instance);
+    },
+  };
+}
+
 test('D11-A1 RF01 real initial fallback uses one coordinated recovery and finishes unlocked', () => {
   const instance = fixture();
   const initial = instance.core.snapshot;
@@ -118,6 +143,15 @@ test('D11-A1 RF01 real initial fallback uses one coordinated recovery and finish
     y: 472,
     facing: 1,
   });
+  assert.deepEqual(completed.recovery.selectedAnchor, {
+    x: 80,
+    y: 472,
+    facing: 1,
+  });
+  assert.equal(completed.recovery.selectedAnchorRole, 'primary');
+  assert.equal(completed.recovery.selectedFallbackIndex, null);
+  assert.equal(completed.recovery.anchorAttempts.length, 1);
+  assert.equal(completed.recovery.worldValidation?.status, 'valid');
   assert.equal(completed.recovery.controlLockHeld, false);
   assert.equal(completed.recovery.triggersShielded, false);
   assert.equal(completed.recovery.recoveryCount, 1);
@@ -341,13 +375,9 @@ test('D11-A1 RF05 lifecycle pauses recovery time and every invalid boundary rema
   assert.equal(rebuildFailure.core.reset().status, 'blocked');
 
   const unsafeAnchor = fixture();
-  const blocker = M.Bodies.rectangle(80, 472, 40, 40, {
-    isStatic: true,
-    label: 'injected-anchor-blocker',
-  });
-  unsafeAnchor.world.terrain.push(blocker);
-  // Query-based validation uses the live terrain array; the test blocker is
-  // intentionally not registered as a snapshot object.
+  addSolidBlocker(unsafeAnchor, 'injected-primary-anchor-blocker', 80, 472);
+  addSolidBlocker(unsafeAnchor, 'injected-fallback-1-anchor-blocker', 160, 472);
+  addSolidBlocker(unsafeAnchor, 'injected-fallback-2-anchor-blocker', 700, 472);
   unsafeAnchor.triggerFailure();
   unsafeAnchor.stepUntil(snapshot => snapshot.recovery.phase === 'failed');
   assert.equal(unsafeAnchor.core.snapshot.recovery.controlLockHeld, true);
@@ -355,4 +385,388 @@ test('D11-A1 RF05 lifecycle pauses recovery time and every invalid boundary rema
     unsafeAnchor.core.snapshot.recovery.lastError ?? '',
     /锚点验证失败/,
   );
+});
+
+test('D11-A2 AV01 recovery uses the first safe configured fallback without unordered search', () => {
+  const primaryBlocked = fixture();
+  addSolidBlocker(primaryBlocked, 'test-primary-blocker', 80, 472);
+  primaryBlocked.triggerFailure();
+  const firstFallback = waitForRecovery(primaryBlocked);
+  assert.deepEqual(firstFallback.recovery.sourceAnchor, {
+    x: 80,
+    y: 472,
+    facing: 1,
+  });
+  assert.deepEqual(firstFallback.recovery.selectedAnchor, {
+    x: 160,
+    y: 472,
+    facing: 1,
+  });
+  assert.equal(firstFallback.recovery.selectedAnchorRole, 'fallback');
+  assert.equal(firstFallback.recovery.selectedFallbackIndex, 0);
+  assert.deepEqual(
+    firstFallback.recovery.anchorAttempts.map(attempt => ({
+      role: attempt.role,
+      fallbackIndex: attempt.fallbackIndex,
+      status: attempt.status,
+    })),
+    [
+      { role: 'primary', fallbackIndex: null, status: 'invalid' },
+      { role: 'fallback', fallbackIndex: 0, status: 'valid' },
+    ],
+  );
+  assert.equal(firstFallback.recovery.anchorValidation?.status, 'valid');
+  assert.equal(firstFallback.recovery.anchorAttempts.at(-1)?.support, 'ground-a');
+  assert.equal(firstFallback.interaction.facing, 1);
+
+  const secondFallback = fixture();
+  addSolidBlocker(secondFallback, 'test-primary-blocker', 80, 472);
+  addSolidBlocker(secondFallback, 'test-first-fallback-blocker', 160, 472);
+  secondFallback.triggerFailure();
+  const completed = waitForRecovery(secondFallback);
+  assert.deepEqual(completed.recovery.selectedAnchor, {
+    x: 700,
+    y: 472,
+    facing: -1,
+  });
+  assert.equal(completed.recovery.selectedFallbackIndex, 1);
+  assert.equal(completed.recovery.anchorAttempts.length, 3);
+  assert.equal(completed.interaction.facing, -1);
+
+  const firstSafeWins = fixture();
+  addSolidBlocker(firstSafeWins, 'test-primary-blocker', 80, 472);
+  firstSafeWins.triggerFailure();
+  const stoppedAtFirst = waitForRecovery(firstSafeWins);
+  assert.equal(stoppedAtFirst.recovery.selectedFallbackIndex, 0);
+  assert.equal(
+    stoppedAtFirst.recovery.anchorAttempts.length,
+    2,
+    'Recovery must stop at the first safe fallback instead of probing later points',
+  );
+});
+
+test('D11-A2 AV02 collision space, real support and failure exclusion reject every unsafe anchor', () => {
+  const instance = fixture();
+  const ghostGrounds = instance.engine
+    ? M.Composite.allBodies(instance.engine.world)
+      .filter(body => body.label === 'ground-a')
+    : [];
+  assert.equal(ghostGrounds.length, 2);
+  for (const ground of ghostGrounds) {
+    M.Composite.remove(instance.engine.world, ground);
+  }
+  assert.equal(
+    instance.world.terrain.filter(body => body.label === 'ground-a').length,
+    2,
+    'The stale terrain list deliberately retains both removed bodies',
+  );
+  const sensorOnlySupport = M.Bodies.rectangle(400, 535, 900, 70, {
+    isStatic: true,
+    isSensor: true,
+    label: 'sensor-only-support',
+  });
+  M.Composite.add(instance.engine.world, sensorOnlySupport);
+
+  const failureOverlap = instance.world.validateRecoveryAnchor(
+    { x: 560, y: 620, facing: 1 },
+    GRAYBOX_CHECKPOINT_ID,
+  );
+  assert.equal(failureOverlap.status, 'invalid');
+  assert.match(failureOverlap.reason, /failure region/);
+
+  instance.triggerFailure();
+  instance.stepUntil(snapshot => snapshot.recovery.phase === 'failed');
+  const failed = instance.core.snapshot;
+  assert.equal(failed.recovery.anchorAttempts.length, 3);
+  assert.ok(failed.recovery.anchorAttempts.every(attempt =>
+    attempt.status === 'invalid' &&
+    /no effective non-sensor support/.test(attempt.reason ?? '')));
+  assert.equal(failed.recovery.selectedAnchor, null);
+  assert.equal(failed.recovery.placedTick, null);
+  assert.equal(failed.recovery.controlLockHeld, true);
+  assert.equal(failed.recovery.triggersShielded, true);
+  assert.equal(failed.checkpointTriggers.enabled, false);
+  assert.equal(instance.core.reset().status, 'blocked');
+});
+
+test('D11-A2 AV03 world consistency errors are critical and never enter the fallback loop', () => {
+  const runWorldFault = (mutate, options = {}) => {
+    let instance;
+    let injected = false;
+    const recoveryOptions = {
+      ...options,
+      faultInjector(point) {
+        if (point !== 'after-rebuild') return;
+        injected = true;
+        mutate(instance);
+      },
+    };
+    instance = fixture({
+      progress: options.progress,
+      recoveryOptions,
+    });
+    const originalRecord = instance.core.snapshot.checkpointSnapshot.current;
+    instance.triggerFailure();
+    instance.stepUntil(snapshot => snapshot.recovery.phase === 'failed');
+    const failed = instance.core.snapshot;
+    assert.equal(injected, true);
+    assert.equal(failed.recovery.worldValidation?.status, 'invalid');
+    assert.ok(
+      (failed.recovery.worldValidation?.critical.length ?? 0) >= 1,
+    );
+    assert.equal(failed.recovery.anchorAttempts.length, 0);
+    assert.equal(failed.recovery.selectedAnchor, null);
+    assert.equal(failed.recovery.placedTick, null);
+    assert.equal(failed.recovery.controlLockHeld, true);
+    assert.equal(failed.recovery.triggersShielded, true);
+    assert.equal(failed.checkpointSnapshot.current, originalRecord);
+    assert.equal(instance.core.reset().status, 'blocked');
+    return failed.recovery.worldValidation;
+  };
+
+  const missingPlatform = runWorldFault(instance => {
+    M.Composite.remove(
+      instance.engine.world,
+      findWorldBody(instance, 'moving-horizontal-a'),
+    );
+  });
+  assert.ok(missingPlatform?.critical.some(issue =>
+    issue.code === 'required-platform-body-missing'));
+
+  const wrongPosition = runWorldFault(instance => {
+    const body = findWorldBody(instance, 'moving-horizontal-a');
+    M.Body.setPosition(body, { x: body.position.x + 5, y: body.position.y });
+  });
+  assert.ok(wrongPosition?.critical.some(issue =>
+    issue.code === 'platform-body-position-mismatch'));
+
+  const progress = new InMemoryRunProgress();
+  progress.completeGoal(PROTOTYPE_PROGRESS_CONTENT.goal.businessId);
+  const route = runWorldFault(instance => {
+    instance.world.progressRouteGate.collisionFilter.mask = 0x0002;
+  }, { progress });
+  assert.ok(route?.critical.some(issue =>
+    issue.code === 'permanent-route-collision-mismatch'));
+
+  const routeEffect = runWorldFault(instance => {
+    instance.world.setPermanentEffect(
+      PROTOTYPE_PROGRESS_CONTENT.goal.effectId,
+      false,
+    );
+  }, { progress });
+  assert.ok(routeEffect?.critical.some(issue =>
+    issue.code === 'permanent-route-effect-mismatch'));
+});
+
+test('D11-A2 AV04 warnings do not block recovery while preflight writes remain at zero', () => {
+  const warned = fixture({
+    recoveryOptions: {
+      worldValidationWarningInjector: () => [
+        'synthetic decoration warning: no production decoration system exists',
+      ],
+    },
+  });
+  warned.triggerFailure();
+  const recovered = waitForRecovery(warned);
+  assert.equal(recovered.recovery.worldValidation?.status, 'valid');
+  assert.equal(recovered.recovery.worldValidation?.warnings.length, 1);
+  assert.equal(recovered.recovery.selectedAnchorRole, 'primary');
+
+  const progress = new InMemoryRunProgress();
+  progress.completeGoal(PROTOTYPE_PROGRESS_CONTENT.goal.businessId);
+  let mixed;
+  mixed = fixture({
+    progress,
+    recoveryOptions: {
+      worldValidationWarningInjector: () => ['synthetic non-critical warning'],
+      faultInjector(point) {
+        if (point === 'after-rebuild') {
+          mixed.world.progressRouteGate.collisionFilter.mask = 0x0002;
+        }
+      },
+    },
+  });
+  mixed.triggerFailure();
+  mixed.stepUntil(snapshot => snapshot.recovery.phase === 'failed');
+  assert.equal(mixed.core.snapshot.recovery.worldValidation?.status, 'invalid');
+  assert.equal(mixed.core.snapshot.recovery.worldValidation?.warnings.length, 1);
+  assert.ok(
+    (mixed.core.snapshot.recovery.worldValidation?.critical.length ?? 0) >= 1,
+  );
+
+  const corruptions = [
+    {
+      name: 'runtime identity',
+      mutate: record => ({
+        ...record,
+        runtimeInstanceId: '00000000-0000-4000-8000-000000000000',
+      }),
+    },
+    {
+      name: 'level identity',
+      mutate: record => ({ ...record, levelId: 'wrong-level' }),
+    },
+    {
+      name: 'checkpoint identity',
+      mutate: record => ({
+        ...record,
+        checkpointId: 'graybox-test-capture-b',
+      }),
+    },
+    {
+      name: 'schema version',
+      mutate: record => ({ ...record, schemaVersion: 999 }),
+    },
+    {
+      name: 'state version',
+      mutate: record => ({
+        ...record,
+        objects: record.objects.map((object, index) =>
+          index === 0 ? { ...object, stateVersion: 999 } : object),
+      }),
+    },
+    {
+      name: 'missing object',
+      mutate: record => ({
+        ...record,
+        objects: record.objects.slice(1),
+      }),
+    },
+    {
+      name: 'non-finite payload',
+      mutate: record => ({
+        ...record,
+        objects: record.objects.map((object, index) =>
+          index === 0
+            ? {
+              ...object,
+              state: {
+                ...object.state,
+                position: { ...object.state.position, x: Number.NaN },
+              },
+            }
+            : object),
+      }),
+    },
+  ];
+
+  for (const corruption of corruptions) {
+    let injectedSource;
+    const instance = fixture({
+      recoveryOptions: {
+        sourceOverride: () => injectedSource,
+      },
+    });
+    const original = instance.core.snapshot.checkpointSnapshot.current;
+    assert.ok(original);
+    injectedSource = corruption.mutate(original);
+    let worldWrites = 0;
+    const apply = instance.world.applyTemporarySnapshot.bind(instance.world);
+    const rebuild = instance.world.rebuildRecoveryWorld.bind(instance.world);
+    const place = instance.world.placePlayerAtAnchor.bind(instance.world);
+    const effect = instance.world.setPermanentEffect.bind(instance.world);
+    instance.world.applyTemporarySnapshot = (...args) => {
+      worldWrites++;
+      return apply(...args);
+    };
+    instance.world.rebuildRecoveryWorld = () => {
+      worldWrites++;
+      return rebuild();
+    };
+    instance.world.placePlayerAtAnchor = (...args) => {
+      worldWrites++;
+      return place(...args);
+    };
+    instance.world.setPermanentEffect = (...args) => {
+      worldWrites++;
+      return effect(...args);
+    };
+
+    instance.triggerFailure();
+    instance.stepUntil(snapshot => snapshot.recovery.phase === 'failed');
+    const failed = instance.core.snapshot;
+    assert.equal(
+      worldWrites,
+      0,
+      `${corruption.name} must be rejected before recovery world writes`,
+    );
+    assert.equal(failed.checkpointSnapshot.current, original);
+    assert.equal(failed.recovery.sourceSnapshot, null);
+    assert.equal(failed.recovery.worldValidation, null);
+    assert.equal(failed.recovery.anchorAttempts.length, 0);
+    assert.equal(failed.recovery.placedTick, null);
+    assert.equal(failed.recovery.controlLockHeld, true);
+    assert.equal(failed.recovery.triggersShielded, true);
+    assert.equal(instance.core.reset().status, 'blocked');
+  }
+});
+
+test('D11-A2 AV05 fallback success preserves the source record, IDs, progress and route', () => {
+  const progress = new InMemoryRunProgress();
+  progress.completeGoal(PROTOTYPE_PROGRESS_CONTENT.goal.businessId);
+  const instance = fixture({ progress });
+  const requested = instance.core.requestCheckpointCapture(
+    GRAYBOX_TEST_CAPTURE_CHECKPOINT_A_ID,
+    captureAuthorization(instance, GRAYBOX_TEST_CAPTURE_CHECKPOINT_A_ID),
+  );
+  assert.ok(requested.status === 'created');
+  instance.stepUntil(snapshot =>
+    snapshot.checkpointCapture.phase === 'succeeded' &&
+    snapshot.checkpointCapture.successfulCommits === 1);
+  const before = instance.core.snapshot;
+  const sourceRecord = before.checkpointSnapshot.current;
+  assert.ok(sourceRecord);
+  const identityBefore = {
+    runtime: before.goalRoute.runtimeInstanceId,
+    event: before.goalRoute.eventId,
+    command: before.goalRoute.commandId,
+    transaction: before.goalRoute.transactionId,
+    result: before.goalRoute.resultEventId,
+  };
+  const countersBefore = {
+    goals: before.progress.counts.goals,
+    rewards: before.progress.counts.rewards,
+    effects: before.progress.counts.effects,
+    saves: before.checkpointCapture.successfulCommits,
+    entries: before.checkpointTriggers.entryEventCount,
+  };
+
+  addSolidBlocker(instance, 'test-active-A-primary-blocker', 1200, 472);
+  instance.triggerFailure();
+  const completed = waitForRecovery(instance);
+  assert.deepEqual(completed.recovery.sourceAnchor, {
+    x: 1200,
+    y: 472,
+    facing: 1,
+  });
+  assert.deepEqual(completed.recovery.selectedAnchor, {
+    x: 1160,
+    y: 472,
+    facing: 1,
+  });
+  assert.equal(completed.recovery.selectedAnchorRole, 'fallback');
+  assert.equal(completed.recovery.selectedFallbackIndex, 0);
+  assert.equal(completed.checkpointSnapshot.current, sourceRecord);
+  assert.deepEqual(
+    {
+      runtime: completed.goalRoute.runtimeInstanceId,
+      event: completed.goalRoute.eventId,
+      command: completed.goalRoute.commandId,
+      transaction: completed.goalRoute.transactionId,
+      result: completed.goalRoute.resultEventId,
+    },
+    identityBefore,
+  );
+  assert.deepEqual(
+    {
+      goals: completed.progress.counts.goals,
+      rewards: completed.progress.counts.rewards,
+      effects: completed.progress.counts.effects,
+      saves: completed.checkpointCapture.successfulCommits,
+      entries: completed.checkpointTriggers.entryEventCount,
+    },
+    countersBefore,
+  );
+  assert.equal(instance.world.progressRouteOpen, true);
+  assert.equal(completed.player.controlAllowed, true);
 });

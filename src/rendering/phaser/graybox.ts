@@ -240,14 +240,21 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
               .setAlpha(recovery.fadeAlpha)
               .setVisible(recovery.fadeAlpha > 0.001);
             recoveryHud.setText(
-              `D11-A1 坠落恢复 ${recovery.phase.toUpperCase()}` +
+              `D11-A2 坠落恢复 ${recovery.phase.toUpperCase()}` +
               ` · fall ${world.failureZone.occupied ? 'ON' : 'OFF'}` +
               ` · E${recovery.failureEventId ?? '-'}\n` +
               `${recovery.message}\n` +
               `source ${recovery.sourceCheckpointId ?? '-'}` +
-              ` · anchor ${recovery.sourceAnchor
+              ` · primary ${recovery.sourceAnchor
                 ? `${recovery.sourceAnchor.x},${recovery.sourceAnchor.y},${recovery.sourceAnchor.facing}`
                 : '-'}` +
+              ` · selected ${recovery.selectedAnchor
+                ? `${recovery.selectedAnchor.x},${recovery.selectedAnchor.y},${recovery.selectedAnchor.facing}`
+                : '-'}` +
+              ` (${recovery.selectedAnchorRole ?? '-'})\n` +
+              `world ${recovery.worldValidation?.status ?? '-'}` +
+              ` · attempts ${recovery.anchorAttempts.length}` +
+              ` · warnings ${recovery.worldValidation?.warnings.length ?? 0}` +
               ` · recovered ${recovery.recoveryCount}` +
               ` · control ${recovery.controlLockHeld ? 'LOCKED' : 'OPEN'}`,
             ).setVisible(

@@ -2,7 +2,10 @@ import { FixedStepSimulation } from './simulation.ts';
 import { RuntimeLifecycleController } from './lifecycle.ts';
 import { PlayerMotor, type PlayerState } from './player.ts';
 import { InteractionController, type InteractionObject } from './interaction.ts';
-import { InMemoryRunProgress } from './progress.ts';
+import {
+  InMemoryRunProgress,
+  type PermanentEffectSnapshot,
+} from './progress.ts';
 import {
   PrototypeGoalRouteRuntime,
   GOAL_ROUTE_EVENT_TYPE,
@@ -38,6 +41,7 @@ import {
   type FailureZoneSnapshot,
   type PlayerRecoveryOptions,
   type RecoveryAnchorValidationResult,
+  type RecoveryWorldValidationResult,
 } from './recovery.ts';
 
 export const GRAYBOX_SIMULATION = Object.freeze({ fixedDeltaMs: 1000 / 60, maxStepsPerFrame: 5 });
@@ -70,6 +74,10 @@ export type GrayboxPhysics = TemporarySnapshotSource & {
   readonly frozenTemporaryObjectIds: readonly string[];
   applyTemporarySnapshot(objects: TemporarySnapshot['objects']): void;
   rebuildRecoveryWorld(): void;
+  validateRecoveryWorld(
+    objects: TemporarySnapshot['objects'],
+    expectedPermanentEffects: readonly PermanentEffectSnapshot[],
+  ): RecoveryWorldValidationResult;
   validateRecoveryAnchor(
     anchor: SnapshotAnchor,
     checkpointId: string,
@@ -203,6 +211,7 @@ export function createGrayboxCore(
     getCurrentSnapshot: () => snapshotStore.current,
     getCaptureSnapshot: () => checkpointCapture.snapshot,
     reconcilePermanentEffects,
+    getPermanentEffects: () => progress.snapshot.effects,
     interruptInteraction: () => interaction.interruptTransientSession(),
     resetInputsAfterPlacement: () => {
       motor.reset();

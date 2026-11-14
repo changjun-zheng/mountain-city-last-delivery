@@ -110,12 +110,20 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       ` resources ${checkpointCapture.resourceOwnership.resourcesReleased ? 'RELEASED' : 'HELD'}`,
     );
     common.push(
-      `D11-A1 recovery ${recovery.phase.toUpperCase()}` +
+      `D11-A2 recovery ${recovery.phase.toUpperCase()}` +
       ` | fall event ${recovery.failureEventId ?? '-'}` +
       ` | source ${recovery.sourceCheckpointId ?? '-'}` +
-      ` | anchor ${recovery.sourceAnchor
+      ` | primary ${recovery.sourceAnchor
         ? `${recovery.sourceAnchor.x},${recovery.sourceAnchor.y},${recovery.sourceAnchor.facing}`
         : '-'}` +
+      ` | selected ${recovery.selectedAnchor
+        ? `${recovery.selectedAnchor.x},${recovery.selectedAnchor.y},${recovery.selectedAnchor.facing}`
+        : '-'}` +
+      ` ${recovery.selectedAnchorRole ?? '-'}` +
+      ` | world ${recovery.worldValidation?.status ?? '-'}` +
+      ` (${recovery.worldValidation?.critical.length ?? 0} critical,` +
+      ` ${recovery.worldValidation?.warnings.length ?? 0} warning)` +
+      ` | attempts ${recovery.anchorAttempts.length}` +
       ` | recovered ${recovery.recoveryCount}` +
       ` | control ${recovery.controlLockHeld ? 'LOCKED' : 'OPEN'}` +
       ` | ${recovery.message}`,
@@ -371,6 +379,21 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       recoverySourceAnchor: recovery.sourceAnchor
         ? `${recovery.sourceAnchor.x},${recovery.sourceAnchor.y},${recovery.sourceAnchor.facing}`
         : '',
+      recoverySelectedAnchor: recovery.selectedAnchor
+        ? `${recovery.selectedAnchor.x},${recovery.selectedAnchor.y},${recovery.selectedAnchor.facing}`
+        : '',
+      recoverySelectedAnchorRole: recovery.selectedAnchorRole ?? '',
+      recoverySelectedFallbackIndex: recovery.selectedFallbackIndex == null
+        ? '' : String(recovery.selectedFallbackIndex),
+      recoveryAnchorAttemptCount: String(recovery.anchorAttempts.length),
+      recoveryAnchorAttempts: JSON.stringify(recovery.anchorAttempts),
+      recoveryWorldValidationStatus: recovery.worldValidation?.status ?? '',
+      recoveryWorldValidationCritical: JSON.stringify(
+        recovery.worldValidation?.critical ?? [],
+      ),
+      recoveryWorldValidationWarnings: JSON.stringify(
+        recovery.worldValidation?.warnings ?? [],
+      ),
       recoverySourcePayload: recovery.sourceSnapshot
         ? JSON.stringify(recovery.sourceSnapshot) : '',
       recoveryAnchorValidation: recovery.anchorValidation

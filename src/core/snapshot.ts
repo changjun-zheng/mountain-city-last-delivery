@@ -19,6 +19,9 @@ export type GrayboxCheckpointConfig = Readonly<{
   checkpointId: string;
   levelId: string;
   anchor: SnapshotAnchor;
+  // Trusted, finite order. Recovery checks these only when the primary anchor
+  // fails, never as a map-wide or randomized search.
+  fallbackAnchors: readonly SnapshotAnchor[];
 }>;
 
 export type MovingPlatformLogicalState = Readonly<{
@@ -76,16 +79,25 @@ export const GRAYBOX_CHECKPOINT_CONFIGS: readonly GrayboxCheckpointConfig[] =
       checkpointId: GRAYBOX_CHECKPOINT_ID,
       levelId: GRAYBOX_LEVEL_ID,
       anchor: Object.freeze({ x: 80, y: 472, facing: 1 as const }),
+      fallbackAnchors: Object.freeze([
+        Object.freeze({ x: 160, y: 472, facing: 1 as const }),
+        Object.freeze({ x: 700, y: 472, facing: -1 as const }),
+      ]),
     }),
     Object.freeze({
       checkpointId: GRAYBOX_TEST_CAPTURE_CHECKPOINT_A_ID,
       levelId: GRAYBOX_LEVEL_ID,
       anchor: Object.freeze({ x: 1200, y: 472, facing: 1 as const }),
+      fallbackAnchors: Object.freeze([
+        Object.freeze({ x: 1160, y: 472, facing: 1 as const }),
+        Object.freeze({ x: 1300, y: 472, facing: -1 as const }),
+      ]),
     }),
     Object.freeze({
       checkpointId: GRAYBOX_TEST_CAPTURE_CHECKPOINT_B_ID,
       levelId: GRAYBOX_LEVEL_ID,
       anchor: Object.freeze({ x: 1270, y: 472, facing: 1 as const }),
+      fallbackAnchors: Object.freeze([]),
     }),
   ]);
 

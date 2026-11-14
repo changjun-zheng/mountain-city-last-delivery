@@ -7,12 +7,17 @@ import type {
   PlayerControlCoordinator,
   PlayerState,
 } from './player.ts';
+import type { PermanentEffectSnapshot } from './progress.ts';
 import type {
+  GrayboxCheckpointConfig,
   SnapshotAnchor,
   TemporarySnapshot,
   TemporarySnapshotObject,
 } from './snapshot.ts';
-import { validateTemporarySnapshot } from './snapshot.ts';
+import {
+  getGrayboxCheckpointConfig,
+  validateTemporarySnapshot,
+} from './snapshot.ts';
 import type { SnapshotCaptureRuntimeSnapshot } from './snapshot-capture-runtime.ts';
 import type { CheckpointTriggerOccupancySnapshot } from './checkpoint-triggers.ts';
 
@@ -56,12 +61,37 @@ export type RecoveryAnchorValidationResult =
     blockerLabels: readonly string[];
   }>;
 
+export type RecoveryWorldValidationIssue = Readonly<{
+  code: string;
+  message: string;
+}>;
+
+export type RecoveryWorldValidationResult = Readonly<{
+  status: 'valid' | 'invalid';
+  critical: readonly RecoveryWorldValidationIssue[];
+  warnings: readonly RecoveryWorldValidationIssue[];
+}>;
+
+export type RecoveryAnchorAttempt = Readonly<{
+  role: 'primary' | 'fallback';
+  fallbackIndex: number | null;
+  anchor: SnapshotAnchor;
+  status: 'valid' | 'invalid';
+  support: string | null;
+  reason: string | null;
+  blockerLabels: readonly string[];
+}>;
+
 export type PlayerRecoveryWorld = Readonly<{
   readonly failureZone: FailureZoneSnapshot;
   readonly state: PlayerState;
   readonly frozenTemporaryObjectIds: readonly string[];
   applyTemporarySnapshot(objects: readonly TemporarySnapshotObject[]): void;
   rebuildRecoveryWorld(): void;
+  validateRecoveryWorld(
+    objects: readonly TemporarySnapshotObject[],
+    expectedPermanentEffects: readonly PermanentEffectSnapshot[],
+  ): RecoveryWorldValidationResult;
   validateRecoveryAnchor(
     anchor: SnapshotAnchor,
     checkpointId: string,
@@ -91,6 +121,18 @@ export type PlayerRecoveryFaultPoint =
 
 export type PlayerRecoveryOptions = Readonly<{
   faultInjector?: (point: PlayerRecoveryFaultPoint) => void;
+  // Read-only test seam for exercising preflight rejection through the complete
+  // recovery flow. Hosts cannot submit replacement snapshots through this API.
+  sourceOverride?: () => unknown;
+  // A production decoration system does not exist yet. This narrow seam lets
+  // integration tests prove that non-critical warnings do not alter recovery.
+  worldValidationWarningInjector?: (
+    context: Readonly<{
+      runtimeInstanceId: string;
+      checkpoint: GrayboxCheckpointConfig;
+      objects: readonly TemporarySnapshotObject[];
+    }>,
+  ) => readonly string[];
 }>;
 
 export type PlayerRecoveryPhaseRecord = Readonly<{
@@ -124,6 +166,11 @@ export type PlayerRecoverySnapshot = Readonly<{
   releasedTick: number | null;
   sourceCheckpointId: string | null;
   sourceAnchor: SnapshotAnchor | null;
+  selectedAnchor: SnapshotAnchor | null;
+  selectedAnchorRole: 'primary' | 'fallback' | null;
+  selectedFallbackIndex: number | null;
+  anchorAttempts: readonly RecoveryAnchorAttempt[];
+  worldValidation: RecoveryWorldValidationResult | null;
   sourceSnapshot: TemporarySnapshot | null;
   anchorValidation: RecoveryAnchorValidationResult | null;
   lastError: string | null;
@@ -137,6 +184,7 @@ export type PlayerRecoveryRuntimeOptions = Readonly<{
   getCurrentSnapshot: () => TemporarySnapshot | null;
   getCaptureSnapshot: () => SnapshotCaptureRuntimeSnapshot;
   reconcilePermanentEffects: () => void;
+  getPermanentEffects: () => readonly PermanentEffectSnapshot[];
   interruptInteraction: () => void;
   resetInputsAfterPlacement: () => void;
   restoreFacing: (facing: -1 | 1) => void;
@@ -158,6 +206,7 @@ export class PlayerRecoveryRuntime {
   readonly #getCurrentSnapshot: () => TemporarySnapshot | null;
   readonly #getCaptureSnapshot: () => SnapshotCaptureRuntimeSnapshot;
   readonly #reconcilePermanentEffects: () => void;
+  readonly #getPermanentEffects: () => readonly PermanentEffectSnapshot[];
   readonly #interruptInteraction: () => void;
   readonly #resetInputsAfterPlacement: () => void;
   readonly #restoreFacing: (facing: -1 | 1) => void;
@@ -171,6 +220,9 @@ export class PlayerRecoveryRuntime {
   readonly #producer: EventProducerHandle;
   readonly #owner = Symbol('player-recovery-control');
   readonly #faultInjector: PlayerRecoveryOptions['faultInjector'];
+  readonly #sourceOverride: PlayerRecoveryOptions['sourceOverride'];
+  readonly #worldValidationWarningInjector:
+    PlayerRecoveryOptions['worldValidationWarningInjector'];
   readonly #phaseHistory: PlayerRecoveryPhaseRecord[] = [];
   #phase: PlayerRecoveryPhase = 'idle';
   #message = 'Fall recovery is idle.';
@@ -195,6 +247,11 @@ export class PlayerRecoveryRuntime {
   #fadeInCompletedTick: number | null = null;
   #releasedTick: number | null = null;
   #sourceSnapshot: TemporarySnapshot | null = null;
+  #selectedAnchor: SnapshotAnchor | null = null;
+  #selectedAnchorRole: 'primary' | 'fallback' | null = null;
+  #selectedFallbackIndex: number | null = null;
+  #anchorAttempts: RecoveryAnchorAttempt[] = [];
+  #worldValidation: RecoveryWorldValidationResult | null = null;
   #anchorValidation: RecoveryAnchorValidationResult | null = null;
   #lastError: string | null = null;
 
@@ -206,6 +263,7 @@ export class PlayerRecoveryRuntime {
     this.#getCurrentSnapshot = options.getCurrentSnapshot;
     this.#getCaptureSnapshot = options.getCaptureSnapshot;
     this.#reconcilePermanentEffects = options.reconcilePermanentEffects;
+    this.#getPermanentEffects = options.getPermanentEffects;
     this.#interruptInteraction = options.interruptInteraction;
     this.#resetInputsAfterPlacement = options.resetInputsAfterPlacement;
     this.#restoreFacing = options.restoreFacing;
@@ -214,6 +272,9 @@ export class PlayerRecoveryRuntime {
     this.#getCheckpointEnabled = options.getCheckpointEnabled;
     this.#producer = options.bus.createProducer();
     this.#faultInjector = options.options?.faultInjector;
+    this.#sourceOverride = options.options?.sourceOverride;
+    this.#worldValidationWarningInjector =
+      options.options?.worldValidationWarningInjector;
   }
 
   get triggersShielded(): boolean {
@@ -253,6 +314,11 @@ export class PlayerRecoveryRuntime {
     this.#fadeInCompletedTick = null;
     this.#releasedTick = null;
     this.#sourceSnapshot = null;
+    this.#selectedAnchor = null;
+    this.#selectedAnchorRole = null;
+    this.#selectedFallbackIndex = null;
+    this.#anchorAttempts = [];
+    this.#worldValidation = null;
     this.#anchorValidation = null;
     this.#lastError = null;
     this.#fadeElapsedMs = 0;
@@ -392,7 +458,8 @@ export class PlayerRecoveryRuntime {
           this.#setPhase(
             'succeeded',
             tick,
-            `恢复完成于 ${this.#sourceSnapshot?.checkpointId ?? '-'}；` +
+            `恢复完成于 ${this.#sourceSnapshot?.checkpointId ?? '-'}，` +
+              `落点 ${this.#selectedAnchorRole ?? '-'}；` +
               '控制与触发已释放。',
           );
         } catch (error) {
@@ -435,6 +502,27 @@ export class PlayerRecoveryRuntime {
       releasedTick: this.#releasedTick,
       sourceCheckpointId: this.#sourceSnapshot?.checkpointId ?? null,
       sourceAnchor: this.#sourceSnapshot?.anchor ?? null,
+      selectedAnchor: this.#selectedAnchor,
+      selectedAnchorRole: this.#selectedAnchorRole,
+      selectedFallbackIndex: this.#selectedFallbackIndex,
+      anchorAttempts: Object.freeze(
+        this.#anchorAttempts.map(attempt => Object.freeze({
+          ...attempt,
+          anchor: Object.freeze({ ...attempt.anchor }),
+          blockerLabels: Object.freeze([...attempt.blockerLabels]),
+        })),
+      ),
+      worldValidation: this.#worldValidation
+        ? Object.freeze({
+          ...this.#worldValidation,
+          critical: Object.freeze(
+            this.#worldValidation.critical.map(issue => Object.freeze({ ...issue })),
+          ),
+          warnings: Object.freeze(
+            this.#worldValidation.warnings.map(issue => Object.freeze({ ...issue })),
+          ),
+        })
+        : null,
       sourceSnapshot: this.#sourceSnapshot,
       anchorValidation: this.#anchorValidation,
       lastError: this.#lastError,
@@ -445,9 +533,17 @@ export class PlayerRecoveryRuntime {
   #tryRestore(tick: number): void {
     try {
       if (!this.#captureSafe()) return;
-      const current = this.#getCurrentSnapshot();
+      const current = this.#sourceOverride
+        ? this.#sourceOverride()
+        : this.#getCurrentSnapshot();
       if (!current) throw new Error('当前没有可用的检查点快照。');
-      const source = validateTemporarySnapshot(current, current.checkpointId);
+      const requestedCheckpointId =
+        typeof current === 'object' && current !== null &&
+        'checkpointId' in current &&
+        typeof current.checkpointId === 'string'
+          ? current.checkpointId
+          : undefined;
+      const source = validateTemporarySnapshot(current, requestedCheckpointId);
       if (source.runtimeInstanceId !== this.runtimeInstanceId) {
         throw new Error('检查点快照不属于当前 Runtime Instance。');
       }
@@ -469,24 +565,81 @@ export class PlayerRecoveryRuntime {
       this.#setPhase(
         'validating',
         tick,
-        '临时状态与永久效果已形成完整逻辑结果；验证主锚点。',
+        '临时状态与永久效果已形成完整逻辑结果；验证恢复世界与预设锚点。',
       );
-      const validation = this.#world.validateRecoveryAnchor(
-        source.anchor,
-        source.checkpointId,
+      const checkpoint = getGrayboxCheckpointConfig(source.checkpointId);
+      const worldValidation = this.#validateRecoveredWorld(
+        source,
+        checkpoint,
       );
-      this.#anchorValidation = validation;
-      if (validation.status !== 'valid') {
+      this.#worldValidation = worldValidation;
+      if (worldValidation.status !== 'valid') {
         throw new Error(
-          `锚点验证失败：${validation.reason}` +
-            (validation.blockerLabels.length
-              ? ` (${validation.blockerLabels.join(', ')})`
-              : ''),
+          `恢复世界一致性验证失败：` +
+            worldValidation.critical.map(issue => issue.message).join('；'),
         );
       }
+      const anchors: readonly Readonly<{
+        anchor: SnapshotAnchor;
+        role: 'primary' | 'fallback';
+        fallbackIndex: number | null;
+      }>[] = [
+        Object.freeze({
+          anchor: source.anchor,
+          role: 'primary' as const,
+          fallbackIndex: null,
+        }),
+        ...checkpoint.fallbackAnchors.map((anchor, fallbackIndex) =>
+          Object.freeze({
+            anchor,
+            role: 'fallback' as const,
+            fallbackIndex,
+          })),
+      ];
+      let selected: Readonly<{
+        anchor: SnapshotAnchor;
+        role: 'primary' | 'fallback';
+        fallbackIndex: number | null;
+        validation: Extract<RecoveryAnchorValidationResult, { status: 'valid' }>;
+      }> | null = null;
+      for (const candidate of anchors) {
+        const validation = this.#world.validateRecoveryAnchor(
+          candidate.anchor,
+          source.checkpointId,
+        );
+        this.#anchorAttempts.push(Object.freeze({
+          role: candidate.role,
+          fallbackIndex: candidate.fallbackIndex,
+          anchor: Object.freeze({ ...candidate.anchor }),
+          status: validation.status,
+          support: validation.status === 'valid' ? validation.support : null,
+          reason: validation.status === 'invalid' ? validation.reason : null,
+          blockerLabels: Object.freeze([...validation.blockerLabels]),
+        }));
+        if (validation.status === 'valid') {
+          selected = Object.freeze({ ...candidate, validation });
+          break;
+        }
+        this.#anchorValidation = validation;
+      }
+      if (!selected) {
+        const reasons = this.#anchorAttempts
+          .map(attempt =>
+            `${attempt.role === 'primary'
+              ? 'primary'
+              : `fallback[${attempt.fallbackIndex}]`}: ${attempt.reason ?? 'unsafe'}`)
+          .join('；');
+        throw new Error(
+          `锚点验证失败：所有 ${anchors.length} 个预设锚点均不安全（${reasons}）。`,
+        );
+      }
+      this.#selectedAnchor = Object.freeze({ ...selected.anchor });
+      this.#selectedAnchorRole = selected.role;
+      this.#selectedFallbackIndex = selected.fallbackIndex;
+      this.#anchorValidation = selected.validation;
       this.#validatedTick = tick;
       this.#faultInjector?.('after-anchor-validation');
-      this.#world.placePlayerAtAnchor(source.anchor);
+      this.#world.placePlayerAtAnchor(selected.anchor);
       this.#placedTick = tick;
       this.#faultInjector?.('after-player-placement');
       this.#world.synchronizeRecoveryOccupancy(tick);
@@ -496,16 +649,59 @@ export class PlayerRecoveryRuntime {
         tick,
       );
       this.#resetInputsAfterPlacement();
-      this.#restoreFacing(source.anchor.facing);
+      this.#restoreFacing(selected.anchor.facing);
       this.#fadeElapsedMs = 0;
       this.#setPhase(
         'fading-in',
         tick,
-        `已放置到 ${source.checkpointId} 锚点；开始淡入。`,
+        `已放置到 ${source.checkpointId} 的 ` +
+          `${selected.role === 'primary'
+            ? '主锚点'
+            : `备用锚点 #${(selected.fallbackIndex ?? 0) + 1}`}；开始淡入。`,
       );
     } catch (error) {
       this.#fail(tick, `检查点恢复失败：${toMessage(error)}`);
     }
+  }
+
+  #validateRecoveredWorld(
+    source: TemporarySnapshot,
+    checkpoint: GrayboxCheckpointConfig,
+  ): RecoveryWorldValidationResult {
+    const worldResult = this.#world.validateRecoveryWorld(
+      source.objects,
+      this.#getPermanentEffects(),
+    );
+    const critical = [...worldResult.critical];
+    if (!this.#controlLockHeld) {
+      critical.push(Object.freeze({
+        code: 'recovery-control-lock-missing',
+        message: '恢复世界验证期间控制锁未保持。',
+      }));
+    }
+    if (!this.#triggersShielded) {
+      critical.push(Object.freeze({
+        code: 'recovery-trigger-shield-missing',
+        message: '恢复世界验证期间检查点触发屏蔽未保持。',
+      }));
+    }
+    const injectedWarnings = this.#worldValidationWarningInjector?.({
+      runtimeInstanceId: this.runtimeInstanceId,
+      checkpoint,
+      objects: source.objects,
+    }) ?? [];
+    const warnings = [
+      ...worldResult.warnings,
+      ...injectedWarnings.map((message, index) => Object.freeze({
+        code: `synthetic-warning-${index + 1}`,
+        message,
+      })),
+    ];
+    return Object.freeze({
+      status: critical.length === 0 ? 'valid' as const : 'invalid' as const,
+      critical: Object.freeze(critical),
+      warnings: Object.freeze(warnings),
+    });
   }
 
   #captureSafe(): boolean {
