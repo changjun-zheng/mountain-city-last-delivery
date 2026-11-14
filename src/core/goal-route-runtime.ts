@@ -2,8 +2,8 @@ import type {
   CommandCreationCoordinator,
   TargetTransactionModule,
 } from './commands.ts';
+import { BusinessRuntimeBus } from './business-runtime-bus.ts';
 import {
-  RuntimeEventContext,
   type EventCreationFaultInjector,
   type EventCreationCoordinator,
   type EventProducerHandle,
@@ -133,6 +133,7 @@ const EMPTY_COUNTS: GoalRouteProgressCounts = Object.freeze({
 export class PrototypeGoalRouteRuntime {
   readonly runtimeInstanceId: string;
   readonly #progress: InMemoryRunProgress;
+  readonly #bus: BusinessRuntimeBus;
   readonly #events: EventCreationCoordinator;
   readonly #commands: CommandCreationCoordinator;
   readonly #target: TargetTransactionModule;
@@ -175,54 +176,32 @@ export class PrototypeGoalRouteRuntime {
     progress: InMemoryRunProgress,
     uuidProvider: RuntimeUuidProvider,
     options: GoalRouteRuntimeOptions = {},
+    sharedBus?: BusinessRuntimeBus,
   ) {
     this.#progress = progress;
-    const context = new RuntimeEventContext(uuidProvider, {
-      initialNextEventId: options.initialNextEventId,
-      initialNextCommandId: options.initialNextCommandId,
-      initialNextTransactionId: options.initialNextTransactionId,
-    });
-    this.runtimeInstanceId = context.runtimeInstanceId;
-
-    let target: TargetTransactionModule | undefined;
-    this.#events = context.createCoordinator({
-      inboxCapacity: options.inboxCapacity ?? 16,
-      historyCapacity: options.historyCapacity ?? 64,
-      transactionResultCapacity: options.transactionResultCapacity ?? 8,
+    this.#bus = sharedBus ?? new BusinessRuntimeBus(uuidProvider, {
       allowedEventTypes: [
         GOAL_ROUTE_EVENT_TYPE,
         TRANSACTION_RESULT_EVENT_TYPE,
       ],
-      faultInjector: options.eventFaultInjector,
+      initialNextEventId: options.initialNextEventId,
+      initialNextCommandId: options.initialNextCommandId,
+      initialNextTransactionId: options.initialNextTransactionId,
+      inboxCapacity: options.inboxCapacity ?? 16,
+      historyCapacity: options.historyCapacity ?? 64,
+      transactionResultCapacity: options.transactionResultCapacity ?? 8,
+      commandCapacity: options.commandCapacity ?? 16,
+      eventFaultInjector: options.eventFaultInjector,
       retirementFaultInjector: options.retirementFaultInjector,
-      transactionResultConsumer: result => this.#consumeTransactionResult(result),
-      realCommandDelivery: {
-        capacity: 16,
-        handler: event => {
-          if (event.type !== GOAL_ROUTE_EVENT_TYPE ||
-              event.payload.goalId !== PROTOTYPE_PROGRESS_CONTENT.goal.businessId) {
-            throw new Error('The route event does not request the configured goal.');
-          }
-          return {
-            sourceEvent: event,
-            targetId: GOAL_ROUTE_TARGET_ID,
-            commandType: GOAL_ROUTE_COMMAND_TYPE,
-            payload: {
-              goalId: PROTOTYPE_PROGRESS_CONTENT.goal.businessId,
-            },
-          };
-        },
-        targetFor: targetId => targetId === GOAL_ROUTE_TARGET_ID ? target : undefined,
-      },
     });
-    this.#commands = this.#events.createCommandCoordinator({
-      capacity: options.commandCapacity ?? 16,
-    });
+    this.runtimeInstanceId = this.#bus.runtimeInstanceId;
+
+    this.#events = this.#bus.events;
+    this.#commands = this.#bus.commands;
     this.#target = this.#commands.createTargetTransactionModule(
       GOAL_ROUTE_TARGET_ID,
       { capacity: 16 },
     );
-    target = this.#target;
     this.#resultSource = this.#events.createTransactionResultSource(
       GOAL_ROUTE_TARGET_ID,
     );
@@ -246,6 +225,24 @@ export class PrototypeGoalRouteRuntime {
         },
       },
     );
+    this.#bus.register({
+      eventType: GOAL_ROUTE_EVENT_TYPE,
+      target: this.#target,
+      createCommand: event => {
+        if (event.payload.goalId !== PROTOTYPE_PROGRESS_CONTENT.goal.businessId) {
+          throw new Error('The route event does not request the configured goal.');
+        }
+        return {
+          sourceEvent: event,
+          targetId: GOAL_ROUTE_TARGET_ID,
+          commandType: GOAL_ROUTE_COMMAND_TYPE,
+          payload: {
+            goalId: PROTOTYPE_PROGRESS_CONTENT.goal.businessId,
+          },
+        };
+      },
+      consumeResult: result => this.#consumeTransactionResult(result),
+    });
     this.#resultConsumerFaultInjector = options.resultConsumerFaultInjector;
     if (this.#progress.snapshot.goals.includes(
       PROTOTYPE_PROGRESS_CONTENT.goal.businessId,
@@ -309,6 +306,14 @@ export class PrototypeGoalRouteRuntime {
   }
 
   step(simulationTick: number): void {
+    const dispatch = this.#bus.dispatch(simulationTick);
+    this.afterDispatch(simulationTick, dispatch);
+  }
+
+  afterDispatch(
+    simulationTick: number,
+    dispatch: ReturnType<BusinessRuntimeBus['dispatch']>,
+  ): void {
     if (!Number.isSafeInteger(simulationTick) || simulationTick < 1) {
       throw new RangeError('Goal route simulation tick must be a positive safe integer.');
     }
@@ -318,13 +323,6 @@ export class PrototypeGoalRouteRuntime {
     this.#lastStepTick = simulationTick;
 
     try {
-      // Coordination is one fixed, single-pass phase. Events created after the
-      // snapshot remain Pending until the next actual SimulationTick.
-      const dispatch = this.#events.dispatch({
-        runtimeInstanceId: this.runtimeInstanceId,
-        simulationTick,
-        phase: 'coordination',
-      });
       if (dispatch.status !== 'completed') {
         this.#setBlocked(
           dispatch.status === 'blocked'

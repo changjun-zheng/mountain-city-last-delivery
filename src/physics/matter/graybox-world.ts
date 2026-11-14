@@ -1,6 +1,10 @@
 import type {} from 'phaser';
 import { PLAYER_PROTOTYPE, type PlayerState } from '../../core/player.ts';
-import type { GrayboxPhysics } from '../../core/graybox.ts';
+import type {
+  GrayboxPhysics,
+  TemporaryObjectFreezeResult,
+  TemporaryObjectReleaseResult,
+} from '../../core/graybox.ts';
 import { PROTOTYPE_PROGRESS_CONTENT } from '../../core/progress.ts';
 import type {
   MovingPlatformLogicalState,
@@ -56,6 +60,7 @@ export type MatterGrayboxDiagnostics = Readonly<{
   diagnosticZones: readonly DiagnosticZoneSnapshot[];
   diagnosticBaselineTick: number;
   diagnosticBaselineCount: number;
+  frozenObjectIds: readonly string[];
 }>;
 
 const PLAYER_CATEGORY = 0x0002;
@@ -130,6 +135,8 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   #lastSimulationTick = 0;
   #driveVelocity = { x: 0, y: 0 };
   #carriedBy?: MovingPlatformRuntime;
+  #temporaryObjectFreezeOwner?: object;
+  #frozenTemporaryObjectIds: readonly string[] = Object.freeze([]);
   #state: PlayerState = { x: 80, y: 472, vx: 0, vy: 0, grounded: false,
     worldVx: 0, worldVy: 0, supportVx: 0, supportVy: 0,
     normalX: 0, normalY: -1, support: '', wall: false, ceiling: false };
@@ -255,6 +262,73 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     this.#setProgressRouteOpen(expectedActive);
   }
 
+  freezeTemporaryObjects(
+    objectIds: readonly string[],
+    owner: object,
+  ): TemporaryObjectFreezeResult {
+    if (owner === null || typeof owner !== 'object') {
+      throw new TypeError('Temporary-object freeze owner must be an object.');
+    }
+    if (new Set(objectIds).size !== objectIds.length ||
+        objectIds.length !== this.#movingPlatforms.length ||
+        objectIds.some(objectId => !this.#movingByLabel.has(objectId))) {
+      throw new Error('Temporary-object freeze must cover the exact fixed registry.');
+    }
+    if (this.#temporaryObjectFreezeOwner) {
+      if (this.#temporaryObjectFreezeOwner === owner) {
+        return Object.freeze({
+          status: 'existing' as const,
+          frozenObjectIds: this.#frozenTemporaryObjectIds,
+        });
+      }
+      return Object.freeze({
+        status: 'busy' as const,
+        frozenObjectIds: this.#frozenTemporaryObjectIds,
+      });
+    }
+    this.#temporaryObjectFreezeOwner = owner;
+    this.#frozenTemporaryObjectIds = Object.freeze([...objectIds]);
+    for (const platform of this.#movingPlatforms) {
+      platform.deltaX = platform.deltaY = platform.vx = platform.vy = 0;
+      this.#matter.Body.setVelocity(platform.body, { x: 0, y: 0 });
+    }
+    return Object.freeze({
+      status: 'frozen' as const,
+      frozenObjectIds: this.#frozenTemporaryObjectIds,
+    });
+  }
+
+  releaseTemporaryObjects(owner: object): TemporaryObjectReleaseResult {
+    if (!this.#temporaryObjectFreezeOwner) {
+      return Object.freeze({
+        status: 'already-released' as const,
+        releasedObjectIds: Object.freeze([]),
+      });
+    }
+    if (this.#temporaryObjectFreezeOwner !== owner) {
+      return Object.freeze({
+        status: 'owner-mismatch' as const,
+        releasedObjectIds: Object.freeze([]),
+      });
+    }
+    const releasedObjectIds = this.#frozenTemporaryObjectIds;
+    this.#temporaryObjectFreezeOwner = undefined;
+    this.#frozenTemporaryObjectIds = Object.freeze([]);
+    return Object.freeze({
+      status: 'released' as const,
+      releasedObjectIds,
+    });
+  }
+
+  isTemporaryObjectChangeAllowed(objectId: string): boolean {
+    return !this.#temporaryObjectFreezeOwner ||
+      !this.#frozenTemporaryObjectIds.includes(objectId);
+  }
+
+  get frozenTemporaryObjectIds(): readonly string[] {
+    return this.#frozenTemporaryObjectIds;
+  }
+
   captureTemporaryObject(objectId: string): MovingPlatformLogicalState {
     const platform = this.#movingByLabel.get(objectId);
     if (!platform) throw new Error(`Unknown temporary snapshot object: ${objectId}.`);
@@ -328,6 +402,9 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   }
 
   reset(): void {
+    if (this.#temporaryObjectFreezeOwner) {
+      throw new Error('Debug reset is unavailable while checkpoint objects are frozen.');
+    }
     const m = this.#matter;
     m.Body.setPosition(this.player, { x: 80, y: 472 });
     m.Body.setVelocity(this.player, { x: 0, y: 0 });
@@ -413,6 +490,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       diagnosticZones: this.diagnosticZones,
       diagnosticBaselineTick: this.#diagnosticBaselineTick,
       diagnosticBaselineCount: this.#diagnosticBaselineCount,
+      frozenObjectIds: this.frozenTemporaryObjectIds,
     };
   }
 
@@ -501,6 +579,12 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   }
 
   #advanceMovingPlatforms(deltaMs: number): void {
+    if (this.#temporaryObjectFreezeOwner) {
+      for (const platform of this.#movingPlatforms) {
+        platform.deltaX = platform.deltaY = platform.vx = platform.vy = 0;
+      }
+      return;
+    }
     this.#platformClockMs += deltaMs;
     for (const platform of this.#movingPlatforms) {
       const d = platform.definition;

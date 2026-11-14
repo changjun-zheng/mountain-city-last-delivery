@@ -5,9 +5,11 @@ import { InteractionController, type InteractionObject } from './interaction.ts'
 import { InMemoryRunProgress } from './progress.ts';
 import {
   PrototypeGoalRouteRuntime,
+  GOAL_ROUTE_EVENT_TYPE,
   type GoalRouteRuntimeOptions,
 } from './goal-route-runtime.ts';
 import type { RuntimeUuidProvider } from './events.ts';
+import { BusinessRuntimeBus } from './business-runtime-bus.ts';
 import {
   captureInitialTemporarySnapshot,
   FixedTemporarySnapshotStore,
@@ -16,8 +18,24 @@ import {
   type TemporarySnapshotSource,
   type TemporarySnapshotState,
 } from './snapshot.ts';
+import {
+  CHECKPOINT_CAPTURE_EVENT_TYPE,
+  SnapshotCaptureRuntime,
+  type CheckpointCaptureAuthorization,
+  type SnapshotCaptureRuntimeOptions,
+} from './snapshot-capture-runtime.ts';
+import { TRANSACTION_RESULT_EVENT_TYPE } from './transaction-results.ts';
+import type { TransactionExecutionFaultInjector } from './transactions.ts';
 
 export const GRAYBOX_SIMULATION = Object.freeze({ fixedDeltaMs: 1000 / 60, maxStepsPerFrame: 5 });
+export type TemporaryObjectFreezeResult = Readonly<{
+  status: 'frozen' | 'existing' | 'busy';
+  frozenObjectIds: readonly string[];
+}>;
+export type TemporaryObjectReleaseResult = Readonly<{
+  status: 'released' | 'already-released' | 'owner-mismatch';
+  releasedObjectIds: readonly string[];
+}>;
 export type GrayboxPhysics = TemporarySnapshotSource & {
   readonly state: PlayerState;
   readonly steps: number;
@@ -26,6 +44,10 @@ export type GrayboxPhysics = TemporarySnapshotSource & {
   drive(vx: number, vy: number): void;
   step(deltaMs: number, tick: number): void;
   setPermanentEffect(effectId: string, expectedActive: boolean): void;
+  freezeTemporaryObjects(objectIds: readonly string[], owner: object): TemporaryObjectFreezeResult;
+  releaseTemporaryObjects(owner: object): TemporaryObjectReleaseResult;
+  isTemporaryObjectChangeAllowed(objectId: string): boolean;
+  readonly frozenTemporaryObjectIds: readonly string[];
   reset(): void;
 };
 
@@ -34,6 +56,9 @@ export type GrayboxCoreOptions = Readonly<{
   progress?: InMemoryRunProgress;
   goalRouteOptions?: GoalRouteRuntimeOptions;
   snapshotFaultInjector?: SnapshotFaultInjector;
+  checkpointCaptureOptions?: Omit<SnapshotCaptureRuntimeOptions, 'transactionFaultInjector'> & Readonly<{
+    transactionFaultInjector?: TransactionExecutionFaultInjector;
+  }>;
 }>;
 
 export function createGrayboxCore(
@@ -41,10 +66,29 @@ export function createGrayboxCore(
   options: GrayboxCoreOptions,
 ) {
   const progress = options.progress ?? new InMemoryRunProgress();
+  const snapshotStore = new FixedTemporarySnapshotStore();
+  const goalOptions = options.goalRouteOptions ?? {};
+  const businessBus = new BusinessRuntimeBus(options.uuidProvider, {
+    allowedEventTypes: [
+      GOAL_ROUTE_EVENT_TYPE,
+      CHECKPOINT_CAPTURE_EVENT_TYPE,
+      TRANSACTION_RESULT_EVENT_TYPE,
+    ],
+    initialNextEventId: goalOptions.initialNextEventId,
+    initialNextCommandId: goalOptions.initialNextCommandId,
+    initialNextTransactionId: goalOptions.initialNextTransactionId,
+    inboxCapacity: goalOptions.inboxCapacity ?? 16,
+    historyCapacity: goalOptions.historyCapacity ?? 64,
+    transactionResultCapacity: goalOptions.transactionResultCapacity ?? 16,
+    commandCapacity: goalOptions.commandCapacity ?? 16,
+    eventFaultInjector: goalOptions.eventFaultInjector,
+    retirementFaultInjector: goalOptions.retirementFaultInjector,
+  });
   const goalRoute = new PrototypeGoalRouteRuntime(
     progress,
     options.uuidProvider,
     options.goalRouteOptions,
+    businessBus,
   );
   const motor = new PlayerMotor();
   const availabilityOwner = Symbol('input-availability');
@@ -58,7 +102,6 @@ export function createGrayboxCore(
       physics.setPermanentEffect(effectId, expectedActive);
     });
   };
-  const snapshotStore = new FixedTemporarySnapshotStore();
   let checkpointSnapshot: TemporarySnapshotState;
   try {
     // CONFIRMED initialization order: temporary world exists, permanent effects
@@ -88,6 +131,13 @@ export function createGrayboxCore(
     // retain their independent control restrictions.
     motor.controls.request(checkpointInitializationOwner, false);
   }
+  const checkpointCapture = new SnapshotCaptureRuntime(
+    businessBus,
+    progress,
+    physics,
+    snapshotStore,
+    options.checkpointCaptureOptions,
+  );
   const activateProgress = (object: InteractionObject): string | undefined => {
     if (!object.progress) return undefined;
     if (object.progress.category === 'collection') {
@@ -116,7 +166,9 @@ export function createGrayboxCore(
     // Business coordination happens once after the actual world, physics and
     // interaction updates for this fixed Tick. New result events remain Pending
     // for the next coordination dispatch.
-    goalRoute.step(tick);
+    const dispatch = businessBus.dispatch(tick);
+    goalRoute.afterDispatch(tick, dispatch);
+    checkpointCapture.afterDispatch(tick, dispatch);
     reconcilePermanentEffects();
   });
   const lifecycle = new RuntimeLifecycleController(simulation);
@@ -131,6 +183,15 @@ export function createGrayboxCore(
       interaction.key(code, down, repeat);
     },
     closeInteraction: () => interaction.requestClose(),
+    requestCheckpointCapture: (
+      checkpointId: string,
+      authorization: CheckpointCaptureAuthorization,
+    ) => checkpointCapture.requestCapture(
+      checkpointId,
+      simulation.snapshot.tick,
+      authorization,
+    ),
+    recoverCheckpointCapture: () => checkpointCapture.recover(simulation.snapshot.tick),
     setAvailable: (available: boolean) => {
       interaction.setAvailable(available);
       motor.controls.request(availabilityOwner, !available);
@@ -152,7 +213,10 @@ export function createGrayboxCore(
         checkpointSnapshot: Object.freeze({
           ...checkpointSnapshot,
           current: snapshotStore.current,
-        }) };
+        }),
+        checkpointCapture: checkpointCapture.snapshot,
+        frozenTemporaryObjectIds: physics.frozenTemporaryObjectIds,
+      };
     },
   };
 }

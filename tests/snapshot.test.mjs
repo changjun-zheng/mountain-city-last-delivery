@@ -8,6 +8,7 @@ import {
   GRAYBOX_LEVEL_ID,
   GRAYBOX_SNAPSHOT_REGISTRY,
   GRAYBOX_SNAPSHOT_SCHEMA_VERSION,
+  GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID,
   validateTemporarySnapshot,
 } from '../src/core/snapshot.ts';
 
@@ -195,4 +196,33 @@ test('D10-A1 CP04 snapshot rejects non-finite data, wrong versions and excluded 
   rejects(candidate => {
     candidate.objects[0].state.eventId = 1;
   }, /unsupported shape/);
+});
+
+test('D10-A2 CT04 only trusted checkpoint ID, level and preset anchor may replace the record', () => {
+  const testCheckpoint = validCandidate();
+  testCheckpoint.checkpointId = GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID;
+  testCheckpoint.anchor = { x: 640, y: 472, facing: 1 };
+  const captured = validateTemporarySnapshot(
+    testCheckpoint,
+    GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID,
+  );
+  assert.equal(captured.checkpointId, GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID);
+  assert.deepEqual(captured.anchor, { x: 640, y: 472, facing: 1 });
+
+  const wrongAnchor = structuredClone(testCheckpoint);
+  wrongAnchor.anchor.x = 641;
+  assert.throws(
+    () => validateTemporarySnapshot(wrongAnchor, GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID),
+    /trusted checkpoint configuration/,
+  );
+  const wrongLevel = structuredClone(testCheckpoint);
+  wrongLevel.levelId = 'other-level';
+  assert.throws(
+    () => validateTemporarySnapshot(wrongLevel, GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID),
+    /levelId/,
+  );
+  assert.throws(
+    () => validateTemporarySnapshot(testCheckpoint, 'graybox-untrusted-capture'),
+    /checkpointId/,
+  );
 });

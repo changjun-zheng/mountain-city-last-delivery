@@ -2,12 +2,19 @@
 // field names remain engineering choices until a later design decision.
 export const GRAYBOX_SNAPSHOT_SCHEMA_VERSION = 1;
 export const GRAYBOX_CHECKPOINT_ID = 'graybox-initial-spawn';
+export const GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID = 'graybox-test-capture-a';
 export const GRAYBOX_LEVEL_ID = 'graybox-platform-lab';
 
 export type SnapshotAnchor = Readonly<{
   x: number;
   y: number;
   facing: -1 | 1;
+}>;
+
+export type GrayboxCheckpointConfig = Readonly<{
+  checkpointId: string;
+  levelId: string;
+  anchor: SnapshotAnchor;
 }>;
 
 export type MovingPlatformLogicalState = Readonly<{
@@ -46,7 +53,7 @@ export type TemporarySnapshotSource = Readonly<{
   captureTemporaryObject(objectId: string): unknown;
 }>;
 
-export type SnapshotFaultPhase = 'capture' | 'validate' | 'commit';
+export type SnapshotFaultPhase = 'capture' | 'validate' | 'commit' | 'after-commit';
 export type SnapshotFaultInjector = (
   phase: SnapshotFaultPhase,
   details: Readonly<{ objectId?: string }>,
@@ -57,6 +64,21 @@ type RegistryEntry = Readonly<{
   stateVersion: number;
   axis: MovingPlatformLogicalState['axis'];
 }>;
+
+// These are graybox test destinations, not final level coordinates or policy.
+export const GRAYBOX_CHECKPOINT_CONFIGS: readonly GrayboxCheckpointConfig[] =
+  Object.freeze([
+    Object.freeze({
+      checkpointId: GRAYBOX_CHECKPOINT_ID,
+      levelId: GRAYBOX_LEVEL_ID,
+      anchor: Object.freeze({ x: 80, y: 472, facing: 1 as const }),
+    }),
+    Object.freeze({
+      checkpointId: GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID,
+      levelId: GRAYBOX_LEVEL_ID,
+      anchor: Object.freeze({ x: 640, y: 472, facing: 1 as const }),
+    }),
+  ]);
 
 // This order is the checkpoint capture and validation order. The registry is a
 // frozen constant: runtime code cannot add or remove required objects.
@@ -87,6 +109,20 @@ const POSITION_KEYS = ['x', 'y'] as const;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+export function getGrayboxCheckpointConfig(
+  checkpointId: string,
+): GrayboxCheckpointConfig {
+  const config = GRAYBOX_CHECKPOINT_CONFIGS.find(
+    candidate => candidate.checkpointId === checkpointId,
+  );
+  if (!config) throw new Error(`Unknown trusted checkpointId: ${checkpointId}.`);
+  return config;
+}
+
+function anchorsEqual(left: SnapshotAnchor, right: SnapshotAnchor): boolean {
+  return left.x === right.x && left.y === right.y && left.facing === right.facing;
+}
 
 function hasExactKeys(value: Record<string, unknown>, expected: readonly string[], label: string): void {
   const actual = Object.keys(value).sort();
@@ -145,7 +181,10 @@ function validateState(
 
 // Validation also produces the immutable stored copy. Unknown fields, missing
 // required objects, duplicate IDs and incompatible versions are rejected.
-export function validateTemporarySnapshot(value: unknown): TemporarySnapshot {
+export function validateTemporarySnapshot(
+  value: unknown,
+  configuredCheckpointId = GRAYBOX_CHECKPOINT_ID,
+): TemporarySnapshot {
   if (!isRecord(value)) throw new Error('Snapshot must be an object.');
   hasExactKeys(value, SNAPSHOT_KEYS, 'Snapshot');
   if (value.schemaVersion !== GRAYBOX_SNAPSHOT_SCHEMA_VERSION) {
@@ -156,10 +195,14 @@ export function validateTemporarySnapshot(value: unknown): TemporarySnapshot {
   if (typeof value.runtimeInstanceId !== 'string' || !value.runtimeInstanceId) {
     throw new Error('Snapshot runtimeInstanceId must be a non-empty string.');
   }
-  if (value.checkpointId !== GRAYBOX_CHECKPOINT_ID) {
-    throw new Error('Snapshot checkpointId does not match the active checkpoint.');
+  if (typeof value.checkpointId !== 'string' || !value.checkpointId) {
+    throw new Error('Snapshot checkpointId must be a non-empty string.');
   }
-  if (value.levelId !== GRAYBOX_LEVEL_ID) {
+  if (value.checkpointId !== configuredCheckpointId) {
+    throw new Error('Snapshot checkpointId does not match the requested trusted checkpoint.');
+  }
+  const checkpointConfig = getGrayboxCheckpointConfig(configuredCheckpointId);
+  if (value.levelId !== checkpointConfig.levelId) {
     throw new Error('Snapshot levelId does not match the active graybox level.');
   }
   if (!isRecord(value.anchor)) throw new Error('Snapshot anchor must be an object.');
@@ -168,6 +211,14 @@ export function validateTemporarySnapshot(value: unknown): TemporarySnapshot {
   const anchorY = requireFinite(value.anchor.y, 'Snapshot anchor.y');
   if (value.anchor.facing !== -1 && value.anchor.facing !== 1) {
     throw new Error('Snapshot anchor.facing must be -1 or 1.');
+  }
+  const candidateAnchor = Object.freeze({
+    x: anchorX,
+    y: anchorY,
+    facing: value.anchor.facing,
+  });
+  if (!anchorsEqual(candidateAnchor, checkpointConfig.anchor)) {
+    throw new Error('Snapshot anchor does not match the trusted checkpoint configuration.');
   }
   if (!Array.isArray(value.objects)) throw new Error('Snapshot objects must be an array.');
   if (value.objects.length !== GRAYBOX_SNAPSHOT_REGISTRY.length) {
@@ -212,9 +263,9 @@ export function validateTemporarySnapshot(value: unknown): TemporarySnapshot {
   return Object.freeze({
     schemaVersion: GRAYBOX_SNAPSHOT_SCHEMA_VERSION,
     runtimeInstanceId: value.runtimeInstanceId,
-    checkpointId: GRAYBOX_CHECKPOINT_ID,
-    levelId: GRAYBOX_LEVEL_ID,
-    anchor: Object.freeze({ x: anchorX, y: anchorY, facing: value.anchor.facing }),
+    checkpointId: checkpointConfig.checkpointId,
+    levelId: checkpointConfig.levelId,
+    anchor: checkpointConfig.anchor,
     objects: Object.freeze(objects),
   });
 }
@@ -223,12 +274,19 @@ export function captureTemporarySnapshot(
   source: TemporarySnapshotSource,
   identity: Readonly<{
     runtimeInstanceId: string;
-    anchor: SnapshotAnchor;
+    checkpointId?: string;
+    anchor?: SnapshotAnchor;
   }>,
   faultInjector?: SnapshotFaultInjector,
 ): TemporarySnapshot {
   if (!source || typeof source.captureTemporaryObject !== 'function') {
     throw new Error('Snapshot source does not provide captureTemporaryObject().');
+  }
+  const checkpointConfig = getGrayboxCheckpointConfig(
+    identity.checkpointId ?? GRAYBOX_CHECKPOINT_ID,
+  );
+  if (identity.anchor && !anchorsEqual(identity.anchor, checkpointConfig.anchor)) {
+    throw new Error('Capture anchor does not match the trusted checkpoint configuration.');
   }
   const objects = GRAYBOX_SNAPSHOT_REGISTRY.map(expected => {
     faultInjector?.('capture', { objectId: expected.objectId });
@@ -241,13 +299,13 @@ export function captureTemporarySnapshot(
   const candidate = {
     schemaVersion: GRAYBOX_SNAPSHOT_SCHEMA_VERSION,
     runtimeInstanceId: identity.runtimeInstanceId,
-    checkpointId: GRAYBOX_CHECKPOINT_ID,
-    levelId: GRAYBOX_LEVEL_ID,
-    anchor: identity.anchor,
+    checkpointId: checkpointConfig.checkpointId,
+    levelId: checkpointConfig.levelId,
+    anchor: checkpointConfig.anchor,
     objects,
   };
   faultInjector?.('validate', {});
-  return validateTemporarySnapshot(candidate);
+  return validateTemporarySnapshot(candidate, checkpointConfig.checkpointId);
 }
 
 // The current record is replaced only after the complete candidate has passed
@@ -256,9 +314,14 @@ export class FixedTemporarySnapshotStore {
   #current: TemporarySnapshot | null = null;
 
   commit(candidate: unknown, faultInjector?: SnapshotFaultInjector): TemporarySnapshot {
-    const validated = validateTemporarySnapshot(candidate);
+    const checkpointId =
+      isRecord(candidate) && typeof candidate.checkpointId === 'string'
+        ? candidate.checkpointId
+        : GRAYBOX_CHECKPOINT_ID;
+    const validated = validateTemporarySnapshot(candidate, checkpointId);
     faultInjector?.('commit', {});
     this.#current = validated;
+    faultInjector?.('after-commit', {});
     return validated;
   }
 
@@ -288,7 +351,8 @@ export function captureInitialTemporarySnapshot(
   source: TemporarySnapshotSource,
   identity: Readonly<{
     runtimeInstanceId: string;
-    anchor: SnapshotAnchor;
+    checkpointId?: string;
+    anchor?: SnapshotAnchor;
   }>,
   store: FixedTemporarySnapshotStore,
   faultInjector?: SnapshotFaultInjector,

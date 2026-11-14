@@ -63,10 +63,14 @@ export type TransactionExecutorRequest = Readonly<{
 }>;
 
 export type TransactionExecutorResult =
-  | Readonly<{ status: 'completed' }>
+  | Readonly<{
+    status: 'completed';
+    effectsApplied?: boolean;
+  }>
   | Readonly<{
     status: 'error';
     error: Readonly<{ code: string; message: string }>;
+    effectsApplied?: boolean;
   }>;
 
 export interface TransactionExecutor {
@@ -779,6 +783,11 @@ export class RuntimeTransactionExecutionManager {
       }
       const after = this.#progress.snapshot;
       const additions = progressDelta(before, after);
+      const effectsApplied = outcome.effectsApplied ?? (
+        additions.goals > 0 ||
+        additions.rewards > 0 ||
+        additions.effects > 0
+      );
       record = Object.freeze({
         ...record,
         executionAttempts: record.executionAttempts + 1,
@@ -796,6 +805,7 @@ export class RuntimeTransactionExecutionManager {
           outcome.error,
           additions,
           normalized.simulationTick,
+          effectsApplied,
         );
       }
 
@@ -821,10 +831,9 @@ export class RuntimeTransactionExecutionManager {
     error: Readonly<{ code: string; message: string }>,
     additions: TransactionProgressAddition,
     simulationTick: number,
+    effectsApplied: boolean,
   ): TransactionOperationResult {
-    const classification = classifyError(error.code, additions);
-    const effectsApplied =
-      additions.goals > 0 || additions.rewards > 0 || additions.effects > 0;
+    const classification = classifyError(error.code, additions, effectsApplied);
     const withError: TransactionExecutionRecord = Object.freeze({
       ...record,
       errors: Object.freeze([
@@ -1205,8 +1214,11 @@ function normalizeExecutionContext(
 function classifyError(
   code: string,
   additions: TransactionProgressAddition,
+  effectsApplied = additions.goals > 0 ||
+    additions.rewards > 0 ||
+    additions.effects > 0,
 ): ErrorClassification {
-  if (additions.goals > 0 || additions.rewards > 0 || additions.effects > 0) {
+  if (effectsApplied) {
     return Object.freeze({
       classification: 'recoverable' as const,
       retryable: false,
@@ -1230,7 +1242,11 @@ function classifyError(
     });
   }
   if (code === 'prototype.invalid-completion-request' ||
-      code === 'prototype.invalid-progress') {
+      code === 'prototype.invalid-progress' ||
+      code === 'prototype.snapshot-capture-failed' ||
+      code === 'prototype.snapshot-validation-failed' ||
+      code === 'prototype.snapshot-freeze-failed' ||
+      code === 'prototype.snapshot-commit-failed') {
     return Object.freeze({
       classification: 'permanent' as const,
       retryable: false,
