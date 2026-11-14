@@ -51,6 +51,7 @@ export type CheckpointCaptureAuthorization = Readonly<{
   levelId: string;
   checkpointId: string;
   requestId: string;
+  sourceEntryEventId?: number;
   granted: boolean;
 }>;
 
@@ -113,6 +114,7 @@ export type SnapshotCaptureRuntimeSnapshot = Readonly<{
   previousCheckpointId: string | null;
   currentCheckpointId: string | null;
   authorizationRequestId: string | null;
+  sourceEntryEventId: number | null;
   eventId: number | null;
   commandId: number | null;
   transactionId: number | null;
@@ -586,6 +588,7 @@ export class SnapshotCaptureRuntime {
   #owner: object | undefined;
   #requestedCheckpointId: string | null = null;
   #authorizationRequestId: string | null = null;
+  #sourceEntryEventId: number | null = null;
   #eventId: number | null = null;
   #commandId: number | null = null;
   #transactionId: number | null = null;
@@ -662,6 +665,12 @@ export class SnapshotCaptureRuntime {
         if (typeof checkpointId !== 'string') {
           throw new Error('Checkpoint capture event has no checkpoint ID.');
         }
+        const sourceEntryEventId = event.payload.sourceEntryEventId;
+        if (sourceEntryEventId !== undefined &&
+            (!Number.isSafeInteger(sourceEntryEventId) ||
+              (sourceEntryEventId as number) < 1)) {
+          throw new Error('Checkpoint capture source entry Event ID is invalid.');
+        }
         const config = getGrayboxCheckpointConfig(checkpointId);
         return {
           sourceEvent: event as CommandSourceEvent,
@@ -670,6 +679,7 @@ export class SnapshotCaptureRuntime {
           payload: {
             checkpointId: config.checkpointId,
             levelId: config.levelId,
+            ...(sourceEntryEventId === undefined ? {} : { sourceEntryEventId }),
           },
         };
       },
@@ -696,7 +706,10 @@ export class SnapshotCaptureRuntime {
         authorization.levelId !== config.levelId ||
         authorization.checkpointId !== config.checkpointId ||
         typeof authorization.requestId !== 'string' ||
-        authorization.requestId.length === 0) {
+        authorization.requestId.length === 0 ||
+        (authorization.sourceEntryEventId !== undefined &&
+          (!Number.isSafeInteger(authorization.sourceEntryEventId) ||
+            authorization.sourceEntryEventId < 1))) {
       return rejectedCaptureRequest(
         'not-authorized',
         'Checkpoint capture requires a matching trusted authorization.',
@@ -744,6 +757,9 @@ export class SnapshotCaptureRuntime {
       payload: {
         checkpointId: config.checkpointId,
         requestId: authorization.requestId,
+        ...(authorization.sourceEntryEventId === undefined
+          ? {}
+          : { sourceEntryEventId: authorization.sourceEntryEventId }),
       },
     }, this.#producer);
     if (created.status !== 'created') {
@@ -756,6 +772,7 @@ export class SnapshotCaptureRuntime {
     this.#owner = owner;
     this.#requestedCheckpointId = checkpointId;
     this.#authorizationRequestId = authorization.requestId;
+    this.#sourceEntryEventId = authorization.sourceEntryEventId ?? null;
     this.#eventId = created.event.eventId;
     this.#commandId = null;
     this.#transactionId = null;
@@ -890,6 +907,7 @@ export class SnapshotCaptureRuntime {
       previousCheckpointId: this.#previousCheckpointId,
       currentCheckpointId: this.#store.current?.checkpointId ?? null,
       authorizationRequestId: this.#authorizationRequestId,
+      sourceEntryEventId: this.#sourceEntryEventId,
       eventId: this.#eventId,
       commandId: this.#commandId,
       transactionId: this.#transactionId,

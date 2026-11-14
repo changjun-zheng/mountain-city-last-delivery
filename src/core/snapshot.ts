@@ -2,7 +2,11 @@
 // field names remain engineering choices until a later design decision.
 export const GRAYBOX_SNAPSHOT_SCHEMA_VERSION = 1;
 export const GRAYBOX_CHECKPOINT_ID = 'graybox-initial-spawn';
-export const GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID = 'graybox-test-capture-a';
+export const GRAYBOX_TEST_CAPTURE_CHECKPOINT_A_ID = 'graybox-test-capture-a';
+export const GRAYBOX_TEST_CAPTURE_CHECKPOINT_B_ID = 'graybox-test-capture-b';
+// Keep the singular export for existing D10-A1/A2 callers. New trigger code
+// uses the explicit A/B names.
+export const GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID = GRAYBOX_TEST_CAPTURE_CHECKPOINT_A_ID;
 export const GRAYBOX_LEVEL_ID = 'graybox-platform-lab';
 
 export type SnapshotAnchor = Readonly<{
@@ -74,9 +78,14 @@ export const GRAYBOX_CHECKPOINT_CONFIGS: readonly GrayboxCheckpointConfig[] =
       anchor: Object.freeze({ x: 80, y: 472, facing: 1 as const }),
     }),
     Object.freeze({
-      checkpointId: GRAYBOX_TEST_CAPTURE_CHECKPOINT_ID,
+      checkpointId: GRAYBOX_TEST_CAPTURE_CHECKPOINT_A_ID,
       levelId: GRAYBOX_LEVEL_ID,
-      anchor: Object.freeze({ x: 640, y: 472, facing: 1 as const }),
+      anchor: Object.freeze({ x: 1200, y: 472, facing: 1 as const }),
+    }),
+    Object.freeze({
+      checkpointId: GRAYBOX_TEST_CAPTURE_CHECKPOINT_B_ID,
+      levelId: GRAYBOX_LEVEL_ID,
+      anchor: Object.freeze({ x: 1270, y: 472, facing: 1 as const }),
     }),
   ]);
 

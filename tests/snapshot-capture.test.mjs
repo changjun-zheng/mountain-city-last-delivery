@@ -139,7 +139,7 @@ test('D10-A2 CT01 real command and transaction capture replaces one checkpoint a
   );
   assert.deepEqual(
     instance.core.snapshot.checkpointSnapshot.current.anchor,
-    { x: 640, y: 472, facing: 1 },
+    { x: 1200, y: 472, facing: 1 },
   );
 
   advanceToTerminal(instance);
@@ -180,7 +180,11 @@ test('D10-A2 CT02 real Matter freezes only capture objects and resumes without c
   const physicsStepsBefore = frozen.physicsSteps;
   const tickBefore = frozen.tick;
 
-  assert.throws(() => instance.core.reset(), /frozen/i);
+  assert.deepEqual(instance.core.reset(), {
+    status: 'blocked',
+    message: 'Debug reset is unavailable while checkpoint objects are frozen.',
+  });
+  assert.match(instance.core.snapshot.checkpointTriggers.feedback, /R 被安全拒绝/);
   assert.equal(instance.world.platformClockMs, frozenClock);
   assert.equal(JSON.stringify(instance.world.movingPlatforms), frozenPlatforms);
 

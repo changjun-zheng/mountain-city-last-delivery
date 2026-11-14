@@ -103,7 +103,82 @@ const parseSample = data => ({ tick: +data.tick, x: +data.x, y: +data.y, vx: +da
   checkpointObjectIds: data.checkpointObjectIds || '',
   checkpointStateVersions: data.checkpointStateVersions || '',
   checkpointObjectCount: +(data.checkpointObjectCount || 0),
-  checkpointPayload: data.checkpointPayload || '' });
+  checkpointPayload: data.checkpointPayload || '',
+  checkpointTriggersEnabled: data.checkpointTriggersEnabled === 'true',
+  checkpointTriggerPhase: data.checkpointTriggerPhase || '',
+  checkpointTriggerFeedbackKind: data.checkpointTriggerFeedbackKind || '',
+  checkpointTriggerFeedback: data.checkpointTriggerFeedback || '',
+  checkpointBatchCount: +(data.checkpointBatchCount || 0),
+  checkpointBatchTick: data.checkpointBatchTick === '' ? null : +data.checkpointBatchTick,
+  checkpointClosedTick: data.checkpointClosedTick === '' ? null : +data.checkpointClosedTick,
+  checkpointArbitrationTick: data.checkpointArbitrationTick === ''
+    ? null : +data.checkpointArbitrationTick,
+  checkpointEntryEventCount: +(data.checkpointEntryEventCount || 0),
+  checkpointSelectedCount: +(data.checkpointSelectedCount || 0),
+  checkpointCaptureRequestCount: +(data.checkpointCaptureRequestCount || 0),
+  checkpointBlockedCount: +(data.checkpointBlockedCount || 0),
+  checkpointFailureCount: +(data.checkpointFailureCount || 0),
+  checkpointCurrentId: data.checkpointCurrentId || '',
+  checkpointCandidateId: data.checkpointCandidateId || '',
+  checkpointLatestOpportunityId: data.checkpointLatestOpportunityId || '',
+  checkpointLatestEntryEventId: data.checkpointLatestEntryEventId === ''
+    ? null : +data.checkpointLatestEntryEventId,
+  checkpointLatestCaptureEventId: data.checkpointLatestCaptureEventId === ''
+    ? null : +data.checkpointLatestCaptureEventId,
+  checkpointLatestCaptureRequestId: data.checkpointLatestCaptureRequestId || '',
+  checkpointArbitrationWinner: data.checkpointArbitrationWinner || '',
+  checkpointArbitrationBatchTick: data.checkpointArbitrationBatchTick === ''
+    ? null : +data.checkpointArbitrationBatchTick,
+  checkpointArbitrationClosedTick: data.checkpointArbitrationClosedTick === ''
+    ? null : +data.checkpointArbitrationClosedTick,
+  checkpointArbitrationTickValue: data.checkpointArbitrationTickValue === ''
+    ? null : +data.checkpointArbitrationTickValue,
+  checkpointArbitrationWinnerEntryEventId:
+    data.checkpointArbitrationWinnerEntryEventId === ''
+      ? null : +data.checkpointArbitrationWinnerEntryEventId,
+  checkpointArbitrationWinnerOpportunityId:
+    data.checkpointArbitrationWinnerOpportunityId || '',
+  checkpointArbitrationCaptureEventId:
+    data.checkpointArbitrationCaptureEventId === ''
+      ? null : +data.checkpointArbitrationCaptureEventId,
+  checkpointArbitrationCaptureRequestStatus:
+    data.checkpointArbitrationCaptureRequestStatus || '',
+  checkpointArbitrationEntrants: data.checkpointArbitrationEntrants || '',
+  checkpointZoneAOccupied: data.checkpointZoneAOccupied === 'true',
+  checkpointZoneAEnter: +(data.checkpointZoneAEnter || 0),
+  checkpointZoneAExit: +(data.checkpointZoneAExit || 0),
+  checkpointZoneALastTick: data.checkpointZoneALastTick === ''
+    ? null : +data.checkpointZoneALastTick,
+  checkpointZoneAOpportunity: data.checkpointZoneAOpportunity || '',
+  checkpointZoneAEntryEventId: data.checkpointZoneAEntryEventId === ''
+    ? null : +data.checkpointZoneAEntryEventId,
+  checkpointZoneADecision: data.checkpointZoneADecision || '',
+  checkpointZoneBOccupied: data.checkpointZoneBOccupied === 'true',
+  checkpointZoneBEnter: +(data.checkpointZoneBEnter || 0),
+  checkpointZoneBExit: +(data.checkpointZoneBExit || 0),
+  checkpointZoneBLastTick: data.checkpointZoneBLastTick === ''
+    ? null : +data.checkpointZoneBLastTick,
+  checkpointZoneBOpportunity: data.checkpointZoneBOpportunity || '',
+  checkpointZoneBEntryEventId: data.checkpointZoneBEntryEventId === ''
+    ? null : +data.checkpointZoneBEntryEventId,
+  checkpointZoneBDecision: data.checkpointZoneBDecision || '',
+  checkpointCapturePhase: data.checkpointCapturePhase || '',
+  checkpointCaptureSourceEntryEventId: data.checkpointCaptureSourceEntryEventId === ''
+    ? null : +data.checkpointCaptureSourceEntryEventId,
+  checkpointCaptureEventId: data.checkpointCaptureEventId === ''
+    ? null : +data.checkpointCaptureEventId,
+  checkpointCaptureCommandId: data.checkpointCaptureCommandId === ''
+    ? null : +data.checkpointCaptureCommandId,
+  checkpointCaptureTransactionId: data.checkpointCaptureTransactionId === ''
+    ? null : +data.checkpointCaptureTransactionId,
+  checkpointCaptureResultEventId: data.checkpointCaptureResultEventId === ''
+    ? null : +data.checkpointCaptureResultEventId,
+  checkpointCaptureRequestId: data.checkpointCaptureRequestId || '',
+  checkpointCaptureSaves: +(data.checkpointCaptureSaves || 0),
+  checkpointCaptureLockHeld: data.checkpointCaptureLockHeld === 'true',
+  checkpointCaptureResourcesReleased:
+    data.checkpointCaptureResourcesReleased === 'true',
+});
 const sample = async page => parseSample(await rawSample(page));
 
 export async function chooseScene(ctx, mode) {
@@ -2383,4 +2458,323 @@ export async function checkInitialSnapshot(ctx, record, capture) {
   });
   record('D10-A1-initial-snapshot', { status: 'PASS', ...result });
   console.log('PASS', ctx.label, 'D10-A1 initial-snapshot', JSON.stringify(result));
+}
+
+// D10-A3 exercises the real host path: keyboard movement into visible sensors,
+// closed-Tick arbitration, the existing capture command/transaction/result
+// chain, and a later true re-entry. It deliberately does not call the direct
+// requestCheckpointCapture test hook.
+export async function checkCheckpointCapture(ctx, record, capture) {
+  const page = ctx.page;
+  const key = (code, down) => ctx.monitor.key(code, down);
+  const up = async () => {
+    for (const code of [
+      'KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyE', 'Escape', 'KeyR',
+    ]) await key(code, false);
+  };
+  const waitStablePausedSample = async () => {
+    let previous;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.waitForTimeout(100);
+      const current = await sample(page);
+      if (previous && JSON.stringify(current) === JSON.stringify(previous)) return current;
+      previous = current;
+    }
+    throw new Error('Paused D10-A3 diagnostics did not settle');
+  };
+  const resetViaR = async () => {
+    await ctx.show();
+    await up();
+    const before = await sample(page);
+    await key('KeyR', true);
+    await key('KeyR', false);
+    await page.waitForFunction(({ resets, tick }) => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return Number(data?.resets) > resets && Number(data?.tick) >= tick &&
+        Number(data?.x) <= 81 && data?.grounded === 'true' &&
+        data?.controlAllowed === 'true';
+    }, { resets: before.resets, tick: before.tick }, poll);
+    return sample(page);
+  };
+  const moveUntilGoalSelected = async () => {
+    await key('KeyD', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.interactionSelected === 'prototype-goal-e',
+    undefined, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.interactionSelected === 'prototype-goal-e',
+    undefined, poll);
+  };
+  const navigatePastRouteGateToCheckpoint = async () => {
+    await key('KeyD', true);
+    await page.waitForFunction(() => +document.querySelector('#diagnostics').dataset.x > 425,
+      undefined, poll);
+    await key('Space', true);
+    await page.waitForFunction(() => +document.querySelector('#diagnostics').dataset.x > 600,
+      undefined, poll);
+    await key('Space', false);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return +data.x > 880 && data.grounded === 'false';
+    }, undefined, poll);
+    const edgeJumps = (await sample(page)).jumps;
+    await key('Space', true);
+    await page.waitForFunction(jumps =>
+      +document.querySelector('#diagnostics').dataset.jumps > jumps,
+    edgeJumps, poll);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics').dataset;
+      return +data.x > 1030 && data.grounded === 'true';
+    }, undefined, poll);
+    await key('Space', false);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.checkpointZoneAOccupied === 'true',
+    undefined, poll);
+    await key('KeyD', false);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.checkpointZoneAOccupied === 'true',
+    undefined, poll);
+  };
+  const waitCapture = async (checkpointId, saves) => {
+    await page.waitForFunction(({ checkpointId, saves }) => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return data?.checkpointCurrentId === checkpointId &&
+        data?.checkpointCapturePhase === 'succeeded' &&
+        Number(data?.checkpointCaptureSaves) === saves &&
+        data?.checkpointCaptureResourcesReleased === 'true' &&
+        data?.checkpointCaptureLockHeld === 'false';
+    }, { checkpointId, saves }, { timeout: 15000, polling: 100 });
+    return sample(page);
+  };
+  const run = async (name, fn) => {
+    ctx.operation = 'graybox-' + name;
+    ctx.stage = ctx.operation;
+    await ctx.show();
+    await page.waitForFunction(() =>
+      document.visibilityState === 'visible' && document.hasFocus(),
+    undefined, poll);
+    const result = await ctx.monitor.race(fn);
+    record(name, { status: 'PASS', ...result });
+    console.log('PASS', ctx.label, 'graybox', name, JSON.stringify(result));
+  };
+
+  await chooseScene(ctx, 'graybox');
+  let initial = await resetViaR();
+  assert.equal(initial.checkpointTriggersEnabled, false);
+  assert.equal(initial.checkpointCurrentId, 'graybox-initial-spawn');
+
+  let firstA;
+  await run('D10-A3-TR01-real-entry-and-save-A', async () => {
+    await moveUntilGoalSelected();
+    await key('KeyE', true);
+    await page.waitForFunction(() => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      return data.goalPhase === 'succeeded' && data.progressRouteOpen === 'true' &&
+        data.progressRewardCount === '1' && data.checkpointTriggersEnabled === 'true';
+    }, undefined, poll);
+    await key('KeyE', false);
+
+    // Keep crossing the existing walk/jump route under real input. The direct
+    // host API is intentionally unused for this capture.
+    await navigatePastRouteGateToCheckpoint();
+    const saving = await sample(page);
+    assert.ok(saving.checkpointZoneAEnter >= 1);
+    assert.ok(saving.checkpointZoneAEntryEventId >= 1);
+    assert.equal(saving.checkpointCandidateId, 'graybox-test-capture-a');
+    assert.ok([
+      'graybox-initial-spawn',
+      'graybox-test-capture-a',
+    ].includes(saving.checkpointCurrentId),
+    'A capture may complete before the first post-entry diagnostic sample');
+    await capture('D10-A3-real-entry-saving-A', true);
+
+    firstA = await waitCapture('graybox-test-capture-a', 1);
+    assert.equal(firstA.checkpointTriggerFeedbackKind, 'saved');
+    assert.equal(firstA.checkpointArbitrationWinner, 'graybox-test-capture-a');
+    assert.equal(firstA.checkpointArbitrationBatchTick, firstA.checkpointZoneALastTick);
+    assert.equal(firstA.checkpointArbitrationClosedTick, firstA.checkpointArbitrationBatchTick);
+    assert.equal(firstA.checkpointArbitrationTickValue, firstA.checkpointArbitrationClosedTick);
+    assert.equal(firstA.checkpointCaptureSourceEntryEventId,
+      firstA.checkpointArbitrationWinnerEntryEventId);
+    assert.ok(firstA.checkpointCaptureEventId >
+      firstA.checkpointCaptureSourceEntryEventId);
+    assert.ok(firstA.checkpointCaptureCommandId >= 1);
+    assert.ok(firstA.checkpointCaptureTransactionId >= 1);
+    assert.ok(firstA.checkpointCaptureResultEventId >
+      firstA.checkpointCaptureEventId);
+    assert.equal(firstA.checkpointCaptureRequestId,
+      firstA.checkpointArbitrationWinnerOpportunityId);
+    assert.equal(firstA.progressGoalCount, 1);
+    assert.equal(firstA.progressRewardCount, 1);
+    assert.equal(firstA.progressEffectCount, 1);
+    await capture('D10-A3-saved-A-with-real-identities', true);
+
+    const entries = firstA.checkpointEntryEventCount;
+    const requests = firstA.checkpointCaptureRequestCount;
+    await page.waitForTimeout(800);
+    const sustained = await sample(page);
+    assert.equal(sustained.checkpointEntryEventCount, entries,
+      'Otherwise continuous occupancy must not create another opportunity');
+    assert.equal(sustained.checkpointCaptureRequestCount, requests);
+    assert.equal(sustained.checkpointCaptureSaves, 1);
+    return {
+      tick: firstA.tick,
+      detectionTick: firstA.checkpointZoneALastTick,
+      batchTick: firstA.checkpointArbitrationBatchTick,
+      closedTick: firstA.checkpointArbitrationClosedTick,
+      arbitrationTick: firstA.checkpointArbitrationTickValue,
+      currentCheckpointId: firstA.checkpointCurrentId,
+      entryEventId: firstA.checkpointCaptureSourceEntryEventId,
+      captureEventId: firstA.checkpointCaptureEventId,
+      commandId: firstA.checkpointCaptureCommandId,
+      transactionId: firstA.checkpointCaptureTransactionId,
+      resultEventId: firstA.checkpointCaptureResultEventId,
+      requestId: firstA.checkpointCaptureRequestId,
+      saves: firstA.checkpointCaptureSaves,
+    };
+  });
+
+  let firstB;
+  await run('D10-A3-TR01-independent-B-replaces-current', async () => {
+    // A is already sustained, so crossing into B creates only a new B
+    // opportunity in the next closed batch.
+    await key('KeyD', true);
+    await page.waitForFunction(() =>
+      document.querySelector('#diagnostics')?.dataset.checkpointZoneBOccupied === 'true',
+    undefined, poll);
+    await key('KeyD', false);
+    const savingB = await sample(page);
+    assert.ok(savingB.checkpointZoneBEntryEventId >
+      (firstA.checkpointZoneBEntryEventId ?? 0));
+    assert.equal(savingB.checkpointCandidateId, 'graybox-test-capture-b');
+    await capture('D10-A3-real-entry-saving-B', true);
+    firstB = await waitCapture('graybox-test-capture-b', 2);
+    assert.equal(firstB.checkpointCurrentId, 'graybox-test-capture-b');
+    assert.equal(firstB.checkpointArbitrationWinner, 'graybox-test-capture-b');
+    assert.equal(firstB.checkpointCaptureSourceEntryEventId,
+      firstB.checkpointZoneBEntryEventId);
+    assert.equal(firstB.checkpointCaptureSaves, 2);
+    await capture('D10-A3-saved-B-replaces-A', true);
+    return {
+      detectionTick: firstB.checkpointZoneBLastTick,
+      batchTick: firstB.checkpointArbitrationBatchTick,
+      currentCheckpointId: firstB.checkpointCurrentId,
+      entryEventId: firstB.checkpointCaptureSourceEntryEventId,
+      captureEventId: firstB.checkpointCaptureEventId,
+      commandId: firstB.checkpointCaptureCommandId,
+      transactionId: firstB.checkpointCaptureTransactionId,
+      resultEventId: firstB.checkpointCaptureResultEventId,
+      saves: firstB.checkpointCaptureSaves,
+    };
+  });
+
+  let frozen;
+  await run('D10-A3-TR05-pause-no-retrigger', async () => {
+    await up();
+    ctx.stage = 'D10-A3-lifecycle-wait-hidden';
+    await ctx.hide();
+    await page.waitForFunction(() =>
+      document.visibilityState === 'hidden' &&
+      document.querySelector('#diagnostics').dataset.paused === 'true',
+    undefined, { polling: 100 });
+    frozen = await waitStablePausedSample();
+    assert.equal(frozen.control, false);
+    assert.equal(frozen.checkpointCurrentId, 'graybox-test-capture-b');
+    const entries = frozen.checkpointEntryEventCount;
+    const requests = frozen.checkpointCaptureRequestCount;
+    const saves = frozen.checkpointCaptureSaves;
+    await page.waitForTimeout(1200);
+    assert.deepEqual(await sample(page), frozen,
+      'Hidden/minimized checkpoint state and batch must remain frozen');
+    await capture('D10-A3-hidden-checkpoint-frozen', true);
+
+    ctx.stage = 'D10-A3-lifecycle-wait-restore';
+    await ctx.show();
+    await page.waitForFunction(() =>
+      document.visibilityState === 'visible' && document.hasFocus() &&
+      document.querySelector('#diagnostics').dataset.paused === 'false' &&
+      document.querySelector('#diagnostics').dataset.controlAllowed === 'true',
+    undefined, poll);
+    const resumed = await sample(page);
+    assert.ok(resumed.tick - frozen.tick <= 5, 'No background Tick catch-up');
+    assert.equal(resumed.discarded, frozen.discarded);
+    assert.equal(resumed.checkpointCurrentId, 'graybox-test-capture-b');
+    assert.equal(resumed.checkpointEntryEventCount, entries);
+    assert.equal(resumed.checkpointCaptureRequestCount, requests);
+    assert.equal(resumed.checkpointCaptureSaves, saves);
+    await capture('D10-A3-restored-no-fake-entry', true);
+    return {
+      frozenTick: frozen.tick,
+      resumedTick: resumed.tick,
+      entries: [entries, resumed.checkpointEntryEventCount],
+      saves: [saves, resumed.checkpointCaptureSaves],
+    };
+  });
+
+  let afterReset;
+  await run('D10-A3-TR05-reset-preserves-current-and-baseline', async () => {
+    const before = await sample(page);
+    afterReset = await resetViaR();
+    assert.equal(afterReset.checkpointCurrentId, 'graybox-test-capture-b');
+    assert.equal(afterReset.checkpointPayload, before.checkpointPayload);
+    assert.equal(afterReset.goalRuntimeInstanceId, before.goalRuntimeInstanceId);
+    assert.equal(afterReset.progressGoalCount, 1);
+    assert.equal(afterReset.progressRewardCount, 1);
+    assert.equal(afterReset.progressEffectCount, 1);
+    assert.equal(afterReset.progressRouteOpen, true);
+    assert.equal(afterReset.checkpointEntryEventCount,
+      before.checkpointEntryEventCount,
+      'Reset baseline synchronization must not synthesize an enter');
+    await page.waitForTimeout(500);
+    assert.equal((await sample(page)).checkpointEntryEventCount,
+      before.checkpointEntryEventCount);
+    await capture('D10-A3-reset-preserves-checkpoint-no-fake-entry', true);
+    return {
+      currentCheckpointId: afterReset.checkpointCurrentId,
+      payloadStable: afterReset.checkpointPayload === before.checkpointPayload,
+      runtimeStable: afterReset.goalRuntimeInstanceId === before.goalRuntimeInstanceId,
+      progress: [
+        afterReset.progressGoalCount,
+        afterReset.progressRewardCount,
+        afterReset.progressEffectCount,
+      ],
+      entryCount: afterReset.checkpointEntryEventCount,
+    };
+  });
+
+  let reentered;
+  await run('D10-A3-TR01-TR03-true-reentry-new-identities', async () => {
+    const before = await sample(page);
+    await navigatePastRouteGateToCheckpoint();
+    const saving = await sample(page);
+    assert.ok(saving.checkpointCaptureRequestCount > before.checkpointCaptureRequestCount);
+    assert.ok(saving.checkpointLatestEntryEventId > before.checkpointLatestEntryEventId);
+    await capture('D10-A3-true-reentry-saving', true);
+    reentered = await waitCapture('graybox-test-capture-a', 3);
+    assert.equal(reentered.checkpointCurrentId, 'graybox-test-capture-a');
+    assert.ok(reentered.checkpointCaptureEventId > before.checkpointCaptureEventId);
+    assert.ok(reentered.checkpointCaptureCommandId > before.checkpointCaptureCommandId);
+    assert.ok(reentered.checkpointCaptureTransactionId >
+      before.checkpointCaptureTransactionId);
+    assert.ok(reentered.checkpointCaptureResultEventId >
+      before.checkpointCaptureResultEventId);
+    assert.equal(reentered.progressRewardCount, 1,
+      'Goal E and its one reward remain unchanged by checkpoint captures');
+    await capture('D10-A3-true-reentry-saved-new-identities', true);
+    return {
+      priorCaptureEventId: before.checkpointCaptureEventId,
+      captureEventId: reentered.checkpointCaptureEventId,
+      commandId: reentered.checkpointCaptureCommandId,
+      transactionId: reentered.checkpointCaptureTransactionId,
+      resultEventId: reentered.checkpointCaptureResultEventId,
+      requestId: reentered.checkpointCaptureRequestId,
+      currentCheckpointId: reentered.checkpointCurrentId,
+      saves: reentered.checkpointCaptureSaves,
+      rewardCount: reentered.progressRewardCount,
+    };
+  });
+
+  await up();
+  assert.deepEqual(ctx.errors, []);
 }

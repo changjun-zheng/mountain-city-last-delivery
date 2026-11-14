@@ -10,6 +10,10 @@ import type {
   MovingPlatformLogicalState,
   SnapshotAnchor,
 } from '../../core/snapshot.ts';
+import {
+  GRAYBOX_CHECKPOINT_TRIGGERS,
+  type CheckpointTriggerOccupancySnapshot,
+} from '../../core/checkpoint-triggers.ts';
 
 // Uses Phaser's bundled Matter, injected so the identical world can run in deterministic tests.
 export type MatterLibrary = {
@@ -67,6 +71,7 @@ const PLAYER_CATEGORY = 0x0002;
 const ONE_WAY_CATEGORY = 0x0004;
 const DIAGNOSTIC_ZONE_CATEGORY = 0x0008;
 const TEST_ROUTE_GATE_CATEGORY = 0x0010;
+const CHECKPOINT_TRIGGER_CATEGORY = 0x0020;
 // Matter contact slop can leave the body about 2 px inside the top face on the first supported tick.
 const TOP_TOLERANCE_PX = 4;
 const MOTION_EPSILON = 0.01;
@@ -109,6 +114,16 @@ type DiagnosticZoneRuntime = {
   lastTransitionTick: number | null;
   readonly recentTransitions: DiagnosticZoneTransition[];
 };
+type CheckpointTriggerRuntime = {
+  readonly definition: (typeof GRAYBOX_CHECKPOINT_TRIGGERS)[number];
+  readonly body: MatterJS.BodyType;
+  occupied: boolean;
+  occupiedSteps: number;
+  lastOccupiedSteps: number;
+  enterCount: number;
+  exitCount: number;
+  lastTransitionTick: number | null;
+};
 
 export class MatterGrayboxWorld implements GrayboxPhysics {
   readonly terrain: MatterJS.BodyType[] = [];
@@ -117,6 +132,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   readonly oneWayPlatform: MatterJS.BodyType;
   readonly progressRouteGate: MatterJS.BodyType;
   readonly diagnosticZoneBodies: MatterJS.BodyType[] = [];
+  readonly checkpointTriggerBodies: MatterJS.BodyType[] = [];
   readonly #matter: MatterLibrary;
   readonly #engine: MatterJS.Engine;
   readonly #advance: (deltaMs: number) => void;
@@ -126,6 +142,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
   readonly #movingByLabel: Map<string, MovingPlatformRuntime>;
   readonly #diagnosticZones: DiagnosticZoneRuntime[];
   readonly #diagnosticZoneByLabel: Map<string, DiagnosticZoneRuntime>;
+  readonly #checkpointTriggers: CheckpointTriggerRuntime[];
   readonly spawnAnchor: SnapshotAnchor = Object.freeze({ x: 80, y: 472, facing: 1 });
   #platformClockMs = 0;
   #progressRouteOpen = false;
@@ -224,6 +241,35 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     this.#diagnosticZoneByLabel = new Map(
       this.#diagnosticZones.map(zone => [zone.definition.label, zone]),
     );
+    this.#checkpointTriggers = GRAYBOX_CHECKPOINT_TRIGGERS.map(definition => {
+      const body = matter.Bodies.rectangle(
+        definition.x,
+        definition.y,
+        definition.width,
+        definition.height,
+        {
+          isStatic: true,
+          isSensor: true,
+          label: definition.triggerId,
+          collisionFilter: {
+            category: CHECKPOINT_TRIGGER_CATEGORY,
+            mask: PLAYER_CATEGORY,
+            group: 0,
+          },
+        },
+      );
+      this.checkpointTriggerBodies.push(body);
+      return {
+        definition,
+        body,
+        occupied: false,
+        occupiedSteps: 0,
+        lastOccupiedSteps: 0,
+        enterCount: 0,
+        exitCount: 0,
+        lastTransitionTick: null,
+      };
+    });
     const slope = matter.Bodies.fromVertices(0, 0, [[
       { x: 0, y: 120 }, { x: 300, y: 0 }, { x: 300, y: 180 }, { x: 0, y: 180 },
     ]], { isStatic: true, friction: 1, label: 'continuous-slope' });
@@ -241,7 +287,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     // The sensor is a query-only independent region: it never blocks or changes player mass.
     for (const body of [
       ...this.terrain, ...this.#movingPlatforms.map(platform => platform.body),
-      ...this.diagnosticZoneBodies, this.player,
+      ...this.diagnosticZoneBodies, ...this.checkpointTriggerBodies, this.player,
     ]) {
       matter.Composite.add(engine.world as unknown as MatterJS.CompositeType, body);
     }
@@ -399,6 +445,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       worldVx: vx + carriedVx, worldVy: vy + carriedVy,
       supportVx, supportVy, grounded: Boolean(support), normalX, normalY, support, wall, ceiling };
     this.#updateDiagnosticZones(tick);
+    this.#updateCheckpointTriggers(tick);
   }
 
   reset(): void {
@@ -440,6 +487,7 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       worldVx: 0, worldVy: 0, supportVx: 0, supportVy: 0, grounded: false,
       normalX: 0, normalY: -1, support: '', wall: false, ceiling: false };
     this.#synchronizeDiagnosticBaseline();
+    this.#synchronizeCheckpointTriggerBaseline();
   }
   get state(): PlayerState { return this.#state; }
   get steps(): number { return this.#steps; }
@@ -477,6 +525,20 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
       lastTransitionTick: zone.lastTransitionTick,
       recentTransitions: zone.recentTransitions.map(transition => ({ ...transition })),
     }));
+  }
+  get checkpointTriggers(): readonly CheckpointTriggerOccupancySnapshot[] {
+    return this.#checkpointTriggers.map(trigger => Object.freeze({
+      triggerId: trigger.definition.triggerId,
+      occupied: trigger.occupied,
+      occupiedSteps: trigger.occupiedSteps,
+      lastOccupiedSteps: trigger.lastOccupiedSteps,
+      enterCount: trigger.enterCount,
+      exitCount: trigger.exitCount,
+      lastTransitionTick: trigger.lastTransitionTick,
+    }));
+  }
+  get checkpointTriggersEnabled(): boolean {
+    return this.#progressRouteOpen;
   }
   get diagnostics(): MatterGrayboxDiagnostics {
     const support = this.#movingByLabel.get(this.#state.support);
@@ -524,6 +586,32 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     }
   }
 
+  #updateCheckpointTriggers(tick: number): void {
+    const occupiedLabels = new Set(this.#matter.Query.collides(
+      this.player,
+      this.checkpointTriggerBodies,
+    ).map(collision =>
+      collision.bodyA === this.player ? collision.bodyB.label : collision.bodyA.label));
+    for (const trigger of this.#checkpointTriggers) {
+      const occupied = occupiedLabels.has(trigger.definition.triggerId);
+      if (occupied === trigger.occupied) {
+        if (occupied) trigger.occupiedSteps++;
+        continue;
+      }
+      trigger.occupied = occupied;
+      trigger.lastTransitionTick = tick;
+      if (occupied) {
+        trigger.enterCount++;
+        trigger.occupiedSteps = 1;
+        trigger.lastOccupiedSteps = 0;
+      } else {
+        trigger.exitCount++;
+        trigger.lastOccupiedSteps = trigger.occupiedSteps;
+        trigger.occupiedSteps = 0;
+      }
+    }
+  }
+
   #synchronizeDiagnosticBaseline(): void {
     const occupiedLabels = new Set(this.#matter.Query.collides(
       this.player, this.diagnosticZoneBodies,
@@ -539,6 +627,22 @@ export class MatterGrayboxWorld implements GrayboxPhysics {
     }
     this.#diagnosticBaselineTick = this.#lastSimulationTick;
     this.#diagnosticBaselineCount++;
+  }
+
+  #synchronizeCheckpointTriggerBaseline(): void {
+    const occupiedLabels = new Set(this.#matter.Query.collides(
+      this.player,
+      this.checkpointTriggerBodies,
+    ).map(collision =>
+      collision.bodyA === this.player ? collision.bodyB.label : collision.bodyA.label));
+    for (const trigger of this.#checkpointTriggers) {
+      trigger.occupied = occupiedLabels.has(trigger.definition.triggerId);
+      trigger.occupiedSteps = trigger.occupied ? 1 : 0;
+      trigger.lastOccupiedSteps = 0;
+      trigger.enterCount = 0;
+      trigger.exitCount = 0;
+      trigger.lastTransitionTick = this.#lastSimulationTick;
+    }
   }
 
   #updateOneWayCollision(): void {

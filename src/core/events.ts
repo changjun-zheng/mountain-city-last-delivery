@@ -140,6 +140,9 @@ export type EventCreationOptions = Readonly<{
   historyCapacity?: number;
   transactionResultCapacity?: number;
   allowedEventTypes?: readonly string[];
+  // Restricted commandless completion is intentionally limited to the
+  // checkpoint-entry coordination event selected by the host composition.
+  checkpointEntryEventType?: string;
   dispatchHandler?: EventDispatchHandler;
   commandReceiptTestDouble?: CommandReceiptTestDouble;
   realCommandDelivery?: RealCommandDeliveryOptions;
@@ -201,6 +204,7 @@ export type EventLifecycleRecord = Readonly<{
   simulationTick?: number;
   testCommandReference?: string;
   realCommand?: RealCommandAssociation;
+  checkpointEntryResult?: CheckpointEntryCoordinationResult;
   transactionResult?: TransactionResultAssociation;
   transactionResultConsumed?: boolean;
 }>;
@@ -210,6 +214,44 @@ export type RealCommandAssociation = Readonly<{
   targetId: string;
   transactionId: number;
 }>;
+
+export type CheckpointEntryDecision = 'selected' | 'not-selected' | 'entry-failed';
+
+// This narrow result closes an observed checkpoint-entry event without
+// inventing a Command acceptance. It records the closed batch and arbitration
+// outcome so the producer can read, acknowledge and retire the event normally.
+export type CheckpointEntryCoordinationResult = Readonly<{
+  status: 'checkpoint-entry-arbitrated';
+  triggerId: string;
+  checkpointId: string;
+  opportunityId: string;
+  priority: number;
+  detectedTick: number;
+  batchTick: number;
+  closedTick: number;
+  arbitrationTick: number;
+  decision: CheckpointEntryDecision;
+  reason: string;
+}>;
+
+export type CheckpointEntryCompletionResult =
+  | Readonly<{
+    status: 'completed';
+    eventId: number;
+    result: CheckpointEntryCoordinationResult;
+  }>
+  | Readonly<{
+    status: 'rejected';
+    reason:
+      | 'not-configured'
+      | 'invalid-producer'
+      | 'unknown-event'
+      | 'not-pending'
+      | 'integrity-mismatch'
+      | 'invalid-result'
+      | 'dispatch-active';
+    message: string;
+  }>;
 
 export type RealCommandDeliveryProgress = Readonly<{
   acceptedEventIds: readonly number[];
@@ -291,6 +333,7 @@ export type CompletedEventResult = Readonly<{
   producerId: string;
   testCommandReference?: string;
   realCommand?: RealCommandAssociation;
+  checkpointEntryResult?: CheckpointEntryCoordinationResult;
   transactionResult?: TransactionResultAssociation;
 }>;
 
@@ -619,6 +662,7 @@ class EventLifecycleRegistry {
       simulationTick: number;
       testCommandReference?: string;
       realCommand?: RealCommandAssociation;
+      checkpointEntryResult?: CheckpointEntryCoordinationResult;
       transactionResultConsumed?: boolean;
     }>,
   ): EventLifecycleRecord {
@@ -645,6 +689,12 @@ class EventLifecycleRegistry {
         ? { testCommandReference: details.testCommandReference }
         : {}),
       ...(details.realCommand ? { realCommand: details.realCommand } : {}),
+      ...(details.checkpointEntryResult ?? current.checkpointEntryResult
+        ? {
+          checkpointEntryResult:
+            details.checkpointEntryResult ?? current.checkpointEntryResult,
+        }
+        : {}),
       ...(current.transactionResult === undefined
         ? {}
         : { transactionResult: current.transactionResult }),
@@ -742,6 +792,10 @@ class EventInbox {
     return this.#eventIds.has(eventId);
   }
 
+  get(eventId: number): PendingEvent | undefined {
+    return this.#queue.find(event => event.eventId === eventId);
+  }
+
   get snapshot(): readonly PendingEvent[] {
     return Object.freeze([...this.#queue]);
   }
@@ -813,6 +867,7 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
   readonly #resourceCapacity: number;
   readonly #transactionResultCapacity: number;
   readonly #allowedEventTypes: ReadonlySet<string> | undefined;
+  readonly #checkpointEntryEventType: string | undefined;
   readonly #faultInjector: EventCreationFaultInjector | undefined;
   readonly #dispatchFaultInjector: EventDispatchFaultInjector | undefined;
   readonly #retirementFaultInjector: EventRetirementFaultInjector | undefined;
@@ -873,6 +928,7 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
     this.#allowedEventTypes = options.allowedEventTypes
       ? new Set(options.allowedEventTypes)
       : undefined;
+    this.#checkpointEntryEventType = options.checkpointEntryEventType;
     this.#faultInjector = options.faultInjector;
     this.#dispatchFaultInjector = options.dispatchFaultInjector;
     this.#retirementFaultInjector = options.retirementFaultInjector;
@@ -1289,6 +1345,102 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
     return foundTransactionResult(stored, lifecycle);
   }
 
+  completeCheckpointEntry(
+    producer: EventProducerHandle,
+    eventId: number,
+    candidate: CheckpointEntryCoordinationResult,
+  ): CheckpointEntryCompletionResult {
+    if (!this.#checkpointEntryEventType) {
+      return rejectedCheckpointEntryCompletion(
+        'not-configured',
+        'Commandless checkpoint-entry completion is not configured.',
+      );
+    }
+    const producerId = this.#resolveProducer(producer);
+    if (!producerId) {
+      return rejectedCheckpointEntryCompletion(
+        'invalid-producer',
+        'Event producer handle is not owned by this coordinator.',
+      );
+    }
+    if (this.#dispatching) {
+      return rejectedCheckpointEntryCompletion(
+        'dispatch-active',
+        'Checkpoint-entry completion cannot run inside an event dispatch.',
+      );
+    }
+    const event = this.#inbox.get(eventId);
+    const record = this.#lifecycle.get(eventId);
+    if (!event || !record) {
+      return rejectedCheckpointEntryCompletion(
+        'unknown-event',
+        `Checkpoint-entry event ${eventId} is not registered as Pending.`,
+      );
+    }
+    if (record.runtimeInstanceId !== this.#runtimeInstanceId ||
+        record.producerId !== producerId ||
+        record.status !== 'pending' ||
+        event.runtimeInstanceId !== this.#runtimeInstanceId ||
+        event.type !== this.#checkpointEntryEventType ||
+        fingerprintEvent(event) !== record.eventFingerprint) {
+      return rejectedCheckpointEntryCompletion(
+        record.status === 'pending' ? 'integrity-mismatch' : 'not-pending',
+        `Checkpoint-entry event ${eventId} is not eligible for restricted completion.`,
+      );
+    }
+    const result = normalizeCheckpointEntryResult(candidate, event);
+    if (!result.ok) {
+      return rejectedCheckpointEntryCompletion('invalid-result', result.message);
+    }
+
+    try {
+      this.#lifecycle.transition(
+        eventId,
+        'pending',
+        'processing',
+        { simulationTick: result.value.arbitrationTick },
+      );
+      this.#inbox.remove(eventId);
+      this.#lifecycle.transition(
+        eventId,
+        'processing',
+        'completed',
+        {
+          simulationTick: result.value.arbitrationTick,
+          checkpointEntryResult: result.value,
+        },
+      );
+    } catch (error) {
+      const current = this.#lifecycle.get(eventId);
+      if (current?.status === 'processing' && !this.#inbox.contains(eventId)) {
+        try {
+          this.#lifecycle.transition(
+            eventId,
+            'processing',
+            'pending',
+            { simulationTick: result.value.arbitrationTick },
+          );
+          this.#inbox.commit(event);
+        } catch (rollbackError) {
+          return rejectedCheckpointEntryCompletion(
+            'integrity-mismatch',
+            `Checkpoint-entry completion failed and could not restore Pending: ` +
+              `${toMessage(error)}; ${toMessage(rollbackError)}`,
+          );
+        }
+      }
+      return rejectedCheckpointEntryCompletion(
+        'integrity-mismatch',
+        `Checkpoint-entry completion failed: ${toMessage(error)}`,
+      );
+    }
+    return Object.freeze({
+      status: 'completed' as const,
+      eventId,
+      result: result.value,
+    });
+  }
+
   readFinalResult(
     producer: EventProducerHandle,
     eventId: number,
@@ -1311,6 +1463,7 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
     if (record.status !== 'completed' ||
         (!record.testCommandReference &&
           !record.realCommand &&
+          !record.checkpointEntryResult &&
           !record.transactionResult)) {
       return rejectedFinalResult(
         'not-completed',
@@ -1329,6 +1482,9 @@ export class EventCreationCoordinator implements CommandEventSource, Transaction
           ? { testCommandReference: record.testCommandReference }
           : {}),
         ...(record.realCommand ? { realCommand: record.realCommand } : {}),
+        ...(record.checkpointEntryResult
+          ? { checkpointEntryResult: record.checkpointEntryResult }
+          : {}),
         ...(record.transactionResult
           ? { transactionResult: record.transactionResult }
           : {}),
@@ -2999,6 +3155,80 @@ function rejectedRetirement(
     reason,
     message,
   });
+}
+
+function rejectedCheckpointEntryCompletion(
+  reason: Extract<
+    CheckpointEntryCompletionResult,
+    { status: 'rejected' }
+  >['reason'],
+  message: string,
+): CheckpointEntryCompletionResult {
+  return Object.freeze({
+    status: 'rejected' as const,
+    reason,
+    message,
+  });
+}
+
+function normalizeCheckpointEntryResult(
+  value: CheckpointEntryCoordinationResult,
+  event: PendingEvent,
+):
+  | Readonly<{ ok: true; value: CheckpointEntryCoordinationResult }>
+  | Readonly<{ ok: false; message: string }> {
+  try {
+    if (!isPlainRecord(value) ||
+        value.status !== 'checkpoint-entry-arbitrated' ||
+        typeof value.triggerId !== 'string' || value.triggerId.length === 0 ||
+        typeof value.checkpointId !== 'string' || value.checkpointId.length === 0 ||
+        typeof value.opportunityId !== 'string' || value.opportunityId.length === 0 ||
+        !Number.isSafeInteger(value.priority) ||
+        !Number.isSafeInteger(value.detectedTick) || value.detectedTick < 1 ||
+        !Number.isSafeInteger(value.batchTick) || value.batchTick < 1 ||
+        !Number.isSafeInteger(value.closedTick) || value.closedTick < value.batchTick ||
+        !Number.isSafeInteger(value.arbitrationTick) ||
+        value.arbitrationTick < value.closedTick ||
+        !['selected', 'not-selected', 'entry-failed'].includes(value.decision) ||
+        typeof value.reason !== 'string' || value.reason.length === 0) {
+      return Object.freeze({
+        ok: false as const,
+        message: 'Checkpoint-entry arbitration result has an unsupported shape.',
+      });
+    }
+    if (event.payload.triggerId !== value.triggerId ||
+        event.payload.checkpointId !== value.checkpointId ||
+        event.payload.opportunityId !== value.opportunityId ||
+        event.payload.priority !== value.priority ||
+        event.payload.detectedTick !== value.detectedTick ||
+        event.payload.batchTick !== value.batchTick) {
+      return Object.freeze({
+        ok: false as const,
+        message: 'Checkpoint-entry arbitration result does not match its Pending event.',
+      });
+    }
+    return Object.freeze({
+      ok: true as const,
+      value: Object.freeze({
+        status: 'checkpoint-entry-arbitrated' as const,
+        triggerId: value.triggerId,
+        checkpointId: value.checkpointId,
+        opportunityId: value.opportunityId,
+        priority: value.priority,
+        detectedTick: value.detectedTick,
+        batchTick: value.batchTick,
+        closedTick: value.closedTick,
+        arbitrationTick: value.arbitrationTick,
+        decision: value.decision,
+        reason: value.reason,
+      }),
+    });
+  } catch (error) {
+    return Object.freeze({
+      ok: false as const,
+      message: `Checkpoint-entry arbitration result could not be read: ${toMessage(error)}`,
+    });
+  }
 }
 
 function normalizeDispatchContext(context: EventDispatchContext): NormalizedDispatchContext {

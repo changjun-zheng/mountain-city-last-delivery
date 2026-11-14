@@ -5,6 +5,7 @@ import { INTERACTION_OBJECTS } from '../../core/interaction.ts';
 import { PLAYER_PROTOTYPE } from '../../core/player.ts';
 import { PROTOTYPE_PROGRESS_CONTENT } from '../../core/progress.ts';
 import type { RuntimeUuidProvider } from '../../core/events.ts';
+import { GRAYBOX_CHECKPOINT_TRIGGERS } from '../../core/checkpoint-triggers.ts';
 import {
   MatterGrayboxWorld, ONE_WAY_PLATFORM, PROGRESS_TEST_ROUTE_GATE,
   type MatterGrayboxDiagnostics, type MatterLibrary,
@@ -73,6 +74,32 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
             );
             return [zone.label, { rectangle, text, color }];
           }));
+          const checkpointTriggerVisuals = new Map(
+            GRAYBOX_CHECKPOINT_TRIGGERS.map((trigger, index) => {
+              const color = index === 0 ? 0xf0bd71 : 0x56c7a5;
+              const rectangle = this.add.rectangle(
+                trigger.x,
+                trigger.y,
+                trigger.width,
+                trigger.height,
+                color,
+                0.08,
+              ).setStrokeStyle(2, color);
+              const text = this.add.text(
+                trigger.x - trigger.width / 2 + 5,
+                trigger.y - trigger.height / 2 + 4,
+                `${trigger.label} · P${trigger.priority}`,
+                {
+                  fontFamily: 'Microsoft YaHei, sans-serif',
+                  fontSize: '13px',
+                  color: '#fff4d6',
+                  backgroundColor: '#3a3428',
+                  padding: { x: 4, y: 2 },
+                },
+              );
+              return [trigger.triggerId, { rectangle, text, color }];
+            }),
+          );
           const movingVisuals = new Map(world.movingPlatforms.map(platformState => {
             const horizontal = platformState.axis === 'horizontal';
             return [platformState.label, this.add.rectangle(
@@ -113,6 +140,11 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
             backgroundColor: '#4a2025', padding: { x: 10, y: 7 },
             wordWrap: { width: 720, useAdvancedWrap: true },
           }).setScrollFactor(0).setDepth(50).setVisible(false);
+          const checkpointTriggerHud = this.add.text(20, 220, '', {
+            fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '14px', color: '#fff4d6',
+            backgroundColor: '#26372f', padding: { x: 9, y: 7 },
+            wordWrap: { width: 620, useAdvancedWrap: true },
+          }).setScrollFactor(0).setDepth(24);
           const interactionPanel = this.add.rectangle(760, 126, 420, 190, 0x172832, 0.97)
             .setStrokeStyle(4, 0xb888de).setScrollFactor(0).setDepth(40).setVisible(false);
           const interactionTitle = this.add.text(570, 52, '', {
@@ -134,7 +166,7 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
           const camera = this.cameras.main;
           camera.setBounds(0, 0, 2000, 680);
           camera.startFollow(player, true, 0.15, 0.15);
-          this.add.text(20, 16, `${PROJECT_IDENTITY.title} · ${PROJECT_IDENTITY.subtitle}\nM1.2.2 物理灰盒  /  ${platform}\nA/D 或 ←/→ 移动 · Space 跳跃（短按低跳／长按高跳）\n调查 A／B：E 打开；丢弃 C：E 只显示短反馈\nD08 / D09-D1：E 收藏 D；目标 E 经 Event→Command→Transaction→Result 后开门\nR 重置临时世界但保留本次运行身份、进度和已开放路线\n蓝／粉区域、橙／青平台和上方测试路线门：只作灰盒验证\nR /「重置灰盒」回到出生点 · 失焦恢复后先松开按键再按\nMatter 优先验证中；非最终物理方案。所有数值为原型。`, {
+          this.add.text(20, 16, `${PROJECT_IDENTITY.title} · ${PROJECT_IDENTITY.subtitle}\nM1.2.2 物理灰盒  /  ${platform}\nA/D 或 ←/→ 移动 · Space 跳跃（短按低跳／长按高跳）\n调查 A／B：E 打开；丢弃 C：E 只显示短反馈\nD08 / D09-D1：E 收藏 D；目标 E 经 Event→Command→Transaction→Result 后开门\nD10-A3：开门后走入金／绿检查点 A/B；低 priority 胜出，离开再进入才重试\nR 重置临时世界但保留本次运行身份、进度、有效检查点和已开放路线\n蓝／粉区域、橙／青平台、金／绿检查点和测试路线门：只作灰盒验证\nR /「重置灰盒」回到出生点 · 失焦恢复后先松开按键再按\nMatter 优先验证中；非最终物理方案。所有数值为原型。`, {
             fontFamily: 'Microsoft YaHei, sans-serif', fontSize: '17px', color: '#f4eddc',
             backgroundColor: '#152632', padding: { x: 8, y: 6 },
             wordWrap: { width: 830, useAdvancedWrap: true },
@@ -147,6 +179,7 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
             const progress = snapshot.progress;
             const goalRoute = snapshot.goalRoute;
             const checkpointSnapshot = snapshot.checkpointSnapshot;
+            const checkpointTriggers = snapshot.checkpointTriggers;
             for (const platformState of world.movingPlatforms) {
               movingVisuals.get(platformState.label)?.setPosition(platformState.x, platformState.y);
             }
@@ -157,6 +190,19 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
               visual?.text.setText(
                 `${zone.label}\n${zone.occupied ? 'ON' : 'OFF'} E${zone.enterCount} X${zone.exitCount} ` +
                 `${zone.occupied ? zone.occupiedSteps : zone.lastOccupiedSteps}t`,
+              );
+            }
+            for (const trigger of checkpointTriggers.zones) {
+              const visual = checkpointTriggerVisuals.get(trigger.triggerId);
+              if (!visual) continue;
+              visual.rectangle
+                .setFillStyle(visual.color, trigger.occupied ? 0.2 : 0.08)
+                .setStrokeStyle(trigger.occupied ? 4 : 2, visual.color);
+              visual.text.setText(
+                `${trigger.label} · P${trigger.priority} · ` +
+                `${checkpointTriggers.enabled ? (trigger.occupied ? 'ON' : 'READY') : 'LOCKED'}\n` +
+                `E${trigger.enterCount} X${trigger.exitCount} ` +
+                `${trigger.lastDecision ?? '-'}`,
               );
             }
             player.setPosition(state.x, state.y);
@@ -213,6 +259,38 @@ export function mountGrayboxScene(parent: HTMLElement, platform: string, now: ()
                 ? `快照初始化失败／探索未开放：${checkpointSnapshot.error ?? 'unknown error'}`
                 : '')
               .setVisible(checkpointSnapshot.status === 'FAILED');
+            const arbitration = checkpointTriggers.lastArbitration;
+            const capture = snapshot.checkpointCapture;
+            checkpointTriggerHud
+              .setText(
+                `D10-A3 检查点触发 · ${checkpointTriggers.feedbackKind.toUpperCase()}\n` +
+                `当前 ${checkpointTriggers.currentCheckpointId ?? '-'}` +
+                ` · 候选 ${checkpointTriggers.candidateCheckpointId ?? '-'}\n` +
+                `${checkpointTriggers.feedback}\n` +
+                `批次 #${checkpointTriggers.batchCount} @${checkpointTriggers.batchTick ?? '-'}` +
+                ` · 关闭 ${checkpointTriggers.closedTick ?? '-'}` +
+                ` · 仲裁 ${checkpointTriggers.arbitrationTick ?? '-'}\n` +
+                `Entry E${checkpointTriggers.latestEntryEventId ?? '-'}` +
+                ` · Capture E${checkpointTriggers.latestCaptureEventId ?? '-'}\n` +
+                `Capture ${capture.phase}` +
+                ` · C${capture.commandId ?? '-'} T${capture.transactionId ?? '-'}` +
+                ` R${capture.resultEventId ?? '-'}` +
+                ` · 保存 ${capture.successfulCommits}` +
+                ` · lock ${capture.lock.held ? 'HELD' : 'FREE'}` +
+                ` · resource ${capture.resourceOwnership.resourcesReleased ? 'RELEASED' : 'HELD'}\n` +
+                (arbitration
+                  ? `Winner ${arbitration.winnerTriggerId ?? '-'} / ` +
+                    `${arbitration.winnerCheckpointId ?? '-'} · ` +
+                    arbitration.entrants.map(entry =>
+                      `${entry.triggerId}:${entry.decision}@${entry.entryEventId}`).join(' | ')
+                  : 'Winner -'),
+              )
+              .setColor(checkpointTriggers.feedbackKind === 'failed'
+                ? '#ffd0d0'
+                : checkpointTriggers.feedbackKind === 'saved'
+                  ? '#c9f7d7'
+                  : '#fff4d6')
+              .setVisible(!investigationOpen);
             interactionPanel.setVisible(investigationOpen);
             interactionTitle.setText(interaction.title ?? '').setVisible(investigationOpen);
             interactionContent.setText(interaction.content ?? '').setVisible(investigationOpen);

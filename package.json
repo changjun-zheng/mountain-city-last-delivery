@@ -25,7 +25,8 @@
     "test:d07": "npm run electron:compile && node tests/platform-smoke.mjs --d07",
     "test:d08": "npm run electron:compile && node tests/platform-smoke.mjs --d08",
     "test:d09-d1": "npm run electron:compile && node tests/platform-smoke.mjs --d09-d1",
-    "test:d10-a1": "npm run electron:compile && node tests/platform-smoke.mjs --d10-a1"
+    "test:d10-a1": "npm run electron:compile && node tests/platform-smoke.mjs --d10-a1",
+    "test:d10-a3": "npm run electron:compile && node tests/platform-smoke.mjs --d10-a3"
   },
   "dependencies": {
     "phaser": "3.90.0"

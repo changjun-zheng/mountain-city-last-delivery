@@ -4,11 +4,11 @@
 
 《叠城大冒险》（Layered City Adventures）是一款以具有山城特色的虚构立体城市为舞台的 2D 横版平台探索冒险游戏，核心体验是跳跃、探索、解谜与发现（CONFIRMED，2026-11-12）。
 
-当前默认打开已加入 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互原型、D08 运行内进度原型、D09-D1 目标 E 真实事件链及 D10-A1 固定清单初始备用快照的 M1.2.2 可操作物理灰盒，Web 与 Windows 使用同一份角色、地形、交互、进度、事件、快照及模拟代码。共享核心还包含尚未接入宿主 GUI 的 D10-A2 运行中捕获事务与局部冻结组合。顶部「场景」可切回原固定步诊断场景。「重新启动」先销毁 Phaser 实例，再重新加载原页面并创建新完整测试运行；「重置灰盒」只重置原型角色、移动平台、诊断区域与临时交互状态，保留 D08 的本次运行内记录、D09-D1 的运行身份／编号／接受记录／路线效果及 D10-A1 的初始备用快照，也不是检查点恢复。
+当前默认打开已加入 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互原型、D08 运行内进度原型、D09-D1 目标 E 真实事件链、D10-A1 固定清单初始备用快照及 D10-A3 可玩检查点捕获的 M1.2.2 可操作物理灰盒，Web 与 Windows 使用同一份角色、地形、交互、进度、事件、快照、触发仲裁及模拟代码。顶部「场景」可切回原固定步诊断场景。「重新启动」先销毁 Phaser 实例，再重新加载原页面并创建新完整测试运行；「重置灰盒」只重置原型角色、移动平台、诊断区域与临时交互状态，保留 D08 的本次运行内记录、D09-D1 的运行身份／编号／接受记录／路线效果、当前有效检查点及初始备用快照，也不是检查点恢复。
 
 Mountain City: Last Delivery／山城有路：最后一单为历史名称。下文旧里程碑的日志、截图及证据保留当时名称，不改写为新名执行过的测试。真实地标资料与旧首关方案保留参考，其虚构世界叙事尚待适配；本次不新增玩法、不重写任务或通关条件。内部包名、appId、用户数据身份及项目目录不变。
 
-操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；靠近调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束；R 或「重置灰盒」回到出生点。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过，并从上方落地行走；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。调查 A／B 的范围局部重叠，界面始终只选一个主要目标；拾取 C 只提供短暂反馈，不发放奖励。D 仍由 D08 原型直接登记一次测试收藏；目标 E 的按 E 只创建 Pending Event，真实命令接收和跨 Tick 事务完成后才登记目标／奖励／永久效果并开门。右上 HUD 显示 D08 记录数、D09-D1 阶段、Runtime／Event／Command／Transaction／Result Event 身份和关键 Tick，以及 D10-A1 初始快照的 READY／对象数／版本／捕获次数。R 保留本次页面运行内的 D08 记录、D09-D1 身份链与 OPEN 状态以及 D10-A1 初始备份；整页刷新或场景重载会创建新的运行、进度和初始备份。出生点右侧的蓝色 A 与粉色 B 是局部重叠的非实体诊断区域，只显示占用和进入／离开记录，不阻挡、不提供支撑。沿右侧跨过墙壁和间隙，再经连续坡面可到达两条移动平台；掉出间隙后按 R。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
+操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；靠近调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束；R 或「重置灰盒」回到出生点。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过，并从上方落地行走；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。调查 A／B 的范围局部重叠，界面始终只选一个主要目标；拾取 C 只提供短暂反馈，不发放奖励。D 仍由 D08 原型直接登记一次测试收藏；目标 E 的按 E 只创建 Pending Event，真实命令接收和跨 Tick 事务完成后才登记目标／奖励／永久效果并开门。路线开启后，走过门、跨过间隙并向右进入金色检查点 A 或绿色检查点 B；两区局部重叠，同一实际 Tick 内按数字较小 priority 唯一胜出，当前原型为 A `10`、B `20`。HUD 显示保存中／已保存／被阻挡／失败、当前与候选检查点、闭批 Tick、进入 Event、捕获 Event、Command、Transaction、Result Event、锁与资源状态。R 保留本次页面运行内的 D08 记录、D09-D1 身份链与 OPEN 状态、当前有效检查点以及 D10-A1 初始备份；捕获局部冻结期间 R 会被安全拒绝并显示反馈。整页刷新或场景重载会创建新的运行、进度和初始备份。出生点右侧的蓝色 A 与粉色 B 是局部重叠的非实体诊断区域，只显示占用和进入／离开记录，不阻挡、不提供支撑。沿右侧跨过墙壁和间隙，再经连续坡面可到达两条移动平台；掉出间隙后按 R。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
 
 ## 技术栈与安装
 
@@ -104,9 +104,10 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `src/core/transaction-results.ts` | D09-C2 唯一最终结果事件的受控合同、完整关联及生命周期类型；结果创建仍由事件协调器和事务管理模块执行。 |
 | `src/core/goal-route-runtime.ts` | D09-D1 单次运行的目标 E 组合：复用事件、稳定命令、真实目标接收、跨 Tick 事务、唯一结果事件、确认／退役和共享进度，不包含平台 API。 |
 | `src/core/snapshot.ts` | D10-A1／A2 固定临时对象登记、可信检查点配置、严格整体／对象版本校验、不可变候选、单一当前记录原子提交及提交后故障点；不包含平台 API 或持久化。 |
-| `src/core/business-runtime-bus.ts` | D10-A2 单次运行共享一套 Runtime UUID、Event ID、命令协调器和结果路由；目标 E 与检查点捕获注册不同目标模块，不另造业务运行实例。 |
-| `src/core/snapshot-capture-runtime.ts` | D10-A2 单关卡捕获锁、准入、局部冻结、同 Tick 完整捕获、跨 Tick 验证／提交、原事务核查／恢复、唯一结果和资源释放；不接正式触发区或恢复。 |
-| `src/physics/matter/graybox-world.ts` | 两端共用 Matter 世界、静态地形、独立脚底区域与实际接触法线判定。 |
+| `src/core/business-runtime-bus.ts` | D10-A2／A3 单次运行共享一套 Runtime UUID、Event ID、命令协调器和结果路由；目标 E、检查点进入与捕获使用不同目标模块或受限处理路径，不另造业务运行实例。 |
+| `src/core/checkpoint-triggers.ts` | D10-A3 原型触发器定义、玩家进入边沿、实际 Tick 收集批次、数字小 priority 仲裁、受限无命令事件完成及捕获胜负／反馈；不直接冻结或提交快照。 |
+| `src/core/snapshot-capture-runtime.ts` | D10-A2／A3 单关卡捕获锁、准入、局部冻结、同 Tick 完整捕获、跨 Tick 验证／提交、原事务核查／恢复、唯一结果、资源释放及进入 Event 关联；不实现恢复或存档。 |
+| `src/physics/matter/graybox-world.ts` | 两端共用 Matter 世界、静态地形、独立脚底区域、实际接触法线及只读检查点占用 sensor；sensor 不承载也不授予跳跃资格。 |
 | `src/core/simulation.ts` | 固定步累加器、实际 Tick、有界补算及余量／丢弃统计。 |
 | `src/core/lifecycle.ts` | Owner + Key 去重、Token 所有权、退役与有效暂停集合。 |
 | `src/platform/web/visibility.ts` | 两端共用的 Renderer 可见性适配，转发 Acquire／Release，不直接修改模拟。 |
@@ -133,8 +134,9 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `tests/goal-route-runtime.test.mjs` | D09-D1 完整 Event→Command→Transaction→Result 链、创建失败回滚及结果消费故障有界返回。 |
 | `tests/snapshot.test.mjs` | D10-A1 固定登记、schemaVersion／stateVersion、结构完整性、不可变性、原子提交失败与旧记录保留。 |
 | `tests/snapshot-capture.test.mjs` | D10-A2 CT01–CT06：真实 Matter 捕获、局部冻结、单锁防重、提交前失败、提交后中断恢复及共享运行隔离。 |
-| `tests/graybox-browser.mjs` | 真实窗口键盘操作、物理暂停、平台、区域、D07 交互及 D08 收藏／目标／奖励／效果断言。 |
-| `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1／D05／D07／D08／D09-D1／D10-A1 定向入口。 |
+| `tests/checkpoint-triggers.test.mjs` | D10-A3 TR01–TR05：进入／停留／重入、闭批顺序、配置冲突、忙碌消耗、失败保留、暂停与安全 R；使用真实 Matter 世界和共享捕获链。 |
+| `tests/graybox-browser.mjs` | 真实窗口键盘操作、物理暂停、平台、区域、D07 交互、D08 收藏／目标／奖励／效果及 D10-A3 检查点捕获断言。 |
+| `tests/platform-smoke.mjs` | 可选 Chrome／Edge 的真实标签页测试，以及 Electron 原生最小化／恢复、独立包、重启与 D04-R1／D05／D07／D08／D09-D1／D10-A1／D10-A3 定向入口。 |
 | `tests/browser-selection.mjs` | 解析 `--browser`、查找标准安装路径并核验 CDP 实际浏览器身份；缺失时不回退。 |
 | `scripts/test.mjs` | 无参数时运行自动化单测，有参数时把平台测试参数原样转发给 `test:platform`。 |
 | `docs/` | 策划、决策与赛事原始材料。 |
@@ -171,6 +173,9 @@ npm.cmd run test:d09-d1
 
 # D10-A1 固定快照登记、初始备用快照及目标 E 回归三端定向验收
 npm.cmd run test:d10-a1
+
+# D10-A3 检查点进入、批次仲裁与真实捕获三端定向验收
+npm.cmd run test:d10-a3
 ```
 
 平台测试只接受 `chrome`、`edge`，使用每次新建的临时用户配置目录，并通过 CDP `Browser.getVersion` 核对实际品牌。`report.json` 记录候选／实际路径、品牌、版本、进程 PID、启动参数、临时配置目录、页面与进程时间线，以及测试脚本和 ASAR 的 SHA-256。所选浏览器缺失时结果为 `BLOCKED`，不会静默切换浏览器、安装软件或使用个人资料。
@@ -1619,12 +1624,90 @@ R01–R04：
 
 D10-A2-R1 当前为 DONE（待 Work 审查）；父项 D10-A2 仍等待 Work 收口。未进入正式触发区域、D11 恢复或存档，不 Commit／Push／发布。
 
+## D10-A3：灰盒检查点触发、批次仲裁与可玩捕获
+
+2026-11-14 在现有灰盒接入两个可走跳进入的检查点测试区域。目标 E 开启路线后，玩家实际进入区域会产生独立的检查点进入事件；宿主按固定阶段完成真实物理步、更新区域边沿、关闭当前 Tick 批次并仲裁，再由唯一胜出请求启动既有捕获链。`Accepted` 仍只表示捕获事件或命令被接收，只有原子提交成功后才显示“已保存”并替换当前有效检查点。
+
+### 原型配置与固定阶段
+
+- 金色检查点 A：`checkpoint-trigger-a`，区域 `x=1200, y=470, 80x92`，`checkpointId=graybox-test-capture-a`，锚点 `1200,472,1`，优先级 `10`。
+- 绿色检查点 B：`checkpoint-trigger-b`，区域 `x=1245, y=470, 80x92`，`checkpointId=graybox-test-capture-b`，锚点 `1270,472,1`，优先级 `20`。
+- 两区域局部重叠但都不是实体平台，不承载玩家，也不改变脚底接触或跳跃资格。数字较小的 `10` 在同一竞争范围唯一优先；重复优先级会作为配置错误拒绝。
+- 每个实际固定步先执行唯一一次 Matter 求解和玩家／区域占用更新，再关闭本 Tick 批次并按 `(batchTick, priority)` 仲裁。第一个传感器回调不会立即捕获，倒置区域或回调顺序不改变胜者。
+- 进入事件、捕获事件、命令、事务与最终结果使用共享运行上下文中的独立 Event ID 及既有 Command／Transaction／Result 生成规则；捕获事件显式关联来源进入 Event ID。
+- 落选、捕获锁忙碌或已有生命周期收尾中的请求只消耗本次进入机会，不进入待办队列，也不会在资源释放后补发。连续停留不重复捕获，必须真正离开后重新进入；离开不取消已经启动的捕获。
+- 捕获成功、失败、被阻挡和保存中的提示均来自真实状态。HUD 同时显示当前与候选检查点、批次／关闭／仲裁 Tick、完整身份、捕获／提交次数、锁和资源状态。任务 E 的奖励与路线开放保持幂等。
+- 暂停时不推进模拟、批次、捕获或反馈。冻结期间按 R 会安全拒绝；正常 R 保留当前检查点、Runtime、永久进度、奖励和 OPEN 效果，并同步触发器占用基线，不制造伪进入或新捕获。
+
+### 验收结果
+
+| 用例 | 状态 | 实际证据 |
+| --- | --- | --- |
+| TR01 进入、停留、重入与替换 | PASS | 真实 Matter 核心测试覆盖进入、多 Tick 停留、离开、真正重入及另一区域替换；三端均用真实移动、跳跃进入 A／B 并完成保存。每次重入生成新的 Entry Event、Capture Event、Command、Transaction 与 Result Event，停留不重复；任一时刻只有一个当前有效检查点。 |
+| TR02 闭批与顺序 | PASS | 同一实际 Tick 的两个入区请求在物理更新后闭批，低数字 priority 唯一胜出；测试倒置区域及请求创建顺序仍保持相同胜者。配置校验拒绝重复 priority。落选请求不跨批补发。 |
+| TR03 不排队、非取消与忙碌消耗 | PASS | 核心真实 Matter 场景覆盖捕获中离开不取消、事务期间重入及另一区域被阻挡不排队、结束后仍停留不重试；确认／退役后的旧请求保持已处理。三端真实重入使用新身份刷新同一检查点，目标 E 奖励始终为 `1`。 |
+| TR04 失败与资源边界 | PASS | 故障注入场景证明显式捕获失败保留旧检查点且不自动重试；已有 R1 终态清理不会重开事务，之后必须发生新的有效进入。该核心故障结果没有冒充 GUI 故障按钮或三端故障运行。 |
+| TR05 暂停、重置与控制 | PASS | 核心测试验证捕获中的暂停、R 有界拒绝、恢复不重触发和正常 R 基线同步。三端真实隐藏／原生最小化前后 Entry 与保存次数不变，恢复后没有后台追赶；R 保留当前检查和 OPEN 状态，没有伪进入，控制锁与输入松键门槛未回归。 |
+| TR06 三端可玩闭环 | PASS | `run-hmo8zZ` 中 Chrome Web、Electron 开发版和仓库外独立生产包全部用真实方向／跳跃输入进入区域，产生真实 Event／Command／Transaction／Result 并保存；目标 E 仍正常打开路线且只记录一次奖励。进程均正常退出，报告清理失败为 `0`。 |
+
+三端真实捕获身份：
+
+| 平台 | A：Entry／Capture／Command／Transaction／Result | B：Entry／Capture／Command／Transaction／Result | 暂停 Tick | A 重入：Entry／Capture／Command／Result |
+| --- | --- | --- | --- | --- |
+| Chrome Web | `3／4／2／2／5` | `6／7／3／3／8` | `478 → 479` | `10／4／4／11` |
+| Electron 开发版 | `3／4／2／2／5` | `6／7／3／3／8` | `482 → 484` | `10／4／4／11` |
+| 独立生产包 | `3／4／2／2／5` | `6／7／3／3／8` | `476 → 478` | `10／4／4／11` |
+
+A 检测 Tick 分别为 Web `335`、Electron 开发版 `353`、生产包 `350`；B 检测 Tick 分别为 `437`、`446`、`443`。渲染调度会产生不同 Tick 与浮点位置，但共享核心规则、身份链和业务结果一致。
+
+实际执行：
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| D10-A3 专项 | PASS | `tests/checkpoint-triggers.test.mjs` 的 TR01–TR05 共 5 项通过；使用真实 Matter、共享捕获链和可控故障点，不用假碰撞结果代替。 |
+| `npm.cmd test` | PASS | TypeScript 核心／Renderer、Electron Main 编译 PASS；`144/144` 测试通过，0 fail、0 skipped；原 139 项语义保留。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建、Electron Main 编译及 Windows x64 免安装目录构建成功；仅保留 bundle 体积、缺少 author 和默认 Electron 图标警告。 |
+| `npm.cmd run test:d10-a3` | PASS | [run-hmo8zZ](test-results/platform/run-hmo8zZ/report.json) 的 Chrome Web、Electron 开发版、独立生产包均为 PASS；页面错误 `0`、非预期中断 `0`、清理失败 `0`，三个测试自有进程退出码均为 `0`。 |
+| Edge | NOT RUN | 本任务没有重测 Edge；不能由 Chrome 结果推定 Edge 兼容性。 |
+| 完整物理长套件 | NOT RUN | 本任务使用定向入口验证受影响链路，没有无理由重复全部物理长流程；历史 FAIL 不平反。 |
+| 独立人工操作 | NOT RUN | 自动化使用真实键盘输入和真实原生窗口，但不冒充独立人工手感或长期稳定性验收。 |
+| `git diff --check` | PASS | 无空白错误；仅保留仓库既有 LF／CRLF 提示。 |
+
+历史失败 [run-zrOvKK](test-results/platform/run-zrOvKK/report.json) 保留为 FAIL。其 Web 用例在捕获已快速完成后仍要求读取旧候选状态，Electron 两端的 A→B 路线又重入 A，导致测试准备与采样假设错误；修正测试采样和路线后得到上述 `run-hmo8zZ` PASS，应用捕获语义未为测试便利而放宽。
+
+真实截图：
+
+- [Web A 保存中](test-results/platform/run-hmo8zZ/001-web-D10-A3-real-entry-saving-A.png)
+- [Web B 替换 A](test-results/platform/run-hmo8zZ/004-web-D10-A3-saved-B-replaces-A.png)
+- [Electron 开发版 A 保存中](test-results/platform/run-hmo8zZ/012-electron-dev-D10-A3-real-entry-saving-A.png)
+- [Electron 开发版 B 替换 A](test-results/platform/run-hmo8zZ/015-electron-dev-D10-A3-saved-B-replaces-A.png)
+- [独立生产包 A 保存中](test-results/platform/run-hmo8zZ/023-electron-packaged-D10-A3-real-entry-saving-A.png)
+- [独立生产包真实重入新身份](test-results/platform/run-hmo8zZ/031-electron-packaged-D10-A3-true-reentry-saved-new-identities.png)
+- [供用户体验的 Electron 正常运行窗口](test-results/d10-a3-20261114/electron-dev-experience.png)
+
+正常开发体验入口使用 `npm.cmd run electron`；本轮保留的窗口 PID 为 `11088`、HWND 为 `612241018`，标题“叠城大冒险 | Layered City Adventures”，当前 Vite 地址为 `http://127.0.0.1:64196/?platform=windows`。启动时间、命令、截图和哈希记录见 [experience-launch.json](test-results/d10-a3-20261114/experience-launch.json)。该窗口不由测试脚本关闭，留待用户自行操作和关闭。
+
+体验路线：从出生点向右，靠近“目标 E”提示牌按 E 开启测试路线；完成真实事件链后继续向右，进入金色检查点 A 或绿色检查点 B。两区局部重叠时 A 的 priority 较低；捕获完成后 HUD 显示当前有效检查点。离开后重新进入会刷新，R 会保留当前检查点并回到出生点。A/D 或方向键移动，Space 跳跃，E 主动交互，R 调试重置。
+
+版本证据：
+
+- 生产入口：`release/layered-city-adventures/win-unpacked/Layered City Adventures.exe`。
+- ASAR：`1F7CE7668B71DAFC9C860E58F1C99632657904D28AD859DCB72DFEE36DD55FA0`。
+- Windows EXE：`D56A12B198E3418B8A3941C0F7465DD4DAB182478F6BF9CAF5AA5E2437AF8C7B`。
+- `report.json`：`592849A14D42B6D591D8FC115A85995F7582ED5D10D8C75824606187FC49890F`。
+- `tests/platform-smoke.mjs`：`E2C0F854506497D82458BA565F85052E79497A2241B05E1FCA1DE5D1FF88EE56`。
+- `tests/graybox-browser.mjs`：`AB956AFCEA202702C0D93590A56A2B47BC093F55571EAE189CD7DD66E81B1B1E`。
+- `src/core/checkpoint-triggers.ts`：`D9CDCA3ECEACE07DF47071124E049F633E75526CE2FFB06AF8B608CB34548889`。
+- `tests/checkpoint-triggers.test.mjs`：`A2B89DCCD32A43559F3078C1877FF37941467431A72C9420151BB8EF39471228`。
+
+D10-A3 在当前灰盒触发、批次仲裁、可玩捕获和真实结果反馈范围完成，等待 Work 审查。该结论不包含坠落传送、完整 Checkpoint Recovery、RecoveryError、跨会话存档、正式任务或正式关卡内容；Matter 仍只是物理验证候选。
+
 ## 当前限制
 
-- 最新执行（D10-A2-R1，2026-11-14）：共享核心已建立单关卡捕获锁、可信检查点配置、同安全边界完整捕获、跨 Tick 验证／原子替换、提交后中断核查、真实 Matter 局部冻结，以及失败终态后的有界／幂等资源清理和重新准入；`139/139` 自动化测试、类型检查和生产构建 PASS。正式捕获触发区域、宿主入口、坠落传送和完整恢复仍 NOT RUN。
-- Web 主包约 332.14 KB gzip，Vite 有体积提示；尚未做加载优化。
+- 最新执行（D10-A3，2026-11-14）：灰盒已接入两个可见检查点区域、真实进入与批次仲裁、共享捕获链、保存反馈和当前有效检查点显示；`144/144` 自动化测试、生产构建及 Chrome Web／Electron 开发版／独立生产包定向验证 PASS。坠落传送、完整恢复、RecoveryError、跨会话存档与正式关卡内容仍 NOT RUN。
+- Web 主包仍有 Vite 体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互、D08 运行内进度、D09-D1 目标 E 真实链、D10-A1 初始备用快照及 D10-A2 运行中捕获核心是工程灰盒。未接入移动单向平台、旋转／挤压、正式触发器批次／优先级仲裁、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、坠落传送、完整 Checkpoint Recovery 或 RecoveryError。D08 的“永久”仅限当前页面运行内；D09-D1 Accepted 只表示真实目标接收，业务成功只在正式事务终态和结果消费后显示；D10-A1 的 R 仍是调试重置，不读取备用快照恢复世界；D10-A2 尚未通过可玩捕获 GUI 显示。不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 对 D10-A2 的审查，不自动进入 D11。
+- 当前角色、静态实体平台、单向平台、水平移动平台、垂直升降平台、非实体诊断区域、调查／拾取交互、D08 运行内进度、D09-D1 目标 E 真实链、D10-A1 初始备用快照、D10-A2 运行中捕获核心及 D10-A3 可玩检查点触发是工程灰盒。未接入移动单向平台、旋转／挤压、主动下落穿透、NPC、正式任务／收藏册、跨会话存档、坠落传送、完整 Checkpoint Recovery 或 RecoveryError。D08 的“永久”仅限当前页面运行内；D09-D1 Accepted 只表示真实目标接收，业务成功只在正式事务终态和结果消费后显示；D10-A1 的 R 仍是调试重置，不读取备用快照恢复世界。不能把 D10-A3 的保存或页面内 R 当作完整检查点恢复。当前灰盒不代表完整 T01–T06 或 MVP-G01–G06 已通过。当前等待 Work 对 D10-A3 的审查，不自动进入 D11。

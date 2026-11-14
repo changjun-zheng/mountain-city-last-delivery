@@ -77,6 +77,8 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
     );
     const checkpointSnapshot = sample.checkpointSnapshot;
     const checkpointRecord = checkpointSnapshot.current;
+    const checkpointTriggers = sample.checkpointTriggers;
+    const checkpointCapture = sample.checkpointCapture;
     common.push(
       `D10-A1 initial snapshot ${checkpointSnapshot.status}` +
       ` | attempts ${checkpointSnapshot.captureAttempts}` +
@@ -86,10 +88,34 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
       ` | anchor ${checkpointRecord ? `${checkpointRecord.anchor.x},${checkpointRecord.anchor.y},${checkpointRecord.anchor.facing}` : '-'}` +
       (checkpointSnapshot.error ? ` | ${checkpointSnapshot.error}` : ''),
     );
+    common.push(
+      `D10-A3 ${checkpointTriggers.phase.toUpperCase()}` +
+      ` | current ${checkpointTriggers.currentCheckpointId ?? '-'}` +
+      ` | candidate ${checkpointTriggers.candidateCheckpointId ?? '-'}` +
+      ` | batch ${checkpointTriggers.batchTick ?? '-'} close ${checkpointTriggers.closedTick ?? '-'}` +
+      ` | Entry ${checkpointTriggers.latestEntryEventId ?? '-'}` +
+      ` Capture ${checkpointTriggers.latestCaptureEventId ?? '-'}` +
+      ` | ${checkpointTriggers.feedback}`,
+    );
+    common.push(
+      `D10-A3 capture ${checkpointCapture.phase}` +
+      ` | source Entry ${checkpointCapture.sourceEntryEventId ?? '-'}` +
+      ` Event ${checkpointCapture.eventId ?? '-'}` +
+      ` Command ${checkpointCapture.commandId ?? '-'}` +
+      ` Transaction ${checkpointCapture.transactionId ?? '-'}` +
+      ` Result ${checkpointCapture.resultEventId ?? '-'}` +
+      ` | saves ${checkpointCapture.successfulCommits}` +
+      ` lock ${checkpointCapture.lock.held ? 'HELD' : 'FREE'}` +
+      ` resources ${checkpointCapture.resourceOwnership.resourcesReleased ? 'RELEASED' : 'HELD'}`,
+    );
     const horizontal = grayboxDiagnostics?.movingPlatforms.find(platform => platform.axis === 'horizontal');
     const vertical = grayboxDiagnostics?.movingPlatforms.find(platform => platform.axis === 'vertical');
     const zoneA = grayboxDiagnostics?.diagnosticZones.find(zone => zone.label === 'diagnostic-zone-a');
     const zoneB = grayboxDiagnostics?.diagnosticZones.find(zone => zone.label === 'diagnostic-zone-b');
+    const checkpointZoneA = checkpointTriggers.zones.find(zone =>
+      zone.triggerId === 'checkpoint-trigger-a');
+    const checkpointZoneB = checkpointTriggers.zones.find(zone =>
+      zone.triggerId === 'checkpoint-trigger-b');
     Object.assign(diagnostics.dataset, {
       x: String(p.x), y: String(p.y), vx: String(p.vx), vy: String(p.vy),
       worldVx: String(p.worldVx), worldVy: String(p.worldVy),
@@ -210,6 +236,87 @@ const showDiagnostics = (diagnosticsState?: MatterGrayboxDiagnostics) => {
         .map(object => `${object.objectId}:${object.stateVersion}`).join(',') ?? '',
       checkpointObjectCount: checkpointRecord ? String(checkpointRecord.objects.length) : '0',
       checkpointPayload: checkpointRecord ? JSON.stringify(checkpointRecord) : '',
+      checkpointTriggersEnabled: String(checkpointTriggers.enabled),
+      checkpointTriggerPhase: checkpointTriggers.phase,
+      checkpointTriggerFeedbackKind: checkpointTriggers.feedbackKind,
+      checkpointTriggerFeedback: checkpointTriggers.feedback,
+      checkpointBatchCount: String(checkpointTriggers.batchCount),
+      checkpointBatchTick: checkpointTriggers.batchTick == null
+        ? '' : String(checkpointTriggers.batchTick),
+      checkpointClosedTick: checkpointTriggers.closedTick == null
+        ? '' : String(checkpointTriggers.closedTick),
+      checkpointArbitrationTick: checkpointTriggers.arbitrationTick == null
+        ? '' : String(checkpointTriggers.arbitrationTick),
+      checkpointEntryEventCount: String(checkpointTriggers.entryEventCount),
+      checkpointSelectedCount: String(checkpointTriggers.selectedCount),
+      checkpointCaptureRequestCount: String(checkpointTriggers.captureRequestCount),
+      checkpointBlockedCount: String(checkpointTriggers.blockedCount),
+      checkpointFailureCount: String(checkpointTriggers.failureCount),
+      checkpointCurrentId: checkpointTriggers.currentCheckpointId ?? '',
+      checkpointCandidateId: checkpointTriggers.candidateCheckpointId ?? '',
+      checkpointLatestOpportunityId: checkpointTriggers.latestOpportunityId ?? '',
+      checkpointLatestEntryEventId: checkpointTriggers.latestEntryEventId == null
+        ? '' : String(checkpointTriggers.latestEntryEventId),
+      checkpointLatestCaptureEventId: checkpointTriggers.latestCaptureEventId == null
+        ? '' : String(checkpointTriggers.latestCaptureEventId),
+      checkpointLatestCaptureRequestId: checkpointTriggers.latestCaptureRequestId ?? '',
+      checkpointArbitrationWinner: checkpointTriggers.lastArbitration?.winnerCheckpointId ?? '',
+      checkpointArbitrationBatchTick: checkpointTriggers.lastArbitration?.batchTick == null
+        ? '' : String(checkpointTriggers.lastArbitration.batchTick),
+      checkpointArbitrationClosedTick: checkpointTriggers.lastArbitration?.closedTick == null
+        ? '' : String(checkpointTriggers.lastArbitration.closedTick),
+      checkpointArbitrationTickValue:
+        checkpointTriggers.lastArbitration?.arbitrationTick == null
+          ? '' : String(checkpointTriggers.lastArbitration.arbitrationTick),
+      checkpointArbitrationWinnerEntryEventId:
+        checkpointTriggers.lastArbitration?.winnerEntryEventId == null
+          ? '' : String(checkpointTriggers.lastArbitration.winnerEntryEventId),
+      checkpointArbitrationWinnerOpportunityId:
+        checkpointTriggers.lastArbitration?.winnerOpportunityId ?? '',
+      checkpointArbitrationCaptureEventId:
+        checkpointTriggers.lastArbitration?.captureEventId == null
+          ? '' : String(checkpointTriggers.lastArbitration.captureEventId),
+      checkpointArbitrationCaptureRequestStatus:
+        checkpointTriggers.lastArbitration?.captureRequestStatus ?? '',
+      checkpointArbitrationEntrants: checkpointTriggers.lastArbitration
+        ?.entrants.map(entry =>
+          `${entry.triggerId}:${entry.checkpointId}:${entry.priority}:` +
+          `${entry.entryEventId}:${entry.decision}:${entry.retired ? 'retired' : 'retained'}`)
+        .join(',') ?? '',
+      checkpointZoneAOccupied: checkpointZoneA ? String(checkpointZoneA.occupied) : '',
+      checkpointZoneAEnter: checkpointZoneA ? String(checkpointZoneA.enterCount) : '',
+      checkpointZoneAExit: checkpointZoneA ? String(checkpointZoneA.exitCount) : '',
+      checkpointZoneALastTick: checkpointZoneA?.lastTransitionTick == null
+        ? '' : String(checkpointZoneA.lastTransitionTick),
+      checkpointZoneAOpportunity: checkpointZoneA?.opportunityId ?? '',
+      checkpointZoneAEntryEventId: checkpointZoneA?.entryEventId == null
+        ? '' : String(checkpointZoneA.entryEventId),
+      checkpointZoneADecision: checkpointZoneA?.lastDecision ?? '',
+      checkpointZoneBOccupied: checkpointZoneB ? String(checkpointZoneB.occupied) : '',
+      checkpointZoneBEnter: checkpointZoneB ? String(checkpointZoneB.enterCount) : '',
+      checkpointZoneBExit: checkpointZoneB ? String(checkpointZoneB.exitCount) : '',
+      checkpointZoneBLastTick: checkpointZoneB?.lastTransitionTick == null
+        ? '' : String(checkpointZoneB.lastTransitionTick),
+      checkpointZoneBOpportunity: checkpointZoneB?.opportunityId ?? '',
+      checkpointZoneBEntryEventId: checkpointZoneB?.entryEventId == null
+        ? '' : String(checkpointZoneB.entryEventId),
+      checkpointZoneBDecision: checkpointZoneB?.lastDecision ?? '',
+      checkpointCapturePhase: checkpointCapture.phase,
+      checkpointCaptureSourceEntryEventId: checkpointCapture.sourceEntryEventId == null
+        ? '' : String(checkpointCapture.sourceEntryEventId),
+      checkpointCaptureEventId: checkpointCapture.eventId == null
+        ? '' : String(checkpointCapture.eventId),
+      checkpointCaptureCommandId: checkpointCapture.commandId == null
+        ? '' : String(checkpointCapture.commandId),
+      checkpointCaptureTransactionId: checkpointCapture.transactionId == null
+        ? '' : String(checkpointCapture.transactionId),
+      checkpointCaptureResultEventId: checkpointCapture.resultEventId == null
+        ? '' : String(checkpointCapture.resultEventId),
+      checkpointCaptureRequestId: checkpointCapture.authorizationRequestId ?? '',
+      checkpointCaptureSaves: String(checkpointCapture.successfulCommits),
+      checkpointCaptureLockHeld: String(checkpointCapture.lock.held),
+      checkpointCaptureResourcesReleased:
+        String(checkpointCapture.resourceOwnership.resourcesReleased),
     });
   }
   diagnostics.textContent = common.join('\n');

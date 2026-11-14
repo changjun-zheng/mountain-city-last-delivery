@@ -9,6 +9,8 @@ import {
   type EventDispatchResult,
   type EventProducerHandle,
   type EventRetirementFaultInjector,
+  type CheckpointEntryCoordinationResult,
+  type CheckpointEntryCompletionResult,
   type PendingEvent,
   type RealCommandDeliveryHandler,
   type RuntimeUuidProvider,
@@ -22,6 +24,7 @@ import type {
 
 export type BusinessRuntimeBusOptions = Readonly<{
   allowedEventTypes: readonly string[];
+  checkpointEntryEventType?: string;
   initialNextEventId?: number;
   initialNextCommandId?: number;
   initialNextTransactionId?: number;
@@ -69,6 +72,7 @@ export class BusinessRuntimeBus {
       historyCapacity: options.historyCapacity ?? 128,
       transactionResultCapacity: options.transactionResultCapacity ?? 16,
       allowedEventTypes: options.allowedEventTypes,
+      checkpointEntryEventType: options.checkpointEntryEventType,
       faultInjector: options.eventFaultInjector,
       retirementFaultInjector: options.retirementFaultInjector,
       realCommandDelivery: {
@@ -108,6 +112,14 @@ export class BusinessRuntimeBus {
       simulationTick,
       phase: 'coordination',
     });
+  }
+
+  completeCheckpointEntry(
+    producer: EventProducerHandle,
+    eventId: number,
+    result: CheckpointEntryCoordinationResult,
+  ): CheckpointEntryCompletionResult {
+    return this.events.completeCheckpointEntry(producer, eventId, result);
   }
 
   #createCommand(
