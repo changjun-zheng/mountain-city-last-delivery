@@ -78,7 +78,7 @@ const report = {
           : focusedD10A3 ? 'D10-A3'
             : focusedD11A1 ? 'D11-A1'
               : focusedD11A3 ? 'D11-A3'
-                : focusedD12A1 ? 'D12-A2' : 'D04',
+                : focusedD12A1 ? 'D12-A3' : 'D04',
   scope: focusedD04R1 ? 'moving-platform-lifecycle'
     : focusedD05 ? 'diagnostic-zones'
       : focusedD07 ? 'interaction-prompt-and-release-gate'
@@ -831,7 +831,7 @@ async function runCase(label, fn) {
                   : focusedD11A3
                     ? 'D11-A3 bounded rebuild and RecoveryError controls; owned process exited'
                     : focusedD12A1
-                      ? 'D12-A2 dialogue completion, readable A-B-C-D, recovery, pause and completion; owned process exited'
+                      ? 'D12-A3 liberation-to-riverbank route, recovery, pause and completion; owned process exited'
                       : 'loaded / scene / running; hidden start; 2 hide cycles; 3 restarts; graybox controls / collisions / pause; owned process exited');
   } catch (error) {
     Object.assign(result, { status: ['ENOENT', 'ENVIRONMENT_PRECONDITION'].includes(error.code) ? 'BLOCKED' : 'FAIL', stage: ctx.stage,

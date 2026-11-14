@@ -4,11 +4,11 @@
 
 《叠城大冒险》（Layered City Adventures）是一款以具有山城特色的虚构立体城市为舞台的 2D 横版平台探索冒险游戏，核心体验是跳跃、探索、解谜与发现（CONFIRMED，2026-11-12）。
 
-当前默认打开 D12-A1 首关最小可玩流程：从 A 区出生，经移动／跳跃教学到 B 区主动与占位游客交互并接取《把山城夜景寄给远方》，在 C 区试错唯一机关并乘坐真实升降平台，最后在 D 区主动完成拍摄与分享后显示通关反馈。A–D 功能标签、NPC、线索和文案均为占位原型；默认 HUD 显示当前目标，完整身份及 Tick 诊断收在「模拟诊断」中。顶部「调试入口」保留原固定步诊断场景和包含 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互、D08 运行内进度、D09-D1 目标 E、D10 检查点捕获及 D11 恢复能力的基础灰盒。Web 与 Windows 使用同一份首关配置、角色、物理、交互、进度、事件、快照、恢复及模拟代码。「重新启动」先销毁 Phaser 实例，再创建新运行；「重置灰盒」在首关中复位角色和升降平台临时状态，保留本次运行内的任务、机关、路线、完成、业务身份和永久效果，不重新捕获或覆盖初始备用快照，也不是正式检查点恢复。
+当前默认打开 D12-A3 首关空间切片：从 A 区解放碑周边出生并学习移动、跳跃与交互，沿台阶前往 B 区沧白路与洪崖洞入口，主动完成游客对话并接取《把山城夜景寄给远方》；随后进入 C1 上层木廊、C2 中层街巷和 C3 下层檐廊，试错唯一机关并乘坐真实升降平台下到 D 区下层嘉陵江岸，最后主动完成拍摄与分享。A–D 的坐标、画面、NPC、线索和文案仍为占位原型；默认 HUD 显示当前目标，完整身份及 Tick 诊断收在「模拟诊断」中。顶部「调试入口」保留原固定步诊断场景和包含 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互、D08 运行内进度、D09-D1 目标 E、D10 检查点捕获及 D11 恢复能力的基础灰盒。Web 与 Windows 使用同一份首关配置、角色、物理、交互、进度、事件、快照、恢复及模拟代码。「重新启动」先销毁 Phaser 实例，再创建新运行；「重置灰盒」在首关中复位角色和升降平台临时状态，保留本次运行内的任务、机关、路线、完成、业务身份和永久效果，不重新捕获或覆盖初始备用快照，也不是正式检查点恢复。
 
 Mountain City: Last Delivery／山城有路：最后一单为历史名称。下文旧里程碑的日志、截图及证据保留当时名称，不改写为新名执行过的测试。真实地标资料与旧首关方案保留参考，其虚构世界叙事尚待适配；本次不新增玩法、不重写任务或通关条件。内部包名、appId、用户数据身份及项目目录不变。
 
-首关操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；在 B 区靠近游客后按 E 主动对话，只有对话完成才自动接取委托。根据 B 区唯一线索，在 C 区两个吊臂中按 E 试错；右侧错误操作可重试，左侧正确操作启动升降平台并开放通往 D 的真实碰撞路线。乘平台到 D 区指定范围后按 E 拍摄并分享；只有已接委托、机关完成、路线开放且主动交互全部满足时才完成，按 R 或「重置灰盒」回到出生点并保留上述永久进度。升到 D 后按住 D 走到观景点，再按 E 完成拍摄。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
+首关操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；在 B 区沧白路入口靠近游客后按 E 主动对话，只有对话完成才自动接取委托。根据 B 区唯一线索，在 C 区两个吊臂中按 E 试错；右侧错误操作可重试，左侧正确操作启动升降平台并开放通往下层 D 的真实碰撞路线。沿 C1、C2、C3 缺口逐层向下，乘平台下降至嘉陵江岸后，按住 D 走到指定范围并按 E 拍摄、分享；只有已接委托、机关完成、路线开放且主动交互全部满足时才完成。按 R 或「重置灰盒」回到出生点并保留上述永久进度。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
 
 调试灰盒操作：调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过并从上方落地；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。D 由 D08 原型直接登记一次测试收藏；目标 E 的按 E 只创建 Pending Event，真实命令接收和跨 Tick 事务完成后才登记目标／奖励／永久效果并开门。检查点与恢复原型、诊断区域和两条移动平台保留在「调试入口」；这些能力不等于正式存档或首关检查点。
 
@@ -2153,12 +2153,62 @@ Web 定向 [run-jowRc3](test-results/platform/run-jowRc3/report.json) PASS。最
 
 Edge、独立人工长期手感、正式美术、现实地理叙事适配、正式任务／奖励、跨会话存档、正式检查点与完整 MVP-G01–G06 仍 NOT RUN。Matter 仍是验证候选；D12-A2 完成后等待 Work 审查，不进入 D13。
 
+## D12-A3：方案 A 首关空间同步
+
+2026-11-14 完成首关空间同步，状态为 DONE（待 Work 审查）。共享配置现在明确呈现：
+
+`A 解放碑出生／教学 → B 沧白路与洪崖洞入口 → C1 上层木廊 → C2 中层街巷 → C3 下层檐廊 → D 下层嘉陵江岸`
+
+真实 Matter 地形上缘由 A／B 向 C1 `355`、C2 `430`、C3 `500` 与 D `620` 逐层下降；缺口使用现有走跳能力通过。出生锚点为 `80,278,1`，备用锚点为 `360,278,1`、`480,238,1`，失败区位于 `y=720`。升降平台使用 `x=1645`、`y=509→629`、`7200 ms` 的临时路径，帮助玩家从 C3 下降至 D；端点、速度和周期明确标为 `TO_VALIDATE`，不是 CONFIRMED 参数或最终物理决定。
+
+路线仍只有一个游客线索、一个可试错机关和一个真实升降辅助通路。R、正常坠落恢复与初始备用快照都使用新出生／备用锚点；任务已接取、机关完成与 OPEN 路线继续作为运行内永久效果保留。原任务、奖励和通关条件未改写。
+
+### SA01–SA05 结果
+
+| 用例 | 状态 | 实际结果 |
+| --- | --- | --- |
+| SA01：实际空间 | PASS | 真实 Matter Body 断言 A／B 高于 C1–C3，C 逐层下降并低于 B，D 位于 C3 下方；出生、B、C 与 D 拍摄点均有预期真实支撑。单测验证候选锚点前先移开测试玩家 Body，避免把夹具自身当作恢复阻塞物。 |
+| SA02：主线与机关 | PASS | Chrome Web、Electron 开发版与独立包均用真实方向键／Space／E／Escape 从 A 到 B、经 C1／C2／C3、乘下降平台进入 D 并主动完成拍摄分享；未使用传送或直接写状态。 |
+| SA03：失败恢复 | PASS | 接委托后与机关开路后各发生一次真实坠落；恢复沿用原任务／机关身份，目标、永久效果和 OPEN 路线保持，平台临时位置回退后不锁死路线。 |
+| SA04：暂停与输入 | PASS | 平台下降期间三端真实隐藏／最小化冻结 Tick、平台位置和路径时钟；恢复不追赶后台时间，持键恢复不自动跳跃或交互，R 不覆盖初始备用快照。 |
+| SA05：三端与证据 | PASS | [run-uz0UtE](test-results/platform/run-uz0UtE/report.json) 的 Chrome Web、Electron 开发版及仓库外独立包全部 PASS，三端真实跑通同一新路线并生成 A、B、C1／C2／C3、平台、D 与完成态截图。 |
+
+三端业务身份一致：Quest Event／Command／Transaction／Result 为 `1/1/1/2`，Lift 为 `4/2/2/5`，Complete 为 `7/3/3/8`。平台暂停／恢复首帧 Tick 分别保持 Web `2151→2151`、Electron 开发版 `2164→2164`、独立包 `2168→2168`；恢复后持 Space 未新增跳跃。
+
+### 实际执行与版本
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `npm.cmd test` | PASS | 类型检查、Electron Main 编译通过；`172/172` 测试 PASS，0 fail、0 skipped。原 171 项保留，新增 D12-A3 SA01 空间配置／锚点测试。 |
+| `npm.cmd run electron:build` | PASS | Vite 构建 32 modules，Windows x64 免安装目录生成成功；仅有既有 bundle 体积、缺少 `author` 与默认图标警告。 |
+| `npm.cmd run test:d12-a1 -- --browser=chrome` | PASS／最新复跑 FAIL | 同一应用源码的完整三端 [run-uz0UtE](test-results/platform/run-uz0UtE/report.json) PASS；补齐测试夹具后再次执行得到 [run-Jc0SLc](test-results/platform/run-Jc0SLc/report.json)，Web 在初始布局截图时被前台 `ChatGPT` 进程抢焦点产生真实 `blur`，Electron 开发版与独立包仍 PASS。两项均保留，不把环境中断改写为完整三端通过。 |
+| `git diff --check` | PASS | 文档与测试收口后执行；只出现既有 LF／CRLF 提示。 |
+
+版本证据：
+
+- 生产入口：`release/layered-city-adventures/win-unpacked/Layered City Adventures.exe`。
+- ASAR：`D0306C4E511D6E374D701D03882B39E1B5F067F175B5CB9E102BE2A3B82FF98D`。
+- EXE：`ACC371E78647005A196E89C4857CB9EF93BFE852756A83240FC0AB20545C5345`。
+- `run-uz0UtE/report.json`：`9D985EFD4DF5C1EDED05D2D1A7BE840AF84FAAE3130355063B0440159ED4DE9A`。
+- `run-Jc0SLc/report.json`：`D8A7F93AAAA819FDADE6906466EBC254F6CE0544D8E18FFF94D190B87EA5B354`。
+- `src/core/first-level.ts`／`src/physics/matter/first-level-world.ts`：`2F84DCF0079A35762512D66457A62E5ED3472654CBE4DBAF2ACC2C813CB0B34E`／`7CE945E364597DD4891E81AC97DDDD957E920E137F7CF6BC6258BA0F4BDF103B`。
+- `src/rendering/phaser/first-level.ts`／`tests/graybox-browser.mjs`：`37A54F4C73ED8D52FD2B4785ADA0281DA9EE9FAB09F5B38DE6679A028FC50B19`／`55CEBFB8DFACDBB5A3663B5D00DFB11DB5C4C94CD85AAB1F6B505C9FFBBDA0B0`。
+- 当前 `tests/first-level.test.mjs`：`DA9398098C923B2DE661256B06DA442BD85B72A82307AF2565B09A4F905B52CA`。`run-uz0UtE` 使用修复前的 `6D391887…`，差异仅为 SA01 验证前移开夹具玩家 Body，不改变应用或浏览器路线；最新复跑的版本记录会匹配该当前哈希。
+
+截图保存在 [D12-A3 证据目录](test-results/d12-a3-20261114/)：[A 解放碑出生](test-results/d12-a3-20261114/web-a-liberation-spawn.png)、[B 沧白路接取](test-results/d12-a3-20261114/web-b-cangbai-quest-accepted.png)、[C2 中层](test-results/d12-a3-20261114/web-c-middle-lane.png)、[C3 下层檐廊](test-results/d12-a3-20261114/web-c-lower-eave-walk.png)、[下降平台](test-results/d12-a3-20261114/web-lift-descending.png)、[D 嘉陵江岸](test-results/d12-a3-20261114/web-d-riverbank-ready.png)、[Web 完成](test-results/d12-a3-20261114/web-completed.png)、[Electron 开发版到达 D](test-results/d12-a3-20261114/electron-dev-d-riverbank-ready.png)及[独立包到达 D](test-results/d12-a3-20261114/electron-packaged-d-riverbank-ready.png)。
+
+当前源码体验窗口使用 `npm.cmd run electron` 启动并保持运行：PID `26112`、HWND `39980398`、标题“叠城大冒险 | Layered City Adventures”、URL `http://127.0.0.1:61034/?platform=windows`。[当前窗口截图](test-results/d12-a3-20261114/experience-current.png)及[启动记录](test-results/d12-a3-20261114/experience-launch.json)已保存。窗口留给用户自行操作和关闭；旧体验窗口没有被测试或本轮操作关闭。启动日志中的 Chromium cache-lock 警告来自两个开发窗口共用原有 userData，当前页面与截图渲染正常，但多窗口同时运行的缓存隔离仍属开发环境限制。
+
+历史失败继续保留：[run-D4GJNT](test-results/platform/run-D4GJNT/report.json) 暴露 NPC 提示文本未随新标签更新；[run-MKbxH6](test-results/platform/run-MKbxH6/report.json) 在 C2 边缘过早按键导致等待超时；[run-gedARw](test-results/platform/run-gedARw/report.json) 发生真实 `blur`；[run-tGQlx0](test-results/platform/run-tGQlx0/report.json) 为 Web 定向成功但三端尚未执行。这些报告均未删除或改写。
+
+两张用户原图仍缺失，因此图片归档与按图目视匹配为 BLOCKED；本实现只按已确认文字方案同步占位空间，不宣称按原图复刻。Edge、独立人工长期手感、正式美术、正式任务／奖励、存档、正式检查点和完整 MVP-G01–G06 仍 NOT RUN。Matter 仍是验证候选；D12-A3 完成后等待 Work 审查，不进入 D13。
+
 ## 当前限制
 
-- 最新执行（D12-A2，2026-11-14）：默认首关 A–D 主线、对话完成后再接取、错误操作、任务／机关后失败恢复、真实升降平台、暂停、完成与 R 保留在 `171/171` 自动化测试及 Chrome／Electron 开发版／独立包三端定向中 PASS。最终美术、现实地理叙事适配、正式任务／奖励、跨会话存档、正式检查点、Edge、独立人工长期手感和完整 MVP-G01–G06 仍 NOT RUN。
+- 最新执行（D12-A3，2026-11-14）：解放碑 A → 沧白路入口 B → C1／C2／C3 下行 → 下降平台 → 嘉陵江岸 D 的主线、错误操作、两次失败恢复、暂停、完成与 R 保留在 `172/172` 自动化测试及同一应用版本的三端 PASS 中验证。最后一次三端复跑因外部 `ChatGPT` 前台抢焦点导致 Web `blur`，该 FAIL 与 Electron 开发版／独立包 PASS 均保留。最终美术、按原图匹配、现实地理叙事定稿、正式任务／奖励、跨会话存档、正式检查点、Edge、独立人工长期手感和完整 MVP-G01–G06 仍 NOT RUN。
 - Web 主包仍有 Vite 体积提示；尚未做加载优化。
 - `npm audit` 报告 electron-builder 依赖链共 6 项 moderate，涉及 minimatch；未强制升级传递依赖。该工具链未装入运行包。
 - 未完成正式图标、作者及发行元数据、安装器或签名；当前仅验收 Windows 11 x64 的免安装目录。
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
-- 当前 D12-A2 首关使用功能标签和占位场景，已接入完成后接取的 NPC 交互、一个可试错单机关、真实升降平台和主动拍摄／分享完成条件；它不是正式美术、现实地理路线或最终叙事。任务和奖励仍只覆盖本切片；当前“永久”仅指页面运行内保留，页面刷新会创建新运行。D10 捕获与 D11 恢复继续只在调试灰盒中展示扩展原型，首关仅登记其初始备用快照，不代表正式检查点网络或跨会话存档。当前等待 Work 对 D12-A2 的审查，不自动进入 D13。
+- 当前 D12-A3 首关使用占位画面和 `TO_VALIDATE` 平台端点，已接入方案 A 的解放碑出生、沧白路入口、三层下行 C 与下层江岸 D，同时保留完成后接取的 NPC 交互、一个可试错单机关、真实升降平台和主动拍摄／分享完成条件；它不是正式美术、按图复刻、现实地理路线或最终叙事。任务和奖励仍只覆盖本切片；当前“永久”仅指页面运行内保留，页面刷新会创建新运行。D10 捕获与 D11 恢复继续只在调试灰盒中展示扩展原型，首关仅登记其初始备用快照，不代表正式检查点网络或跨会话存档。当前等待 Work 对 D12-A3 的审查，不自动进入 D13。

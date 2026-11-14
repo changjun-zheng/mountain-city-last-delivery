@@ -6,6 +6,7 @@ import {
   FIRST_LEVEL_EVENT_TYPES,
   FIRST_LEVEL_INITIAL_CHECKPOINT_ID,
   FIRST_LEVEL_INTERACTIONS,
+  FIRST_LEVEL_SPATIAL_CONFIG,
   FIRST_LEVEL_SNAPSHOT_SCENARIO,
   FirstLevelRuntime,
 } from '../src/core/first-level.ts';
@@ -21,6 +22,12 @@ const M = createRequire(import.meta.url)(
   '../node_modules/phaser/src/physics/matter-js/CustomMain.js',
 );
 let runtimeOrdinal = 0;
+
+function interactionPoint(id) {
+  const object = FIRST_LEVEL_INTERACTIONS.find(candidate => candidate.id === id);
+  assert.ok(object, `Missing first-level interaction ${id}`);
+  return { x: object.x, y: object.y };
+}
 
 function fixture(progress = new InMemoryRunProgress()) {
   runtimeOrdinal++;
@@ -97,7 +104,8 @@ function gameplay(instance) {
 }
 
 function completeQuest(instance) {
-  instance.place(650, 448);
+  const npc = interactionPoint('first-level-b-npc');
+  instance.place(npc.x, npc.y);
   assert.equal(instance.core.snapshot.interaction.selectedId, 'first-level-b-npc');
   instance.core.key('KeyE', true);
   instance.step();
@@ -112,7 +120,8 @@ function completeQuest(instance) {
 }
 
 function openNpcDialogue(instance) {
-  instance.place(650, 448);
+  const npc = interactionPoint('first-level-b-npc');
+  instance.place(npc.x, npc.y);
   instance.core.key('KeyE', false);
   assert.equal(
     instance.core.snapshot.interaction.selectedId,
@@ -129,7 +138,8 @@ function openNpcDialogue(instance) {
 }
 
 function unlockRoute(instance) {
-  instance.place(1135, 518);
+  const control = interactionPoint('first-level-c-lever-left');
+  instance.place(control.x, control.y);
   assert.equal(
     instance.core.snapshot.interaction.selectedId,
     'first-level-c-lever-left',
@@ -146,7 +156,8 @@ function unlockRoute(instance) {
 }
 
 function completePhoto(instance) {
-  instance.place(1830, 258);
+  const photo = interactionPoint('first-level-d-photo');
+  instance.place(photo.x, photo.y);
   assert.equal(
     instance.core.snapshot.interaction.selectedId,
     'first-level-d-photo',
@@ -221,9 +232,72 @@ test('D12-A1 LV01 real Matter core completes A-B-C-D through distinct event chai
     .every(value => Number.isSafeInteger(value) && value > 0));
 });
 
+test('D12-A3 SA01 spatial config places A/B above descending C tiers and lower D', () => {
+  const instance = fixture();
+  const top = label => {
+    const body = instance.world.terrain.find(candidate => candidate.label === label);
+    assert.ok(body, `Missing real Matter terrain ${label}`);
+    return body.bounds.min.y;
+  };
+
+  assert.deepEqual(FIRST_LEVEL_SPATIAL_CONFIG.topology, [
+    'A-liberation-monument',
+    'B-cangbai-road-hongyadong-entrance',
+    'C-upper-woodwalk',
+    'C-middle-market-lane',
+    'C-lower-eave-walk',
+    'D-jialing-riverbank',
+  ]);
+  assert.ok(top('b-terrace') < top('c-upper-ground'));
+  assert.ok(top('c-upper-ground') < top('c-middle-ground'));
+  assert.ok(top('c-middle-ground') < top('c-lower-ground'));
+  assert.ok(top('c-lower-ground') < top('d-riverbank'));
+  assert.equal(FIRST_LEVEL_SPATIAL_CONFIG.lift.validation, 'TO_VALIDATE');
+  assert.ok(FIRST_LEVEL_SPATIAL_CONFIG.lift.fromY
+    < FIRST_LEVEL_SPATIAL_CONFIG.lift.toY,
+  'The current lift prototype must descend from C3 toward D');
+  assert.equal(instance.core.snapshot.checkpointSnapshot.current.anchor.y, 278);
+  assert.equal(instance.core.snapshot.checkpointSnapshot.current.objects.length, 1);
+  assert.equal(
+    instance.core.snapshot.checkpointSnapshot.current.objects[0].objectId,
+    'first-level-service-lift',
+  );
+  // Move the probe player out of every candidate anchor before validating.
+  // Recovery intentionally treats any complete current-player overlap as a
+  // blocker, so leaving the fixture at its spawn would reject the spawn and
+  // nearby fallback anchors for a test-only reason.
+  instance.world.placePlayerAtAnchor({ x: 100, y: 500, facing: 1 });
+  for (const anchor of [
+    FIRST_LEVEL_SPATIAL_CONFIG.spawn,
+    ...FIRST_LEVEL_SPATIAL_CONFIG.fallbackAnchors,
+  ]) {
+    assert.equal(
+      instance.world.validateRecoveryAnchor(anchor, 'spatial-test').status,
+      'valid',
+    );
+  }
+  const npcAnchor = interactionPoint('first-level-b-npc');
+  assert.equal(
+    instance.world.validateRecoveryAnchor(
+      { ...npcAnchor, facing: 1 },
+      'spatial-test',
+    ).support,
+    'b-terrace',
+  );
+  const photoAnchor = interactionPoint('first-level-d-photo');
+  assert.equal(
+    instance.world.validateRecoveryAnchor(
+      { ...photoAnchor, facing: 1 },
+      'spatial-test',
+    ).support,
+    'd-riverbank',
+  );
+});
+
 test('D12-A1 LV02 proximity and missing prerequisites do not complete; wrong lever is retryable', () => {
   const instance = fixture();
-  instance.place(650, 448);
+  const npc = interactionPoint('first-level-b-npc');
+  instance.place(npc.x, npc.y);
   assert.equal(gameplay(instance).questAccepted, false);
   assert.equal(
     gameplay(instance).actions.find(action => action.action === 'quest')
@@ -231,14 +305,16 @@ test('D12-A1 LV02 proximity and missing prerequisites do not complete; wrong lev
     null,
   );
 
-  instance.place(1830, 258);
+  const photo = interactionPoint('first-level-d-photo');
+  instance.place(photo.x, photo.y);
   instance.core.key('KeyE', true);
   instance.step(3);
   instance.core.key('KeyE', false);
   assert.equal(gameplay(instance).completed, false);
   assert.match(instance.core.snapshot.interaction.feedbackText ?? '', /尚未主动接取/);
 
-  instance.place(1235, 518);
+  const right = interactionPoint('first-level-c-lever-right');
+  instance.place(right.x, right.y);
   instance.core.key('KeyE', true);
   instance.step(2);
   instance.core.key('KeyE', false);
@@ -356,7 +432,8 @@ test('D12-A1 LV03 recovery after dialogue preserves the accepted quest and does 
   assert.equal(instance.progress.verifyGoal(
     FIRST_LEVEL_PROGRESS_CONTENT.questAccepted.goalId,
   ), true);
-  instance.place(650, 448);
+  const npc = interactionPoint('first-level-b-npc');
+  instance.place(npc.x, npc.y);
   instance.core.key('KeyE', true);
   instance.step();
   instance.core.key('KeyE', false);
@@ -375,7 +452,7 @@ test('D12-A1 LV04 recovery after route unlock preserves OPEN route and reuses th
   unlockRoute(instance);
   const liftBefore = instance.world.liftBody;
   instance.step(40);
-  assert.ok(instance.world.liftBody.position.y < 530);
+  assert.ok(instance.world.liftBody.position.y > 530);
   instance.world.placePlayerAtAnchor({ x: 1025, y: 720, facing: 1 });
   instance.stepUntil(snapshot =>
     snapshot.recovery.phase === 'fading-in', 700);
@@ -385,14 +462,14 @@ test('D12-A1 LV04 recovery after route unlock preserves OPEN route and reuses th
   // The restored lift resumes from its captured lower endpoint; fixed steps
   // consumed by fade-in may move it slightly, but recovery elapsed time must
   // not be converted into extra travel.
-  assert.ok(Math.abs(instance.world.liftBody.position.y - 549) < 2);
+  assert.ok(Math.abs(instance.world.liftBody.position.y - 509) < 2);
   instance.stepUntil(snapshot =>
     snapshot.recovery.phase === 'succeeded' &&
     snapshot.recovery.recoveryCount === 1, 120);
   assert.equal(gameplay(instance).routeUnlocked, true);
   assert.equal(instance.world.routeOpen, true);
   assert.notEqual(instance.world.liftBody, liftBefore);
-  assert.ok(instance.world.liftBody.position.y < 549);
+  assert.ok(instance.world.liftBody.position.y > 509);
   assert.equal(instance.progress.verifyGoal(
     FIRST_LEVEL_PROGRESS_CONTENT.liftRouteUnlocked.goalId,
   ), true);
@@ -424,11 +501,11 @@ test('D12-A1 LV04 real Matter lift body supports and carries the player', () => 
   instance.stepUntil(snapshot =>
     snapshot.player.support === 'first-level-service-lift', 10);
   const before = instance.core.snapshot.player;
-  instance.step(20);
+  instance.step(40);
   const after = instance.core.snapshot.player;
   assert.equal(after.support, 'first-level-service-lift');
-  assert.ok(after.y < before.y - 20,
-    'The real Matter lift must carry the player as its body moves');
+  assert.ok(after.y > before.y + 20,
+    'The real Matter lift must carry the player as its body descends');
   assert.ok(Math.abs(after.y - instance.world.liftBody.position.y + 31) < 0.5);
   assert.ok(Math.abs(after.worldVy - after.supportVy) < 0.1);
 });

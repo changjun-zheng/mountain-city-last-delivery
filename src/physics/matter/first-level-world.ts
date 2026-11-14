@@ -1,6 +1,7 @@
 import type {} from 'phaser';
 import {
   FIRST_LEVEL_LIFT_OBJECT_ID,
+  FIRST_LEVEL_SPATIAL_CONFIG,
   FIRST_LEVEL_SNAPSHOT_SCENARIO,
 } from '../../core/first-level.ts';
 import type {
@@ -39,36 +40,17 @@ type Pair = {
   collision: { normal: { x: number; y: number } };
 };
 
-export const FIRST_LEVEL_SIZE = Object.freeze({ width: 2050, height: 760 });
-export const FIRST_LEVEL_SPAWN: SnapshotAnchor = Object.freeze({
-  x: 80,
-  y: 518,
-  facing: 1,
-});
+export const FIRST_LEVEL_SIZE = FIRST_LEVEL_SPATIAL_CONFIG.size;
+export const FIRST_LEVEL_SPAWN: SnapshotAnchor =
+  FIRST_LEVEL_SPATIAL_CONFIG.spawn;
 export const FIRST_LEVEL_FAILURE_ZONE = Object.freeze({
   zoneId: PLAYER_FAILURE_ZONE_ID,
   label: '首关可恢复坠落区',
-  x: 1025,
-  y: 720,
-  width: 2050,
-  height: 58,
+  ...FIRST_LEVEL_SPATIAL_CONFIG.failureZone,
 });
-export const FIRST_LEVEL_LIFT = Object.freeze({
-  label: FIRST_LEVEL_LIFT_OBJECT_ID,
-  x: 1460,
-  fromY: 549,
-  toY: 309,
-  width: 100,
-  height: 18,
-  periodMs: 4800,
-});
-export const FIRST_LEVEL_ROUTE_GATE = Object.freeze({
-  label: 'first-level-route-gate',
-  x: 1540,
-  y: 190,
-  width: 18,
-  height: 180,
-});
+export const FIRST_LEVEL_LIFT = FIRST_LEVEL_SPATIAL_CONFIG.lift;
+export const FIRST_LEVEL_ROUTE_GATE =
+  FIRST_LEVEL_SPATIAL_CONFIG.routeGate;
 
 const PLAYER_CATEGORY = 0x0002;
 const ROUTE_GATE_CATEGORY = 0x0010;
@@ -193,17 +175,18 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
       return body;
     };
 
-    // Functional A/B/C/D layout: a short A approach, elevated B terrace,
-    // descending C route and a gated upper D platform. The lift is the only
-    // route into D once the C interaction opens it.
-    rectangle(200, 575, 400, 70, 'a-ground');
-    rectangle(420, 525, 40, 50, 'a-step');
-    rectangle(670, 495, 460, 50, 'b-terrace');
-    rectangle(920, 525, 40, 50, 'c-step');
-    rectangle(1230, 575, 580, 70, 'c-ground');
-    rectangle(1760, 310, 580, 60, 'd-upper-ground');
-    rectangle(10, 300, 20, 600, 'left-boundary');
-    rectangle(2040, 300, 20, 600, 'right-boundary');
+    // Confirmed route A -> B -> descending C -> lower D. The gaps between
+    // C tiers require normal jumps; the gated service lift is the only safe
+    // route from C3 down to the riverbank.
+    for (const terrain of FIRST_LEVEL_SPATIAL_CONFIG.terrain) {
+      rectangle(
+        terrain.x,
+        terrain.y,
+        terrain.width,
+        terrain.height,
+        terrain.label,
+      );
+    }
 
     this.routeGate = matter.Bodies.rectangle(
       FIRST_LEVEL_ROUTE_GATE.x,

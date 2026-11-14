@@ -18,6 +18,138 @@ export const FIRST_LEVEL_INITIAL_CHECKPOINT_ID =
   'first-level-initial-spawn';
 export const FIRST_LEVEL_LIFT_OBJECT_ID = 'first-level-service-lift';
 
+// Serializable, platform-neutral first-level geometry. Matter consumes these
+// values when creating bodies; Phaser only renders them. Coordinates remain
+// graybox choices, and the confirmed route only fixes the A -> B -> C-down ->
+// D-riverbank relationship.
+export const FIRST_LEVEL_SPATIAL_CONFIG = Object.freeze({
+  topology: Object.freeze([
+    'A-liberation-monument',
+    'B-cangbai-road-hongyadong-entrance',
+    'C-upper-woodwalk',
+    'C-middle-market-lane',
+    'C-lower-eave-walk',
+    'D-jialing-riverbank',
+  ] as const),
+  size: Object.freeze({ width: 2050, height: 760 }),
+  spawn: Object.freeze({ x: 80, y: 278, facing: 1 as const }),
+  fallbackAnchors: Object.freeze([
+    Object.freeze({ x: 360, y: 278, facing: 1 as const }),
+    Object.freeze({ x: 480, y: 238, facing: 1 as const }),
+  ]),
+  failureZone: Object.freeze({
+    x: 1025,
+    y: 720,
+    width: 2050,
+    height: 58,
+  }),
+  terrain: Object.freeze([
+    Object.freeze({
+      label: 'a-ground',
+      area: 'A' as const,
+      x: 210,
+      y: 335,
+      width: 420,
+      height: 70,
+    }),
+    Object.freeze({
+      label: 'a-step',
+      area: 'A' as const,
+      x: 435,
+      y: 300,
+      width: 50,
+      height: 40,
+    }),
+    Object.freeze({
+      label: 'b-terrace',
+      area: 'B' as const,
+      x: 690,
+      y: 285,
+      width: 480,
+      height: 50,
+    }),
+    Object.freeze({
+      label: 'c-stair-top',
+      area: 'C' as const,
+      tier: 1,
+      x: 980,
+      y: 305,
+      width: 60,
+      height: 50,
+    }),
+    Object.freeze({
+      label: 'c-upper-ground',
+      area: 'C' as const,
+      tier: 1,
+      x: 1150,
+      y: 385,
+      width: 300,
+      height: 60,
+    }),
+    Object.freeze({
+      label: 'c-middle-ground',
+      area: 'C' as const,
+      tier: 2,
+      x: 1350,
+      y: 460,
+      width: 140,
+      height: 60,
+    }),
+    Object.freeze({
+      label: 'c-lower-ground',
+      area: 'C' as const,
+      tier: 3,
+      x: 1560,
+      y: 545,
+      width: 80,
+      height: 90,
+    }),
+    Object.freeze({
+      label: 'd-riverbank',
+      area: 'D' as const,
+      x: 1872.5,
+      y: 650,
+      width: 355,
+      height: 60,
+    }),
+    Object.freeze({
+      label: 'left-boundary',
+      area: 'boundary' as const,
+      x: 10,
+      y: 380,
+      width: 20,
+      height: 760,
+    }),
+    Object.freeze({
+      label: 'right-boundary',
+      area: 'boundary' as const,
+      x: 2040,
+      y: 380,
+      width: 20,
+      height: 760,
+    }),
+  ]),
+  // Prototype choice TO_VALIDATE: C3 is the upper endpoint and D is the lower
+  // endpoint. These values remain explicitly reversible engineering choices.
+  lift: Object.freeze({
+    label: FIRST_LEVEL_LIFT_OBJECT_ID,
+    validation: 'TO_VALIDATE' as const,
+    x: 1645,
+    fromY: 509,
+    toY: 629,
+    width: 100,
+    height: 18,
+    periodMs: 7200,
+  }),
+  routeGate: Object.freeze({
+    label: 'first-level-route-gate',
+    x: 1604,
+    y: 550,
+    width: 18,
+    height: 100,
+  }),
+});
+
 export const FIRST_LEVEL_EVENT_TYPES = Object.freeze([
   'first-level.quest.accept.requested',
   'first-level.lift.unlock.requested',
@@ -27,11 +159,8 @@ export const FIRST_LEVEL_EVENT_TYPES = Object.freeze([
 const FIRST_LEVEL_CHECKPOINT_CONFIG: GrayboxCheckpointConfig = Object.freeze({
   checkpointId: FIRST_LEVEL_INITIAL_CHECKPOINT_ID,
   levelId: FIRST_LEVEL_ID,
-  anchor: Object.freeze({ x: 80, y: 518, facing: 1 as const }),
-  fallbackAnchors: Object.freeze([
-    Object.freeze({ x: 360, y: 518, facing: 1 as const }),
-    Object.freeze({ x: 480, y: 448, facing: 1 as const }),
-  ]),
+  anchor: FIRST_LEVEL_SPATIAL_CONFIG.spawn,
+  fallbackAnchors: FIRST_LEVEL_SPATIAL_CONFIG.fallbackAnchors,
 });
 
 // The first playable slice deliberately has one initial fallback snapshot and no
@@ -66,20 +195,20 @@ export const FIRST_LEVEL_ACTIONS = Object.freeze({
   finishPhoto: 'first-level.action.finish-photo',
 });
 
-// A/B/C/D are functional placeholder labels. Their dialogue and clue text are
-// prototype copy and do not define a real-world route or final narrative.
+// A/B/C/D follow the confirmed place-role sequence while their geometry,
+// dialogue and clue copy remain compact playable prototype content.
 export const FIRST_LEVEL_INTERACTIONS: readonly InteractionObject[] =
   Object.freeze([
     Object.freeze({
       id: FIRST_LEVEL_INTERACTION_IDS.tutorial,
       kind: 'investigation' as const,
-      label: 'A',
-      title: 'A 区 · 出发提示',
+      label: 'A · 解放碑',
+      title: 'A 区 · 解放碑出发提示',
       content:
-        'A/D 或方向键移动，Space 跳跃。' +
-        '靠近游客后按 E 开始对话；读完内容再主动结束对话。',
+        '从解放碑周边出发。A/D 或方向键移动，Space 跳跃。' +
+        '沿台阶向右前往沧白路；靠近游客后按 E 开始对话。',
       x: 180,
-      y: 498,
+      y: 258,
       rangeX: 70,
       rangeY: 90,
     }),
@@ -88,25 +217,25 @@ export const FIRST_LEVEL_INTERACTIONS: readonly InteractionObject[] =
       kind: 'investigation' as const,
       actionId: FIRST_LEVEL_ACTIONS.talkToNpc,
       activateOnClose: true,
-      label: 'B · 游客',
-      title: 'B 区 · 年轻游客',
+      label: 'B · 沧白路游客',
+      title: 'B 区 · 沧白路与洪崖洞入口',
       content:
-        '“我想把今晚的夜景寄给远方。能顺着山势灯带，' +
-        '替我找到拍摄观景点吗？”\n\n结束对话后自动接取委托。',
+        '“这里是沧白路，前方就是洪崖洞入口。我想把江岸夜景寄给远方。”' +
+        '\n\n结束对话后自动接取委托。',
       x: 650,
-      y: 448,
+      y: 238,
       rangeX: 70,
       rangeY: 90,
     }),
     Object.freeze({
       id: FIRST_LEVEL_INTERACTION_IDS.clue,
       kind: 'investigation' as const,
-      label: 'B · 线索',
-      title: 'B 区 · 唯一环境线索',
+      label: 'B · 洪崖洞入口线索',
+      title: 'B 区 · 洪崖洞入口唯一线索',
       content:
-        '灯带沿山势转向 C 区装置左侧；装置上的两个控制位都能尝试。',
+        '灯带沿吊脚楼逐层向下，转到 C 区装置左侧；两个控制位都能尝试。',
       x: 790,
-      y: 448,
+      y: 238,
       rangeX: 75,
       rangeY: 90,
     }),
@@ -119,7 +248,7 @@ export const FIRST_LEVEL_INTERACTIONS: readonly InteractionObject[] =
       title: 'C 区 · 装置左侧控制位',
       content: '同一装置的两个控制位之一。',
       x: 1135,
-      y: 518,
+      y: 333,
       rangeX: 66,
       rangeY: 90,
     }),
@@ -132,7 +261,7 @@ export const FIRST_LEVEL_INTERACTIONS: readonly InteractionObject[] =
       title: 'C 区 · 装置右侧控制位',
       content: '同一装置的两个控制位之一。',
       x: 1235,
-      y: 518,
+      y: 333,
       rangeX: 66,
       rangeY: 90,
     }),
@@ -141,11 +270,12 @@ export const FIRST_LEVEL_INTERACTIONS: readonly InteractionObject[] =
       kind: 'goal' as const,
       actionId: FIRST_LEVEL_ACTIONS.finishPhoto,
       actionLabel: '拍摄并分享',
-      label: 'D · 观景点',
-      title: 'D 区 · 拍摄与分享',
-      content: '确认委托、路线与位置条件后，完成游戏内拍摄和分享。',
+      label: 'D · 嘉陵江岸观景点',
+      title: 'D 区 · 嘉陵江岸拍摄与分享',
+      content:
+        '已从吊脚楼逐层下到嘉陵江岸。确认委托与路线条件后，拍摄并分享。',
       x: 1830,
-      y: 258,
+      y: 598,
       rangeX: 80,
       rangeY: 100,
     }),
@@ -190,7 +320,7 @@ export class FirstLevelRuntime {
   readonly #quest: PrototypeGoalRouteRuntime;
   readonly #lift: PrototypeGoalRouteRuntime;
   readonly #completion: PrototypeGoalRouteRuntime;
-  #feedback = '探索 A 区，向右前往 B 区的观景层。';
+  #feedback = '从解放碑周边出发，沿街巷与台阶前往 B 区沧白路入口。';
   #lastError: string | null = null;
 
   constructor(context: FirstLevelRuntimeContext) {
@@ -221,7 +351,8 @@ export class FirstLevelRuntime {
         goalId: FIRST_LEVEL_PROGRESS_CONTENT.liftRouteUnlocked.goalId,
         interactionId: FIRST_LEVEL_INTERACTION_IDS.leverLeft,
         initialMessage: '吊臂请求等待固定协调阶段处理。',
-        successMessage: '左侧吊臂已接线；升降平台启动，D 区路线开放。',
+        successMessage:
+          '左侧吊臂已接线；升降平台启动，通往嘉陵江岸的路线开放。',
       },
       context.bus,
     );
@@ -298,7 +429,8 @@ export class FirstLevelRuntime {
     ) && !this.#progress.verifyGoal(
       FIRST_LEVEL_PROGRESS_CONTENT.completed.goalId,
     )) {
-      this.#feedback = '路线已开放。乘真实升降平台前往 D 区观景点。';
+      this.#feedback =
+        '路线已开放。沿吊脚楼继续向下，乘升降平台前往 D 区嘉陵江岸。';
     }
     if (this.#progress.verifyGoal(
       FIRST_LEVEL_PROGRESS_CONTENT.completed.goalId,
@@ -389,15 +521,15 @@ export class FirstLevelRuntime {
 function objectiveFor(phase: FirstLevelPhase): string {
   switch (phase) {
     case 'intro':
-      return 'A：练习移动与跳跃，向右前往 B 区观景层。';
+      return 'A：从解放碑出发，练习移动与跳跃，沿街巷前往 B 区沧白路入口。';
     case 'quest-in-progress':
       return 'B：正在登记游客委托……';
     case 'quest-accepted':
-      return 'C：对照山势灯带，试运行同一吊臂装置。';
+      return 'C：进入多层吊脚楼，对照灯带试运行同一吊臂装置。';
     case 'lift-in-progress':
       return 'C：平台启动中，等待路线开放。';
     case 'route-open':
-      return 'C → D：乘升降平台抵达观景点并主动拍摄分享。';
+      return 'C → D：继续向下，乘升降平台抵达嘉陵江岸并主动拍摄分享。';
     case 'completion-in-progress':
       return 'D：正在模拟拍摄与分享……';
     case 'completed':
