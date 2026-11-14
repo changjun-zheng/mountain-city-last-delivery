@@ -22,7 +22,7 @@
 
 本文中的所有数值均为 TO_VALIDATE 初始测试参数，不是最终游戏参数。确认记录见 [DECISIONS.md](DECISIONS.md)，项目概述见 [PROJECT_BRIEF.md](PROJECT_BRIEF.md)。
 
-CONFIRMED：游戏采用 2D 横版视角；不设置传统战斗系统。既有平台跳跃、场景探索、环境解谜的核心玩法及小型半开放关卡结构保持有效。
+CONFIRMED：游戏采用 2D 横版视角；不设置传统战斗系统。既有平台跳跃、场景探索、环境解谜保持有效。规模现按 [Large Semi-Open Levels](DECISIONS.md#2026-11-14large-semi-open-levels大型半开放关卡) 执行，旧小型规模为 HISTORICAL；这不改变本文件玩家控制、固定步、暂停、碰撞或恢复规则，也不新增移动能力。
 
 ### CONFIRMED：第一版输入方式与失败规则
 

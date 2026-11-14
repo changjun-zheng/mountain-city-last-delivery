@@ -12,6 +12,12 @@ Mountain City: Last Delivery／山城有路：最后一单为历史名称。下�
 
 调试灰盒操作：调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过并从上方落地；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。D 由 D08 原型直接登记一次测试收藏；目标 E 的按 E 只创建 Pending Event，真实命令接收和跨 Tick 事务完成后才登记目标／奖励／永久效果并开门。检查点与恢复原型、诊断区域和两条移动平台保留在「调试入口」；这些能力不等于正式存档或首关检查点。
 
+## 设计与参考图当前状态（2026-11-14）
+
+完整游戏规模已正式调整为 [大型半开放](docs/DECISIONS.md#2026-11-14large-semi-open-levels大型半开放关卡)，不是开放世界；[四章六关及扩展架构](docs/FULL_GAME_CONTENT_AND_LEVEL_EXPANSION_ARCHITECTURE.md) 仍为 PROPOSED，尚无通用关卡加载器／Tiled 导入或多关卡存档。本轮只维护文档，实际运行入口与命令不变。
+
+两张用户原 PNG 已在 `2547b32` 归档于 `docs/assets/art-direction/`，本轮再次核对格式／1672×941／SHA-256 与[美术登记](docs/ART_DIRECTION_AND_SCENE_PROTOTYPE.md#图片归档与采用状态)一致。旧 D12-A3 报告中的“原图仍缺”是交付当时事实，保留历史；图片存在不代表已按图制作或通过新空间／乘坐控制验收。D12-A3 仍 DONE（待 Work 审查），本轮未执行游戏测试／构建或进入 D13。
+
 ## 技术栈与安装
 
 要求 Node.js 22.12 或以上。本次在 Windows 11 x64、Node.js 24.15.0、npm 12.0.2 上验证。
@@ -2200,6 +2206,8 @@ Edge、独立人工长期手感、正式美术、现实地理叙事适配、正�
 当前源码体验窗口使用 `npm.cmd run electron` 启动并保持运行：PID `26112`、HWND `39980398`、标题“叠城大冒险 | Layered City Adventures”、URL `http://127.0.0.1:61034/?platform=windows`。[当前窗口截图](test-results/d12-a3-20261114/experience-current.png)及[启动记录](test-results/d12-a3-20261114/experience-launch.json)已保存。窗口留给用户自行操作和关闭；旧体验窗口没有被测试或本轮操作关闭。启动日志中的 Chromium cache-lock 警告来自两个开发窗口共用原有 userData，当前页面与截图渲染正常，但多窗口同时运行的缓存隔离仍属开发环境限制。
 
 历史失败继续保留：[run-D4GJNT](test-results/platform/run-D4GJNT/report.json) 暴露 NPC 提示文本未随新标签更新；[run-MKbxH6](test-results/platform/run-MKbxH6/report.json) 在 C2 边缘过早按键导致等待超时；[run-gedARw](test-results/platform/run-gedARw/report.json) 发生真实 `blur`；[run-tGQlx0](test-results/platform/run-tGQlx0/report.json) 为 Web 定向成功但三端尚未执行。这些报告均未删除或改写。
+
+HISTORICAL：以下缺图状态属于 D12-A3 交付时；后续 `2547b32` 已归档原图，当前文件状态见本文顶部，不改写当时测试结果。
 
 两张用户原图仍缺失，因此图片归档与按图目视匹配为 BLOCKED；本实现只按已确认文字方案同步占位空间，不宣称按原图复刻。Edge、独立人工长期手感、正式美术、正式任务／奖励、存档、正式检查点和完整 MVP-G01–G06 仍 NOT RUN。Matter 仍是验证候选；D12-A3 完成后等待 Work 审查，不进入 D13。
 

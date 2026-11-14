@@ -10,6 +10,8 @@
 
 记录日期：2026-11-14
 
+后续范围说明（基于 `2547b32`）：负责人已确认 [Large Semi-Open Levels](DECISIONS.md#2026-11-14large-semi-open-levels大型半开放关卡) 长期规模方向，旧“小／紧凑”不再作为空间上限；本文仍是首关唯一综合空间提案入口，其具体布局、J1、隐藏几何与平台调度状态不因规模确认升级。完整游戏章节／扩展架构见 [总规划](FULL_GAME_CONTENT_AND_LEVEL_EXPANSION_ARCHITECTURE.md)，不在该规划另建首关地图，不改变 A—D／单谜题／任务／通关／恢复或当前 MVP，D12-A3 仍待审查。下列原基线与归档记录保留追溯，本轮未重跑游戏测试。
+
 来源：负责人本轮提供的同名文本草案与[产品与游戏策划会话](chatgpt-conversation://6aedade9-f53c-83e8-b658-0e5cf7d5fe16)。已重新读取上述 main 的八份指定文档，并核对本地 HEAD／Git blob 一致；源码数值仅作静态观察，未运行游戏、构建或测试。本轮开始时工作区干净。
 
 本文是全关空间原型的综合提案入口，不是第二套正式关卡规则或开发任务队列。[DECISIONS](DECISIONS.md) 管正式决策，[关卡主文](HONGYADONG_LEVEL_DESIGN.md) 管关卡行为与 C 区 V2，[玩家控制](PLAYER_CONTROL_DESIGN.md) 管碰撞／暂停／恢复，[美术文档](ART_DIRECTION_AND_SCENE_PROTOTYPE.md) 管风格与资产登记，[任务文档](QUEST_SYSTEM_DESIGN.md) 管任务／进度；实施只从 [DEVELOPMENT_ROADMAP](DEVELOPMENT_ROADMAP.md#7-当前任务与持续记录) 进入。本提案与 C 区 V2 是全关汇总与 C 区专项的关系，不创建 C 区 V3，不覆盖历史。
