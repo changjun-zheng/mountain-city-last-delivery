@@ -1,12 +1,334 @@
 # 《叠城大冒险》开发路线图与执行流程
 
-更新日期：2026-11-14。
+更新日期：2026-11-15。
 
 用途：开发窗口的统一工作入口，记录开发顺序、当前任务、验收要求和交接进度。后续直接维护本文，不为每个普通任务再创建一份提示词文档。
 
 现行授权：三个窗口采用单任务审查流程。聊天策划提供产品／创意方案，负责人确认必要决策，Work 维护正式设计与本路线图并下发任务，Codex 负责实施、测试和报告；Work 审查后再安排下一项。普通工程细节不要求负责人逐项批准，开发窗口不自行领取下一里程碑。
 
 HISTORICAL：曾有开发窗口依路线图连续推进、完成后自行领取下一项的授权，保留历史来源；现已被最新三窗口单任务审查规则取代。旧任务中类似“可继续／连续执行”的文字不覆盖本页现行模式。完整职责与文档写入边界见 [AGENTS](../AGENTS.md#三个窗口的职责与交接现行)。
+
+## 2026-11-15 Work 审查：MLV-01A BLOCKED，MLV-01A-R1 READY
+
+现行结论：MLV-01A 暂不收口，状态 BLOCKED；下一项只实施 MLV-01A-R1。MLV-01B 保持 PLANNED，D13 不启动。下方原 READY 授权、开发方 DONE／PASS 和既有审查草稿保留历史，由本节更新当前交接状态，不改写其执行结果。
+
+### 本轮独立核对与复验
+
+- HEAD 仍为 `731ac55ccc1a58e659801fdb783127b56a4f09dc`。开始时有 5 个已跟踪修改及 3 个未跟踪新增，均保留；Work 只修改本路线图。
+- 已读实际定义校验、装配／销毁、物理适配器全生命周期差异、core 终止包装、新测试及既有首关业务链，不仅依赖开发报告。
+- 开发报告所列 6 份源码／测试 SHA-256 与当前文件全部匹配；ASAR `2F0C5A5C02FB36B95841C809ED02AA71874FFECB0682E1E608CA610F0EB39FB8`、EXE `464FDAC7CDC15510AF555D3284FD2C94C27850270438B83F3D8DDBE8FDB36BDD` 也匹配。
+- 本轮实际重新执行 `npm.cmd test`：PASS，退出 0，178/178、0 fail、0 skipped；类型检查及 Electron Main 编译通过。这不证明新销毁边界完备。
+- 本轮使用无文件写入 Node 脚本、真实 Matter 和首关真实业务链补充两项回归：FAIL，退出 1，失败 2 项，见下表；没有更改源码或测试文件。
+- 本轮未重建生产包、未启动 GUI／平台套件；开发方构建 PASS 是已有记录，产物哈希匹配不代替本轮构建执行。MLV GUI／V05-B 仍 NOT RUN。
+
+| 发现 | 位置／实际复现 | 影响 |
+| --- | --- | --- |
+| P1：运行事务被成功销毁 | `src/core/graybox.ts` destroy 只检查事件、捕获／恢复锁及 Pause Token，没有检查 goalRoute／gameplay 的业务事务。真实 FirstLevelRuntime 接取委托后推进 Tick 1：phase=verifying、transactionStatus=running、原 Event 已退役、目标数 1、Result Event 尚无；此时装配 destroy 实际返回 destroyed，World Body 从 14 变为 0，期望 blocked。 | 已写业务未完成 verify／终态／结果闭环就被终止，无法继续完成，违反 A“无活动业务事务才销毁”的前置。Inbox 空不等于事务静止。 |
+| P2：终止包装伪造释放成功 | `src/core/graybox.ts` lifecycleView.release 在 coreDestroyed 时无条件返回 released。上述销毁后以全新错误 Owner＋不存在 Token 调用，实际 released，期望 rejected。 | “不变更暂停状态”不等于“所有权验证正确”，不得用假成功绕过准确 Token＋Owner 和重复释放语义。 |
+
+R01 的实际复现接线为 `createPrototypeLevelAssembly(M, FIRST_LEVEL_DEFINITION, { coreOptions: { uuidProvider, extraEventTypes: FIRST_LEVEL_EVENT_TYPES, createGameplayRuntime: context => new FirstLevelRuntime(context) } })`；先 frame(0)，通过该真实 runtime 的 talkToNpc action 提交委托，再 frame(fixedDeltaMs)。这是纯核心／真实 Matter 审查，不是人工对话或 GUI 验收。记录身份为原 Event／Command／Transaction=1/1/1、Result=null；不改变业务规则。
+
+### MLV-01A-R1 任务登记
+
+| 任务 | 当前状态 | 范围与门槛 |
+| --- | --- | --- |
+| MLV-01A | BLOCKED（Work 审查发现两项缺陷） | 原实现和 178 项结果保留，R1 经 Work 审查后再决定收口；不能直接进入 B。 |
+| MLV-01A-R1 | READY（本轮 Work 下发） | 仅修复活动业务链的销毁准入及终止后的 Release 所有权／幂等返回，补真实回归。属于已批准 A 范围内的普通缺陷修复，不新建取消／跨关协议。 |
+| MLV-01B | PLANNED | A 及 R1 经 Work 审查后再安排；当前不实施。 |
+
+### MLV-01A-R1 Codex 实施提示词（现行）
+
+```text
+项目：D:\Workspace\Code_Projects\mountain-city-last-delivery
+任务：MLV-01A-R1，READY。只修复下面两项，不进入 MLV-01B／D13。
+基线 HEAD：731ac55ccc1a58e659801fdb783127b56a4f09dc。
+开始检查 git status／diff，保留 A 的全部未提交源码、测试、README 和 Work 路线图修改。
+先读 AGENTS、路线图文首本轮审查、A 已批准边界、DECISIONS 中暂停令牌协议。
+核对 graybox、level-assembly、goal-route-runtime、FirstLevelRuntime 与现有真实测试。
+
+缺陷一：
+core.destroy() 不能仅靠 Inbox／Pending／Processing 判断无活动业务。
+真实首关委托 Tick 1 已 apply，原事件已退役，事务仍 running／verifying，结果事件未创建；
+此时现在返回 destroyed 并清除 14 个 Body。应返回 blocked，core/world/Engine 保持可继续工作。
+
+补充最小、可信、只读的业务静止判定。
+覆盖 core 自有 goalRoute 和装配进去的首关 gameplay 业务流程；
+检查真实事务与结果收尾，不使用“目标已完成”或“队列空”冒充静止。
+可以在现有 runtime 接口增加小型只读销毁准入合同，不建立通用管理器或新注册框架。
+运行中、待业务重试／恢复、terminal-pending、结果尚未完成的已开始链路不得被当作闲置。
+若无法可靠判定就保守阻断并给出原因。
+未开始的 idle、真正完成且安全收尾的成功／失败链路不得永久阻止正常销毁。
+不发明取消或强制提交；拒绝销毁后继续原 frame，允许原事务按既有合法阶段完成，
+原 Event／Command／Transaction／Result 身份与目标／奖励／效果计数保持。
+装配层收到 blocked 必须立即返回，不 dispose world、不 clear Engine、不置终止标志。
+
+缺陷二：
+终止后的 lifecycle.release 不得无条件返回 released。
+保持准确 Owner＋Token 校验：错误 Owner／未知 Token 为 rejected；
+已合法释放 Token 的正确 Owner 重复释放保持 already-released。
+销毁后旧 acquire 不分配令牌，旧 release 不改变 pauseCount／paused、不触发模拟恢复。
+优先复用原验证逻辑或做等价受控包装，不修改 lifecycle.ts 的协议和算法。
+不能通过删除断言掩盖返回语义；旧 V05 错误期待 released 的断言应更正，保留无副作用断言。
+
+允许修改：
+src/core/graybox.ts；
+必要的小型只读接口／判定：src/core/goal-route-runtime.ts、src/core/first-level.ts；
+src/physics/matter/level-assembly.ts 仅在需要保证 blocked 不清理时修改；
+tests/level-assembly.test.mjs 及直接相关的现有测试；
+README.md 和本路线图当前任务的实施证据。
+不改物理适配、玩家、模拟、事件／命令／事务、快照／恢复算法，不改依赖／配置或正式决策。
+若这些限制内无法修复，报告最小阻塞，不扩大范围。
+
+先红后绿：
+R01：真实 FirstLevelRuntime 委托 Tick 1，事务 running／verifying、原事件退役且无结果。
+调用 core／assembly 的 destroy 均 blocked；
+断言 World Body、Engine、Tick、进度、业务身份与终止标志不被销毁调用改变。
+继续推进，原链只完成一次且收尾后允许正常销毁，再销毁幂等。
+R02：用既有故障注入构造业务等待／terminal-pending 等真实非静止路径，
+并验证 core 自有 goalRoute 与首关 gameplay 都被覆盖；不伪造快照状态；
+阻断不强制恢复、不创建新身份、不重复业务，正常静止路径不被误锁。
+R03：正常释放有效 Token 后销毁，保存旧 acquire/release 引用；
+正确 Owner 重复原 Token 为 already-released，错误 Owner 与未知 Token 为 rejected；
+pauseCount、paused、Tick、物理步、业务／输入不变。
+R04：保留原六项 V01—V06 和全部有效现有测试；
+修复不能改变双 Engine 隔离、外部 sentinel、逆序清理、重复销毁或首关业务语义。
+
+执行并记录：
+node --experimental-strip-types --test tests/level-assembly.test.mjs
+npm.cmd test
+npm.cmd run electron:build
+git diff --check
+
+本次不新增平台分支、不跑 GUI 长套件；GUI／三端新增流程／V05-B 保持 NOT RUN。
+不能以旧产物哈希或构建成功冒充新宿主运行。
+同一问题两轮有效修复仍失败，保留复现／日志／版本交 Work，不反复挑 PASS。
+不 Commit／Push／发布，不删除用户文件或重置 Git，不操作已有体验窗口。
+
+完成报告：实际基线、变更文件、修复前 FAIL 和修复后 R01—R04、
+命令／退出码／真实结果、销毁前后资源与身份／计数证据、版本哈希、剩余问题。
+状态只使用 PASS／FAIL／BLOCKED／NOT RUN。父项 A 不自行改为审查通过；
+报告后停止，等待 Work 审查，不自动开始 B／D13。
+```
+
+## 2026-11-15 MLV-01A 批准与下发
+
+负责人在本会话明确回复“已经批准了”，要求提供提示词交开发窗口执行。Work 据此将 MLV-01A 从 WAITING_DECISION 转为 READY，并以下方完整提示词单项下发；批准不表示已经实现、测试通过或正式架构冻结。只实施受限描述、全生命周期物理配置化、无 DOM 装配与真实 Matter 验证。MLV-01B 保持 PLANNED，D13 不启动，D12-A3 原状态／原验收／历史证据保持不变。
+
+此前“未批准／不得实施”仅为 2026-11-14 审查时状态，由本记录取代；既有草稿继续保留。开发窗口开始前检查 Git，保留本路线图全部未提交修改；完成后报告并等待 Work 审查，不自行推进下一项。Work 本次只同步授权和提示词，不执行开发或游戏测试，不 Commit／Push。
+
+## 2026-11-14 本轮 Work 复核补充：D12-A3 与 MLV-01A／B
+
+本节为本轮现行审查／规划入口，优先于下方开始前已存在的未提交草稿。本轮只修改本路线图；已获负责人同意在保留草稿基础上补充，不覆盖其他文件。核对 GitHub main 与本地 HEAD 为 `731ac55ccc1a58e659801fdb783127b56a4f09dc`；完整规划中的 `2547b32` 仍是当时分析基线。
+
+D12-A3 原状态保留 **DONE（待 Work 审查）**，原 SA01–SA05、D13 的任务／依赖／验收均不改动。下面既有草稿中的“Work 审查通过／已收口”作为原稿建议保留，不作为本轮状态迁移；“重新执行 172/172”是原稿记述，本轮未执行 npm、构建或游戏测试，不能借用为本轮 PASS。HISTORICAL：2026-11-14 审查时 A 为 WAITING_DECISION；负责人已于 2026-11-15 批准，现行授权见文首记录，B 仍仅保留依赖规划。
+
+### D12-A3 本轮 Work 审查结果
+
+审查已完成实际 Git 差异／当前源码、现有测试断言和历史证据核对，而非只采信文字报告。建议原 SA 功能切片可按历史同应用版本证据继续评审；当前未发现需扩大本任务修复范围的新增功能阻断，但不宣称本轮全量运行 PASS，也不代替负责人对下述证据边界的审查。
+
+| 审查项 | 本轮核对结果与限制 |
+| --- | --- |
+| SA01 实际空间 | 已读 `726d337 → eafa089` 的实现差异和当前共享配置、Matter／Phaser 使用；C1／C2／C3 地形逐层下降、D 上缘 620 低于 C3 上缘 500，当前首关空间／锚点单测仍保留真实 Body 与支撑断言。查看了现有 C3／D 历史截图；不是本轮人工游玩或按图验收。 |
+| SA02–SA04 主线／恢复／暂停 | 现有 `checkFirstLevel` 和 `run-uz0UtE` 各端事件记录包含 A／B、错误与正确操作、任务后／机关后恢复、C 中下层、乘梯到 D、完成及 R 保留；冻结／恢复 Tick 为 2151→2151、2164→2164、2168→2168，目标／奖励／效果 3/0/3。只支持该定向范围，不升级为全部首关或完整 MVP。 |
+| SA05 历史三端版本 | [run-uz0UtE](../test-results/platform/run-uz0UtE/report.json) 为三端历史 PASS，三个进程退出 0、清理失败为空；36 项哈希中 35 项与当前一致，差异仅是 `tests/first-level.test.mjs` 的文件版本。当前应用源码、平台脚本、浏览器路线和 ASAR 与报告匹配；不把旧单测文件当作当前文件运行证据。 |
+| 最新复跑 | [run-Jc0SLc](../test-results/platform/run-Jc0SLc/report.json) 36 项哈希均匹配；Chrome Web 在布局／窗口阶段因真实 blur 为 FAIL，两个 Electron 环境 PASS。原报告与失败状态保留，不仅凭历史 PASS 消除此项失败，也不据此证明长期稳定。 |
+| 单测／构建 | README 记录过 172/172 与构建 PASS；本轮仅核查文件／历史记录，未重新执行。原稿“本轮重跑”不作本轮证据。本轮新增运行测试为 NOT RUN，不把静态代码审查替代实际测试。 |
+| 证据完整性 | 两份 report.json SHA-256 分别为 `9D985EFD4DF5C1EDED05D2D1A7BE840AF84FAAE3130355063B0440159ED4DE9A`、`D8A7F93AAAA819FDADE6906466EBC254F6CE0544D8E18FFF94D190B87EA5B354`，本轮只读复核。 |
+| 不覆盖 | 新乘坐控制八条／V2 机关下移／完整空间图稿／最终美术／最终 Matter／跨会话存档／完整 MVP／Edge 与人工长期手感；不追认这些内容已在 D12-A3 实现。 |
+
+### 拆分决定与审批门槛
+
+采用 A／B 拆分，取代原合并实施建议。A 专注受限描述、全生命周期物理配置与无 DOM 的共享核心装配；B 才接 Phaser、调试入口、应用监听和三端。A 不改现有 Phaser／Web／Electron 入口；其新装配函数先由真实 Matter 测试使用，生产宿主接入是 B 的工作，不虚报已接线。
+
+负责人已于 2026-11-15 批准收敛后的 A 阶段，Work 将唯一任务登记转 READY 并下发下方提示词。A 实现后还须 Work 审查，B 不自动启动。D12-A3 原状态及 D13 原任务／验收不改，当前不启动 D13。
+
+### MLV-01A 收敛后的数据与文件边界
+
+- `PrototypeLevelDefinition` 只包含当前垂直升降平台物理原型实际需要的布局、稳定身份和 `SnapshotScenario`；不是通用场景 schema。A 只用一个初始有效检查点／备用锚点，不新增正式检查点网络或触发玩法；捕获数据合同测试使用受控固定步边界及显式 scenario 的现有 API，不冒充运行中事务捕获接线。玩家尺寸、脚底形状、重力、支撑阈值、碰撞类别及移动参数继续取原有共享原型，不开放成地图可任意覆盖的参数；只将布局相关身份／坐标改为实例数据。
+- `levelId` 必须与所有 checkpoint 配置一致，checkpointId 非空唯一、default 存在且有效；spawn 的 x／y／facing 与初始 checkpoint anchor 一致，备用锚点保持原顺序。升降对象与 registry 一一对应，只允许适配器已支持的 vertical、stateVersion、schemaVersion；不因类型定义可写 horizontal 就声称该适配器支持。重复／不支持类型与版本在创建 Engine／Body 前拒绝；不得套用首关默认值掩盖缺项。
+- 测试布局的 levelId、checkpointId、平台／地形／门／失败区／探针等布局对象身份、路线效果 ID 与 Runtime Instance ID 均独立；UUID 使用同一种注入式生成服务但每实例取得不同值，不必创建第二套 UUID 算法。调查只读，无首关 actionId／任务／奖励／进度写入，不实例化 FirstLevelRuntime。
+- 独立测试路线效果只测试物理适配器的 `setPermanentEffect` 与一致性校验合同，不为测试给 `progress.ts` 增加业务白名单或伪造目标／事务成功；完整恢复用独立、空进度的闭合路线基线验证。首关真实永久效果重施继续由原首关回归证明，两类证据分开。
+- 首关所有现有数值、导出身份／默认值及物理算法保持；允许默认定义作为向后兼容入口，但实例初始化后不得继续读取首关布局常量。共享算法常量不是“首关配置串用”，不能为通过搜索断言而复制／改写 PlayerMotor。
+- 建议新增 `src/core/prototype-level.ts`、`src/physics/matter/level-assembly.ts`、`tests/level-assembly.test.mjs`。允许修改 `src/core/first-level.ts`（描述及兼容导出）、`src/physics/matter/first-level-world.ts`（数据来源／资源账本）、`src/core/graybox.ts`（仅终止门槛）、必要的现有首关／玩家物理单测。README 只补实际证据；禁止修改 snapshot／recovery／player／simulation／lifecycle／progress／事件事务算法、宿主与渲染入口、依赖和构建配置。确需越界即报告，不自行扩展。
+
+### 全生命周期核对表（A 必须逐项给证据）
+
+| 路径 | 当前需要解除的首关绑定／A 验证 |
+| --- | --- |
+| 构造／出生／全 Body | 当前字段初值、构造和地形循环读 FIRST_LEVEL_*；需在构造器前校验并以同一实例定义初始化，默认首关等价。 |
+| 平台运动／支撑承载 | 当前周期／端点、previousSupport 与支撑速度判断读首关 lift；用测试配置跑完整周期并核对位移、支撑、时钟，算法不改。 |
+| 永久效果 | 当前开路效果匹配首关进度 ID；测试独立 effect 可应用、重复应用不反转，首关 effect 不得误开测试门。 |
+| 冻结／捕获／应用 | 当前 exact registry／objectId 固定为首关 lift；以独立 registry 验证 owner、逻辑状态及旧／跨布局对象拒绝。 |
+| 恢复重建／世界验证 | 当前 Body 尺寸／label 与永久路线期望读首关常量；重建的新 Body 使用测试定义，旧 Body 移除，状态、版本、世界与路线一致。 |
+| 锚点验证／放置 | 坐标、失败区和探针身份按实例；共享玩家形状／支撑算法不变，验证后安全放置、不制造触发进入。 |
+| reset／failureZone／diagnostics | reset 回本实例出生和平台初态，失败区／平台尺寸／support／标识报告来自同一实例；不跳回首关坐标。 |
+| checkpoint 占用接口 | 实际 CheckpointTriggerRuntime 的 #assertStates 即使 disabled 也要求固定两条实验室记录，不能直接返回空数组／自定义 trigger ID。A 保持既有禁用兼容槽；这些槽没有测试地图 Body、不会触发或替代独立有效 checkpoint，兼容债务明确记录，不宣称触发器已关卡化。 |
+
+
+新增接线限制：`SnapshotCaptureRuntime` 当前在锁的关卡、checkpoint 查找和冻结 registry 上仍使用实验室常量。A 不改其算法或数据接线、不在测试地图开放 requestCheckpointCapture，不通过首关／实验室 checkpoint 冒充独立捕获。首次快照与正常失败恢复已支持传入独立 scenario；它们和直接适配器数据合同是 A 的验证对象。运行中事务捕获、触发器定义的真正关卡化仍 TO_VALIDATE；若负责人要求它们也是 A 必做，则本卡需重新限缩／审查，不能自行追加核心模块修改。
+
+### 资源所有权、终止与 V05 分层
+
+| 层 | 所有权与清理责任 |
+| --- | --- |
+| A 的无 DOM 装配函数 | 每次创建独立 Engine／World、适配器、core；只拥有自己创建的 Engine，关闭顺序为停止接入并终止 core → 适配器清理 → 清理自身 Engine 的缓存／本实例订阅。不返回裸露可继续推进的更新回调。 |
+| Matter 适配器 | 记录自己创建／仍持有的 Body，包括恢复替换后的新 Body；借用 Engine 不代表拥有整个 World。dispose 只移除自身对象，不清空宿主 Engine／其他 Body。构造中途抛错也必须能用资源账本回收，不能等 constructor 返回后才试图清理。 |
+| 共享 core | 目前无 destroy；A 可增加最小终止标志与幂等终止入口。销毁后 frame／key、已保存的 lifecycle.acquire／release 引用及 reset、交互关闭、可用性、捕获／恢复等可写入口明确拒绝或有界无副作用；不得再推进 Tick／Matter、创建事件或重开事务。仅在 graybox 内增加终止门槛／受控包装，不改 lifecycle 算法或运行中的阶段与算法。 |
+| B 的 Phaser／宿主 | Phaser Engine 由 Phaser 宿主所有；适配器不能作为自己的 Engine 销毁。解绑应用输入／可见性 → 停帧／终止 core → 清理适配器／场景／Phaser；每层只释放自己的 owner／资源。A 不冒充已经实现宿主接线。 |
+| 第三方内部监听 | Phaser 3 document 级监听的既有特殊行为单独列账，B 以真实操作核查。不算本项目自绑监听，也不以“第三方遗留”掩盖应用 listener 未解除；不在 A 修补 Phaser 内部实现。 |
+
+装配成功还须主动核对初始快照 READY；createGrayboxCore 当前可能捕获初始化错误后返回 FAILED 状态而不抛异常，装配函数不得把这种返回当成功，应保留原因、禁止控制并回收已取得资源。A 的销毁验收以无活动捕获／恢复／业务事务为前置；若有活动 owner，必须明确拒绝成功清理并报告，不能强行释放或伪造业务终态。活动流程中的最终取消／退场语义不在 A 暗自决定。
+
+重复销毁有界且幂等；清理异常不能返回成功，终止门槛保持、错误可检查，后续显式清理只能处理残留资源，不再推进业务。部分装配失败按逆序清理，原始错误与清理错误都保留。V05-A 检查 Matter／core；V05-B 检查本项目 window keydown／keyup／blur／focus 与 document visibilitychange 绑定、旧回调及第三方监听，分别计数、分别出证据，不用“页面已关闭”代替释放验证。
+
+### V01—V06 现行可执行口径（取代下方原稿矩阵的宽泛表述）
+
+| 用例 | A 的执行与断言 | B／未覆盖边界 |
+| --- | --- | --- |
+| V01 描述校验 | 表驱动合法／非法定义；含非有限值、重复身份、无效 default、跨 level checkpoint、spawn 不一致、不支持 axis／版本／registry。注入 Engine／Body 创建计数，失败均为 0；不要求两实例的“描述 levelId”全局唯一生成服务。 | 编辑器／外部地图导入 NOT RUN。 |
+| V02 全生命周期 | 测试布局坐标／尺寸／标识与首关明显不同；依上表逐项调用真实物理适配器，推进平台完整周期、独立效果重复应用，在受控固定步边界用显式 scenario 的现有纯捕获／校验 API 验证 freeze→capture→apply→rebuild→world/anchor validate→place→reset，核对真实 Body 与 diagnostics；空进度／闭合路线基线执行一次原共享恢复流程。不调用未关卡化的运行中捕获协调器来冒充此项。 | 本用例是适配器合同／真实 Matter 集成，不伪造新任务永久效果业务成功。 |
+| V03 双 Engine／共享能力 | 同进程双 Engine，断言 engine/world/body 引用不共享，分别用原 core 输入走跳／落地／只读调查及暂停；A 的 Tick／状态／销毁不影响 B，Runtime UUID 不同，测试进度／首关业务记录为空。 | 不证明运行中跨关切换／进度承接。 |
+| V04 快照一致性 | 合法测试初始快照 READY，独立 source／registry；错误 Runtime／Level／Checkpoint／schema／对象版本／对象集走既有预检查，无临时应用／重建／放置／永久重施写入，不改原快照和控制保护。 | 不新增每关存档槽或修改恢复算法。 |
+| V05-A 资源／终止 | 至少三轮创建销毁；在借用 Engine 中预放非本适配器的 sentinel Body，dispose 后 sentinel 保留、自有 Body 不在 World；恢复替换的新 Body 也被清理。保存旧 frame／key 与 lifecycle.acquire／release 引用后销毁并调用，Tick／输入／交互／事件／进度／pauseCount／暂停状态及 Matter 步数不变；逐阶段故障注入验证逆序清理、重复／清理失败不影响另一 Engine。 | V05-B 本项目应用监听与真实宿主：NOT RUN，保留给 B，单独记录 Phaser 内部。 |
+| V06 首关回归／阶段门 | 默认描述深度等价保留旧值，原有效测试不删不跳过；执行 A 专项、无参数 npm.cmd test、生产构建和 diff 检查。首关测试数按实际报告，不以历史 172 冒充新 PASS。 | A 不改／运行新的平台分支，不报三端通过；B 再做现有 D12 定向与 MLV 专项，范围分别标注。 |
+
+测试路由以 `scripts/test.mjs` 为准：无参数 `npm.cmd test` 与 `npm.cmd run test` 都转 `test:unit`；加额外参数转 `test:platform`。带 `--browser=chrome` 本身不会选择 D12；`npm.cmd run test:d12-a1 -- --browser=chrome` 才显式带 `--d12-a1`，当前 task=D12-A3、scope=first-level-dialogue-completion-and-play-readability，只算其实际覆盖。不能把它当全部首关自动化或完整 MVP。
+
+B 才增加 `--level-assembly` 的显式分支；报告 task=MLV-01B、scope=prototype-level-dual-layout，必须校验实际执行分支，不能忽略未知参数后运行默认 D04 并报成功。分开记录各平台与 V05-B，失败保留 FAIL，受阻 BLOCKED，未执行 NOT RUN。A 没有该分支，禁止在 A 调用它。
+
+### MLV-01A Codex 提示词（已批准，READY）
+
+以下为已批准的现行完整提示词，取代下方历史短提示词。本次只下发 MLV-01A；实现完成后停止并等待 Work 审查。
+
+```text
+项目：D:\Workspace\Code_Projects\mountain-city-last-delivery
+任务：仅 MLV-01A；准备基线 731ac55ccc1a58e659801fdb783127b56a4f09dc。
+状态门槛：先读 AGENTS.md 和 docs/DEVELOPMENT_ROADMAP.md 本轮复核补充及 MLV-01A/B 登记。
+负责人已于 2026-11-15 批准本阶段，Work 已将任务登记为 READY 并下发。请实施 A，不启动 B／D13。若实际工作区与批准边界存在冲突，先报告，不自行扩大范围。
+实施前检查远端、HEAD、git status，保留已有修改；2547b32 是规划分析基线，不是当前实施 HEAD。
+
+目标：受限描述、严格数据一致性校验、现有 FirstLevelMatterWorld 全生命周期配置化，
+一个无 DOM 的统一装配函数，以及首关／独立测试布局的真实 Matter 验证。
+不做 Phaser 测试地图、宿主入口或三端接线，这些属于 B；不启动 D13。
+
+阅读本路线图、DECISIONS、完整游戏规划、首关空间／玩家控制设计，以及实际 first-level、
+graybox、snapshot、recovery、progress、物理适配器、输入／可见性绑定和现有测试。
+不把概念 LevelDefinition／Catalog／Loader／Behavior 当已实现。
+
+允许新增 src/core/prototype-level.ts、src/physics/matter/level-assembly.ts、
+tests/level-assembly.test.mjs；可小改 src/core/first-level.ts（定义／兼容导出）、
+src/physics/matter/first-level-world.ts（实例数据／自有资源账本）、
+src/core/graybox.ts（仅终止门槛），及必要的首关／玩家物理测试。
+README 仅实际证据，路线图仅当前任务实施记录，不改正式决策或审查结论。
+名单外运行代码、配置或依赖确需修改时先交 Work，不扩大实现。
+
+按本轮数据一致性和生命周期表执行：先校验、再为每布局创建独立 Engine、适配器和 core。
+首关默认定义／原数值／业务身份不变；测试定义的 level/checkpoint/对象/effect/Runtime 独立。
+定义与 SnapshotScenario 同 level，checkpoint 唯一且 default 有效，spawn 与初始 anchor 一致，
+platform ID 与 registry 一致，axis/schema/stateVersion 仅允许实际适配器支持的版本。
+不开放玩家尺寸／重力／碰撞容差的地图覆盖，不复制运动、支撑、承载或恢复算法。
+
+配置化覆盖字段初值、构造／出生、所有 Body、平台完整周期、永久效果、
+freeze/capture/apply、恢复重建／世界校验、锚点／放置、reset、failureZone、
+diagnostics 及禁用 checkpoint 兼容接口；不能运行后回读 FIRST_LEVEL_* 布局常量。
+当前协调器 disabled 仍要求固定实验室占用槽，保留其无 Body／禁用兼容形态，不返回空数组。
+SnapshotCaptureRuntime 仍绑定实验室，A 不开放运行中捕获或重构它；捕获只做显式 scenario
+的纯 API／适配器合同，初始快照与空进度正常恢复用已有独立 scenario 入口。
+保持默认调用兼容。测试普通调查不带首关 action，不写任务／奖励／永久进度。
+独立 effect 只做物理合同测试，不修改 progress 白名单；完整恢复使用空进度基线，
+首关真正永久开路仍由原首关测试证明。
+
+实现幂等终止与资源清理：core 先停止接受 frame/key、旧 lifecycle.acquire/release 引用和其他可写请求，再释放适配器自有 Body，
+最后由装配函数清理自建 Engine；适配器借用 Engine 时不清空外部 World。
+constructor 未返回即失败也要回收已创建 Body；恢复生成的新 Body 必须纳入账本。
+core 返回 FAILED 而未抛错也不能装配成功，必须检查初始快照 READY。
+销毁验收在无活动捕获／恢复／业务事务时执行；活动 owner 不强行解锁或伪造取消。
+清理失败保留错误／终止门槛，不自动重开业务；重复清理只能处理残留资源。
+仅在 graybox 内增加生命周期入口的终止包装，不修改 lifecycle 算法；销毁后 pauseCount/暂停状态不得变化。
+不得通过 core 外层按钮“禁用”代替旧 frame/key 和 lifecycle.acquire/release 引用的终止验证。
+宿主监听与 Phaser 内部 document 监听留给 B 分账，不声称 A 已通过真实窗口清理。
+
+先补能揭露旧实例数据串用／校验不一致／终止失效的测试，再实现。
+V01—V06 按本轮现行矩阵执行：双 Engine、真实 Body／支撑、原 core 走跳与只读交互、
+合法与非法快照、预检零写入、生命周期全路径、借用 Engine sentinel 保留、
+至少三轮销毁、保存旧 frame/key 和 lifecycle.acquire/release 引用再调用、逐阶段失败逆序清理、首关回归。
+用 Phaser 当前捆绑的 Matter 注入测试，不新增物理依赖；不以 mock 代替真实求解。
+
+实际执行：
+node --experimental-strip-types --test tests/level-assembly.test.mjs
+npm.cmd test
+npm.cmd run electron:build
+git diff --check
+无参数 npm.cmd test 才是本轮全部现有单测入口；旧 D12 平台报告不代表全部首关回归。
+A 不实现或执行 --level-assembly，不调用未识别参数冒充通过。
+构建成功不代表新装配函数已经被宿主调用；GUI／三端／V05-B 一律 NOT RUN。
+
+禁止第二章／四章六关实施、通用 Catalog/Loader/Behavior 框架、ECS、Tiled、新依赖、
+新玩法／移动能力／跨关进度／跨会话存档／多关快照语义及修改 CONFIRMED。
+不改 player/simulation/lifecycle/snapshot/recovery/progress 或事件事务算法。
+如必须改变这些契约、共享物理算法或显著扩张范围，停止交 Work；
+同一问题两轮有效修复仍失败，保留最小复现／日志／版本，不挑选重复跑出的 PASS。
+不 Commit、Push、发布、删除用户文件或重置工作区，不自动开始 B 或 D13。
+
+完成报告：实际基线与 Git 状态；文件／配置来源清单；V01—V06 逐项命令、
+退出码和 PASS/FAIL/BLOCKED/NOT RUN；原首关回归；所有权／销毁／故障清理证据；
+源码／测试／产物哈希；未覆盖的 V05-B／GUI／跨关语义和剩余问题。
+声明当前只支持的受限对象集合，不能宣布完整多关架构已完成。报告后停止，等待 Work。
+```
+
+### 2026-11-15 MLV-01A 实施记录
+
+历史交付记录：以下 DONE／PASS 为开发方提交时状态与实际测试结果，原文保留；本轮 Work 新增回归 FAIL 及当前 BLOCKED／R1 READY 以文首为准。
+
+执行基线为 `731ac55ccc1a58e659801fdb783127b56a4f09dc`，开始时仅保留 Work 对本文的未提交修改。当前实现状态为 **DONE（待 Work 审查）**；没有启动 MLV-01B 或 D13，没有修改 D12-A3 的原状态、验收范围或历史证据。
+
+实际新增 `src/core/prototype-level.ts`、`src/physics/matter/level-assembly.ts`、`tests/level-assembly.test.mjs`，并小范围修改首个受限定义、Matter 适配器及共享 core 的终止门槛。`PrototypeLevelDefinition` 只支持当前适配器实际使用的静态矩形地形、一个路线门、一个垂直升降平台、一个失败 sensor、稳定对象／Body／效果身份、一个初始 checkpoint／备用锚点序列、禁用 checkpoint 兼容槽和只读调查对象；没有建立 Catalog、Loader、Behavior、通用对象注册、Tiled 或跨关进度。
+
+物理适配器构造时先校验定义，再进行 Engine／Body 之后的资源创建；实例的出生、全部 Body、平台周期、永久效果、冻结／捕获／应用、恢复重建、世界校验、锚点、放置、reset、failureZone 与 diagnostics 均只读实例定义。适配器以 Body 账本只清理自有对象，借用 Engine 时保留外部 Body 并恢复原重力；装配函数拥有自建 Engine，初始化快照非 READY 或任一装配阶段失败时按 core → world → engine 逆序回收。共享 core 终止后，已保存的 frame／key／lifecycle.acquire／release 引用不再改变 Tick、物理、输入、事件、进度或暂停状态。
+
+| 验收项 | 实际结果 |
+| --- | --- |
+| V01 描述校验 | PASS。合法定义通过；非法 schema／type／axis、未知交互 shape／kind、非有限值、重复对象／Body 身份、跨 level checkpoint、无效 default、spawn 不一致、registry／stateVersion 不匹配和缺 terrain 均在 Engine／Body 创建数为 `0` 时拒绝。 |
+| V02 全生命周期 | PASS。独立测试布局使用不同 level／checkpoint／object／effect／Body label 与坐标，真实推进一个完整平台周期，验证冻结期间平台时钟与位置均停止，并通过显式 scenario 完成 capture→apply→rebuild→world/anchor validation→place→reset→failure recovery；诊断中没有首关身份。 |
+| V03 双 Engine | PASS。首关与测试布局拥有不同 Engine、World、Body、Runtime UUID 和 Tick；测试布局通过原 core 完成移动、跳跃、落地、只读调查和暂停，销毁首关实例不改变测试布局。测试进度／首关业务记录为空。 |
+| V04 快照预检 | PASS。非法 Runtime／Level／Checkpoint／schemaVersion／对象 stateVersion、缺对象和非有限载荷均经原完整恢复流程进入预检查失败；临时应用、重建、放置与永久效果恢复写入计数为 `0`，原快照和控制保护保持。 |
+| V05-A Matter／core 终止 | PASS。完成三轮独立装配／销毁；借用 Engine 的外部 sentinel 保留，自有 Body 与恢复替换 Body 被移除；旧 frame／key／lifecycle acquire／release 引用无副作用；constructor 部分失败、装配阶段失败逆序清理、重复销毁和单 Body 清理故障后的显式重试均有测试。活动 Pause Token 先阻断销毁，释放后才允许终止。 |
+| V05-B 宿主监听 | NOT RUN。应用输入／可见性监听、Phaser 内部 document 监听和真实场景切换保留给 MLV-01B。 |
+| V06 首关回归／构建 | PASS。默认定义与原首关空间值、snapshot scenario、interaction identity 及 `player`／`foot-region`／`failure-gap-early-a` Body 身份深度等价；原首关 10 项测试保留。`npm.cmd test` 为 `178/178` PASS，0 fail、0 skipped；类型检查、Electron Main 编译、Vite 生产构建与 Windows x64 目录构建 PASS。 |
+
+专项命令 `node --experimental-strip-types --test tests/level-assembly.test.mjs` 为 `6/6` PASS。A 未增加或执行 `--level-assembly` 平台分支；Chrome Web、Electron 开发版、独立包、GUI 以及运行中 checkpoint capture 协调器关卡化均为 NOT RUN。Matter 仍是验证候选，不是最终物理选型。
+
+### 2026-11-15 MLV-01A-R1 实施记录
+
+状态：`DONE（待 Work 审查）`。父项 MLV-01A 仍按文首保持 `BLOCKED`，本记录不自行收口。基线 HEAD 与 `origin/main` 均为 `731ac55ccc1a58e659801fdb783127b56a4f09dc`；开始时 Work 的路线图修改及 MLV-01A 的 5 个已跟踪修改、3 个未跟踪新增全部保留。本轮只修改 `src/core/graybox.ts`、`src/core/goal-route-runtime.ts`、`src/core/first-level.ts`、`tests/level-assembly.test.mjs`、README 和本路线图。执行期间工作区另有与 R1 无关的首关 UI 线框文档及三份 SVG 未跟踪新增，已原样保留，未纳入本任务。
+
+修复前先写回归并实际得到 `3 FAIL`：真实首关 Tick 1 在 `verifying`／`running`、原 Event 已退役且 Result 尚未创建时，core 与 assembly 均错误返回 `destroyed`；core 自有 goalRoute 在 `verifying` 与 `terminal-pending` 时同样错误销毁；终止后错误 Owner＋未知 Token 的旧 release 错误返回 `released`。
+
+修复增加两层小型只读 readiness，不接管事务或建立新管理器：
+
+- `PrototypeGoalRouteRuntime.destroyReadiness`：`idle` 安全；运行中、待重试／恢复、terminal-pending、结果尚未创建／消费／确认退役及无法确认的中间阶段阻断；`succeeded`／`failed` 仅在两事件均安全退役后允许清理。
+- `FirstLevelRuntime.destroyReadiness`：汇总 `quest`、`lift`、`complete`，core destroy 同时读取该聚合与 core 自有 goalRoute。任何 blocker 存在时 core 不设置终止标志，assembly 也不 dispose World、不清 Engine；拒绝后仍可继续 frame 完成原链。
+- 终止后 lifecycle 继续使用原 Owner＋Token 校验，不伪造成功；旧 acquire 仍不创建令牌，旧 release 不改变暂停、Tick、物理、输入或业务状态。
+
+| 用例 | 状态 | 实际结果 |
+| --- | --- | --- |
+| R01 真实首关活动事务 | PASS | 真实 `FirstLevelRuntime` 委托 Tick 1：`phase=verifying`、`transactionStatus=running`、Event／Command／Transaction `1/1/1`、Result `null`、目标数 `1`、原 Event 已退役。core 与 assembly destroy 均 `blocked`；World Body、Engine timestamp、Tick、physicsSteps、进度与业务身份不变。继续 frame 后原链只完成一次，安全收尾后正常销毁，再次销毁幂等。 |
+| R02 core 自有路线故障 | PASS | 既有 terminal-commit 故障先得到 `verifying/running`，再进入 `blocked/terminal-pending`；两次销毁均被 core goal route 阻断，Result Event 保持 `null`，命令／事务各 `1`、结果事件 `0`，未强制恢复、重开或重复业务。 |
+| R03 终止后 Token | PASS | 正常释放后销毁：旧 acquire 为 `undefined`；正确 Owner 重复原 Token 为 `already-released`，错误 Owner 与未知 Token 均为 `rejected`；`pauseCount`、paused、Tick、physicsSteps、player 与 progress 不变。 |
+| R04 既有语义 | PASS | V01–V06 保留；专项 `8/8`、无参数 `npm.cmd test` `180/180`，0 fail、0 skipped。双 Engine、sentinel、逆序清理、重复销毁与首关业务未回归。 |
+
+实际命令与结果：
+
+| 命令 | 状态 | 退出码／结果 |
+| --- | --- | --- |
+| 修复前 `node --experimental-strip-types --test tests/level-assembly.test.mjs` | FAIL | 退出 `1`；`5/8` PASS，R01、R02、V05-A 共 3 项按预期失败。 |
+| 修复后 `node --experimental-strip-types --test tests/level-assembly.test.mjs` | PASS | 退出 `0`；`8/8`，0 fail、0 skipped。 |
+| `npm.cmd test` | PASS | 退出 `0`；类型检查、Electron Main 编译通过，`180/180`，0 fail、0 skipped。 |
+| `npm.cmd run electron:build` | PASS | 退出 `0`；Vite 33 modules、Electron Main 与 Windows x64 目录构建成功。仅有既有 bundle 体积、缺少 author、默认图标警告。 |
+
+版本证据：生产入口 `release/layered-city-adventures/win-unpacked/Layered City Adventures.exe`；ASAR `EBF753C234AD67278D07C44EB2A1ED942C0C61A6B5F5E6E9A7E9762067ACC4E2`；EXE `A0065F1BF2BC5052E87E62D7AC0C5FBC2AAA2B445862E60859252C1962A27B28`。源码／测试 SHA-256：`graybox.ts` `6CC8BA089ED571BE7D21E4D209145561243C00557C61C13A3CB199CC8248BF3C`、`goal-route-runtime.ts` `271992BA186CD1431D0B0F3B99332ADE73DA683C04B906E02432755EB4AC6C91`、`first-level.ts` `0033B527B6E6CED477C072934A9C1C013BD54A4365D76DA97FB07E3ECE49023E`、`level-assembly.test.mjs` `1D6A853FFE841C5FE254ED0065009883DF14576F2F9EE4259F10979B12DE4B6E`。`level-assembly.ts` 保持 `24012A41D85BD08070E2DB287EBE1E463681AC5E3978E87ED34E81DD9ADF2738`，未修改。
+
+R1 未新增平台测试分支，未运行 GUI／三端长套件；V05-B、Chrome Web、Electron 开发版、独立包运行、运行中 checkpoint capture 协调器关卡化仍为 NOT RUN。报告后停止，等待 Work 审查，不进入 MLV-01B 或 D13，不 Commit／Push。
 
 ## 1. 规则与事实来源
 
@@ -28,7 +350,7 @@ HISTORICAL：曾有开发窗口依路线图连续推进、完成后自行领取�
 | 名称 | 中英文继续用现工作名，最终名称未再次确认；旧更名交接的正式名称表为历史。 |
 | 首关空间 | 方案 A 为 CONFIRMED，A 解放碑出生、C 下行、D 下层嘉陵江岸；不再待选方案。 |
 | 图 A／图 B | 两张原 PNG 已在 `2547b32` 归档；本轮格式／尺寸／哈希复核一致，原缺图 BLOCKED 为历史。按图制作与新空间验收仍 NOT RUN。 |
-| 下一建议 | D12-A3 已实现并完成当前范围验证，状态 DONE（待 Work 审查）；原图归档已完成，但这不代表按图匹配或完整空间验收通过。 |
+| 下一建议 | 本轮完成 D12-A3 原范围的源码／历史证据复核，原状态 DONE（待 Work 审查）保持，复核结论与证据边界见本轮补充。MLV-01A 已实施但 Work 审查为 BLOCKED；当前只下发 MLV-01A-R1（READY），B 仍 PLANNED，D13 不变。 |
 
 ### HISTORICAL：2026-11-12 初建基线
 
@@ -151,8 +473,10 @@ HISTORICAL：曾有开发窗口依路线图连续推进、完成后自行领取�
 | D12-A1：首关最小可玩流程（DONE，当前切片范围） | 主体闭环与 A2 对话修复经 Work 核对，171/171 测试及当前三端证据有效。 | 不表示最终地图／美术／完整 MVP 通过；方案 A 已确认，下层江岸布局与现代码上行 D 的实施差异仍待后续任务同步。 |
 | D12-A2：首关对话完成时序与游玩可读性（DONE） | Work 重跑 171/171 测试、旧 NPC 复现和 36 项三端报告版本检查；对话正常结束后唯一接取，当前范围收口。 | 独立人工长期手感／Edge 未执行；路线冲突不因对话／UI 验收而消失。 |
 | D12-V1.1：首关空间参考图归档（原图已归档） | 方案 A 与修正版图片 B 的用途已确认；两张原图已在 `2547b32` 归档，PNG／尺寸／SHA-256 复核一致。 | 旧缺图 BLOCKED 保留历史；归档完整性不等于空间布局评审或按图制作通过，后者仍 NOT RUN，不擅自重画原图。 |
-| D12-A3：方案 A 首关空间同步（DONE，待 Work 审查） | 已将解放碑出生、沧白路入口、C 多层下行、D 下层江岸接入现有占位关卡，并完成真实通行、机关、恢复、暂停及三端定向。 | 原图已归档；旧缺图为交付时事实，按图匹配／新空间验收仍 NOT RUN。平台端点为 `TO_VALIDATE`，不做正式美术或最终物理决定。 |
+| D12-A3：方案 A 首关空间同步（DONE，待 Work 审查） | 已将解放碑出生、沧白路入口、C 多层下行、D 下层江岸接入现有占位关卡，并完成真实通行、机关、恢复、暂停及三端定向；本轮已核对应用哈希及 `run-uz0UtE` 等历史证据，审查范围与限制见本轮补充，不改变原状态。 | 原图已归档；按图匹配／新空间验收仍 NOT RUN。最新复跑 Web `blur` FAIL 原样保留。平台端点为 `TO_VALIDATE`，不做正式美术或最终物理决定。 |
 | D13：MVP 双端验收与交付 | 按实际有效首关规则验证主线、错误操作、失败恢复、永久进度和奖励幂等，修复阻断问题，交付可玩产物。 | D12；正式物理方案需单独确认；旧 MVP-G 用例须先核对适用性，不删旧结果。 |
+
+MLV-01 不在上表内改动 D13 的原任务、依赖或验收范围。其拆分见下方“MLV-01A／B 任务登记”；2026-11-15 已批准当前只实施 A，D13 仍不启动，后续顺序由 Work 审查后安排。
 
 应集中向用户确认：最终物理采用决定；虚构城市下旧首关叙事和任务是否沿用／怎样调整；实施持久化时确需明确的跨会话语义。只提交具体证据与影响当前工作的选项，不把整份 PROPOSED 清单变成审批流程。
 
@@ -160,11 +484,11 @@ HISTORICAL：曾有开发窗口依路线图连续推进、完成后自行领取�
 
 ## 7. 当前任务与持续记录
 
-当前任务：D12-A3 已完成实现、单测、生产构建和当前范围三端验证，状态 DONE（待 Work 审查）。方案 A 维持 CONFIRMED；两张原图已于本轮原样归档并核对完整性，按图匹配／新空间验收仍 NOT RUN。本轮不开启 D13。
+当前任务：MLV-01A 为 BLOCKED，Work 复现活动事务被销毁及终止后错误释放回执两项缺陷；MLV-01A-R1 已由开发窗口实施并提交证据，当前等待 Work 审查。A 的开发交付和历史测试保留；D12-A3 原状态不改，B 为 PLANNED，D13 不启动。
 
-当前实施范围：首关 Matter 几何、共享空间配置、Phaser 占位表现和首关测试已同步 A 解放碑 → B 沧白路入口 → C1／C2／C3 下行 → D 嘉陵江岸；不增加玩法、不改业务身份、不重写任务／奖励条件。
+当前实施范围：MLV-01A 的受限关卡描述、首关 Matter 适配器全生命周期配置化、无 DOM 物理装配、双布局真实 Matter 测试和 core／Body／Engine 终止已实现；没有接入 Phaser 测试地图或宿主。
 
-当前模式：采用三窗口单任务审查。D12-A3 平台端点、速度及周期是明确的 `TO_VALIDATE` 工程选择，不代表正式参数；实施时缺图未做像素复刻，后续归档也不等于图像匹配通过。完成报告后等待 Work 核验源码、差异和证据，不进入 V1.2／V1.3、正式美术接入或 D13。历史候选任务及等待记录保留，以下最新记录优先。
+当前模式：采用三窗口单任务审查。D12-A3 平台端点、速度及周期仍是 `TO_VALIDATE` 工程选择，不代表正式参数；图片归档不等于图像匹配通过。MLV-01A 已完成受限关卡描述、物理适配器全生命周期配置化、统一物理装配与双布局真实 Matter 验证，当前等待 Work 审查；Phaser 测试地图、调试入口和宿主清理验证留到 MLV-01B。未启动 B 或 D13。历史候选任务及等待记录保留，以下最新记录优先。
 
 ### 2026-11-14 文档任务：完整游戏内容与关卡扩展架构
 
@@ -206,7 +530,7 @@ D12-A3 当前状态、原任务卡／SA01–SA05、实现报告及历史测试�
 
 2026-11-14 文档更新边界：C 区空间 V2 已登记为 PROPOSED，详见[关卡主文](HONGYADONG_LEVEL_DESIGN.md#c-区完整空间布局-v2proposed)。C1／C2-A／C2-B／C3 细分、J1 作为必经短跳、井道向下行程不是本任务新增验收；C-H／J2／J3／收藏／支线／观察／老店主只属完整版待确认、未排期内容。外部绕行方案 B 的方向确认不等于授权制作隐藏环路。本次不改变当前 D12-A3 进度、原 SA01–SA05 或开启新里程碑；后续采纳提案再由 Work 单项安排。
 
-状态：DONE（待 Work 审查）。本任务卡保留原始实施边界；实际结果见下方“2026-11-14 D12-A3 执行结果”。
+状态：DONE（待 Work 审查）。本任务卡保留原始实施边界；实际结果见下方“2026-11-14 D12-A3 执行结果”。本轮审查补充只记录复核结论，不更改本状态或 SA01–SA05。
 
 - 目标：在现有可玩首关把 A 出生身份、C 多层下行、D 下层嘉陵江岸与方案 A 对齐，保持 NPC、单线索／单装置、真实升降辅助通路、拍摄分享和失败恢复完整可玩。当前基线为 D12-A2，使用实际源码／Git，历史 171 项与三端证据不是新地图验收。
 - 范围／模块：以 `src/physics/matter/first-level-world.ts` 几何／平台／门／失败区，`src/core/first-level.ts` 首关对象／锚点配置、`src/rendering/phaser/first-level.ts` 占位表现与镜头，以及现有首关／平台测试为主。确需调整共享快照／恢复接入时只做最小配置修正，复用已有核心，不重建第二套世界协议。
@@ -258,6 +582,88 @@ D12-A3 当前状态、原任务卡／SA01–SA05、实现报告及历史测试�
 版本证据：ASAR `D0306C4E511D6E374D701D03882B39E1B5F067F175B5CB9E102BE2A3B82FF98D`；EXE `ACC371E78647005A196E89C4857CB9EF93BFE852756A83240FC0AB20545C5345`；`run-uz0UtE` 报告 SHA-256 `9D985EFD4DF5C1EDED05D2D1A7BE840AF84FAAE3130355063B0440159ED4DE9A`；`run-Jc0SLc` 报告 SHA-256 `D8A7F93AAAA819FDADE6906466EBC254F6CE0544D8E18FFF94D190B87EA5B354`。当前 `tests/first-level.test.mjs` 为 `DA9398098C923B2DE661256B06DA442BD85B72A82307AF2565B09A4F905B52CA`；与成功报告所用版本的差异只为验证前移开夹具玩家 Body，应用源码及浏览器路线未变。
 
 历史失败保留：`run-D4GJNT` 为 NPC 提示未同步；`run-MKbxH6` 为 C2 边缘按键过早；`run-gedARw` 为真实 `blur`；Web 定向成功轮 `run-tGQlx0` 先于三端成功。两张用户原图仍缺失，图片归档和按图匹配 BLOCKED；本次只按文字方案同步占位空间，不宣称按图复刻。Edge、独立人工长期手感、正式美术、存档、正式检查点和完整 MVP-G01–G06 仍 NOT RUN。当前状态 DONE（待 Work 审查），不进入 D13，不 Commit／Push／发布。
+
+### 2026-11-14 D12-A3 Work 审查
+
+HISTORICAL／既有未提交草稿：本小节原文保留。其“重新执行 172/172”和“已收口”为开始前原稿记述／建议，不是本轮执行声明或已批准状态；本轮实际只读复核与现行状态以文首补充为准。
+
+审查基线为 GitHub `main`、本地 `HEAD`、`origin/main` 三者一致的 `731ac55ccc1a58e659801fdb783127b56a4f09dc`，开始时工作区干净。审查仅修改本路线图的审查与后续任务登记，不改 D12-A3 源码、测试、物理参数、CONFIRMED 决策或 D13 任务范围；本轮未 Commit、Push 或发布。
+
+| 审查项 | 结果 | 证据与边界 |
+| --- | --- | --- |
+| 当前首关自动化 | PASS | 重新执行 `npm.cmd test`：类型检查、Electron Main 编译及 `172/172` 测试 PASS，0 fail、0 skipped。 |
+| SA01–SA05 实现证据 | PASS | [run-uz0UtE](../test-results/platform/run-uz0UtE/report.json) 的 Chrome Web、Electron 开发版、仓库外独立包均 PASS；`cleanupFailures` 为空，进程退出码均为 `0`。报告 SHA-256 为 `9D985EFD4DF5C1EDED05D2D1A7BE840AF84FAAE3130355063B0440159ED4DE9A`。 |
+| 当前应用版本对应关系 | PASS | 当前 `src/physics/matter/first-level-world.ts`、`src/core/first-level.ts` 和 ASAR 分别为 `7CE945E364597DD4891E81AC97DDDD957E920E137F7CF6BC6258BA0F4BDF103B`、`2F84DCF0079A35762512D66457A62E5ED3472654CBE4DBAF2ACC2C813CB0B34E`、`D0306C4E511D6E374D701D03882B39E1B5F067F175B5CB9E102BE2A3B82FF98D`，与 `run-uz0UtE` 一致。 |
+| 最新夹具复跑 | FAIL，外部焦点中断 | [run-Jc0SLc](../test-results/platform/run-Jc0SLc/report.json) 中 Chrome Web 在 `first-level-UX03-UX05-default-layout-debug-toggle-and-viewports` 发生真实 `blur`；Electron 开发版与独立包 PASS。应用源码和 ASAR 哈希与成功报告一致，仅 `tests/first-level.test.mjs` 夹具哈希变化；现有证据不能归为物理或空间布局回归。报告原样保留，不改写为 PASS。 |
+| 未覆盖范围 | NOT RUN | 按图匹配、新空间验收、Edge、独立人工长期手感、正式美术、存档、正式检查和完整 MVP-G01–G06 仍未执行或未验收。 |
+
+结论：D12-A3 在原有 SA01–SA05 范围内收口。该结论不覆盖最新 Web `blur` 的环境失败，也不赋予第二布局、Tiled、大关卡装配或 D13 自动通过资格。平台端点、速度、周期及工程坐标继续为 `TO_VALIDATE`，Matter 仍不是最终物理选型。
+
+### 2026-11-14 MLV-01A／B 任务登记
+
+原 MLV-01 合并方案不直接下发。当前 `FirstLevelMatterWorld` 虽然部分读取 `FIRST_LEVEL_SPATIAL_CONFIG`，但构造后的快照场景、出生、升降平台、永久效果、冻结／捕获／应用、恢复重建、世界一致性校验、锚点探测、玩家放置、reset、失败区和诊断仍直接引用首关常量；若只改构造函数，第二布局会在恢复或重置时读回首关数据。核心物理配置化和宿主／三端生命周期清理又需要不同证据层级，因此拆为两个阶段门槛明确的独立任务。
+
+| 任务 | 当前状态 | 依赖 | 范围 |
+| --- | --- | --- | --- |
+| MLV-01A：受限关卡描述、全生命周期物理配置化与双布局真实 Matter 验证 | BLOCKED（Work 复现两项终止缺陷，待 R1） | D12-A3 原范围 Work 复核已记录；负责人已批准收敛后的 A 范围，不据此改写 D12-A3 状态／历史 FAIL | 数据校验、首关定义提取、Matter 适配器全生命周期配置化、统一物理装配、独立 Engine 双布局测试、核心／适配器销毁与首关回归。实施证据见文首记录。 |
+| MLV-01B：Phaser 测试地图、调试入口与宿主三端生命周期验证 | PLANNED | MLV-01A 实现、测试及 Work 审查通过 | 测试地图表现、调试入口、应用输入／可见性监听清理、场景切换、Chrome Web、Electron 开发版和独立包显式 `--level-assembly` 验证。 |
+
+本登记现仅授权 MLV-01A。负责人批准的是本阶段实施边界，不将概念架构升级为正式通用架构；A 未经 Work 审查前不得开始 MLV-01B，不得把 A 的纯 Matter 结果描述为宿主或三端验收。
+
+#### MLV-01A 最小实现边界
+
+原稿保留说明：以下边界、矩阵和短提示词由文首本轮补充收敛／取代；玩家／脚底参数、未知版本／身份、销毁范围、允许文件及测试口径均以本轮补充为准，不从旧宽泛表述扩大 A。
+
+- 目标：建立受限、可校验的 `PrototypeLevelDefinition`，把现有首关描述迁入该定义，并让同一 Matter 适配器从构造到销毁全程只读取所注入定义。用首关布局与一套独立测试布局验证装配，不建立关卡编辑器、通用 ECS、任意对象注册系统或 Tiled 运行时。
+- 定义范围：只允许当前实际适配器支持的数据，包括 levelId、空间尺寸、出生／备用锚点、失败区、静态地形、必要固定 Body、一个升降平台、路线门、快照场景、唯一可适配的移动平台临时对象、永久路线效果 ID、玩家／脚底原型和诊断身份。未知字段、未知类型、未支持对象版本或首关专用业务字段应拒绝。
+- 全生命周期：构造、出生、地形与全部物理对象、平台运动、永久效果、初始及运行中快照、冻结、捕获、应用、恢复重建、世界一致性校验、锚点验证、玩家放置、reset、failureZone 和 diagnostics 均从同一实例定义读取；不得在该实例生命周期中回退读取 `FIRST_LEVEL_*` 常量。
+- 算法冻结：保留现有 Matter 运动、支撑、承载、碰撞、固定步、恢复与资源门槛算法。配置化只替换数据来源；不得借本任务调整速度、重力、容差、跳跃、恢复顺序或碰撞语义。
+- 一致性：`PrototypeLevelDefinition.levelId` 与快照场景一致；至少一个 checkpoint，checkpointId 唯一，default checkpoint 存在；spawn anchor 与初始 checkpoint anchor 完全一致；fallbackAnchor 保持配置顺序；快照 registry 中每个 objectId 对应唯一真实移动平台，类型／axis、stateVersion 和 schemaVersion 得到适配器支持。
+- 身份隔离：第二布局必须使用独立 levelId、checkpointId、平台对象 ID、路线效果 ID、Body label、失败区 ID 和 Runtime UUID 来源。不得创建或读取首关任务、奖励、永久进度记录，也不得复用首关 `first-level-*` 业务身份。
+- 物理隔离：两个布局分别创建独立 `Matter.Engine`；不得共享 World、Composite、Body、快照、进度或 runtime context。销毁或推进一个布局不得改变另一个。
+- 资源所有权：Matter tests 的最小装配 helper 拥有其创建的 Engine；适配器只移除本实例创建的 Body，不擅自清空宿主提供的其他 Body。Phaser 中的 Engine 继续由 Phaser 宿主拥有，B 阶段接入时必须遵守这一边界。
+- 销毁语义：适配器和 `createGrayboxCore` 增加最小生命周期终止入口。重复销毁幂等；销毁后 `core.frame()` 不推进 Tick，`core.key()` 不改变输入／交互／业务状态，不再产生副作用。应用自绑的窗口输入和 document 可见性监听属于 B 阶段宿主装配；Phaser 3 在 `Game.destroy()` 后保留的第三方 document 级监听必须单独记录，不计作本项目资源。
+- 部分装配失败：装配顺序固定为创建 Engine → 创建适配器 → 创建共享核心。任一步失败或注入失败时，按逆序释放已创建资源，移除已登记 Body，保持其他 Engine／布局不受影响；清理本身失败必须保留可检查错误，不能报告成功。
+
+#### MLV-01A 验收矩阵
+
+| 用例 | 可执行验收 | 预期证据 |
+| --- | --- | --- |
+| V01：描述与校验 | 合法首关定义和合法测试布局定义通过；未知 schema／type／version、重复 level／checkpoint／object／Body ID、缺失 default checkpoint、无效有限数值、spawn 与初始 anchor 不一致、未知 registry 对象均被拒绝。 | 表驱动单测记录每个拒绝码；拒绝发生在创建 Matter Body 和捕获快照之前。 |
+| V02：全生命周期配置化 | 用测试布局的非首关坐标、label、platform ID、effect ID、failureZone 和 diagnostics 执行构造、step、永久效果、initial capture、freeze／capture／apply、rebuild、validate world、validate anchor、place player、reset。另执行恢复路径。 | 测试布局返回的状态全部保留测试布局身份；任何检查不得看到 `first-level-*` 常量或首关坐标。首关行为回归与原测试一致。 |
+| V03：双布局与隔离 Engine | 同进程创建首关布局和测试布局，各自独立 Engine、runtime UUID 和 Tick；分别推进、暂停、捕获、恢复、销毁。 | 两套 Body／快照／业务记录不交叉；推进或销毁一个后另一个继续按原状态工作；测试布局的进度持久记录为空。 |
+| V04：快照 registry 一致性 | 校验 levelId、checkpointId、spawn／initial anchor、registry objectId、axis 类型、object stateVersion、scenario schemaVersion；测试布局不得复用首关任务、奖励、effect 或对象 ID。 | 合法场景可捕获／应用／重建；未知对象、未知版本、重复 ID、跨布局 checkpoint 和首关身份注入均 FAIL 且无半记录。 |
+| V05：资源所有权与幂等销毁 | 适配器只移除自身 Body；测试 helper 创建的 Engine 只由 helper 清理；核心销毁后 `frame/key/reset` 不产生状态副作用；双重 destroy、部分装配失败和清理中断可检查。 | Body 前后数量、Engine 是否保留、Tick／输入／进度不变、重复清理次数及错误状态均有断言；一个布局销毁不影响另一个。宿主监听清理标记为 B／NOT RUN。 |
+| V06：首关回归与阶段门槛 | 新增 `tests/level-assembly.test.mjs` 及必要的现有测试扩展；执行定向测试、`npm.cmd test`、`npm.cmd run electron:build`、`git diff --check`。 | 原有测试全部保留，新增 V01–V05 自动化 PASS；生产构建 PASS；首关现有 172 项语义无回归。GUI 三端、真实窗口监听清理和 `--level-assembly` 标为 NOT RUN，交由 B。 |
+
+#### MLV-01A 测试命令与证据边界
+
+- 定向测试可执行 `node --experimental-strip-types --test tests/level-assembly.test.mjs`；全量核心回归执行 `npm.cmd test`。不得把 `npm.cmd run test:d12-a1 -- --browser=chrome` 当作完整首关回归，该入口当前用于 D12-A3 的 `first-level-dialogue-completion-and-play-readability` 平台场景。
+- A 阶段可执行 `npm.cmd run electron:build` 验证现有应用仍可构建，但不得声称 Phaser 测试地图、调试入口或宿主监听清理已通过。
+- A 完成后报告定义 schema、配置字段、销毁所有权、V01–V06 结果、源码／测试哈希、ASAR／EXE 哈希及未覆盖项，等待 Work 审查；不自动开始 B。
+
+#### MLV-01A Codex 开发提示词
+
+```text
+项目：D:\Workspace\Code_Projects\mountain-city-last-delivery
+
+只执行 docs/DEVELOPMENT_ROADMAP.md 第 7 节的 MLV-01A；该任务当前必须是负责人批准后的 READY 状态。开始前阅读 AGENTS.md、本路线图、DECISIONS.md、首关设计及当前 Matter／快照／恢复代码，检查 Git 并保留已有修改。
+
+实现受限 PrototypeLevelDefinition、完整校验和统一物理装配。把现有首关数据提取为第一个定义，并建立一套使用独立 levelId、checkpointId、对象 ID、effect ID、Body label、Runtime UUID 且不接触首关任务／奖励／进度的第二布局。FirstLevelMatterWorld 或等价适配器必须从构造到销毁只读取实例定义，覆盖出生、地形和全部 Body、平台运动、永久效果、快照冻结／捕获／应用、恢复重建、世界校验、锚点验证、玩家放置、reset、failureZone 与 diagnostics。
+
+保留现有物理算法，只替换配置来源。两个布局必须使用独立 Matter.Engine。明确 Engine、适配器 Body、共享核心和应用监听的所有权；实现最小 destroy／dispose、幂等重复销毁、部分装配失败逆序回收，以及销毁后 frame/key 不再生效。Phaser 3 的第三方监听单独记录。
+
+按 V01–V06 先补红灯测试再实现，验证非法 schema／type／version、重复或跨布局 ID、anchor 不一致、未知 registry 对象、无半记录、双 Engine 隔离、非法版本／身份／缺对象恢复预检零写入、适配器清理、核心销毁、部分装配失败和首关回归。第二布局不得使用首关任务、奖励或永久进度身份。
+
+执行定向 tests/level-assembly.test.mjs、npm.cmd test、npm.cmd run electron:build、git diff --check。不要新增依赖，不建关卡编辑器／通用对象框架／Tiled 运行时，不改物理参数、CONFIRMED、D13，不做 Phaser 测试地图、调试入口、宿主监听或三端验收，不 Commit／Push／发布。更新 README 与路线图实际证据，按 V01–V06 报告 PASS／FAIL／BLOCKED／NOT RUN 后停止，等待 Work 审查。
+```
+
+#### MLV-01B 规划边界
+
+- 只有 MLV-01A 经 Work 审查通过后，才能建立测试地图的 Phaser 表现和调试入口。B 复用 A 的定义、装配和核心测试结果，不重复建设第二套物理逻辑。
+- B 必须证明应用自有 `keydown`、`keyup`、`blur`、`focus` 和 `visibilitychange` 监听在场景切换／销毁时被解除，旧回调不能继续操作已销毁 core；Phaser 3 内部 document 级监听单独记录，不伪装成本项目已清理。
+- B 的平台入口必须增加明确分支，例如 `npm.cmd run test:level-assembly -- --browser=chrome`。报告 `task` 必须为 `MLV-01B`，`scope` 必须为 `prototype-level-dual-layout`，记录 Chrome Web、Electron 开发版、仓库外独立包及各阶段 PASS／FAIL／BLOCKED，且不得沿用 D12-A3 的 task／scope。
+- B 未通过前，不得把 A 的真实 Matter 双布局结果描述成双端或宿主装配完成。
 
 ### 2026-11-14 首关空间方案 A 正式同步与图片归档
 

@@ -1,8 +1,6 @@
 import type {} from 'phaser';
 import {
-  FIRST_LEVEL_LIFT_OBJECT_ID,
-  FIRST_LEVEL_SPATIAL_CONFIG,
-  FIRST_LEVEL_SNAPSHOT_SCENARIO,
+  FIRST_LEVEL_DEFINITION,
 } from '../../core/first-level.ts';
 import type {
   GrayboxPhysics,
@@ -11,11 +9,9 @@ import type {
 } from '../../core/graybox.ts';
 import { PLAYER_PROTOTYPE, type PlayerState } from '../../core/player.ts';
 import {
-  FIRST_LEVEL_PROGRESS_CONTENT,
   type PermanentEffectSnapshot,
 } from '../../core/progress.ts';
 import {
-  PLAYER_FAILURE_ZONE_ID,
   type FailureZoneSnapshot,
   type RecoveryAnchorValidationResult,
   type RecoveryWorldValidationIssue,
@@ -28,9 +24,14 @@ import {
 import type {
   MovingPlatformLogicalState,
   SnapshotAnchor,
+  SnapshotScenario,
   TemporarySnapshotObject,
 } from '../../core/snapshot.ts';
 import type { MatterLibrary } from './graybox-world.ts';
+import {
+  validatePrototypeLevelDefinition,
+  type PrototypeLevelDefinition,
+} from '../../core/prototype-level.ts';
 
 type Pair = {
   isActive: boolean;
@@ -40,17 +41,20 @@ type Pair = {
   collision: { normal: { x: number; y: number } };
 };
 
-export const FIRST_LEVEL_SIZE = FIRST_LEVEL_SPATIAL_CONFIG.size;
+export const FIRST_LEVEL_SIZE = FIRST_LEVEL_DEFINITION.size;
 export const FIRST_LEVEL_SPAWN: SnapshotAnchor =
-  FIRST_LEVEL_SPATIAL_CONFIG.spawn;
+  FIRST_LEVEL_DEFINITION.spawn;
 export const FIRST_LEVEL_FAILURE_ZONE = Object.freeze({
-  zoneId: PLAYER_FAILURE_ZONE_ID,
-  label: '首关可恢复坠落区',
-  ...FIRST_LEVEL_SPATIAL_CONFIG.failureZone,
+  zoneId: FIRST_LEVEL_DEFINITION.failureZone.zoneId,
+  label: FIRST_LEVEL_DEFINITION.failureZone.label,
+  x: FIRST_LEVEL_DEFINITION.failureZone.x,
+  y: FIRST_LEVEL_DEFINITION.failureZone.y,
+  width: FIRST_LEVEL_DEFINITION.failureZone.width,
+  height: FIRST_LEVEL_DEFINITION.failureZone.height,
 });
-export const FIRST_LEVEL_LIFT = FIRST_LEVEL_SPATIAL_CONFIG.lift;
+export const FIRST_LEVEL_LIFT = FIRST_LEVEL_DEFINITION.lift;
 export const FIRST_LEVEL_ROUTE_GATE =
-  FIRST_LEVEL_SPATIAL_CONFIG.routeGate;
+  FIRST_LEVEL_DEFINITION.routeGate;
 
 const PLAYER_CATEGORY = 0x0002;
 const ROUTE_GATE_CATEGORY = 0x0010;
@@ -108,17 +112,21 @@ export type FirstLevelMatterDiagnostics = Readonly<{
 // geometry, business effects and initial snapshot registry.
 export class FirstLevelMatterWorld implements GrayboxPhysics {
   readonly terrain: MatterJS.BodyType[] = [];
-  readonly player: MatterJS.BodyType;
-  readonly foot: MatterJS.BodyType;
-  readonly routeGate: MatterJS.BodyType;
-  readonly failureZoneBody: MatterJS.BodyType;
-  readonly snapshotScenario = FIRST_LEVEL_SNAPSHOT_SCENARIO;
-  readonly spawnAnchor = FIRST_LEVEL_SPAWN;
+  readonly player!: MatterJS.BodyType;
+  readonly foot!: MatterJS.BodyType;
+  readonly routeGate!: MatterJS.BodyType;
+  readonly failureZoneBody!: MatterJS.BodyType;
+  readonly snapshotScenario: SnapshotScenario;
+  readonly spawnAnchor: SnapshotAnchor;
+  readonly definition: PrototypeLevelDefinition;
   readonly #matter: MatterLibrary;
   readonly #engine: MatterJS.Engine;
   readonly #advance: (deltaMs: number) => void;
   readonly #gravity: { x: number; y: number; scale: number };
+  readonly #originalGravity: Readonly<{ x: number; y: number; scale: number }>;
+  readonly #ownedBodies = new Set<MatterJS.BodyType>();
   readonly #lift: LiftRuntime;
+  readonly #recoveryPosition: { x: number; y: number };
   readonly #failure: FailureRuntime = {
     occupied: false,
     occupiedSteps: 0,
@@ -128,180 +136,212 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
     lastTransitionTick: null,
     enteredThisStep: false,
   };
-  readonly #recoveryPosition: { x: number; y: number } = {
-    x: FIRST_LEVEL_LIFT.x,
-    y: FIRST_LEVEL_LIFT.fromY,
-  };
   #platformClockMs = 0;
   #liftActive = false;
   #driveVelocity = { x: 0, y: 0 };
   #carriedByLift = false;
   #lastSimulationTick = 0;
-  #state: PlayerState = createInitialState(FIRST_LEVEL_SPAWN.x, FIRST_LEVEL_SPAWN.y);
+  #state: PlayerState;
   #steps = 0;
   #managedWorldRebuildCount = 0;
   #temporaryObjectFreezeOwner?: object;
   #frozenTemporaryObjectIds: readonly string[] = Object.freeze([]);
+  #disposeError: Error | null = null;
+  #disposed = false;
+  #terminated = false;
+  #gravityRestored = false;
 
   constructor(
     matter: MatterLibrary,
     engine: MatterJS.Engine,
     advance: (deltaMs: number) => void,
+    definitionInput: unknown = FIRST_LEVEL_DEFINITION,
   ) {
+    // Layout validation is deliberately before the first Body creation. The
+    // adapter rejects an incomplete or unsupported map instead of filling it
+    // with first-level defaults.
+    this.definition = validatePrototypeLevelDefinition(definitionInput);
     this.#matter = matter;
     this.#engine = engine;
     this.#advance = advance;
+    this.snapshotScenario = this.definition.snapshotScenario;
+    this.spawnAnchor = this.definition.spawn;
+    this.#state = createInitialState(
+      this.definition.spawn.x,
+      this.definition.spawn.y,
+    );
+    this.#recoveryPosition = {
+      x: this.definition.lift.x,
+      y: this.definition.lift.fromY,
+    };
     const gravity = (
       engine as unknown as {
         gravity: { x: number; y: number; scale: number };
       }
     ).gravity;
     this.#gravity = gravity;
-    Object.assign(gravity, { x: 0, y: 1.4, scale: 0.001 });
+    this.#originalGravity = Object.freeze({
+      x: gravity.x,
+      y: gravity.y,
+      scale: gravity.scale,
+    });
+    try {
+      Object.assign(gravity, { x: 0, y: 1.4, scale: 0.001 });
 
-    const rectangle = (
-      x: number,
-      y: number,
-      width: number,
-      height: number,
-      label: string,
-    ) => {
-      const body = matter.Bodies.rectangle(x, y, width, height, {
-        isStatic: true,
-        friction: 1,
-        label,
+      const createRectangle = (
+        object: Readonly<{
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+          label: string;
+        }>,
+      ) => {
+        const body = matter.Bodies.rectangle(
+          object.x,
+          object.y,
+          object.width,
+          object.height,
+          {
+            isStatic: true,
+            friction: 1,
+            label: object.label,
+          },
+        );
+        this.#trackBody(body);
+        return body;
+      };
+
+      // The route, support tolerances and movement algorithm are unchanged;
+      // every coordinate and identity comes from this instance's definition.
+      for (const terrain of this.definition.terrain) {
+        this.terrain.push(createRectangle(terrain));
+      }
+
+      const routeGate = createRectangle(this.definition.routeGate);
+      routeGate.collisionFilter = {
+        category: ROUTE_GATE_CATEGORY,
+        mask: PLAYER_CATEGORY,
+        group: 0,
+      };
+      this.routeGate = routeGate;
+      this.terrain.push(routeGate);
+
+      const liftBody = createRectangle({
+        x: this.definition.lift.x,
+        y: this.definition.lift.fromY,
+        width: this.definition.lift.width,
+        height: this.definition.lift.height,
+        label: this.definition.lift.label,
       });
-      this.terrain.push(body);
-      return body;
-    };
+      this.#lift = {
+        body: liftBody,
+        deltaX: 0,
+        deltaY: 0,
+        vx: 0,
+        vy: 0,
+        direction: 1,
+        phase: 0,
+        cycle: 0,
+      };
 
-    // Confirmed route A -> B -> descending C -> lower D. The gaps between
-    // C tiers require normal jumps; the gated service lift is the only safe
-    // route from C3 down to the riverbank.
-    for (const terrain of FIRST_LEVEL_SPATIAL_CONFIG.terrain) {
-      rectangle(
-        terrain.x,
-        terrain.y,
-        terrain.width,
-        terrain.height,
-        terrain.label,
+      const failureZoneBody = matter.Bodies.rectangle(
+        this.definition.failureZone.x,
+        this.definition.failureZone.y,
+        this.definition.failureZone.width,
+        this.definition.failureZone.height,
+        {
+          isStatic: true,
+          isSensor: true,
+          label: this.definition.failureZone.objectId,
+          collisionFilter: {
+            category: FAILURE_ZONE_CATEGORY,
+            mask: PLAYER_CATEGORY,
+            group: 0,
+          },
+        },
       );
-    }
+      this.#trackBody(failureZoneBody);
+      this.failureZoneBody = failureZoneBody;
 
-    this.routeGate = matter.Bodies.rectangle(
-      FIRST_LEVEL_ROUTE_GATE.x,
-      FIRST_LEVEL_ROUTE_GATE.y,
-      FIRST_LEVEL_ROUTE_GATE.width,
-      FIRST_LEVEL_ROUTE_GATE.height,
-      {
-        isStatic: true,
-        friction: 1,
-        label: FIRST_LEVEL_ROUTE_GATE.label,
-        collisionFilter: {
-          category: ROUTE_GATE_CATEGORY,
-          mask: PLAYER_CATEGORY,
-          group: 0,
+      const player = matter.Bodies.rectangle(
+        this.definition.spawn.x,
+        this.definition.spawn.y,
+        PLAYER_PROTOTYPE.width,
+        PLAYER_PROTOTYPE.height,
+        {
+          label: this.definition.bodyLabels.player,
+          friction: 0,
+          frictionStatic: 2,
+          frictionAir: 0,
+          restitution: 0,
+          chamfer: { radius: 3 },
+          collisionFilter: {
+            category: PLAYER_CATEGORY,
+            mask: -1,
+            group: 0,
+          },
         },
-      },
-    );
-    this.terrain.push(this.routeGate);
-
-    const liftBody = matter.Bodies.rectangle(
-      FIRST_LEVEL_LIFT.x,
-      FIRST_LEVEL_LIFT.fromY,
-      FIRST_LEVEL_LIFT.width,
-      FIRST_LEVEL_LIFT.height,
-      {
-        isStatic: true,
-        friction: 1,
-        label: FIRST_LEVEL_LIFT.label,
-      },
-    );
-    this.#lift = {
-      body: liftBody,
-      deltaX: 0,
-      deltaY: 0,
-      vx: 0,
-      vy: 0,
-      direction: 1,
-      phase: 0,
-      cycle: 0,
-    };
-
-    this.failureZoneBody = matter.Bodies.rectangle(
-      FIRST_LEVEL_FAILURE_ZONE.x,
-      FIRST_LEVEL_FAILURE_ZONE.y,
-      FIRST_LEVEL_FAILURE_ZONE.width,
-      FIRST_LEVEL_FAILURE_ZONE.height,
-      {
-        isStatic: true,
-        isSensor: true,
-        label: FIRST_LEVEL_FAILURE_ZONE.zoneId,
-        collisionFilter: {
-          category: FAILURE_ZONE_CATEGORY,
-          mask: PLAYER_CATEGORY,
-          group: 0,
-        },
-      },
-    );
-    this.player = matter.Bodies.rectangle(
-      FIRST_LEVEL_SPAWN.x,
-      FIRST_LEVEL_SPAWN.y,
-      PLAYER_PROTOTYPE.width,
-      PLAYER_PROTOTYPE.height,
-      {
-        label: 'player',
-        friction: 0,
-        frictionStatic: 2,
-        frictionAir: 0,
-        restitution: 0,
-        chamfer: { radius: 3 },
-        collisionFilter: {
-          category: PLAYER_CATEGORY,
-          mask: -1,
-          group: 0,
-        },
-      },
-    );
-    matter.Body.setInertia(this.player, Infinity);
-    this.foot = matter.Bodies.rectangle(
-      FIRST_LEVEL_SPAWN.x,
-      FIRST_LEVEL_SPAWN.y + PLAYER_PROTOTYPE.height / 2 + 1,
-      22,
-      8,
-      {
-        isSensor: true,
-        isStatic: true,
-        label: 'foot-region',
-        collisionFilter: {
-          category: PLAYER_CATEGORY,
-          mask: -1,
-          group: 0,
-        },
-      },
-    );
-    for (const body of [
-      ...this.terrain,
-      liftBody,
-      this.failureZoneBody,
-      this.player,
-    ]) {
-      matter.Composite.add(
-        engine.world as unknown as MatterJS.CompositeType,
-        body,
       );
+      matter.Body.setInertia(player, Infinity);
+      this.#trackBody(player);
+      this.player = player;
+
+      const foot = matter.Bodies.rectangle(
+        this.definition.spawn.x,
+        this.definition.spawn.y + PLAYER_PROTOTYPE.height / 2 + 1,
+        22,
+        8,
+        {
+          isSensor: true,
+          isStatic: true,
+          label: this.definition.bodyLabels.foot,
+          collisionFilter: {
+            category: PLAYER_CATEGORY,
+            mask: -1,
+            group: 0,
+          },
+        },
+      );
+      this.#trackBody(foot);
+      this.foot = foot;
+
+      for (const body of [
+        ...this.terrain,
+        liftBody,
+        this.failureZoneBody,
+        this.player,
+      ]) {
+        matter.Composite.add(
+          engine.world as unknown as MatterJS.CompositeType,
+          body,
+        );
+      }
+      this.#synchronizeFailureBaseline();
+    } catch (error) {
+      this.#terminated = true;
+      try {
+        this.#removeOwnedBodies();
+        this.#restoreGravity();
+      } catch (cleanupError) {
+        throw new AggregateError(
+          [error, cleanupError],
+          'FirstLevelMatterWorld construction failed and cleanup was incomplete.',
+        );
+      }
+      throw error;
     }
-    this.#synchronizeFailureBaseline();
   }
 
   drive(vx: number, vy: number): void {
+    if (this.#terminated) return;
     this.#driveVelocity = { x: vx, y: vy };
     this.player.friction =
       this.#state.grounded && Math.abs(vx) < 0.01 ? 1 : 0;
   }
 
   setPermanentEffect(effectId: string, expectedActive: boolean): void {
-    if (effectId !== FIRST_LEVEL_PROGRESS_CONTENT.liftRouteUnlocked.effectId) {
+    if (this.#terminated || effectId !== this.definition.routeEffectId) {
       return;
     }
     this.#liftActive = expectedActive;
@@ -318,14 +358,20 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
     objectIds: readonly string[],
     owner: object,
   ): TemporaryObjectFreezeResult {
+    if (this.#terminated) {
+      return Object.freeze({
+        status: 'busy' as const,
+        frozenObjectIds: this.#frozenTemporaryObjectIds,
+      });
+    }
     if (owner === null || typeof owner !== 'object') {
       throw new TypeError('Temporary-object freeze owner must be an object.');
     }
     if (
       objectIds.length !== 1 ||
-      objectIds[0] !== FIRST_LEVEL_LIFT_OBJECT_ID
+      objectIds[0] !== this.definition.lift.objectId
     ) {
-      throw new Error('Freeze must cover the exact first-level registry.');
+      throw new Error('Freeze must cover the exact level registry.');
     }
     if (this.#temporaryObjectFreezeOwner) {
       return Object.freeze({
@@ -338,7 +384,7 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
     }
     this.#temporaryObjectFreezeOwner = owner;
     this.#frozenTemporaryObjectIds = Object.freeze([
-      FIRST_LEVEL_LIFT_OBJECT_ID,
+      this.definition.lift.objectId,
     ]);
     this.#lift.deltaX = this.#lift.deltaY = this.#lift.vx = this.#lift.vy = 0;
     this.#matter.Body.setVelocity(this.#lift.body, { x: 0, y: 0 });
@@ -349,6 +395,12 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
   }
 
   releaseTemporaryObjects(owner: object): TemporaryObjectReleaseResult {
+    if (this.#terminated) {
+      return Object.freeze({
+        status: 'owner-mismatch' as const,
+        releasedObjectIds: Object.freeze([]),
+      });
+    }
     if (!this.#temporaryObjectFreezeOwner) {
       return Object.freeze({
         status: 'already-released' as const,
@@ -371,6 +423,7 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
   }
 
   isTemporaryObjectChangeAllowed(objectId: string): boolean {
+    if (this.#terminated) return false;
     return !this.#temporaryObjectFreezeOwner ||
       !this.#frozenTemporaryObjectIds.includes(objectId);
   }
@@ -380,8 +433,11 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
   }
 
   captureTemporaryObject(objectId: string): MovingPlatformLogicalState {
-    if (objectId !== FIRST_LEVEL_LIFT_OBJECT_ID) {
-      throw new Error(`Unknown first-level snapshot object: ${objectId}.`);
+    if (this.#terminated) {
+      throw new Error('Cannot capture a disposed level world.');
+    }
+    if (objectId !== this.definition.lift.objectId) {
+      throw new Error(`Unknown level snapshot object: ${objectId}.`);
     }
     return Object.freeze({
       axis: 'vertical' as const,
@@ -397,12 +453,13 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
   }
 
   applyTemporarySnapshot(objects: readonly TemporarySnapshotObject[]): void {
+    if (this.#terminated) return;
     if (
       objects.length !== 1 ||
-      objects[0]?.objectId !== FIRST_LEVEL_LIFT_OBJECT_ID ||
+      objects[0]?.objectId !== this.definition.lift.objectId ||
       objects[0]?.state.axis !== 'vertical'
     ) {
-      throw new Error('Recovery snapshot does not match the first-level lift.');
+      throw new Error('Recovery snapshot does not match the level lift.');
     }
     const state = objects[0].state;
     this.#recoveryPosition.x = state.position.x;
@@ -417,19 +474,22 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
   }
 
   rebuildRecoveryWorld(): void {
+    if (this.#terminated) return;
     const world = this.#engine.world as unknown as MatterJS.CompositeType;
     this.#matter.Composite.remove(world, this.#lift.body);
+    this.#ownedBodies.delete(this.#lift.body);
     const body = this.#matter.Bodies.rectangle(
       this.#recoveryPosition.x,
       this.#recoveryPosition.y,
-      FIRST_LEVEL_LIFT.width,
-      FIRST_LEVEL_LIFT.height,
+      this.definition.lift.width,
+      this.definition.lift.height,
       {
         isStatic: true,
         friction: 1,
-        label: FIRST_LEVEL_LIFT.label,
+        label: this.definition.lift.label,
       },
     );
+    this.#trackBody(body);
     this.#lift.body = body;
     this.#lift.deltaX = this.#lift.deltaY = this.#lift.vx = this.#lift.vy = 0;
     this.#matter.Body.setVelocity(body, { x: 0, y: 0 });
@@ -447,24 +507,32 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
     const fail = (code: string, message: string) => {
       critical.push(Object.freeze({ code, message }));
     };
+    if (this.#terminated) {
+      fail('world-disposed', '物理关卡实例已经终止，不能执行恢复校验。');
+      return Object.freeze({
+        status: 'invalid' as const,
+        critical: Object.freeze(critical),
+        warnings: Object.freeze([]),
+      });
+    }
     const bodies = this.#matter.Composite.allBodies(
       this.#engine.world as unknown as MatterJS.CompositeType,
     );
     const bodySet = new Set(bodies);
     if (
       objects.length !== 1 ||
-      objects[0]?.objectId !== FIRST_LEVEL_LIFT_OBJECT_ID
+      objects[0]?.objectId !== this.definition.lift.objectId
     ) {
       fail(
         'temporary-object-set-mismatch',
-        '首关恢复快照必须且只能登记 service lift。',
+        `关卡恢复快照必须且只能登记 ${this.definition.lift.objectId}。`,
       );
     } else {
       const expected = objects[0];
       if (!bodySet.has(this.#lift.body)) {
         fail(
           'required-platform-body-missing',
-          '首关升降平台的真实碰撞体不在 Matter World。',
+          '升降平台的真实碰撞体不在 Matter World。',
         );
       }
       if (
@@ -475,7 +543,7 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
       ) {
         fail(
           'platform-logical-state-mismatch',
-          '首关升降平台逻辑状态与恢复快照不一致。',
+          '升降平台逻辑状态与恢复快照不一致。',
         );
       }
       if (
@@ -486,7 +554,7 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
       ) {
         fail(
           'platform-body-position-mismatch',
-          '首关升降平台碰撞位置与恢复状态不一致。',
+          '升降平台碰撞位置与恢复状态不一致。',
         );
       }
     }
@@ -498,18 +566,18 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
       if (!bodySet.has(body)) {
         fail(
           'required-world-body-missing',
-          `首关必要 Body ${body.label} 不在 Matter World。`,
+          `关卡必要 Body ${body.label} 不在 Matter World。`,
         );
       }
     }
     const routeExpected = expectedPermanentEffects.some(effect =>
-      effect.id === FIRST_LEVEL_PROGRESS_CONTENT.liftRouteUnlocked.effectId &&
+      effect.id === this.definition.routeEffectId &&
       effect.expectedActive);
     const gateOpen = this.routeGate.collisionFilter.mask === 0;
     if (this.#liftActive !== routeExpected || gateOpen !== routeExpected) {
       fail(
         'permanent-route-effect-mismatch',
-        `首关路线永久期望 ${routeExpected ? 'OPEN' : 'CLOSED'}，` +
+        `关卡路线永久期望 ${routeExpected ? 'OPEN' : 'CLOSED'}，` +
           `平台 ${this.#liftActive ? 'ACTIVE' : 'OFF'}，门 ` +
           `${gateOpen ? 'OPEN' : 'CLOSED'}。`,
       );
@@ -525,6 +593,13 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
     anchor: SnapshotAnchor,
     _checkpointId: string,
   ): RecoveryAnchorValidationResult {
+    if (this.#terminated) {
+      return Object.freeze({
+        status: 'invalid' as const,
+        reason: 'level world has been disposed',
+        blockerLabels: Object.freeze([]),
+      });
+    }
     const m = this.#matter;
     const bodies = m.Composite.allBodies(
       this.#engine.world as unknown as MatterJS.CompositeType,
@@ -536,7 +611,7 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
       PLAYER_PROTOTYPE.height,
       {
         isSensor: true,
-        label: 'first-level-anchor-probe',
+        label: this.definition.bodyLabels.anchorProbe,
         collisionFilter: {
           category: PLAYER_CATEGORY,
           mask: -1,
@@ -547,7 +622,7 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
     if (m.Query.collides(probe, [this.failureZoneBody]).length > 0) {
       return Object.freeze({
         status: 'invalid' as const,
-        reason: 'player body overlaps the first-level failure zone',
+        reason: 'player body overlaps the level failure zone',
         blockerLabels: Object.freeze([this.failureZoneBody.label]),
       });
     }
@@ -570,7 +645,7 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
       12,
       {
         isSensor: true,
-        label: 'first-level-support-probe',
+        label: this.definition.bodyLabels.supportProbe,
         collisionFilter: {
           category: PLAYER_CATEGORY,
           mask: -1,
@@ -602,6 +677,7 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
   }
 
   placePlayerAtAnchor(anchor: SnapshotAnchor): void {
+    if (this.#terminated) return;
     const m = this.#matter;
     m.Body.setPosition(this.player, { x: anchor.x, y: anchor.y });
     m.Body.setAngle(this.player, 0);
@@ -631,6 +707,7 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
   }
 
   synchronizeRecoveryOccupancy(tick: number): void {
+    if (this.#terminated) return;
     const occupied = this.#matter.Query.collides(
       this.player,
       [this.failureZoneBody],
@@ -647,9 +724,11 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
   }
 
   step(deltaMs: number, tick: number): void {
+    if (this.#terminated) return;
     this.#lastSimulationTick = tick;
     this.#failure.enteredThisStep = false;
-    const previousSupport = this.#state.support === FIRST_LEVEL_LIFT.label;
+    const previousSupport =
+      this.#state.support === this.definition.lift.label;
     this.#advanceLift(deltaMs);
     this.#matter.Body.setVelocity(this.player, {
       x: this.#driveVelocity.x / 60,
@@ -707,9 +786,9 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
       if (Math.abs(nx) > 0.7) wall = true;
       if (ny > 0.65) ceiling = true;
       const otherVx =
-        other.label === FIRST_LEVEL_LIFT.label ? this.#lift.vx : 0;
+        other.label === this.definition.lift.label ? this.#lift.vx : 0;
       const otherVy =
-        other.label === FIRST_LEVEL_LIFT.label ? this.#lift.vy : 0;
+        other.label === this.definition.lift.label ? this.#lift.vy : 0;
       const playerVx = body.velocity.x * 60 + carriedVx;
       const playerVy = body.velocity.y * 60 + carriedVy;
       const separatingSpeed =
@@ -744,6 +823,7 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
   }
 
   reset(): void {
+    if (this.#terminated) return;
     if (this.#temporaryObjectFreezeOwner) {
       throw new Error(
         'Debug reset is unavailable while checkpoint objects are frozen.',
@@ -751,8 +831,8 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
     }
     const m = this.#matter;
     m.Body.setPosition(this.player, {
-      x: FIRST_LEVEL_SPAWN.x,
-      y: FIRST_LEVEL_SPAWN.y,
+      x: this.definition.spawn.x,
+      y: this.definition.spawn.y,
     });
     m.Body.setVelocity(this.player, { x: 0, y: 0 });
     m.Body.setAngularVelocity(this.player, 0);
@@ -764,8 +844,8 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
     ).positionImpulse;
     impulse.x = impulse.y = 0;
     m.Body.setPosition(this.#lift.body, {
-      x: FIRST_LEVEL_LIFT.x,
-      y: FIRST_LEVEL_LIFT.fromY,
+      x: this.definition.lift.x,
+      y: this.definition.lift.fromY,
     });
     m.Body.setVelocity(this.#lift.body, { x: 0, y: 0 });
     this.#lift.deltaX = this.#lift.deltaY = 0;
@@ -786,10 +866,76 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
       true,
     );
     this.#state = createInitialState(
-      FIRST_LEVEL_SPAWN.x,
-      FIRST_LEVEL_SPAWN.y,
+      this.definition.spawn.x,
+      this.definition.spawn.y,
     );
     this.#synchronizeFailureBaseline();
+  }
+
+  /**
+   * Releases only the Matter resources owned by this adapter. A borrowed
+   * Engine is never cleared wholesale, so unrelated sentinel bodies survive.
+   */
+  dispose(): void {
+    if (this.#disposed && !this.#disposeError) return;
+    if (this.#temporaryObjectFreezeOwner) {
+      throw new Error(
+        'Level world disposal is blocked by a temporary-object freeze owner.',
+      );
+    }
+    this.#terminated = true;
+    const errors: Error[] = [];
+    if (!this.#gravityRestored) {
+      try {
+        this.#restoreGravity();
+      } catch (error) {
+        errors.push(asError(error, 'Failed to restore borrowed Engine gravity.'));
+      }
+    }
+    for (const body of [...this.#ownedBodies].reverse()) {
+      try {
+        this.#matter.Composite.remove(
+          this.#engine.world as unknown as MatterJS.CompositeType,
+          body,
+        );
+        this.#ownedBodies.delete(body);
+      } catch (error) {
+        errors.push(asError(error, `Failed to remove Body ${body.label}.`));
+      }
+    }
+    try {
+      this.#matter.Engine.clear(this.#engine);
+      this.#matter.Composite.setModified(
+        this.#engine.world as unknown as MatterJS.CompositeType,
+        true,
+        false,
+        true,
+      );
+    } catch (error) {
+      errors.push(asError(error, 'Failed to clear disposed Engine broadphase.'));
+    }
+    if (errors.length > 0) {
+      this.#disposed = false;
+      this.#disposeError = new AggregateError(
+        errors,
+        `Level world disposal left ${this.#ownedBodies.size} owned Body resource(s).`,
+      );
+      throw this.#disposeError;
+    }
+    this.#disposed = true;
+    this.#disposeError = null;
+  }
+
+  get disposed(): boolean {
+    return this.#disposed && this.#ownedBodies.size === 0;
+  }
+
+  get ownedBodyCount(): number {
+    return this.#ownedBodies.size;
+  }
+
+  get disposeError(): Error | null {
+    return this.#disposeError;
   }
 
   get state(): PlayerState {
@@ -842,7 +988,12 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
 
   get failureZone(): FailureZoneSnapshot {
     return Object.freeze({
-      ...FIRST_LEVEL_FAILURE_ZONE,
+      zoneId: this.definition.failureZone.zoneId,
+      label: this.definition.failureZone.label,
+      x: this.definition.failureZone.x,
+      y: this.definition.failureZone.y,
+      width: this.definition.failureZone.width,
+      height: this.definition.failureZone.height,
       occupied: this.#failure.occupied,
       occupiedSteps: this.#failure.occupiedSteps,
       lastOccupiedSteps: this.#failure.lastOccupiedSteps,
@@ -856,11 +1007,11 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
   get diagnostics(): FirstLevelMatterDiagnostics {
     return Object.freeze({
       lift: Object.freeze({
-        label: FIRST_LEVEL_LIFT.label,
+        label: this.definition.lift.label,
         x: this.#lift.body.position.x,
         y: this.#lift.body.position.y,
-        width: FIRST_LEVEL_LIFT.width,
-        height: FIRST_LEVEL_LIFT.height,
+        width: this.definition.lift.width,
+        height: this.definition.lift.height,
         vx: this.#lift.vx,
         vy: this.#lift.vy,
         direction: this.#lift.direction,
@@ -873,48 +1024,84 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
       gateMask: this.routeGate.collisionFilter.mask,
       failureZone: this.failureZone,
       supportRelativeX:
-        this.#state.support === FIRST_LEVEL_LIFT.label
+        this.#state.support === this.definition.lift.label
           ? this.#state.x - this.#lift.body.position.x
           : null,
       supportRelativeY:
-        this.#state.support === FIRST_LEVEL_LIFT.label
+        this.#state.support === this.definition.lift.label
           ? this.#state.y - this.#lift.body.position.y
           : null,
       frozenObjectIds: this.frozenTemporaryObjectIds,
     });
   }
 
+  #trackBody(body: MatterJS.BodyType): void {
+    this.#ownedBodies.add(body);
+  }
+
+  #removeOwnedBodies(): void {
+    const errors: Error[] = [];
+    for (const body of [...this.#ownedBodies].reverse()) {
+      try {
+        this.#matter.Composite.remove(
+          this.#engine.world as unknown as MatterJS.CompositeType,
+          body,
+        );
+        this.#ownedBodies.delete(body);
+      } catch (error) {
+        errors.push(asError(error, `Failed to remove Body ${body.label}.`));
+      }
+    }
+    if (errors.length > 0) {
+      throw new AggregateError(errors, 'Owned Body cleanup was incomplete.');
+    }
+  }
+
+  #restoreGravity(): void {
+    if (this.#gravityRestored) return;
+    Object.assign(this.#gravity, this.#originalGravity);
+    this.#gravityRestored = true;
+  }
+
   #advanceLift(deltaMs: number): void {
+    if (this.#terminated) return;
+    if (this.#frozenTemporaryObjectIds.includes(this.definition.lift.objectId)) {
+      this.#lift.deltaX = 0;
+      this.#lift.deltaY = 0;
+      this.#lift.vx = 0;
+      this.#lift.vy = 0;
+      return;
+    }
+    const lift = this.definition.lift;
     const beforeX = this.#lift.body.position.x;
     const beforeY = this.#lift.body.position.y;
     if (this.#liftActive) {
       this.#platformClockMs += deltaMs;
       this.#lift.phase =
-        (this.#platformClockMs % FIRST_LEVEL_LIFT.periodMs) /
-        FIRST_LEVEL_LIFT.periodMs;
-      const half = FIRST_LEVEL_LIFT.periodMs / 2;
-      const phaseMs = this.#platformClockMs % FIRST_LEVEL_LIFT.periodMs;
+        (this.#platformClockMs % lift.periodMs) / lift.periodMs;
+      const half = lift.periodMs / 2;
+      const phaseMs = this.#platformClockMs % lift.periodMs;
       if (phaseMs < half) {
         this.#lift.direction = 1;
         this.#matter.Body.setPosition(this.#lift.body, {
-          x: FIRST_LEVEL_LIFT.x,
+          x: lift.x,
           y:
-            FIRST_LEVEL_LIFT.fromY +
-            (FIRST_LEVEL_LIFT.toY - FIRST_LEVEL_LIFT.fromY) *
+            lift.fromY +
+            (lift.toY - lift.fromY) *
               phaseMs / half,
         });
       } else {
         this.#lift.direction = -1;
         this.#matter.Body.setPosition(this.#lift.body, {
-          x: FIRST_LEVEL_LIFT.x,
+          x: lift.x,
           y:
-            FIRST_LEVEL_LIFT.toY +
-            (FIRST_LEVEL_LIFT.fromY - FIRST_LEVEL_LIFT.toY) *
+            lift.toY +
+            (lift.fromY - lift.toY) *
               (phaseMs - half) / half,
         });
       }
       this.#lift.cycle = Math.floor(
-        this.#platformClockMs / FIRST_LEVEL_LIFT.periodMs,
+        this.#platformClockMs / lift.periodMs,
       );
     }
     // Static Matter bodies keep cached broadphase bounds until explicitly
@@ -1000,4 +1187,9 @@ function collisionAllowed(
     (filterA.mask & filterB.category) !== 0 &&
     (filterB.mask & filterA.category) !== 0
   );
+}
+
+function asError(value: unknown, fallback: string): Error {
+  if (value instanceof Error) return value;
+  return new Error(`${fallback} ${String(value)}`);
 }

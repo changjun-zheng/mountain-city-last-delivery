@@ -104,6 +104,11 @@ export type GoalRouteRuntimeSnapshot = Readonly<{
   lastError: string | null;
 }>;
 
+export type GoalRouteDestroyReadiness = Readonly<{
+  ready: boolean;
+  reason: string | null;
+}>;
+
 export type GoalRouteRuntimeOptions = Readonly<{
   eventType?: string;
   commandType?: string;
@@ -418,6 +423,51 @@ export class PrototypeGoalRouteRuntime {
         resultEvents: transactions.counts.resultEvents,
       }),
       lastError: this.#lastError,
+    });
+  }
+
+  get destroyReadiness(): GoalRouteDestroyReadiness {
+    const unsafeStatuses = new Set<TransactionExecutionStatus>([
+      'running',
+      'retry-pending',
+      'recovery-pending',
+      'terminal-pending',
+    ]);
+    if (this.#transactionStatus !== null &&
+        unsafeStatuses.has(this.#transactionStatus)) {
+      return Object.freeze({
+        ready: false,
+        reason:
+          `transaction is ${this.#transactionStatus} in phase ${this.#phase}`,
+      });
+    }
+    if (this.#phase === 'succeeded' || this.#phase === 'failed') {
+      if (this.#eventId === null) {
+        return Object.freeze({ ready: true, reason: null });
+      }
+      return Object.freeze({
+        ready:
+          this.#originalRetired &&
+          this.#resultEventId !== null &&
+          this.#resultConsumedTick !== null &&
+          this.#resultAcknowledged &&
+          this.#resultRetired,
+        reason:
+          this.#originalRetired &&
+          this.#resultEventId !== null &&
+          this.#resultConsumedTick !== null &&
+          this.#resultAcknowledged &&
+          this.#resultRetired
+            ? null
+            : 'terminal route has not completed result consumption and retirement',
+      });
+    }
+    if (this.#phase === 'idle') {
+      return Object.freeze({ ready: true, reason: null });
+    }
+    return Object.freeze({
+      ready: false,
+      reason: `route is ${this.#phase}`,
     });
   }
 

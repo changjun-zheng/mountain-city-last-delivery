@@ -6,12 +6,19 @@ import {
 } from './progress.ts';
 import {
   PrototypeGoalRouteRuntime,
+  type GoalRouteDestroyReadiness,
   type GoalRouteRuntimeSnapshot,
 } from './goal-route-runtime.ts';
+import { PLAYER_FAILURE_ZONE_ID } from './recovery.ts';
 import type {
   GrayboxCheckpointConfig,
   SnapshotScenario,
 } from './snapshot.ts';
+import {
+  PROTOTYPE_LEVEL_SCHEMA_VERSION,
+  validatePrototypeLevelDefinition,
+  type PrototypeLevelDefinition,
+} from './prototype-level.ts';
 
 export const FIRST_LEVEL_ID = 'first-level-night-postcard';
 export const FIRST_LEVEL_INITIAL_CHECKPOINT_ID =
@@ -281,6 +288,59 @@ export const FIRST_LEVEL_INTERACTIONS: readonly InteractionObject[] =
     }),
   ]);
 
+// Restricted physical layout consumed by the Matter adapter. The legacy
+// spatial export above remains the rendering-facing compatibility surface;
+// this definition is the single source used from construction through dispose.
+export const FIRST_LEVEL_DEFINITION: PrototypeLevelDefinition =
+  validatePrototypeLevelDefinition({
+    schemaVersion: PROTOTYPE_LEVEL_SCHEMA_VERSION,
+    levelId: FIRST_LEVEL_ID,
+    size: FIRST_LEVEL_SPATIAL_CONFIG.size,
+    spawn: FIRST_LEVEL_SPATIAL_CONFIG.spawn,
+    terrain: FIRST_LEVEL_SPATIAL_CONFIG.terrain.map(terrain => ({
+      type: 'static-rectangle' as const,
+      objectId: `first-level-body.${terrain.label}`,
+      label: terrain.label,
+      x: terrain.x,
+      y: terrain.y,
+      width: terrain.width,
+      height: terrain.height,
+    })),
+    routeGate: {
+      type: 'route-gate',
+      objectId: 'first-level-route-gate',
+      ...FIRST_LEVEL_SPATIAL_CONFIG.routeGate,
+    },
+    lift: {
+      type: 'vertical-lift',
+      objectId: FIRST_LEVEL_LIFT_OBJECT_ID,
+      axis: 'vertical',
+      label: FIRST_LEVEL_LIFT_OBJECT_ID,
+      x: FIRST_LEVEL_SPATIAL_CONFIG.lift.x,
+      fromY: FIRST_LEVEL_SPATIAL_CONFIG.lift.fromY,
+      toY: FIRST_LEVEL_SPATIAL_CONFIG.lift.toY,
+      width: FIRST_LEVEL_SPATIAL_CONFIG.lift.width,
+      height: FIRST_LEVEL_SPATIAL_CONFIG.lift.height,
+      periodMs: FIRST_LEVEL_SPATIAL_CONFIG.lift.periodMs,
+    },
+    failureZone: {
+      type: 'failure-sensor',
+      objectId: PLAYER_FAILURE_ZONE_ID,
+      zoneId: PLAYER_FAILURE_ZONE_ID,
+      label: '首关可恢复坠落区',
+      ...FIRST_LEVEL_SPATIAL_CONFIG.failureZone,
+    },
+    routeEffectId: FIRST_LEVEL_PROGRESS_CONTENT.liftRouteUnlocked.effectId,
+    bodyLabels: {
+      player: 'player',
+      foot: 'foot-region',
+      anchorProbe: 'first-level-anchor-probe',
+      supportProbe: 'first-level-support-probe',
+    },
+    snapshotScenario: FIRST_LEVEL_SNAPSHOT_SCENARIO,
+    interactions: FIRST_LEVEL_INTERACTIONS,
+  });
+
 export type FirstLevelPhase =
   | 'intro'
   | 'quest-in-progress'
@@ -307,6 +367,11 @@ export type FirstLevelRuntimeSnapshot = Readonly<{
   completed: boolean;
   actions: readonly FirstLevelActionSnapshot[];
   lastError: string | null;
+}>;
+
+export type FirstLevelDestroyReadiness = Readonly<{
+  ready: boolean;
+  reasons: readonly string[];
 }>;
 
 export type FirstLevelRuntimeContext = Readonly<{
@@ -468,6 +533,24 @@ export class FirstLevelRuntime {
         }),
       ]),
       lastError: this.#lastError,
+    });
+  }
+
+  get destroyReadiness(): FirstLevelDestroyReadiness {
+    const flows: ReadonlyArray<
+      readonly [action: FirstLevelActionSnapshot['action'], readiness: GoalRouteDestroyReadiness]
+    > = [
+      ['quest', this.#quest.destroyReadiness],
+      ['lift', this.#lift.destroyReadiness],
+      ['complete', this.#completion.destroyReadiness],
+    ];
+    const reasons = flows
+      .filter(([, readiness]) => !readiness.ready)
+      .map(([action, readiness]) =>
+        `first-level:${action}: ${readiness.reason ?? 'not ready'}`);
+    return Object.freeze({
+      ready: reasons.length === 0,
+      reasons: Object.freeze(reasons),
     });
   }
 

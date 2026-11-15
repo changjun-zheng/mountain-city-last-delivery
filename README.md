@@ -102,7 +102,9 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `src/platform/web/` | Web 适配层。 `main.ts` 调用核心、挂载 Phaser、处理销毁和重启，并将启动错误写入浏览器日志。 |
 | `src/core/game.ts` | 共享入口，装配模拟与生命周期控制器，维护诊断标记状态。 |
 | `src/core/first-level.ts` | D12-A1 首关共享规则：A–D 阶段、委托／机关／完成三项独立 Event→Command→Transaction→Result 链、前置条件、永久进度及重置语义；不依赖 DOM、Electron 或 Phaser。 |
-| `src/physics/matter/first-level-world.ts` | 首关 Matter 适配：占位地形、试错吊臂、真实升降平台、路线门、初始快照登记对象、世界验证和恢复接口；与实验室灰盒分离但共用玩家物理合同。 |
+| `src/core/prototype-level.ts` | MLV-01A 受限关卡描述与纯数据校验：静态矩形、路线门、一个垂直升降平台、失败 sensor、稳定身份、初始 checkpoint／备用锚点、snapshot registry 和只读调查对象；不是通用关卡框架。 |
+| `src/physics/matter/first-level-world.ts` | 首关／测试布局共用 Matter 适配：按实例定义创建出生、地形、真实升降平台、路线门与失败区，并覆盖平台周期、冻结捕获、恢复重建、验证、放置、reset、诊断和自有 Body 清理；共用原玩家物理合同。 |
+| `src/physics/matter/level-assembly.ts` | MLV-01A 无 DOM 装配：先校验，再创建独立 Engine→适配器→core；核对初始快照 READY，失败时逆序回收，成功时按 core→world→engine 终止。A 尚未接入 Phaser／Web／Electron 宿主。 |
 | `src/rendering/phaser/first-level.ts` | 首关共享 Phaser 绘制、A–D 占位空间、交互目标、升降平台同步和摄像机；关闭 Matter 自动更新，由固定步推进。 |
 | `src/core/graybox.ts` | 原实验室灰盒入口，装配角色、固定步、物理端口、生命周期、目标 E 运行组合与永久效果协调。 |
 | `src/core/player.ts` | 原型参数、PC-01 输入许可、PC-02 请求及移动／跳跃规则；不依赖平台或 Phaser。 |
@@ -137,6 +139,7 @@ Windows 资源编辑仅写入产品名称等显示元数据，`signExecutable: f
 | `tests/interaction.test.mjs` | D07 交互目标、单次消费、控制锁、提示资格与生命周期门槛。 |
 | `tests/progress.test.mjs` | D08 四类记录、非法请求、只读快照、目标／奖励幂等及永久效果期望状态。 |
 | `tests/first-level.test.mjs` | D12-A1 LV01–LV06 核心与真实 Matter 集成：完整 A–D、前置条件、接任务／解锁后恢复、平台承载、暂停、重置和身份隔离。 |
+| `tests/level-assembly.test.mjs` | MLV-01A V01–V06 及 R1：定义预创建拒绝、全生命周期配置、双 Engine 隔离、快照完整恢复预检零写入、活动业务与 Pause Token 终止门槛、Body／core 清理故障、默认首关深度等价；使用 Phaser 捆绑的真实 Matter。 |
 | `tests/events.test.mjs` | D09-A1 运行时 UUID、Event ID、Pending 登记、有限 Inbox、原子回滚、编号边界及未确认回滚阻断。 |
 | `tests/events-dispatch.test.mjs` | D09-A2 固定阶段、逐事件转换、后生事件延后、递归拒绝、防重、测试接收替身合同、异常保留及历史容量。 |
 | `tests/events-retirement.test.mjs` | D09-A3 生产者结果能力、显式确认、乱序退役、缺口合并、旧 ID 拒绝、组合容量与清理故障。 |
@@ -2210,6 +2213,95 @@ Edge、独立人工长期手感、正式美术、现实地理叙事适配、正�
 HISTORICAL：以下缺图状态属于 D12-A3 交付时；后续 `2547b32` 已归档原图，当前文件状态见本文顶部，不改写当时测试结果。
 
 两张用户原图仍缺失，因此图片归档与按图目视匹配为 BLOCKED；本实现只按已确认文字方案同步占位空间，不宣称按原图复刻。Edge、独立人工长期手感、正式美术、正式任务／奖励、存档、正式检查点和完整 MVP-G01–G06 仍 NOT RUN。Matter 仍是验证候选；D12-A3 完成后等待 Work 审查，不进入 D13。
+
+## MLV-01A：受限关卡描述与全生命周期物理配置化
+
+2026-11-15 完成 MLV-01A，状态为 DONE（待 Work 审查）。执行基线为 `731ac55ccc1a58e659801fdb783127b56a4f09dc`；开始时的路线图未提交修改及既有 D12-A3 历史证据均保留。本阶段没有启动 MLV-01B 或 D13。
+
+受限 `PrototypeLevelDefinition` 只接受当前适配器能够真实承载的数据：
+
+- `schemaVersion: 1`、非空 `levelId`、空间尺寸和初始出生。
+- 静态矩形地形、一个路线门、一个 `vertical` 升降平台和一个失败 sensor。
+- terrain／门／平台／失败区的稳定 `objectId` 与真实 Matter Body label；默认首关继续使用原 `player`、`foot-region` 和 `failure-gap-early-a` 身份。
+- 一个初始 checkpoint、其有序备用锚点、一个匹配的 `SnapshotScenario` registry。
+- 独立 `routeEffectId`、玩家／脚底／锚点／支撑探针 label 和只读调查对象。
+
+玩家尺寸、脚底 sensor、重力、碰撞类别、支撑容差、固定步和移动参数仍来自原共享原型，不开放给地图覆盖。定义在创建 Matter Engine 或 Body 前完成整体校验；未知根字段、交互 shape／kind、物理类型、axis、版本、有限数值、重复身份、跨 level checkpoint、无效 default、spawn 与 anchor 不一致以及 registry 不匹配均直接拒绝。
+
+`FirstLevelMatterWorld` 的实例生命周期现在统一读取注入定义，覆盖构造、出生、全部 Body、垂直平台完整周期、永久路线效果、冻结／捕获／应用、恢复世界重建、世界一致性校验、恢复锚点、玩家放置、reset、failureZone 和 diagnostics。默认首关定义继续暴露原坐标、对象、平台、路线效果、SnapshotScenario、交互身份及实际 Body label。禁用 checkpoint 接口仍返回固定实验室占用槽，没有为测试布局伪造真实 checkpoint Body。
+
+资源所有权分为三层：
+
+- 无 DOM 装配函数拥有每次自建的独立 Matter Engine。
+- 适配器账本只拥有本实例创建及恢复替换的 Body；借用 Engine 时保留外部 sentinel，并恢复 Engine 原重力。
+- 共享 core 只增加终止门槛。销毁后，已保存的 `frame`、`key`、`lifecycle.acquire`、`lifecycle.release` 及其他可写入口不再推进 Tick／Matter、创建事件、修改输入、进度、暂停或业务状态。
+
+初始化快照不是 `READY` 时不返回装配成功。构造或装配后段失败时按 core → world → engine 逆序回收；清理错误保留、终止门槛不撤销，重复清理只处理残留资源。销毁遇到活动恢复、冻结、捕获 owner、Pause Token、Pending／Processing 事件或 blocked 分发时明确返回 `blocked`，不强行解锁或改写业务终态。
+
+### V01–V06 结果
+
+| 用例 | 状态 | 实际结果 |
+| --- | --- | --- |
+| V01：描述校验 | PASS | 合法首关／测试定义通过；15 类非法定义，包括未知交互 kind／shape，在注入计数下均为 Engine `0`、Body `0`。 |
+| V02：全生命周期 | PASS | 测试布局使用独立 level、checkpoint、object、effect、Body label、坐标和 Runtime UUID；真实 Matter 推进平台完整周期，验证冻结期间时钟和位置停止，完成 capture→apply→rebuild→world／anchor validate→place→reset→真实失败恢复。 |
+| V03：双 Engine | PASS | 首关与测试布局的 Engine、World、Body、Runtime UUID 和 Tick 独立；原 core 在测试布局完成移动、跳跃、落地、只读调查和暂停，销毁另一实例不改变它。 |
+| V04：快照预检 | PASS | 错误 Runtime／Level／Checkpoint、schema、对象 stateVersion、对象集和非有限载荷均进入既有预检；临时应用、重建、放置与永久效果恢复写入计数为 `0`，原快照及控制保护不变。 |
+| V05-A：Matter／core 终止 | PASS | 三轮创建销毁、借用 Engine sentinel、恢复替换 Body、旧 frame／key／lifecycle 引用、构造部分失败、装配阶段逆序回收、重复销毁和单 Body 清理故障均有真实执行断言；持有 Pause Token 时先返回 `blocked`，释放后才允许终止。R1 进一步确认旧 `release` 对正确 Owner 为 `already-released`，错误 Owner／未知 Token 为 `rejected`。 |
+| V05-B：宿主监听 | NOT RUN | 应用输入／可见性监听、场景切换和 Phaser 内部 document 监听留到 MLV-01B。 |
+| V06：首关回归 | PASS | 默认定义与原首关空间、snapshot scenario、交互身份及 `player`／`foot-region`／`failure-gap-early-a` Body 身份深度等价；原首关 10 项测试保留并通过。 |
+
+### 实际执行与版本
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `node --experimental-strip-types --test tests/level-assembly.test.mjs` | PASS | `6/6`，退出码 `0`，0 fail、0 skipped。 |
+| `npm.cmd test` | PASS | TypeScript 核心／Renderer 检查、Electron Main 编译通过；`178/178` 测试 PASS，0 fail、0 skipped。原 172 项保留，新增 MLV-01A 六项。 |
+| `npm.cmd run electron:build` | PASS | Vite 生产构建转换 33 modules；Electron Main 编译与 Windows x64 免安装目录构建成功。仅有既有 bundle 体积、缺少 `author` 和默认 Electron 图标警告。 |
+| `git diff --check` | PASS | 文档与测试收口后执行通过；只出现既有 LF／CRLF 提示。 |
+| `--level-assembly` 平台分支／GUI／三端 | NOT RUN | MLV-01A 未接入宿主，未新增该参数；构建成功不代表新装配函数已在 Web 或 Windows 运行。 |
+
+版本证据：
+
+- 生产入口：`release/layered-city-adventures/win-unpacked/Layered City Adventures.exe`。
+- ASAR SHA-256：`2F0C5A5C02FB36B95841C809ED02AA71874FFECB0682E1E608CA610F0EB39FB8`。
+- Windows EXE SHA-256：`464FDAC7CDC15510AF555D3284FD2C94C27850270438B83F3D8DDBE8FDB36BDD`。
+- `src/core/prototype-level.ts`：`BF4B368820582CB6D6463720D9AB7FD11E580FA79D6F88AE44C755E850BCEEEC`。
+- `src/core/first-level.ts`／`src/core/graybox.ts`：`9A9A29E998BEA5795CD60017508EB897CB8E3DC857331175CBB660D2187F5A4E`／`43A8C8FBAB197AE8D073893EF4A489C53DEE53F1F9146DEB1F34EE2ACAF13E2B`。
+- `src/physics/matter/first-level-world.ts`／`src/physics/matter/level-assembly.ts`：`B707AA55AF0478A34B604821605FFD4E7947A81F5E75919975AE6CB8603FFE0E`／`24012A41D85BD08070E2DB287EBE1E463681AC5E3978E87ED34E81DD9ADF2738`。
+- `tests/level-assembly.test.mjs`：`FB29E39C2129F35C8C4394616ABB46DE5B3D5449A96836B4F5367C6D84BC820D`。
+
+当前只支持上述受限对象集合，不代表通用多关卡架构已经完成。跨关切换、跨关进度承接、多关快照槽、运行中 checkpoint capture 协调器关卡化、正式存档、Tiled、第二关和完整四章六关仍 NOT RUN。Matter 继续是灰盒验证候选，不是最终物理选型。
+
+### MLV-01A-R1：业务静止销毁门槛与终止后令牌语义
+
+2026-11-15 完成 R1 修复，父项 MLV-01A 仍为 `BLOCKED（待 Work 审查）`，不自行标记收口。修复只增加活动业务只读就绪判定，未改变物理、玩家、模拟、事件、命令、事务、快照或恢复算法，也没有新增依赖、宿主接线或取消协议。
+
+- `PrototypeGoalRouteRuntime.destroyReadiness` 将 `idle` 视为可清理；`running`、`retry-pending`、`recovery-pending`、`terminal-pending`、结果尚未创建／消费／确认退役以及无法确认的中间阶段都返回不可清理。`succeeded`／`failed` 只有在原事件和结果事件均完成消费与安全退役后才可清理。
+- `FirstLevelRuntime.destroyReadiness` 汇总 `quest`、`lift`、`complete` 三条真实首关流程；`createGrayboxCore.destroy()` 同时检查 core 自有 goalRoute、gameplay 聚合状态、恢复／捕获／冻结资源、事件 Inbox 和 Pause Token。任一 blocker 存在时只返回 `blocked`，不终止 core、不 dispose World、不清 Engine，也不取消或重开业务。
+- 终止后保留原 lifecycle 所有权校验。销毁后旧 `acquire` 返回 `undefined`；已合法释放的 Token 由正确 Owner 重复释放返回 `already-released`；错误 Owner 和未知 Token 返回 `rejected`。`pauseCount`、`paused`、Tick、物理步、输入和业务状态不被旧引用改变。
+
+#### R01–R04 结果
+
+| 用例 | 状态 | 实际结果 |
+| --- | --- | --- |
+| R01：真实首关活动事务 | PASS | 使用 `createPrototypeLevelAssembly` 装配 `FIRST_LEVEL_DEFINITION` 和真实 `FirstLevelRuntime`；`frame(0)` 后提交 `talkToNpc`，Tick 1 为 `verifying`／`running`，Event／Command／Transaction `1/1/1`、Result `null`、目标数 `1`、原 Event 已退役。`core.destroy()` 与 `assembly.destroy()` 均 `blocked`，World Body、Engine 时间、Tick、进度和身份不变；继续 frame 后只完成一次，最终成功销毁，重复销毁为 `already-destroyed`。 |
+| R02：core 自有 goalRoute 故障 | PASS | 使用既有 terminal-commit 故障注入进入 `verifying`，随后进入 `blocked`／`terminal-pending`；两次 destroy 均被 `core goal route` 阻断，Result Event 仍为 `null`，事务、进度、World 和 Engine 保持。未伪造恢复或重开业务。 |
+| R03：终止后 Token 语义 | PASS | 正常释放有效 Token 后销毁，旧 acquire 不再创建令牌；正确 Owner 重复 release 为 `already-released`，错误 Owner 和未知 Token 均为 `rejected`，所有无副作用断言保持。 |
+| R04：既有回归 | PASS | V01–V06 六组原有专项保留；无参数 `npm.cmd test` 为 `180/180` PASS，原 178 项语义保留，新增 R01–R03 及适配断言均通过。双 Engine、外部 sentinel、逆序清理、重复销毁和首关业务语义未回归。 |
+
+R1 专项命令 `node --experimental-strip-types --test tests/level-assembly.test.mjs` 为 `8/8` PASS，退出码 `0`，0 fail、0 skipped。`npm.cmd run electron:build` PASS，Vite 构建转换 33 modules；仅有既有 bundle 体积、缺少 `author` 和默认 Electron 图标警告。生产入口为 `release/layered-city-adventures/win-unpacked/Layered City Adventures.exe`。
+
+R1 版本证据：
+
+- ASAR SHA-256：`EBF753C234AD67278D07C44EB2A1ED942C0C61A6B5F5E6E9A7E9762067ACC4E2`。
+- Windows EXE SHA-256：`A0065F1BF2BC5052E87E62D7AC0C5FBC2AAA2B445862E60859252C1962A27B28`。
+- `src/core/graybox.ts`：`6CC8BA089ED571BE7D21E4D209145561243C00557C61C13A3CB199CC8248BF3C`。
+- `src/core/goal-route-runtime.ts`：`271992BA186CD1431D0B0F3B99332ADE73DA683C04B906E02432755EB4AC6C91`。
+- `src/core/first-level.ts`：`0033B527B6E6CED477C072934A9C1C013BD54A4365D76DA97FB07E3ECE49023E`。
+- `src/physics/matter/level-assembly.ts`：`24012A41D85BD08070E2DB287EBE1E463681AC5E3978E87ED34E81DD9ADF2738`。
+- `tests/level-assembly.test.mjs`：`1D6A853FFE841C5FE254ED0065009883DF14576F2F9EE4259F10979B12DE4B6E`。
+
+V05-B 宿主监听、Chrome Web／Electron 开发版／独立包 GUI、平台长套件及运行中 checkpoint capture 协调器关卡化在本 R1 中仍为 `NOT RUN`；构建成功不能替代这些证据。
 
 ## 当前限制
 

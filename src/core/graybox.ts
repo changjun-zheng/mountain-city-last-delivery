@@ -1,5 +1,10 @@
 import { FixedStepSimulation } from './simulation.ts';
-import { RuntimeLifecycleController } from './lifecycle.ts';
+import {
+  RuntimeLifecycleController,
+  type PauseOwner,
+  type PauseRequestKey,
+  type PauseToken,
+} from './lifecycle.ts';
 import { PlayerMotor, type PlayerState } from './player.ts';
 import { InteractionController, type InteractionObject } from './interaction.ts';
 import {
@@ -59,8 +64,17 @@ export type DebugResetResult = Readonly<{
   status: 'reset' | 'blocked';
   message: string;
 }>;
+export type GrayboxCoreDestroyResult = Readonly<{
+  status: 'destroyed' | 'already-destroyed' | 'blocked';
+  message: string;
+  errors: readonly string[];
+}>;
 export type GrayboxGameplayRuntime = Readonly<{
   readonly interactionObjects?: readonly InteractionObject[];
+  readonly destroyReadiness: Readonly<{
+    ready: boolean;
+    reasons: readonly string[];
+  }>;
   activate(actionId: string | undefined): string | undefined;
   afterDispatch(
     simulationTick: number,
@@ -250,7 +264,7 @@ export function createGrayboxCore(
     gameplay?.interactionObjects ?? options.interactionObjects,
     activateProgress,
   );
-  let lifecycle!: RuntimeLifecycleController;
+  let rawLifecycle!: RuntimeLifecycleController;
   let recovery!: PlayerRecoveryRuntime;
   recovery = new PlayerRecoveryRuntime({
     bus: businessBus,
@@ -271,7 +285,7 @@ export function createGrayboxCore(
     },
     getCheckpointStates: () => physics.checkpointTriggers,
     getCheckpointEnabled: () => physics.checkpointTriggersEnabled,
-    getLifecycle: () => lifecycle,
+    getLifecycle: () => rawLifecycle,
     options: recoveryOptions,
   });
   let resets = 0;
@@ -310,7 +324,7 @@ export function createGrayboxCore(
     recovery.advanceAfterCoordination(tick, deltaMs);
     reconcilePermanentEffects();
   });
-  lifecycle = new RuntimeLifecycleController(simulation);
+  rawLifecycle = new RuntimeLifecycleController(simulation);
   checkpointTriggers.synchronizeBaseline(
     physics.checkpointTriggers,
     physics.checkpointTriggersEnabled,
@@ -318,32 +332,103 @@ export function createGrayboxCore(
   );
   interaction.updatePlayerState(physics.state);
   interaction.afterStep(physics.state, 0);
-  return {
-    config: simulation.config, lifecycle,
-    frame: (sampleMs: number) => simulation.frame(sampleMs),
-    key: (code: string, down: boolean, repeat = false) => {
+  let coreDestroyed = false;
+  let destroyMessage = '';
+  // The public surface is intentionally terminal-gated. The cast preserves the
+  // existing host contract without changing the lifecycle algorithm or host.
+  const lifecycleView = Object.freeze({
+    acquire(owner: PauseOwner, key: PauseRequestKey): PauseToken | undefined {
+      return coreDestroyed
+        ? undefined
+        : rawLifecycle.acquire(owner, key);
+    },
+    release(
+      owner: PauseOwner,
+      token: PauseToken,
+    ): 'released' | 'already-released' | 'rejected' {
+      // Destruction is allowed only when no active token remains. Reusing the
+      // original controller therefore preserves owner/idempotence receipts
+      // without any path that can resume the simulation after termination.
+      return rawLifecycle.release(owner, token);
+    },
+    get pauseCount(): number {
+      return rawLifecycle.pauseCount;
+    },
+  }) as unknown as RuntimeLifecycleController;
+  const core = {
+    config: simulation.config,
+    lifecycle: lifecycleView,
+    frame(sampleMs: number): void {
+      if (coreDestroyed) return;
+      simulation.frame(sampleMs);
+    },
+    key(code: string, down: boolean, repeat = false): void {
+      if (coreDestroyed) return;
       interaction.updatePlayerState(physics.state);
       motor.key(code, down, repeat);
       interaction.key(code, down, repeat);
     },
-    closeInteraction: () => interaction.requestClose(),
-    requestCheckpointCapture: (
+    closeInteraction(): boolean {
+      return coreDestroyed ? false : interaction.requestClose();
+    },
+    requestCheckpointCapture(
       checkpointId: string,
       authorization: CheckpointCaptureAuthorization,
-    ) => checkpointCapture.requestCapture(
-      checkpointId,
-      simulation.snapshot.tick,
-      authorization,
-    ),
-    recoverCheckpointCapture: () => checkpointCapture.recover(simulation.snapshot.tick),
-    requestRecoveryRetry: () => recovery.requestManualRetry(),
-    showRecoveryTitle: () => recovery.showRecoveryTitle(),
-    returnToRecoveryError: () => recovery.returnToRecoveryError(),
-    setAvailable: (available: boolean) => {
+    ) {
+      if (coreDestroyed) {
+        return Object.freeze({
+          status: 'rejected' as const,
+          reason: 'blocked' as const,
+          feedback: 'Runtime core has been destroyed.',
+        });
+      }
+      return checkpointCapture.requestCapture(
+        checkpointId,
+        simulation.snapshot.tick,
+        authorization,
+      );
+    },
+    recoverCheckpointCapture(): void {
+      if (!coreDestroyed) {
+        checkpointCapture.recover(simulation.snapshot.tick);
+      }
+    },
+    requestRecoveryRetry() {
+      return coreDestroyed
+        ? Object.freeze({
+          status: 'blocked' as const,
+          message: 'Runtime core has been destroyed.',
+        })
+        : recovery.requestManualRetry();
+    },
+    showRecoveryTitle() {
+      return coreDestroyed
+        ? Object.freeze({
+          status: 'ignored' as const,
+          message: 'Runtime core has been destroyed.',
+        })
+        : recovery.showRecoveryTitle();
+    },
+    returnToRecoveryError() {
+      return coreDestroyed
+        ? Object.freeze({
+          status: 'ignored' as const,
+          message: 'Runtime core has been destroyed.',
+        })
+        : recovery.returnToRecoveryError();
+    },
+    setAvailable(available: boolean): void {
+      if (coreDestroyed) return;
       interaction.setAvailable(available);
       motor.controls.request(availabilityOwner, !available);
     },
     reset(): DebugResetResult {
+      if (coreDestroyed) {
+        return Object.freeze({
+          status: 'blocked' as const,
+          message: 'Runtime core has been destroyed.',
+        });
+      }
       if (recovery.blocksDebugActions) {
         const message =
           'Debug reset is unavailable while fall recovery owns the control lock.';
@@ -378,8 +463,65 @@ export function createGrayboxCore(
         message: 'Temporary graybox reset; checkpoint and run progress preserved.',
       });
     },
+    destroy(): GrayboxCoreDestroyResult {
+      if (coreDestroyed) {
+        return Object.freeze({
+          status: 'already-destroyed' as const,
+          message: destroyMessage,
+          errors: Object.freeze([]),
+        });
+      }
+      const capture = checkpointCapture.snapshot;
+      const eventSnapshot = businessBus.events.snapshot;
+      const blockers: string[] = [];
+      if (recovery.controlLockHeld) {
+        blockers.push('fall recovery still owns the control lock');
+      }
+      if (physics.frozenTemporaryObjectIds.length > 0) {
+        blockers.push('temporary objects are still frozen');
+      }
+      if (capture.lock.held || !capture.resourceOwnership.resourcesReleased) {
+        blockers.push('checkpoint capture still owns a lock or frozen resource');
+      }
+      if (eventSnapshot.inboxEvents.length > 0 ||
+          eventSnapshot.lifecycleRecords.some(record =>
+            record.status === 'pending' || record.status === 'processing') ||
+          eventSnapshot.blocked ||
+          eventSnapshot.dispatchBlocked) {
+        blockers.push('business events are pending, processing or blocked');
+      }
+      const goalRouteReadiness = goalRoute.destroyReadiness;
+      if (!goalRouteReadiness.ready) {
+        blockers.push(
+          `core goal route is not quiescent: ${goalRouteReadiness.reason}`,
+        );
+      }
+      const gameplayReadiness = gameplay?.destroyReadiness;
+      if (gameplay && !gameplayReadiness) {
+        blockers.push('gameplay runtime does not expose destroy readiness');
+      } else if (gameplayReadiness && !gameplayReadiness.ready) {
+        blockers.push(...gameplayReadiness.reasons);
+      }
+      if (rawLifecycle.pauseCount > 0) {
+        blockers.push('pause tokens are still owned');
+      }
+      if (blockers.length > 0) {
+        return Object.freeze({
+          status: 'blocked' as const,
+          message: blockers.join('; '),
+          errors: Object.freeze(blockers),
+        });
+      }
+      coreDestroyed = true;
+      destroyMessage = 'Runtime core terminated; no further simulation or writes are accepted.';
+      return Object.freeze({
+        status: 'destroyed' as const,
+        message: destroyMessage,
+        errors: Object.freeze([]),
+      });
+    },
     get snapshot() {
-      return { ...simulation.snapshot, pauseCount: lifecycle.pauseCount,
+      return { ...simulation.snapshot, pauseCount: rawLifecycle.pauseCount,
         player: { ...physics.state, ...motor.snapshot }, physicsSteps: physics.steps,
         physicsTimestamp: physics.timestamp, resets, interaction: interaction.snapshot,
         progress: progress.snapshot, goalRoute: goalRoute.snapshot,
@@ -392,9 +534,11 @@ export function createGrayboxCore(
         checkpointTriggers: checkpointTriggers.snapshot,
         recovery: recovery.snapshot,
         frozenTemporaryObjectIds: physics.frozenTemporaryObjectIds,
+        destroyed: coreDestroyed,
       };
     },
   };
+  return core;
 }
 export type GrayboxCore = ReturnType<typeof createGrayboxCore>;
 
