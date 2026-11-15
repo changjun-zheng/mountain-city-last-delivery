@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="icon" href="data:," />
     <title>叠城大冒险 | Layered City Adventures</title>
   </head>
@@ -18,7 +18,42 @@
         <p class="debug-note">打开此区域会显示范围圈、碰撞辅助、Tick 与业务身份诊断。</p>
         <pre id="diagnostics" aria-label="模拟诊断"></pre>
       </details>
-      <div id="game" aria-label="游戏画面"></div>
+      <div id="game-shell">
+        <div id="game" aria-label="游戏画面"></div>
+        <div id="touch-prototype" data-touch-enabled="false" data-menu-open="false"
+          data-interaction-active="false">
+          <p id="touch-orientation-notice" class="touch-orientation-notice" hidden>
+            建议横屏游玩；当前竖屏仍可操作。
+          </p>
+          <div id="touch-controls" class="touch-controls" aria-label="触控操作" hidden>
+            <div class="touch-direction-pad">
+              <button class="touch-button touch-left" type="button"
+                data-action="left" aria-label="向左移动">←</button>
+              <button class="touch-button touch-right" type="button"
+                data-action="right" aria-label="向右移动">→</button>
+            </div>
+            <div class="touch-action-pad">
+              <button class="touch-button touch-jump" type="button"
+                data-action="jump" aria-label="跳跃">跳</button>
+              <button class="touch-button touch-interact" type="button"
+                data-action="interact" aria-label="交互">交互</button>
+            </div>
+          </div>
+          <div class="touch-utility">
+            <button id="touch-toggle" class="touch-utility-button" type="button"
+              aria-pressed="false">触控操作：关</button>
+            <button id="touch-pause" class="touch-utility-button" type="button"
+              aria-expanded="false" aria-label="暂停">暂停</button>
+          </div>
+          <button id="touch-close-dialogue" class="touch-dialogue-close" type="button"
+            hidden>完成对话</button>
+          <section id="touch-pause-menu" class="touch-pause-menu" role="dialog"
+            aria-modal="false" aria-labelledby="touch-pause-title" hidden>
+            <strong id="touch-pause-title">游戏已暂停</strong>
+            <button id="touch-continue" type="button">继续</button>
+          </section>
+        </div>
+      </div>
       <p id="error" role="alert" hidden></p>
     </main>
     <section id="recovery-error-panel" class="recovery-overlay" role="alertdialog"

@@ -1,6 +1,8 @@
 # 首关完整空间灰盒原型设计方案 V1
 
-项目：《叠城大冒险》（Layered City Adventures，均为工作名，最终名称尚未冻结）
+项目：《坡坎之间》（当前中文项目名称；英文名称未确定）
+
+名称同步（2026-11-15）：当前项目名称为《坡坎之间》（CONFIRMED），英文名称未确定；旧工作名及历史记录按[当前名称决策](DECISIONS.md#project-name-pokan-20261115)追溯。本次仅同步项目归属名称，不改变本文设计状态、玩法或验收范围。
 
 文件：`docs/FIRST_LEVEL_GRAYBOX_SPATIAL_PROTOTYPE_V1.md`
 

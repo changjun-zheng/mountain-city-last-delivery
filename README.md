@@ -1,8 +1,10 @@
-# 《叠城大冒险》（Layered City Adventures）
+# 《坡坎之间》
 
 开发窗口从 [开发路线图与执行流程](docs/DEVELOPMENT_ROADMAP.md) 领取和记录任务。当前按路线图单项实施，完成实现、测试、自审和进度记录后等待 Work 审查；正式决策变更、真实设计冲突和红线操作仍需暂停报告。
 
-《叠城大冒险》（Layered City Adventures）是一款以具有山城特色的虚构立体城市为舞台的 2D 横版平台探索冒险游戏，核心体验是跳跃、探索、解谜与发现（CONFIRMED，2026-11-12）。
+《坡坎之间》是一款以重庆山城为灵感的 2D 横版探索冒险游戏，采用 2.5D 立体城市建筑表现与手绘卡通风格。当前比赛版目标为普通 H5 网页，支持电脑和手机浏览器；具体功能范围与验收仍以现行决策和路线图为准。
+
+名称说明（2026-11-15）：当前中文项目名称为《坡坎之间》（CONFIRMED），英文名称未确定；宣传语“在山与城之间，发现不一样的故事。”仅为 PROPOSED。旧工作名称为叠城大冒险／Layered City Adventures，商标注册、重名核验与正式发行名称冻结尚未完成。见[当前名称决策](docs/DECISIONS.md#project-name-pokan-20261115)及[品牌交接](docs/PROJECT_REBRANDING_HANDOFF.md#current-brand-20261115)。本轮只更新文档，当前源码界面及既有 Windows 产物仍可能显示旧名，不能据此宣称界面更名完成。
 
 当前默认打开 D12-A3 首关空间切片：从 A 区解放碑周边出生并学习移动、跳跃与交互，沿台阶前往 B 区沧白路与洪崖洞入口，主动完成游客对话并接取《把山城夜景寄给远方》；随后进入 C1 上层木廊、C2 中层街巷和 C3 下层檐廊，试错唯一机关并乘坐真实升降平台下到 D 区下层嘉陵江岸，最后主动完成拍摄与分享。A–D 的坐标、画面、NPC、线索和文案仍为占位原型；默认 HUD 显示当前目标，完整身份及 Tick 诊断收在「模拟诊断」中。顶部「调试入口」保留原固定步诊断场景和包含 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互、D08 运行内进度、D09-D1 目标 E、D10 检查点捕获及 D11 恢复能力的基础灰盒。Web 与 Windows 使用同一份首关配置、角色、物理、交互、进度、事件、快照、恢复及模拟代码。「重新启动」先销毁 Phaser 实例，再创建新运行；「重置灰盒」在首关中复位角色和升降平台临时状态，保留本次运行内的任务、机关、路线、完成、业务身份和永久效果，不重新捕获或覆盖初始备用快照，也不是正式检查点恢复。
 
@@ -389,7 +391,7 @@ Electron 两个测试进程正常退出 0。Edge 本轮关闭请求后仍驻留�
 
 ## 2026-11-12 更名与定位同步验证
 
-当前名称、虚构城市定位及工程显示信息已同步，详见 [更名执行报告与 NAME-01–08](docs/PROJECT_REBRANDING_HANDOFF.md#7-2026-11-12-实际执行记录)。历史名称、旧测试截图、真实建筑资料和原首关方案保留追溯，不代表当前世界是现实重庆复刻或已经完成叙事适配。
+HISTORICAL（2026-11-12 更名执行记录）：当前名称、虚构城市定位及工程显示信息已同步，详见 [更名执行报告与 NAME-01–08](docs/PROJECT_REBRANDING_HANDOFF.md#7-2026-11-12-实际执行记录)。历史名称、旧测试截图、真实建筑资料和原首关方案保留追溯，不代表当前世界是现实重庆复刻或已经完成叙事适配。
 
 实际执行 `npm.cmd test`、`npm.cmd run electron`、`npm.cmd run test`、`npm.cmd run electron:build`，前两次单元测试均 20/20，开发命令可见启动及原生关窗退出 0，Web／Windows 构建通过。产品资源编辑只同步名称，仍不签名；角色、物理、输入、暂停、固定步及锁文件等 10 个关键文件保持原字节。
 
@@ -2302,6 +2304,72 @@ R1 版本证据：
 - `tests/level-assembly.test.mjs`：`1D6A853FFE841C5FE254ED0065009883DF14576F2F9EE4259F10979B12DE4B6E`。
 
 V05-B 宿主监听、Chrome Web／Electron 开发版／独立包 GUI、平台长套件及运行中 checkpoint capture 协调器关卡化在本 R1 中仍为 `NOT RUN`；构建成功不能替代这些证据。
+
+## H5-01：响应式画布与设备输入原型
+
+2026-11-15 完成 H5-01 的受限原型实现与当前版本 Chrome 自动化验证。实现状态为 `BLOCKED（待 Work 审查）`：桌面 Chrome、Chrome 触屏模拟、输入与核心回归已经通过，但 H08 要求的真实手机尚未执行，因此不能把本任务标为全面 DONE，也不能宣称手机整关或最终双设备验收通过。
+
+首关仍使用 Phaser `1000×580` 逻辑画布和 `Scale.FIT`，世界、碰撞、固定步及任务规则不变。页面现在根据动态可用视口和 safe-area 计算显示区域，提供左右、跳跃和交互按钮，以及明确的触控呈现开关、暂停／继续和“完成对话”按钮。桌面默认保留键盘；触屏模式下可用多指同时移动和跳跃。只显示非阻断“建议横屏”，未锁方向、未禁竖屏、未新增方向暂停 Token。
+
+输入由单一 `InputSourceAggregator` 聚合键盘 code、pointerId 与控件代次，再经原 `core.key` 和 `PlayerMotor` 执行：
+
+- 同一动作的有效来源 `0→1` 才提交按下，`1→0` 才提交释放；A／← 与 D／→ 不互相误释放，重复事件和旧代次尾事件不产生新动作。
+- `pointerup`、`pointercancel`、`pointerleave`、`lostpointercapture`、失焦、隐藏、旋转和销毁会清理本层来源；合法新触摸可一次使用，不需要额外点击。
+- blur／hidden 不伪造核心释放；暂停期间的新按下不会进入核心缓冲并在恢复后自动起跳或交互，恢复后仍遵守 PC-02 与 E 的“先释放、再重新按下”门槛。
+- 暂停使用独立 `prototype-menu` Owner、稳定 Request Key 和准确 Token，与 hidden 等其他暂停原因共存；重复打开复用自身 Token，继续和卸载只释放自身。
+- “完成对话”只调用原 `core.closeInteraction()`。暂停、取消、隐藏、旋转和卸载不会冒充正常完成。
+- 浏览器 UUID 优先使用 `crypto.randomUUID()`；安全上下文缺少该方法时改用 `crypto.getRandomValues()` 生成 RFC 4122 v4／variant。两者均不可用时明确失败，不使用 `Math.random`、时间戳或固定值。
+
+### H01–H09 结果
+
+| 用例 | 状态 | 实际结果 |
+| --- | --- | --- |
+| H01：来源聚合与混合输入 | PASS | 6/6 输入专项单测覆盖别名、多来源、多指、重复与旧代次释放；Chrome 生产页面验证触控移动、键盘和触控并存及多指移动＋一次跳跃。 |
+| H02：原核心与控制锁 | PASS | 聚合边缘进入原 `PlayerMotor`，单次消费、短长跳、控制锁、暂停后释放门槛和原键盘操作均保持；未修改 `src/core/**`。 |
+| H03：Chrome 可见原型 | PASS | 品牌 Google Chrome 生产专项使用真实键盘和 Pointer Events 在首关完成走跳、到达 NPC、打开并正常关闭对话；桌面与触屏模拟均取得截图。 |
+| H04：取消与中断 | PASS | `pointercancel`、`lostpointercapture`、隐藏、resize／旋转及控件销毁清理通过；取消后新触摸一次即可跳跃，旧来源不再生效。 |
+| H05：暂停与真实切页 | PASS | 菜单 Token 与真实 hidden Token 共存；hidden 时 Tick 冻结，回到可见且仅释放 hidden Token 后仍由菜单保持暂停；无后台追赶、无自动跳跃或交互。 |
+| H06：布局与旋转 | PASS | 实测桌面方向按钮 `60×60`、跳跃 `72×72`、交互 `60×60` CSS px；`844×390` 横屏模拟中画布和按钮均在视口内，resize／旋转不更换 Runtime、不重置进度。 |
+| H07：资源与 UUID | PASS | 自绑监听、指针 capture 和菜单 Token 可幂等释放，旧回调失效；UUID 原生、回退、缺失和格式错误路径均有单测。第三方 Phaser 内部监听未计入本项目解绑成果。 |
+| H08：真实手机局部操作 | NOT RUN | 本轮没有可操作的 Android Chrome 或 iOS Safari 真机；Chrome 触屏模拟不等于手机 PASS。 |
+| H09：原回归与范围 | PASS | 无参数 `npm.cmd test` 为 `186/186` PASS，原 180 项语义保留，新增 6 项 H5 输入测试；Web 生产构建通过。Electron 和旧平台长套件未作为本任务验收入口。 |
+
+证据分层：
+
+| 环境 | 状态 | 说明 |
+| --- | --- | --- |
+| 单元／核心集成 | PASS | `node --experimental-strip-types --test tests/h5-input.test.mjs`：`6/6`，退出码 `0`。 |
+| 桌面 Chrome | PASS | Google Chrome `156.0.8078.74`，生产 `dist` 入口，真实键盘和 DOM Pointer Events。 |
+| 桌面 Chrome 触屏模拟 | PASS | `844×390`、coarse pointer；多指、取消、对话、暂停和旋转均执行。 |
+| Android Chrome 真机 | NOT RUN | 无真机执行。 |
+| iOS Safari 真机 | NOT RUN | 无真机执行。 |
+
+首次专项报告为 [run-2026-11-15T08-08-34-554Z](test-results/h5-01/run-2026-11-15T08-08-34-554Z/report.json)：12 项检查全部 PASS，页面错误 `0`、非预期中断 `0`、清理 PASS。新增断言确认暂停 Token 生效后按住跳跃不会生成 Tick 或待消费动作，恢复后也不执行；随后新触摸仍可正常起跳。截图包括[桌面触控原型](test-results/h5-01/run-2026-11-15T08-08-34-554Z/chrome-desktop-touch-visible.png)、[横屏触屏模拟](test-results/h5-01/run-2026-11-15T08-08-34-554Z/chrome-touch-emulation.png)和[触屏 NPC 对话](test-results/h5-01/run-2026-11-15T08-08-34-554Z/chrome-touch-npc-dialogue.png)。
+
+提交前复核：在最终工作区重新执行 `npm.cmd test` 为 `186/186` PASS，`npm.cmd run build` 成功，生产专项 `run-2026-11-15T08-40-32-451Z` 的 12 项检查全部 PASS。Android Chrome／iOS Safari 真机仍未执行，H5-01 继续为 `BLOCKED（待 Work 审查）`。
+
+失败历史 [run-2026-11-15T08-00-22-828Z](test-results/h5-01/run-2026-11-15T08-00-22-828Z/report.json) 保留：暂停期间的 pointerdown 曾形成待消费跳跃；修复为暂停期间拒绝按下提交后，中间报告通过。[run-2026-11-15T08-07-17-899Z](test-results/h5-01/run-2026-11-15T08-07-17-899Z/report.json) 同样保留：新增“先按住再暂停”用例的发送顺序错误地允许一次按下在暂停生效前被消费，测试改为先等待 Token 生效再发送按住动作，不删除断言。
+
+实际命令与结果：
+
+| 命令 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `node --experimental-strip-types --test tests/h5-input.test.mjs` | PASS | `6/6`，0 fail、0 skipped。 |
+| `npm.cmd test` | PASS | 类型检查与 Electron Main 编译通过；`186/186`，0 fail、0 skipped。 |
+| `npm.cmd run build` | PASS | Vite 8.3.7 转换 36 modules；生成 `dist/assets/index-DP2IACBB.js` 与 `dist/assets/index-DZ_wJHKK.css`，仅有既有 bundle 体积警告。 |
+| `node tests/h5-input-browser.mjs --browser=chrome --production` | PASS | [最终报告](test-results/h5-01/run-2026-11-15T08-08-34-554Z/report.json) 中品牌 Chrome 生产专项 12 组检查 PASS；报告中的 Android／iOS 真机层仍为 NOT RUN。 |
+| `git diff --check` | PASS | 只出现 Git 的既有 LF／CRLF 提示。 |
+
+同版本源码与产物指纹：
+
+- `src/platform/web/player-input.ts`：`E953D8E567914BD15FEBEAC834F92D684BE02286B0434BC544F522D44B6DEE11`。
+- `src/platform/web/input-sources.ts`：`6E67F185961603DA6F07A90912BD1DCC5EF439D1CF6EF48612E0883662377497`。
+- `src/platform/web/touch-controls.ts`：`9CD89E202B9C1E57B14D9B824D24D77A5524024B744EFC189E5BD78CF792C0E1`。
+- `src/platform/web/style.css`：`2A37B0D26EBBD52CB22CB08A743893E7324EA4D9C48A6917B3508C97C7DE06FB`。
+- `dist/assets/index-DP2IACBB.js`：`41F4D87F270FB675B27F7C1164E55B5C8D8E3BABB4A5F3034971A2F83A21A364`。
+- `dist/assets/index-DZ_wJHKK.css`：`91F35A57112237855D16D892D04A384123ADAABD11B864690FE2DE614FC73107`。
+
+本轮没有新增依赖，没有修改 `src/core/**`、`src/physics/**`、Electron、`package.json`、锁文件或构建配置，也没有启动 H5-02、D13 或 MLV。真实手机、完整 A—D 手机通关、正式美术、完整菜单／日志／音频及最终双设备验收仍 `NOT RUN`；Matter 仍是验证候选。
 
 ## 当前限制
 

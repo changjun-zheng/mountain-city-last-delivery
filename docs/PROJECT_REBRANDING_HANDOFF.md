@@ -1,4 +1,50 @@
-# 《叠城大冒险》名称与项目定位更新交接
+# 《坡坎之间》当前品牌与名称更新交接
+
+<a id="current-brand-20261115"></a>
+
+## 2026-11-15 当前名称与本轮边界
+
+依据：[当前项目名称决策](DECISIONS.md#project-name-pokan-20261115)。当前中文项目名称为《坡坎之间》（CONFIRMED），英文名称未确定；叠城大冒险／Layered City Adventures 为旧工作名称，更早的 Mountain City: Last Delivery／山城有路：最后一单为历史名称。
+
+宣传语“在山与城之间，发现不一样的故事。”仅为 PROPOSED。商标注册、重名核验、英文名和正式发行名称冻结没有因本次改名完成。本轮仅统一文档并准备显示名实施草案，不修改源码、测试、配置、游戏行为或技术路线，不执行游戏测试／构建，不开始 H5-01、D13 或其他开发。
+
+核心定位及当前比赛 H5 电脑／手机目标见 [PROJECT_BRIEF](PROJECT_BRIEF.md#当前品牌定位2026-11-15)。隐藏探索、文化收藏与城市故事是产品长期方向，不能借改名增加比赛 MVP 的隐藏环路、支线、收藏或其他门槛。
+
+### 代码与界面名称分类盘点
+
+下列行号为本轮只读核对时的位置，后续实施须重新定位。当前源码尚未更名，不能把文档同步当作界面交付。
+
+| 分类 | 位置 | 当前事实与最小后续处理 |
+| --- | --- | --- |
+| A 玩家可见 | src/core/game.ts:11 | PROJECT_IDENTITY 含旧中文 title 与旧英文 subtitle；后续仅改显示值，不改接口与运行身份。 |
+| A 玩家可见 | index.html:7、79、80 | 页面 title、恢复标题页 kicker／标题含旧名；后续改中文名称，移除旧英文副标题，不启用未确认宣传语。 |
+| A 名称消费者 | src/rendering/phaser/first-level.ts:35；graybox.ts:20、196；startup.ts:11、28、33 | 读取共享 title／subtitle；后续处理空副标题及分隔符、aria-label，不重做布局或场景。 |
+| A 玩家可见 | electron/main.ts:14、85 | 启动错误框和窗口标题为旧名；后续只改运行时显示，不迁移应用身份。 |
+| A 打包显示／路径影响 | package.json:47 build.productName | 仍为 Layered City Adventures，影响 Windows 产品显示和 EXE 名。单独待审；不纳入本次文档修改或显示名最小草案。 |
+| B 开发者介绍 | package.json:6 description | 使用旧英文工作名。本轮保留配置，后续获配置修改授权后再更新介绍，不据此创造英文正式名。 |
+| B 测试名称预期 | tests/platform-smoke.mjs:227、228、527 | Web title／场景 aria-label／Electron 窗口 title 预期仍为旧名。未来仅随显示修改更新，不更改业务断言。 |
+| C 路径／技术身份 | tests/platform-smoke.mjs:885；package.json 的 name、appId、output；package-lock.json；工程目录与远端 | 现有 EXE 查找路径、包名、appId、输出目录、仓库路径／地址保留，不随机迁移。 |
+| C 历史记录 | README／路线图历史里程碑、旧交接／决策、test-results、dist、dist-electron、release 及原始资料 | 原报告、截图、日志和产物保留原名；生成文件不是当前文档改名的编辑对象，也不是新名验收证据。 |
+
+本轮检索覆盖仓库中的 Markdown、源码、HTML、JSON、日志与其他常见文本格式（包含生成目录与历史证据，不含 .git 和 node_modules）；同时检索旧名及 layered-city-adventures 形式的技术路径。剩余匹配文件分布：根目录 4、docs 8、src 1、electron 1、tests 1、dist 40、dist-electron 1、release 3、test-results 195。它们分别属于历史／名称对照、尚未实施的显示名与元数据、稳定技术路径或旧构建／报告；这些数量是文本文件匹配数，不是未处理缺陷数。图片／二进制的内嵌文字未逐像素检查，原图及现有产物均保留，不声称全仓已无旧名。
+
+### 本轮保留的技术与历史身份
+
+- 仓库目录 mountain-city-last-delivery、GitHub 地址 changjun-zheng/mountain-city-last-delivery、npm 包名和 lockfile 身份。
+- Electron appId／AppUserModelID、userData、MCLD_* 环境变量／测试前缀，以及事件、命令、事务、运行、关卡、检查点、任务和测试 ID。
+- 源码文件／类名、现有设计文档文件名、release/layered-city-adventures 与 Layered City Adventures.exe 等历史或当前产物路径。
+- 原 PNG、SVG、旧截图与历史测试文件内容；没有对图像内嵌文字或二进制做名称改写，未生成新品牌 logo／素材。
+- 下方 2026-11-12 原交接全部保留历史。其“当前”“正式名称”“后续执行”等措辞均以当时语境解释，不再是本次界面更名指令，也不覆盖最新名称决策。
+
+### 后续交接与未决事项
+
+显示名确需独立源码任务。完整提示词只放在唯一任务入口：[BRAND-01 显示名草案](DEVELOPMENT_ROADMAP.md#brand-01-display-name-draft)，状态 PLANNED（非 READY、未启动），等待负责人审查与独立修改授权，不自动领取。该草案保留 Windows productName／EXE 名、description 与全部技术身份，不制造与现有 H5-01 并行写入。
+
+仍待确认：英文名称；宣传语是否采用；商标与重名核验；正式发行品牌冻结；Windows 打包显示与可执行文件名是否另行迁移。本轮不决定这些事项。
+
+## HISTORICAL：原交接《叠城大冒险》名称与项目定位更新交接
+
+以下原文整段为 2026-11-12 建立及后续追补的历史交接／执行记录，保留其原始日期、表格、源码位置、任务状态和验收结论；其中旧命令不是当前开发授权。
 
 日期：2026-11-12。
 

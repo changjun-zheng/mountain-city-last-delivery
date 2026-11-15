@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">首关 UI V0.1：NPC 对话，PROPOSED</title>
+  <desc id="desc">B 区年轻游客对话低保真示意。下方浅色面板约占屏宽 84.1%、屏高 24.2%；头像占位、说话者、正文与 Space / Enter 继续。背景压暗，隐藏 HUD。对白和键位是待审提案。</desc>
+  <defs>
+    <style>
+      text { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; font-size: 22px; fill: #292929; }
+      .small { font-size: 20px; } .heading { font-size: 24px; font-weight: 700; }
+    </style>
+    <pattern id="windows" width="76" height="60" patternUnits="userSpaceOnUse"><rect x="18" y="12" width="24" height="30" fill="#e1e1e1" stroke="#aaa"/></pattern>
+  </defs>
+  <rect width="1280" height="720" fill="#e5e5e5"/>
+  <path d="m0 250 130-55 150 72 150-86 180 91 155-76 153 68 192-89 170 71V720H0Z" fill="#d0d0d0"/>
+  <g fill="#bcbcbc" stroke="#999" stroke-width="2"><path d="M44 225h355v240H44Z"/><path d="M759 239h441v272H759Z"/></g>
+  <g fill="url(#windows)"><rect x="44" y="225" width="355" height="240"/><rect x="759" y="239" width="441" height="272"/></g>
+  <g fill="#b1b1b1" stroke="#888" stroke-width="3"><path d="m20 225 44-29h312l47 29Z"/><path d="m732 239 49-31h399l49 31Z"/></g>
+  <path d="M401 362c95-21 206-19 350 8" stroke="#aaa" stroke-width="8" fill="none"/>
+  <path d="M434 363v77m63-86v86m65-88v88m64-86v86m64-81v81" stroke="#aaa" stroke-width="5"/>
+  <rect x="0" y="469" width="1280" height="28" fill="#8f8f8f" stroke="#666" stroke-width="3"/>
+  <g stroke="#999" stroke-width="10"><path d="M58 497v223M333 497v223M963 497v223M1195 497v223"/></g>
+  <g stroke="#555" stroke-width="2">
+    <circle cx="552" cy="411" r="15" fill="#626262"/><path d="M539 428h26l8 39h-42Z" fill="#737373"/>
+    <circle cx="696" cy="408" r="16" fill="#b1b1b1"/><path d="M682 426h28l9 41h-46Z" fill="#c7c7c7"/>
+    <path d="m678 401 17-13 19 14" fill="#eee"/>
+  </g>
+  <rect width="1280" height="720" fill="#000" opacity="0.28"/>
+  <rect x="102" y="518" width="1076" height="174" rx="12" fill="#f6f6f6" stroke="#626262" stroke-width="2"/>
+  <rect x="126" y="546" width="104" height="118" rx="6" fill="#dedede" stroke="#999" stroke-width="2" stroke-dasharray="7 5"/>
+  <circle cx="178" cy="576" r="13" fill="#b9b9b9"/>
+  <path d="M151 615c0-30 54-30 54 0" fill="#b9b9b9"/>
+  <text x="178" y="649" class="small" text-anchor="middle">头像占位</text>
+  <text x="254" y="550" class="heading">年轻游客</text>
+  <text x="254" y="592">我想把山城的夜景寄给远方的人。</text>
+  <text x="254" y="624">你愿意和我一起找找合适的观景位置吗？</text>
+  <rect x="876" y="646" width="278" height="34" rx="5" fill="#e7e7e7"/>
+  <text x="1138" y="670" class="small" text-anchor="end">Space / Enter 继续 ▷</text>
+</svg>

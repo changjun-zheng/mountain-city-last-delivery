@@ -320,15 +320,15 @@ export function mountFirstLevelScene(
 
           const objective = this.add.text(18, 18, '', {
             fontFamily: 'Microsoft YaHei, sans-serif',
-            fontSize: '17px',
+            fontSize: '21px',
             color: '#fff3d3',
             backgroundColor: '#1c3743',
             padding: { x: 10, y: 7 },
-            wordWrap: { width: 720, useAdvancedWrap: true },
+            wordWrap: { width: 860, useAdvancedWrap: true },
           }).setScrollFactor(0).setDepth(30);
           const status = this.add.text(980, 18, '', {
             fontFamily: 'Microsoft YaHei, sans-serif',
-            fontSize: '13px',
+            fontSize: '14px',
             color: '#dceef0',
             backgroundColor: '#172b34',
             padding: { x: 8, y: 6 },
@@ -337,10 +337,10 @@ export function mountFirstLevelScene(
           const controls = this.add.text(
             18,
             552,
-            'A/D 或 ←/→ 移动 · Space 跳跃 · E 主动交互 · Escape 关闭 · R 重置临时世界',
+            '键盘：A/D 或 ←/→ 移动 · Space 跳跃 · E 交互 · Escape 关闭',
             {
               fontFamily: 'Microsoft YaHei, sans-serif',
-              fontSize: '14px',
+              fontSize: '15px',
               color: '#e8f2f2',
               backgroundColor: '#13252e',
               padding: { x: 9, y: 6 },
@@ -348,7 +348,7 @@ export function mountFirstLevelScene(
           ).setScrollFactor(0).setDepth(30);
           const prompt = this.add.text(500, 514, '', {
             fontFamily: 'Microsoft YaHei, sans-serif',
-            fontSize: '18px',
+            fontSize: '21px',
             color: '#fff4cd',
             backgroundColor: '#294b54',
             padding: { x: 11, y: 6 },
@@ -373,12 +373,12 @@ export function mountFirstLevelScene(
             .setVisible(false);
           const dialogTitle = this.add.text(72, 40, '', {
             fontFamily: 'Microsoft YaHei, sans-serif',
-            fontSize: '20px',
+            fontSize: '24px',
             color: '#fff3d7',
           }).setScrollFactor(0).setDepth(46).setVisible(false);
           const dialogContent = this.add.text(72, 76, '', {
             fontFamily: 'Microsoft YaHei, sans-serif',
-            fontSize: '16px',
+            fontSize: '20px',
             color: '#e1edf0',
             wordWrap: { width: 820, useAdvancedWrap: true },
           }).setScrollFactor(0).setDepth(46).setVisible(false);

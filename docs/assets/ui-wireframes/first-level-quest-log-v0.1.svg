@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">首关 UI V0.1：任务日志，PROPOSED</title>
+  <desc id="desc">旅行手账双栏日志，左栏约 28%、右栏约 72%。已接取主线、尚未发现线索的示例，线索为空。日志只读，返回暂停菜单而非直接继续游戏。所有尺寸与文案待审。</desc>
+  <defs>
+    <style>
+      text { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; font-size: 22px; fill: #292929; }
+      .small { font-size: 20px; } .heading { font-size: 24px; font-weight: 700; }
+      .muted { fill: #555; }
+    </style>
+    <pattern id="paper-lines" width="64" height="34" patternUnits="userSpaceOnUse"><path d="M0 33h64" stroke="#e4e4e4" stroke-width="1"/></pattern>
+  </defs>
+  <rect width="1280" height="720" fill="#a7a7a7"/>
+  <g fill="#929292"><path d="M0 238h271v245H0ZM323 172h358v370H323ZM747 248h382v362H747Z"/><path d="M0 452h381v24H0ZM486 532h633v24H486Z"/></g>
+  <path d="M0 628h1280" stroke="#888" stroke-width="15"/>
+  <rect width="1280" height="720" fill="#000" opacity="0.28"/>
+  <rect x="80" y="52" width="1120" height="616" rx="9" fill="#f3f3f3" stroke="#666" stroke-width="2"/>
+  <rect x="104" y="48" width="104" height="19" transform="rotate(-5 156 57)" fill="#ccc" stroke="#b5b5b5"/>
+  <path d="M406 130v449" stroke="#bcbcbc" stroke-width="2"/>
+  <path d="M412 130v449" stroke="#e2e2e2" stroke-width="3"/>
+  <text x="108" y="108" style="font-size:30px" font-weight="700">任务日志</text>
+  <text x="1168" y="105" text-anchor="end" class="small muted">已暂停</text>
+  <path d="M108 126h1064" stroke="#999" stroke-width="2"/>
+  <rect x="108" y="150" width="136" height="44" rx="5" fill="#d2d2d2" stroke="#555" stroke-width="2"/>
+  <text x="176" y="179" text-anchor="middle" font-weight="700">进行中</text>
+  <rect x="252" y="150" width="126" height="44" rx="5" fill="#fafafa" stroke="#999" stroke-width="2"/>
+  <text x="315" y="179" text-anchor="middle">已完成</text>
+  <rect x="108" y="216" width="270" height="139" rx="5" fill="#e0e0e0" stroke="#666" stroke-width="2"/>
+  <path d="M108 226v119" stroke="#555" stroke-width="6"/>
+  <text x="128" y="247" class="small muted">主线 · 进行中</text>
+  <text x="128" y="288" font-weight="700">把山城夜景</text>
+  <text x="128" y="321" font-weight="700">寄给远方</text>
+  <text x="448" y="179" style="font-size:30px" font-weight="700">把山城夜景寄给远方</text>
+  <text x="448" y="215" class="small muted">任务类型：主线</text>
+  <text x="448" y="267" class="heading">任务背景</text>
+  <rect x="448" y="279" width="694" height="86" fill="url(#paper-lines)"/>
+  <text x="448" y="307">年轻游客想把山城夜景寄给远方。</text>
+  <text x="448" y="341">一起寻找合适的观景位置，记录并分享夜色。</text>
+  <rect x="436" y="375" width="718" height="86" rx="6" fill="#e5e5e5"/>
+  <rect x="448" y="391" width="10" height="10" fill="#555"/>
+  <text x="470" y="408" class="heading">当前目标</text>
+  <text x="448" y="442">探索吊脚楼，寻找通往江岸的路。</text>
+  <text x="448" y="506" class="heading">已发现线索</text>
+  <text x="448" y="545" class="muted">暂无已记录线索。</text>
+  <path d="M108 590h1064" stroke="#aaa" stroke-width="2"/>
+  <rect x="920" y="606" width="252" height="44" rx="6" fill="#fafafa" stroke="#666" stroke-width="2"/>
+  <text x="1046" y="635" class="small" text-anchor="middle">Esc 返回暂停菜单</text>
+</svg>

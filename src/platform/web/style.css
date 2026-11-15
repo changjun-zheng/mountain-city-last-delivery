@@ -8,30 +8,185 @@
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
+  min-height: var(--app-height, 100dvh);
   background: radial-gradient(circle at 50% 20%, #1c3038 0, #101921 55%);
+  overflow-x: hidden;
 }
 
 main {
   box-sizing: border-box;
   min-height: 100vh;
-  padding: 8px 12px;
+  min-height: 100dvh;
+  min-height: var(--app-height, 100dvh);
+  padding:
+    max(8px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
 }
 
-#game {
+#game-shell {
+  position: relative;
   width: min(1280px, calc(100vw - 24px), calc((100vh - 90px) * 1.724137931));
+  width: min(1280px, calc(100vw - 24px), calc((var(--app-height, 100dvh) - 90px) * 1.724137931));
   height: min(742px, calc((100vw - 24px) * 0.58), calc(100vh - 90px));
+  height: min(742px, calc((100vw - 24px) * 0.58), calc(var(--app-height, 100dvh) - 90px));
   min-width: 320px;
   min-height: 186px;
+  touch-action: none;
+}
+
+#game {
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   background: #162632;
 }
 
 #game canvas {
   display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+#touch-prototype {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.touch-controls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.touch-controls[hidden] {
+  display: none;
+}
+
+.touch-direction-pad,
+.touch-action-pad {
+  position: absolute;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.touch-direction-pad {
+  left: max(16px, env(safe-area-inset-left));
+}
+
+.touch-action-pad {
+  right: max(16px, env(safe-area-inset-right));
+}
+
+.touch-button,
+.touch-utility-button,
+.touch-dialogue-close,
+.touch-pause-menu button {
+  pointer-events: auto;
+  touch-action: none;
+  border: 2px solid rgb(255 244 220 / 70%);
+  color: #fff4dc;
+  background: rgb(20 48 60 / 82%);
+  box-shadow: 0 4px 18px rgb(0 0 0 / 35%);
+  font: 700 18px/1 system-ui, sans-serif;
+}
+
+.touch-button {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+}
+
+.touch-jump {
+  width: 72px;
+  height: 72px;
+}
+
+.touch-button[data-active="true"] {
+  background: rgb(99 185 132 / 88%);
+  transform: translateY(2px);
+}
+
+.touch-utility {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.touch-utility-button {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.touch-dialogue-close {
+  position: absolute;
+  left: 50%;
+  bottom: max(84px, calc(env(safe-area-inset-bottom) + 84px));
+  min-width: 112px;
+  min-height: 48px;
+  padding: 0 16px;
+  border-color: #e5c986;
+  border-radius: 8px;
+  transform: translateX(-50%);
+  font-size: 16px;
+}
+
+.touch-pause-menu {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 22px;
+  border: 2px solid #8bb9c6;
+  border-radius: 12px;
+  background: rgb(19 37 46 / 96%);
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.touch-pause-menu[hidden] {
+  display: none;
+}
+
+.touch-pause-menu button {
+  min-width: 64px;
+  min-height: 48px;
+  border-radius: 8px;
+}
+
+.touch-orientation-notice {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  left: 50%;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: #fff3cf;
+  background: rgb(65 54 32 / 92%);
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-size: 14px;
 }
 
 #debug-tools {
@@ -40,6 +195,63 @@ main {
   margin: 0 0 8px;
   color: #bfced4;
   text-align: left;
+}
+
+@media (max-width: 760px), (max-height: 520px) {
+  #debug-tools {
+    align-self: stretch;
+    margin: 0;
+  }
+
+  #debug-tools summary {
+    box-sizing: border-box;
+    height: 32px;
+    min-height: 32px;
+    padding: 7px 4px;
+    font-size: 14px;
+    line-height: 18px;
+  }
+
+  #debug-tools[open] {
+    position: absolute;
+    top: max(4px, env(safe-area-inset-top));
+    left: max(4px, env(safe-area-inset-left));
+    z-index: 20;
+    width: calc(100vw - 8px);
+    max-height: calc(var(--app-height, 100dvh) - 8px);
+    overflow: auto;
+    padding: 0 4px 8px;
+    border-radius: 8px;
+    background: rgb(17 29 36 / 96%);
+  }
+
+  #diagnostics {
+    max-height: 32vh;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 760px), (max-height: 520px) {
+  main {
+    padding:
+      max(4px, env(safe-area-inset-top))
+      max(4px, env(safe-area-inset-right))
+      max(4px, env(safe-area-inset-bottom))
+      max(4px, env(safe-area-inset-left));
+  }
+
+  #game-shell {
+    width: min(
+      calc(100vw - 8px),
+      calc((var(--app-height, 100dvh) - 36px) * 1.724137931)
+    );
+    height: min(
+      calc((100vw - 8px) * 0.58),
+      calc(var(--app-height, 100dvh) - 36px)
+    );
+    min-width: 0;
+    min-height: 0;
+  }
 }
 
 #debug-tools summary {

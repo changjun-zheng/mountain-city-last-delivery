@@ -8,6 +8,11 @@ import type { FirstLevelMatterDiagnostics } from '../../physics/matter/first-lev
 import type { FirstLevelRuntimeSnapshot } from '../../core/first-level';
 import { bindVisibilityPause } from './visibility';
 import { bindPlayerInput } from './player-input';
+import {
+  bindTouchControls,
+  type TouchControlsBinding,
+} from './touch-controls';
+import { runtimeUuidProvider } from './runtime-uuid';
 import './style.css';
 
 const parent = document.querySelector<HTMLElement>('#game');
@@ -26,16 +31,27 @@ const recoveryRetry = document.querySelector<HTMLButtonElement>('#recovery-retry
 const recoveryTitleButton = document.querySelector<HTMLButtonElement>('#recovery-title');
 const recoveryTitlePanel = document.querySelector<HTMLElement>('#recovery-title-panel');
 const recoveryReturn = document.querySelector<HTMLButtonElement>('#recovery-return');
+const touchRoot = document.querySelector<HTMLElement>('#touch-prototype');
+const touchControls = document.querySelector<HTMLElement>('#touch-controls');
+const touchNotice = document.querySelector<HTMLElement>('#touch-orientation-notice');
+const touchToggle = document.querySelector<HTMLButtonElement>('#touch-toggle');
+const touchPause = document.querySelector<HTMLButtonElement>('#touch-pause');
+const touchMenu = document.querySelector<HTMLElement>('#touch-pause-menu');
+const touchContinue = document.querySelector<HTMLButtonElement>('#touch-continue');
+const touchCloseDialogue = document.querySelector<HTMLButtonElement>('#touch-close-dialogue');
 if (!parent || !restart || !error || !diagnostics || !debugTools || !sceneSelect || !reset ||
     !recoveryErrorPanel || !recoveryErrorSummary || !recoveryErrorStage ||
     !recoveryErrorCheckpoint || !recoveryErrorDiagnostics || !recoveryRetry ||
-    !recoveryTitleButton || !recoveryTitlePanel || !recoveryReturn) {
+    !recoveryTitleButton || !recoveryTitlePanel || !recoveryReturn ||
+    !touchRoot || !touchControls || !touchNotice || !touchToggle ||
+    !touchPause || !touchMenu || !touchContinue || !touchCloseDialogue) {
   throw new Error('Missing Web host elements.');
 }
 
 let destroy: (() => Promise<void>) | undefined;
 let core: GameCore | GrayboxCore | undefined;
 let unbind = () => {};
+let touchBinding: TouchControlsBinding | undefined;
 type RuntimeDiagnostics =
   | MatterGrayboxDiagnostics
   | FirstLevelMatterDiagnostics;
@@ -575,6 +591,13 @@ const showDiagnostics = (diagnosticsState?: RuntimeDiagnostics) => {
     paused: String(sample.paused), tokens: String(sample.pauseCount),
     steps: String(sample.stepsLastFrame), discarded: String(sample.discardedMs),
     debugVisible: String(debugVisible()),
+    touchEnabled: touchRoot.dataset.touchEnabled ?? 'false',
+    touchMenuOpen: touchRoot.dataset.menuOpen ?? 'false',
+    touchInteractionActive: touchRoot.dataset.interactionActive ?? 'false',
+    touchPointerMode: touchRoot.dataset.pointerMode ?? '',
+    touchSources: touchRoot.dataset.touchSources ?? '',
+    touchPauseClickCount: touchRoot.dataset.pauseClickCount ?? '',
+    touchLastPauseResult: touchRoot.dataset.lastPauseResult ?? '',
   });
   parent.dataset.debugVisible = String(debugVisible());
   parent.dataset.scene = mode;
@@ -582,8 +605,29 @@ const showDiagnostics = (diagnosticsState?: RuntimeDiagnostics) => {
 const wire = (next: GameCore | GrayboxCore) => {
   core = next;
   const visibility = bindVisibilityPause(next.lifecycle, showDiagnostics);
-  const input = 'key' in next ? bindPlayerInput(next, showDiagnostics) : () => {};
-  unbind = () => { input(); visibility(); };
+  const input = 'key' in next ? bindPlayerInput(next, showDiagnostics) : undefined;
+  const touch = input && 'key' in next
+    ? bindTouchControls({
+      root: touchRoot,
+      controls: touchControls,
+      notice: touchNotice,
+      toggle: touchToggle,
+      pause: touchPause,
+      menu: touchMenu,
+      continueButton: touchContinue,
+      closeDialogue: touchCloseDialogue,
+      input,
+      core: next,
+      changed: showDiagnostics,
+    })
+    : undefined;
+  touchBinding = touch;
+  unbind = () => {
+    touch?.dispose();
+    touchBinding = undefined;
+    input?.dispose();
+    visibility();
+  };
   showDiagnostics();
 };
 const launchParameters = new URLSearchParams(window.location.search);
@@ -594,6 +638,16 @@ const recoveryFaultScenario =
   launchParameters.get('recoveryFault') === 'd11-a3-suite'
     ? 'd11-a3-suite' as const
     : undefined;
+const uuidProvider = runtimeUuidProvider();
+const updateViewportHeight = () => {
+  document.documentElement.style.setProperty(
+    '--app-height',
+    `${window.visualViewport?.height ?? window.innerHeight}px`,
+  );
+};
+updateViewportHeight();
+window.addEventListener('resize', updateViewportHeight);
+window.visualViewport?.addEventListener('resize', updateViewportHeight);
 
 const launch = async () => {
   try {
@@ -606,7 +660,7 @@ const launch = async () => {
       parent,
       platform,
       () => performance.now(),
-      { generate: () => crypto.randomUUID() },
+      uuidProvider,
       wire,
       showDiagnostics,
       recoveryFaultScenario,
@@ -615,7 +669,7 @@ const launch = async () => {
       parent,
       platform,
       () => performance.now(),
-      { generate: () => crypto.randomUUID() },
+      uuidProvider,
       wire,
       showDiagnostics,
       debugVisible,
@@ -637,6 +691,8 @@ const reload = async () => {
   sceneSelect.disabled = true;
   unbind();
   await destroy?.();
+  window.removeEventListener('resize', updateViewportHeight);
+  window.visualViewport?.removeEventListener('resize', updateViewportHeight);
   // Phaser 3 keeps a document-level visibility listener after Game.destroy().
   window.location.reload();
 };
