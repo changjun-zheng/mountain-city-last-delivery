@@ -2438,3 +2438,34 @@ Work 对当前 dist 做一次独立 headed Google Chrome 156.0.8078.74 短实验
 [短实验报告](test-results/work-h5-01-r1-review-20261115/report.json)、[可重放程序](test-results/work-h5-01-r1-review-20261115/focus-and-cache-probe.mjs)、[输入专项日志](test-results/work-h5-01-r1-review-20261115/input-unit-review.log)均已保留。实验断言 PASS，Chrome／静态服务实际清理 PASS，页面错误 0。本轮没有修改应用源码或测试。
 
 当前下发 [H5-01-R2 诊断同步与证据收口](docs/DEVELOPMENT_ROADMAP.md#h5-01-r2-diagnostics)，只允许 main.ts 的诊断采样／回调接线及浏览器专项、README／路线图；保留 R1 输入修复，不重复试改核心或物理。H08 真机仍 NOT RUN，父项 BLOCKED；完成后 Work 审查再安排 C 区视觉切片，不自动继续。
+
+### 2026-11-15 H5-01-R2 实施结果
+
+状态为 `DONE（待 Work 审查）`，但父项 H5-01 仍为 `BLOCKED`：本轮修复和 Chrome 桌面／触屏模拟专项均通过，H08 所需的 Android Chrome、iOS Safari 真机仍为 `NOT RUN`。没有修改输入聚合器、PlayerMotor、物理、暂停、场景、HTML／CSS 或 Electron。
+
+诊断同步缺陷来自两条投影链不同步：键盘输入变化已经通知 `showDiagnostics`，但诊断此前读取由触控层单独刷新的 `touchRoot.dataset.touchSources`。修复后 `showDiagnostics` 直接从当前 `PlayerInputBinding.aggregator.snapshot()` 读取一次只读快照，并用同一 JSON 更新 root 与 diagnostics；换实例或解绑时先清除 `activeInput`，旧实例不会被继续读取。
+
+| 检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| [修复前 Chrome 红测](test-results/h5-01/run-2026-11-15T10-53-23-780Z/report.json) | FAIL | 一次可信 `KeyD keyup` 后 `vx=0`、位置稳定，但 root／diagnostics 均仍为 `keyboard:KeyD`，在旧投影等待处超时；退出码 `1`。 |
+| `node --experimental-strip-types --test tests/h5-input.test.mjs` | PASS | `9/9`，0 fail、0 skipped，退出码 `0`。 |
+| `npm.cmd test` | PASS | 类型检查、Electron Main 编译及 `189/189`，0 fail、0 skipped，退出码 `0`。 |
+| `npm.cmd run build` | PASS | TypeScript 与 Vite 8.3.7 构建通过，退出码 `0`；仅有既有 bundle 体积警告。 |
+| [修复后 Chrome 专项](test-results/h5-01/run-2026-11-15T10-57-00-731Z/report.json) | PASS | 14 组具体检查全部通过，桌面 Chrome 与触屏模拟层为 PASS；退出码 `0`。 |
+| 清理 | PASS | 自有 desktop／mobile context、CDP 连接、Chrome 进程与静态服务均分别记录为 PASS。 |
+
+目标序列为“右触控＋KeyD → resize 终止触控，仅保留 `keyboard:KeyD` → 一次浏览器可信 `KeyD keyup`”。修复后 Tick `113→120` 时来源立即清空，但速度仍为 `220 px/s`；再推进至 Tick `128` 后 `vx=0`、x 为 `264.833`，Tick `135` 时位置仍为 `264.833`，随后一次新按下使 x 增至 `275.528`。这说明来源投影与物理减速分别按正确时序验证，未增加固定等待或放宽距离。
+
+Chrome 为 Google Chrome `156.0.8078.74`，运行 URL 为 `http://127.0.0.1:60718/`。当前截图：[触屏模拟总览](test-results/h5-01/run-2026-11-15T10-57-00-731Z/chrome-touch-emulation.png)、[混合来源前](test-results/h5-01/run-2026-11-15T10-57-00-731Z/chrome-touch-held-before-resize.png)、[触控终止后](test-results/h5-01/run-2026-11-15T10-57-00-731Z/chrome-touch-after-resize.png)。报告保留有界输入事件链、页面错误、非预期中断、源码／脚本／dist 哈希与分项清理。
+
+同版本关键指纹：`src/platform/web/main.ts` 为 `459F4237D85316A73A4F35C77D8FD13D21313FAFC2E205229D6B5EC2B8D2A600`；`tests/h5-input-browser.mjs` 为 `C27090EAE2169673ACDCB2A1F124326D661E839C79AC9785FD05FA54FDE908D0`；`dist/assets/index-C5kIrH2t.js` 为 `E21B9AF91EA601AE483BF5F5F26BED1F6D4BEBA9A08D239C504341F4C93C14DB`；报告 SHA-256 为 `A858D398427DD8EBD0790DE7C5FC69CD2E5E4A7E53B2FE4E5DE00B0877B8BDA7`。
+
+页面打开或触屏模拟通过不等于手机通过；DOM PointerEvent 注入也不是系统原生取消。Android／iOS 真机、完整手机整关与最终双设备验收仍未执行。H5-02、D13、BRAND-01、MLV 未启动，Matter 仍不是最终物理选型。
+
+### 2026-11-15 Work 审查：H5-01-R2 当前范围收口
+
+本轮 GitHub main／origin/main／HEAD 一致为 fa20c6bb78192ab5980d872585ab0f7290f8e26f，开始时 R2 的 4 个未提交文件保留。Work 检查了 main.ts／浏览器专项的实际差异及修复前后报告：修复后 run-2026-11-15T10-57-00-731Z 的 14 项检查 PASS、13 项源码／脚本／产物哈希全部匹配，页面错误／非预期中断 0，实际清理各项 PASS；原失败记录不改写，修复前报告所含 Chrome 清理 FAIL 也原样保留。
+
+Work 本轮重新运行 npm.cmd test：189/189 PASS，0 fail、0 skipped，退出 0；[复验日志](test-results/work-h5-01-r2-review-unit-20261115.log)。未重新构建或运行浏览器，不把经哈希核对的开发浏览器证据称为本轮新执行。结论为 R2 当前 D01—D04 审查 PASS、DONE；H5-01 父项仍 BLOCKED，仅因 H08 至少一台真实手机尚未执行。
+
+下一独立开发任务已登记为 [H5-02：C 区可玩视觉切片与主角美术原型](docs/DEVELOPMENT_ROADMAP.md#h5-02-playable-visual-slice)。本轮 Work 仅维护审查与任务文档，没有改美术或应用源码，不把任务下发当视觉成果完成；D13／BRAND-01／MLV 未启动，未 Commit／Push。

@@ -7,7 +7,10 @@ import type { MatterGrayboxDiagnostics } from '../../physics/matter/graybox-worl
 import type { FirstLevelMatterDiagnostics } from '../../physics/matter/first-level-world';
 import type { FirstLevelRuntimeSnapshot } from '../../core/first-level';
 import { bindVisibilityPause } from './visibility';
-import { bindPlayerInput } from './player-input';
+import {
+  bindPlayerInput,
+  type PlayerInputBinding,
+} from './player-input';
 import {
   bindTouchControls,
   type TouchControlsBinding,
@@ -52,6 +55,7 @@ let destroy: (() => Promise<void>) | undefined;
 let core: GameCore | GrayboxCore | undefined;
 let unbind = () => {};
 let touchBinding: TouchControlsBinding | undefined;
+let activeInput: PlayerInputBinding | undefined;
 type RuntimeDiagnostics =
   | MatterGrayboxDiagnostics
   | FirstLevelMatterDiagnostics;
@@ -67,6 +71,12 @@ reset.textContent = mode === 'first-level'
   ? '重置首关临时世界（R）'
   : '重置灰盒（R）';
 const showDiagnostics = (diagnosticsState?: RuntimeDiagnostics) => {
+  // The aggregator is the input truth. Keep the root projection current even
+  // when only the keyboard changes and the touch layer has no reason to refresh.
+  const sourcesJson = activeInput
+    ? JSON.stringify(activeInput.aggregator.snapshot())
+    : '{}';
+  touchRoot.dataset.touchSources = sourcesJson;
   if (!core) return;
   if (diagnosticsState) lastRuntimeDiagnostics = diagnosticsState;
   const runtimeDiagnostics = diagnosticsState ?? lastRuntimeDiagnostics;
@@ -595,7 +605,7 @@ const showDiagnostics = (diagnosticsState?: RuntimeDiagnostics) => {
     touchMenuOpen: touchRoot.dataset.menuOpen ?? 'false',
     touchInteractionActive: touchRoot.dataset.interactionActive ?? 'false',
     touchPointerMode: touchRoot.dataset.pointerMode ?? '',
-    touchSources: touchRoot.dataset.touchSources ?? '',
+    touchSources: sourcesJson,
     touchPauseClickCount: touchRoot.dataset.pauseClickCount ?? '',
     touchLastPauseResult: touchRoot.dataset.lastPauseResult ?? '',
   });
@@ -606,6 +616,7 @@ const wire = (next: GameCore | GrayboxCore) => {
   core = next;
   const visibility = bindVisibilityPause(next.lifecycle, showDiagnostics);
   const input = 'key' in next ? bindPlayerInput(next, showDiagnostics) : undefined;
+  activeInput = input;
   const touch = input && 'key' in next
     ? bindTouchControls({
       root: touchRoot,
@@ -623,10 +634,12 @@ const wire = (next: GameCore | GrayboxCore) => {
     : undefined;
   touchBinding = touch;
   unbind = () => {
+    activeInput = undefined;
     touch?.dispose();
     touchBinding = undefined;
     input?.dispose();
     visibility();
+    showDiagnostics();
   };
   showDiagnostics();
 };

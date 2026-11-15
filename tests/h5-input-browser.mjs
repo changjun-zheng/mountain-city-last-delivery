@@ -37,7 +37,7 @@ await mkdir(evidenceDir, { recursive: true });
 const report = {
   task: TASK,
   scope: SCOPE,
-  subtask: 'H5-01-R1',
+  subtask: 'H5-01-R2',
   command: [process.execPath, ...process.argv.slice(1)],
   startedAt: new Date().toISOString(),
   browser: {
@@ -57,7 +57,14 @@ const report = {
   timeline: [],
   pageErrors: [],
   interruptions: [],
-  cleanup: { status: 'NOT RUN' },
+  cleanup: {
+    status: 'NOT RUN',
+    desktopContext: 'NOT RUN',
+    mobileContext: 'NOT RUN',
+    browserConnection: 'NOT RUN',
+    chromeProcess: 'NOT RUN',
+    server: 'NOT RUN',
+  },
 };
 
 const mimeTypes = Object.freeze({
@@ -100,6 +107,30 @@ const hash = async path => createHash('sha256')
   .update(await readFile(path))
   .digest('hex')
   .toUpperCase();
+const collectHashes = async () => {
+  const hashes = {};
+  for (const path of [
+    'src/platform/web/input-sources.ts',
+    'src/platform/web/player-input.ts',
+    'src/platform/web/touch-controls.ts',
+    'src/platform/web/runtime-uuid.ts',
+    'src/platform/web/main.ts',
+    'src/platform/web/style.css',
+    'src/rendering/phaser/first-level.ts',
+    'index.html',
+    'tests/h5-input.test.mjs',
+    'tests/h5-input-browser.mjs',
+    'dist/index.html',
+  ]) hashes[path] = await hash(path);
+  const html = await readFile(resolve('dist/index.html'), 'utf8');
+  const assets = [...html.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g)]
+    .map(match => match[1]);
+  for (const asset of assets) {
+    const path = resolve('dist', asset.replace(/^\//, ''));
+    hashes[`dist/${asset.replace(/^\/assets\//, 'assets/')}`] = await hash(path);
+  }
+  return hashes;
+};
 const screenshot = async (page, name) => {
   const path = join(evidenceDir, `${name}.png`);
   await page.screenshot({ path, fullPage: false });
@@ -129,6 +160,41 @@ const waitRunning = async page => {
       document.querySelector('#restart')?.disabled === false;
   }, undefined, { timeout: 20000, polling: 100 });
 };
+const installInputEvidence = async page => {
+  await page.addInitScript(() => {
+    window.__h5InputEvidence = [];
+    const record = event => {
+      const data = document.querySelector('#diagnostics')?.dataset;
+      if (!data) return;
+      window.__h5InputEvidence.push({
+        at: performance.now(),
+        type: event.type,
+        code: event.code,
+        key: event.key,
+        repeat: event.repeat,
+        isTrusted: event.isTrusted,
+        focused: document.hasFocus(),
+        visibility: document.visibilityState,
+        tick: Number(data.tick),
+        x: Number(data.x),
+        vx: Number(data.vx),
+        rootSources: JSON.parse(
+          document.querySelector('#touch-prototype')?.dataset.touchSources || '{}',
+        ),
+        diagnosticSources: JSON.parse(data.touchSources || '{}'),
+      });
+      if (window.__h5InputEvidence.length > 200) {
+        window.__h5InputEvidence.shift();
+      }
+    };
+    for (const type of [
+      'keydown', 'keyup', 'focus', 'blur', 'resize', 'orientationchange',
+    ]) window.addEventListener(type, record, true);
+    document.addEventListener('visibilitychange', record, true);
+  });
+};
+const readInputEvidence = page => page.evaluate(() =>
+  window.__h5InputEvidence ?? []);
 const pointer = async (page, selector, type, pointerId = 1) => {
   const box = await page.locator(selector).boundingBox();
   assert.ok(box, `${selector} must be visible`);
@@ -155,7 +221,11 @@ const pointer = async (page, selector, type, pointerId = 1) => {
 
 let chromeProcess;
 let browserConnection;
+let desktopContext;
+let mobileContext;
+let evidencePage;
 try {
+  report.hashes = await collectHashes();
   const profile = join(evidenceDir, 'chrome-profile');
   await mkdir(profile);
   const launchArgs = [
@@ -196,9 +266,11 @@ try {
   report.browser.actual = identifyBrowser(version);
   assert.equal(report.browser.actual.brand, 'Google Chrome');
 
-  const desktopContext = browserConnection.contexts()[0];
+  desktopContext = browserConnection.contexts()[0];
   const desktopPage = desktopContext.pages()[0] ??
     await desktopContext.waitForEvent('page');
+  evidencePage = desktopPage;
+  await installInputEvidence(desktopPage);
   desktopPage.on('pageerror', error => report.pageErrors.push(error.message));
   desktopPage.on('crash', () => report.interruptions.push('desktop-page-crash'));
   await desktopPage.goto(baseURL, { waitUntil: 'networkidle' });
@@ -559,13 +631,15 @@ try {
     resumedState,
   });
 
-  const mobileContext = await browserConnection.newContext({
+  mobileContext = await browserConnection.newContext({
     viewport: { width: 844, height: 390 },
     deviceScaleFactor: 2.625,
     isMobile: true,
     hasTouch: true,
   });
   const mobilePage = await mobileContext.newPage();
+  evidencePage = mobilePage;
+  await installInputEvidence(mobilePage);
   mobilePage.on('pageerror', error => report.pageErrors.push(error.message));
   mobilePage.on('crash', () => report.interruptions.push('mobile-emulation-page-crash'));
   await mobilePage.goto(baseURL, { waitUntil: 'networkidle' });
@@ -591,7 +665,6 @@ try {
   report.mobileEmulationMetrics = mobileMetrics;
   report.mobileScreenshot = await screenshot(mobilePage, 'chrome-touch-emulation');
   record('H03/H06 Chrome touch emulation', 'PASS', mobileMetrics);
-  report.layers.chromeTouchEmulation = 'PASS';
 
   const interruptStartX = Number(
     await mobilePage.locator('#diagnostics').getAttribute('data-x'),
@@ -713,7 +786,11 @@ try {
     .evaluate(element => ({
       x: Number(element.dataset.x),
       vx: Number(element.dataset.vx),
-      sources: JSON.parse(element.dataset.touchSources || '{}'),
+      tick: Number(element.dataset.tick),
+      rootSources: JSON.parse(
+        document.querySelector('#touch-prototype')?.dataset.touchSources || '{}',
+      ),
+      diagnosticSources: JSON.parse(element.dataset.touchSources || '{}'),
     }));
   await mobilePage.waitForFunction(x =>
     Number(document.querySelector('#diagnostics')?.dataset.x) > x + 4,
@@ -723,26 +800,98 @@ try {
     document.visibilityState === 'visible' && document.hasFocus(),
   undefined, { timeout: 10000, polling: 100 });
   await mobilePage.keyboard.up('KeyD');
+  await mobilePage.waitForFunction(() => {
+    const rootSources = JSON.parse(
+      document.querySelector('#touch-prototype')?.dataset.touchSources || '{}',
+    );
+    const diagnosticSources = JSON.parse(
+      document.querySelector('#diagnostics')?.dataset.touchSources || '{}',
+    );
+    return rootSources.right?.length === 0 &&
+      diagnosticSources.right?.length === 0;
+  }, undefined, { timeout: 10000, polling: 100 });
   const mixedAfterKeyboardRelease = await mobilePage.waitForFunction(
     () => {
       const element = document.querySelector('#diagnostics');
-      const sources = JSON.parse(element?.dataset.touchSources || '{}');
-      if (sources.right?.length !== 0) return false;
+      const rootSources = JSON.parse(
+        document.querySelector('#touch-prototype')?.dataset.touchSources || '{}',
+      );
+      const diagnosticSources = JSON.parse(element?.dataset.touchSources || '{}');
+      if (
+        rootSources.right?.length !== 0 ||
+        diagnosticSources.right?.length !== 0
+      ) return false;
       return {
         x: Number(element?.dataset.x),
         vx: Number(element?.dataset.vx),
-        sources,
+        tick: Number(element?.dataset.tick),
+        rootSources,
+        diagnosticSources,
       };
     },
     undefined,
     { timeout: 10000, polling: 100 },
   ).then(handle => handle.jsonValue());
-  assert.deepEqual(mixedAfterResize.sources.right, ['keyboard:KeyD']);
+  await mobilePage.waitForFunction(startTick => {
+    const data = document.querySelector('#diagnostics')?.dataset;
+    return Number(data?.tick) > startTick && Math.abs(Number(data?.vx)) < 1;
+  }, mixedAfterKeyboardRelease.tick, { timeout: 10000, polling: 100 });
+  const mixedAfterDeceleration = await mobilePage.locator('#diagnostics')
+    .evaluate(element => ({
+      x: Number(element.dataset.x),
+      vx: Number(element.dataset.vx),
+      tick: Number(element.dataset.tick),
+      rootSources: JSON.parse(
+        document.querySelector('#touch-prototype')?.dataset.touchSources || '{}',
+      ),
+      diagnosticSources: JSON.parse(element.dataset.touchSources || '{}'),
+    }));
+  await mobilePage.waitForFunction(startTick =>
+    Number(document.querySelector('#diagnostics')?.dataset.tick) > startTick + 3,
+  mixedAfterDeceleration.tick, { timeout: 10000, polling: 100 });
+  const mixedStable = await mobilePage.locator('#diagnostics')
+    .evaluate(element => ({
+      x: Number(element.dataset.x),
+      vx: Number(element.dataset.vx),
+      tick: Number(element.dataset.tick),
+    }));
+  const mixedReinputStartX = mixedStable.x;
+  await mobilePage.keyboard.down('KeyD');
+  await mobilePage.waitForFunction(x =>
+    Number(document.querySelector('#diagnostics')?.dataset.x) > x + 4,
+  mixedReinputStartX, { timeout: 10000, polling: 100 });
+  await mobilePage.keyboard.up('KeyD');
+  await mobilePage.waitForFunction(() =>
+    JSON.parse(
+      document.querySelector('#diagnostics')?.dataset.touchSources || '{}',
+    ).right?.length === 0);
+  const mixedAfterReinput = await mobilePage.locator('#diagnostics')
+    .evaluate(element => ({
+      x: Number(element.dataset.x),
+      vx: Number(element.dataset.vx),
+      tick: Number(element.dataset.tick),
+      rootSources: JSON.parse(
+        document.querySelector('#touch-prototype')?.dataset.touchSources || '{}',
+      ),
+      diagnosticSources: JSON.parse(element.dataset.touchSources || '{}'),
+    }));
+  assert.deepEqual(mixedAfterResize.rootSources.right, ['keyboard:KeyD']);
+  assert.deepEqual(mixedAfterResize.diagnosticSources.right, ['keyboard:KeyD']);
   assert.ok(mixedAfterResize.vx > 200);
-  assert.deepEqual(mixedAfterKeyboardRelease.sources.right, []);
-  assert.ok(mixedAfterKeyboardRelease.vx < mixedAfterResize.vx,
-    'Keyboard release must begin the unchanged deceleration path');
-  record('H5-01-R1 R02/R03 held touch termination stops only its source',
+  assert.deepEqual(mixedAfterKeyboardRelease.rootSources.right, []);
+  assert.deepEqual(mixedAfterKeyboardRelease.diagnosticSources.right, []);
+  assert.ok(mixedAfterDeceleration.tick > mixedAfterResize.tick);
+  assert.ok(Math.abs(mixedAfterDeceleration.vx) < 1,
+    'Keyboard release must decelerate through the unchanged physics path');
+  assert.ok(mixedStable.tick > mixedAfterDeceleration.tick);
+  assert.ok(Math.abs(mixedStable.x - mixedAfterDeceleration.x) < 0.1,
+    'The player must remain stable after deceleration');
+  assert.ok(mixedAfterReinput.x > mixedStable.x + 4,
+    'A fresh real keyboard press must work once');
+  assert.deepEqual(mixedAfterReinput.rootSources.right, []);
+  assert.deepEqual(mixedAfterReinput.diagnosticSources.right, []);
+  report.mixedInputEvidence = await readInputEvidence(mobilePage);
+  record('H5-01-R2 diagnostic sources follow the current input aggregator',
     'PASS', {
       touchHeldBeforeResize,
       touchAfterResize,
@@ -753,6 +902,9 @@ try {
       mixedStartX,
       mixedAfterResize,
       mixedAfterKeyboardRelease,
+      mixedAfterDeceleration,
+      mixedStable,
+      mixedAfterReinput,
     });
 
   const initialX = Number(await mobilePage.locator('#diagnostics').getAttribute('data-x'));
@@ -1103,53 +1255,151 @@ try {
   await mobilePage.keyboard.up('KeyD');
   await mobilePage.locator('#touch-toggle').click();
   record('H07 touch presentation toggle and keyboard retention', 'PASS');
+  report.layers.chromeTouchEmulation = 'PASS';
 
-  await mobileContext.close();
-  const hashes = {};
-  for (const path of [
-    'src/platform/web/input-sources.ts',
-    'src/platform/web/player-input.ts',
-    'src/platform/web/touch-controls.ts',
-    'src/platform/web/runtime-uuid.ts',
-    'src/platform/web/main.ts',
-    'src/platform/web/style.css',
-    'src/rendering/phaser/first-level.ts',
-    'index.html',
-    'tests/h5-input.test.mjs',
-    'tests/h5-input-browser.mjs',
-    'dist/index.html',
-  ]) hashes[path] = await hash(path);
-  const html = await readFile(resolve('dist/index.html'), 'utf8');
-  const assets = [...html.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g)]
-    .map(match => match[1]);
-  for (const asset of assets) {
-    const path = resolve('dist', asset.replace(/^\//, ''));
-    hashes[`dist/${asset.replace(/^\/assets\//, 'assets/')}`] = await hash(path);
-  }
-  report.hashes = hashes;
-  report.cleanup.status = 'PASS';
-  await desktopContext.close();
 } catch (error) {
   report.failure = {
     message: String(error),
     stack: error instanceof Error ? error.stack : undefined,
   };
+  if (evidencePage && !evidencePage.isClosed()) {
+    try {
+      report.failureScreenshot =
+        await screenshot(evidencePage, 'failure-state');
+      report.failureState = await evidencePage.evaluate(() => {
+        const data = document.querySelector('#diagnostics')?.dataset;
+        return {
+          focused: document.hasFocus(),
+          visibility: document.visibilityState,
+          tick: data?.tick,
+          x: data?.x,
+          vx: data?.vx,
+          paused: data?.paused,
+          rootSources: JSON.parse(
+            document.querySelector('#touch-prototype')?.dataset.touchSources || '{}',
+          ),
+          diagnosticSources: JSON.parse(data?.touchSources || '{}'),
+        };
+      });
+      report.failureInputEvidence = await readInputEvidence(evidencePage);
+    } catch (evidenceError) {
+      report.failureEvidenceError = String(evidenceError);
+    }
+  }
   record('H5-01 browser verification', 'FAIL', report.failure);
 } finally {
-  try { await browserConnection?.close(); } catch { /* owned connection */ }
-  if (chromeProcess && chromeProcess.exitCode === null) {
-    chromeProcess.kill();
-    await new Promise(done => {
-      const timer = setTimeout(done, 3000);
-      chromeProcess.once('exit', () => {
-        clearTimeout(timer);
-        done();
-      });
-    });
+  if (mobileContext) {
+    try {
+      await mobileContext.close();
+      report.cleanup.mobileContext = 'PASS';
+    } catch (error) {
+      report.cleanup.mobileContext = 'FAIL';
+      report.cleanup.mobileContextError = String(error);
+    }
+    mobileContext = undefined;
   }
-  await new Promise(done => server.close(done));
+  if (desktopContext) {
+    try {
+      await desktopContext.close();
+      report.cleanup.desktopContext = 'PASS';
+    } catch (error) {
+      report.cleanup.desktopContext = 'FAIL';
+      report.cleanup.desktopContextError = String(error);
+    }
+    desktopContext = undefined;
+  }
+  if (browserConnection) {
+    try {
+      await browserConnection.close();
+      report.cleanup.browserConnection = 'PASS';
+    } catch (error) {
+      report.cleanup.browserConnection = 'FAIL';
+      report.cleanup.browserConnectionError = String(error);
+    }
+    browserConnection = undefined;
+  }
+  if (chromeProcess) {
+    try {
+      report.cleanup.chromePid = chromeProcess.pid;
+      report.cleanup.chromeArgs = report.browser.args;
+      if (chromeProcess.exitCode === null) {
+        chromeProcess.kill();
+        await new Promise(done => {
+          const timer = setTimeout(done, 3000);
+          chromeProcess.once('exit', () => {
+            clearTimeout(timer);
+            done();
+          });
+        });
+      }
+      let processAlive = true;
+      try {
+        process.kill(chromeProcess.pid, 0);
+      } catch (error) {
+        processAlive = error?.code !== 'ESRCH';
+      }
+      if (
+        chromeProcess.exitCode === null &&
+        chromeProcess.signalCode === null &&
+        processAlive
+      ) {
+        report.cleanup.chromeProcess = 'FAIL';
+        report.cleanup.chromeProcessError = 'Owned Chrome process did not exit.';
+        if (process.platform === 'win32') {
+          const { execFileSync } = await import('node:child_process');
+          try {
+            execFileSync('taskkill', [
+              '/PID', String(chromeProcess.pid), '/T', '/F',
+            ], { stdio: 'ignore' });
+            await new Promise(done => setTimeout(done, 500));
+            try {
+              process.kill(chromeProcess.pid, 0);
+            } catch (error) {
+              if (error?.code === 'ESRCH') {
+                processAlive = false;
+                report.cleanup.chromeForcedTermination = 'PASS';
+              }
+            }
+          } catch (error) {
+            report.cleanup.chromeForcedTermination = 'FAIL';
+            report.cleanup.chromeForcedTerminationError = String(error);
+          }
+        }
+      } else {
+        report.cleanup.chromeProcess = 'PASS';
+        report.cleanup.chromeExitCode = chromeProcess.exitCode;
+        report.cleanup.chromeSignalCode = chromeProcess.signalCode;
+        report.cleanup.chromeProcessAlive = processAlive;
+      }
+    } catch (error) {
+      report.cleanup.chromeProcess = 'FAIL';
+      report.cleanup.chromeProcessError = String(error);
+    }
+    chromeProcess = undefined;
+  }
+  try {
+    await new Promise(done => server.close(done));
+    report.cleanup.server = 'PASS';
+  } catch (error) {
+    report.cleanup.server = 'FAIL';
+    report.cleanup.serverError = String(error);
+  }
+  const cleanupValues = Object.entries(report.cleanup)
+    .filter(([key]) =>
+      [
+        'desktopContext',
+        'mobileContext',
+        'browserConnection',
+        'chromeProcess',
+        'server',
+      ].includes(key))
+    .map(([, value]) => value);
+  report.cleanup.status = cleanupValues.every(value => value === 'PASS')
+    ? 'PASS'
+    : 'FAIL';
   report.finishedAt = new Date().toISOString();
-  report.status = report.failure ? 'FAIL' : 'PASS';
+  report.status =
+    report.failure || report.cleanup.status === 'FAIL' ? 'FAIL' : 'PASS';
   report.functionalAcceptance = 'BLOCKED';
   report.functionalAcceptanceReason =
     'H08 requires a real phone; emulation is not a device PASS.';
@@ -1159,5 +1409,5 @@ try {
   );
   console.log('Evidence:', evidenceDir);
   console.log(report.status, TASK, SCOPE);
-  if (report.failure) process.exitCode = 1;
+  if (report.status === 'FAIL') process.exitCode = 1;
 }
