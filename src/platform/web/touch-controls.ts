@@ -53,7 +53,11 @@ export function bindTouchControls(options: TouchControlOptions): TouchControlsBi
     core,
     changed,
   } = options;
-  const activePointers = new Map<number, { action: GameAction; generation: number }>();
+  const activePointers = new Map<number, {
+    action: GameAction;
+    generation: number;
+    target: HTMLElement;
+  }>();
   const menuOwner = Symbol('prototype-menu-owner');
   let menuKey: PauseRequestKey = Symbol('prototype-menu-request');
   let menuToken: PauseToken | undefined;
@@ -94,6 +98,10 @@ export function bindTouchControls(options: TouchControlOptions): TouchControlsBi
     const record = activePointers.get(pointerId);
     if (!record) return;
     activePointers.delete(pointerId);
+    record.target.dataset.active = 'false';
+    try {
+      record.target.releasePointerCapture(pointerId);
+    } catch { /* synthetic events may not own capture */ }
     input.pointerCancel(
       record.action,
       pointerId,
@@ -103,16 +111,9 @@ export function bindTouchControls(options: TouchControlOptions): TouchControlsBi
   };
 
   const releaseAllPointers = (emitEdges: boolean) => {
-    if (emitEdges) {
-      for (const [pointerId, record] of activePointers) {
-        input.pointerCancel(record.action, pointerId, record.generation, true);
-      }
-    } else {
-      for (const [pointerId, record] of activePointers) {
-        input.pointerCancel(record.action, pointerId, record.generation, false);
-      }
+    for (const pointerId of [...activePointers.keys()]) {
+      releasePointer(pointerId, emitEdges);
     }
-    activePointers.clear();
   };
 
   const pointerDown = (event: PointerEvent) => {
@@ -125,7 +126,11 @@ export function bindTouchControls(options: TouchControlOptions): TouchControlsBi
     event.stopPropagation();
     const generation = input.aggregator.generation;
     if (!input.pointerDown(action, event.pointerId)) return;
-    activePointers.set(event.pointerId, { action, generation });
+    activePointers.set(event.pointerId, {
+      action,
+      generation,
+      target,
+    });
     try { target.setPointerCapture(event.pointerId); } catch { /* synthetic events may not capture */ }
     target.dataset.active = 'true';
     refresh();
@@ -137,8 +142,6 @@ export function bindTouchControls(options: TouchControlOptions): TouchControlsBi
     event.preventDefault();
     event.stopPropagation();
     releasePointer(event.pointerId, true);
-    target.dataset.active = 'false';
-    try { target.releasePointerCapture(event.pointerId); } catch { /* already released */ }
     refresh();
   };
 
@@ -150,8 +153,6 @@ export function bindTouchControls(options: TouchControlOptions): TouchControlsBi
     // pointercancel is the browser's authoritative termination of this touch.
     // Emit the matching release edge so a later genuine touch starts cleanly.
     releasePointer(event.pointerId, true);
-    target.dataset.active = 'false';
-    try { target.releasePointerCapture(event.pointerId); } catch { /* already released */ }
     refresh();
   };
   const pointerInterrupted = (event: PointerEvent) => {
@@ -162,7 +163,6 @@ export function bindTouchControls(options: TouchControlOptions): TouchControlsBi
     // The control no longer owns this action after leaving or losing capture.
     // End the action edge so a later genuine touch is usable immediately.
     releasePointer(event.pointerId, true);
-    target.dataset.active = 'false';
     refresh();
   };
 
@@ -230,7 +230,7 @@ export function bindTouchControls(options: TouchControlOptions): TouchControlsBi
   };
   const toggleClick = () => {
     enabled = !enabled;
-    if (!enabled) releaseAllPointers(false);
+    if (!enabled) releaseAllPointers(true);
     refresh();
   };
   pause.addEventListener('click', pauseClick);
@@ -249,7 +249,7 @@ export function bindTouchControls(options: TouchControlOptions): TouchControlsBi
     refresh();
   };
   const onOrientation = () => {
-    releaseAllPointers(false);
+    releaseAllPointers(true);
     refresh();
   };
   document.addEventListener('visibilitychange', onVisibility);
@@ -266,13 +266,13 @@ export function bindTouchControls(options: TouchControlOptions): TouchControlsBi
     setEnabled(value: boolean) {
       if (disposed) return;
       enabled = value;
-      if (!enabled) releaseAllPointers(false);
+      if (!enabled) releaseAllPointers(true);
       refresh();
     },
     dispose(): void {
       if (disposed) return;
       disposed = true;
-      releaseAllPointers(false);
+      releaseAllPointers(true);
       if (menuToken !== undefined) {
         core.lifecycle.release(menuOwner, menuToken);
         menuToken = undefined;

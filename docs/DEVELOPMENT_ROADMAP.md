@@ -10,9 +10,188 @@
 
 HISTORICAL：曾有开发窗口依路线图连续推进、完成后自行领取下一项的授权，保留历史来源；现已被最新三窗口单任务审查规则取代。旧任务中类似“可继续／连续执行”的文字不覆盖本页现行模式。完整职责与文档写入边界见 [AGENTS](../AGENTS.md#三个窗口的职责与交接现行)。
 
-## 2026-11-15 H5-01 任务卡：响应式画布与设备输入原型（现行）
+<a id="h5-01-r2-diagnostics"></a>
 
-状态：`BLOCKED（实现与当前版本 Chrome 自动化完成，H08 真机未执行；待 Work 审查）`。负责人已批准首个受限原型，开发窗口已按本卡实施。这只批准下列边界试制，不把横屏／UI 提案升级为 CONFIRMED，不批准 H5-02—05 或 D13。本任务卡及其提示词是现有 H5-01 的细化，不是新建任务或第二队列。
+## 2026-11-15 H5-01-R2：输入诊断同步与浏览器证据收口（当前实施任务）
+
+状态：READY。Work 已对 R1 停止报告进行独立短实验，确认输入来源诊断缓存滞后；本项不是授权继续盲目修输入算法。R1 历史 FAIL 报告及其 9/9 核心／平台 PASS 均保留，H5-01 父项仍 BLOCKED，H08 真机仍 NOT RUN。完成后等待 Work，不自动进入 H5-02、D13、BRAND-01 或 MLV。
+
+### Work 本轮审查与最小定位证据
+
+- GitHub main、origin/main、HEAD 一致为 ffcba95a611b9c92bee44efa507838d8b9828d2c；开始时已有 R1 的 7 个未提交文件，全部保留。本轮没有改源码或测试，也未 Commit／Push。
+- 报告 run-2026-11-15T10-28-04-255Z 的 SHA-256 与开发报告一致（4EA0B757983780BCBE8D32BC101F6296A84C2A1E9012A6B57541B6E0617AA116），5 项所报源码／测试哈希全部匹配。该报告没有 hashes 字段，cleanup=NOT RUN，8 项具体检查 PASS 后整体 FAIL；这些证据缺口不能当作应用残留输入或清理成功的证明。
+- 本轮重新执行 node --experimental-strip-types --test tests/h5-input.test.mjs：9/9 PASS，退出 0。[本轮输入专项日志](../test-results/work-h5-01-r1-review-20261115/input-unit-review.log)。未重新运行全量测试或构建，189/189 与构建 PASS 仍为开发窗口历史执行结果。
+- 独立短实验使用当前 dist、headed Google Chrome 156.0.8078.74、手机触屏模拟 context；键盘经浏览器 keyboard API，触控经明示 DOM PointerEvent 注入。不是手机真机、物理键盘手工验收或 CDP 原生多指事件覆盖。
+- [Work Chrome 短实验报告](../test-results/work-h5-01-r1-review-20261115/report.json)及[可重放程序](../test-results/work-h5-01-r1-review-20261115/focus-and-cache-probe.mjs)。脚本断言 PASS、退出 0，自有 Chrome 与静态服务清理均 PASS，页面错误 0；源码／当前 dist 哈希、浏览器版本、URL、事件时间线与截图均记录。
+
+短实验的混合来源序列：按住右触控＋KeyD → resize 终止触控、保留键盘 → Chrome focused／visible → 发送一次 KeyD keyup。
+
+| 观察点 | Tick | x / vx | root／diagnostics 显示的右移来源 |
+| --- | --- | --- | --- |
+| keyup 前 | 28 | 95.000 / 200 | keyboard:KeyD |
+| keyup 后停止 | 34 | 103.333 / 0 | 仍显示 keyboard:KeyD |
+| 又推进 13 Tick | 47 | 103.333 / 0 | 仍显示 keyboard:KeyD |
+| 无额外松键，仅触发无活动指针的界面 resize 刷新 | 49 | 103.333 / 0 | 空 |
+
+事件记录证明该序列收到一次 isTrusted=true 的 KeyD keyup；玩家已停止且位置稳定，UI-only 刷新即可读出空来源。确认当前存在诊断刷新缺陷，可解释来源断言超时；原失败报告缺少完整键事件链，不能追溯宣称原次一定只有这一原因。
+
+根因路径：input-sources.ts 的 onChange 调 showDiagnostics，但 main.ts 的诊断来源取自 touchRoot.dataset.touchSources；该 dataset 只在 touch-controls.ts.refresh() 时更新，键盘变化不保证调用该刷新。测试在等待一份陈旧投影，并未直接证明聚合器仍持有键盘。
+
+### 最小实施范围与白名单
+
+目标：每次输入来源变化后，DOM 诊断与当前运行实例聚合器一致；键盘松键无需再次点击／旋转／调整窗口即可显示已释放；保留 R1 输入修复，完善失败也能核对的版本与清理报告。
+
+| 文件 | 允许改动 |
+| --- | --- |
+| src/platform/web/main.ts | 仅诊断数据采样／回调接线：从当前有效 PlayerInputBinding 的聚合器读取实时只读快照，必要时同步 touchRoot 与 diagnostics；处理未装配／销毁／换实例时的引用归属，不改变输入行为或场景启动顺序。 |
+| tests/h5-input-browser.mjs | 新增诊断同步断言、按实际 Tick 等待减速、有限事件日志、前置哈希与 finally 清理／分层结果记录；保留原功能和失败判定，不绕过混合来源分支。 |
+| README.md、docs/DEVELOPMENT_ROADMAP.md | 追加本任务实际差异、运行截图／证据、版本、失败与未覆盖项；不改旧报告或正式设计。 |
+
+明确不修改 input-sources.ts、player-input.ts、touch-controls.ts 的 R1 实现，也不改 core、physics、PlayerMotor、暂停／恢复、visibility、UUID、HTML、CSS、Phaser 场景、Electron、配置、依赖、地图或品牌显示。不要新增输入／订阅框架。若最小实现确需名单外文件，先给 Work 具体原因与差异，不自行扩围。
+
+### 实施步骤与验收 D01—D04
+
+1. D01 诊断同步：优先在现有输入变化通知与 showDiagnostics 接线处读取当前聚合器快照，不将 DOM 缓存当活动输入真相。root 与 diagnostics 从同一次有效采样同步；旧绑定已销毁或新实例尚未完成装配时不读取旧运行来源，不引入回调递归或遗留引用。
+2. 先增加失败回归：一次 KeyD keyup 后，不能先点击触控按钮、调用 resize／focus 伪事件、额外发送 keyup 或手动写 dataset，再检查来源。修复前应稳定观察玩家停止但来源显示陈旧；修复后无需这些额外操作即可为空。保存先红证据，旧 Work 实验程序不改写。
+3. D02 行为与采样时序：来源清空与物理减速分别验证。keyup 当下可能尚未执行下一物理步，不能要求同一采样 vx 立刻降低；按实际 Tick 推进后验证原减速到 0、位置稳定，再次真实输入可用。禁止改物理、增加固定 sleep／timeout 或放宽距离来凑 PASS。
+4. D03 R1 回归：混合来源下触控终止仍保留 keyboard:KeyD，随后该真实 keyup 使实际动作和诊断都结束。继续覆盖已修复 Space／E 门槛、resize／关闭触控、别名、多指、菜单＋hidden、不自动跳跃／接取与再次操作。原 9 项输入及 189 项全量语义不删、不跳过。
+5. D04 证据准确性：执行功能前记录源码／脚本／dist 哈希，失败也保存，不能只在成功尾部才收集。保留具体 checks 的历史 PASS，设备层只有完成其声明范围才能 PASS，中途失败／未执行据实标 FAIL／NOT RUN，不因页面打开即把整个模拟层记为完成。
+6. 清理放 finally，分别记录任务自有 context／Chrome／静态服务的实际释放结果及错误；捕获异常不得静默写 PASS。cleanup=NOT RUN 不等于资源泄漏，但也不是已验证清理成功。无实测的失败清理分支单列未覆盖，不编造故障注入结果，不关闭用户浏览器／服务。
+7. 事件日志只在测试页面有界采集（code／type／repeat／isTrusted、focus／visibility、Tick、来源、vx／x），不新增玩家产品面板或运行时权限。原 pointer() 是 DOM 注入，须准确标注；不能把 isMobile／hasTouch 或模拟截图当手机／原生多指硬件验收。
+
+### 测试、交付与停止条件
+
+依次执行并记录退出码：
+
+- 修复前新增的诊断回归：FAIL（保留新报告，不覆盖 R1 FAIL）。
+- node --experimental-strip-types --test tests/h5-input.test.mjs：原 9/9 保持。
+- npm.cmd test：原 189 项语义保持。
+- npm.cmd run build。
+- node tests/h5-input-browser.mjs --browser=chrome --production：保留 task=H5-01 与原 scope，在 subtask／具体 checks 标明 H5-01-R2；完整执行后生成新目录。
+- git diff --check。
+
+至少交付同版本 Chrome 运行截图／入口，keyup 前后 Tick、vx／x、来源和可信事件日志，准确哈希、清理与设备层状态。真实 Android／iOS 未执行则继续 NOT RUN；H08 未通过不能把父项改成 DONE。不得为了本任务重跑 Electron 三端、启动 H5-02 或执行品牌迁移。
+
+只做一次有明确根因依据的最小修复与定向验证；若相同超时仍出现，立即保存新的事件链／物理状态／来源读数交 Work，不再用重复松键、刷新、加超时或循环重跑挑 PASS。名单外修改或正式规则冲突同样停止。完成后等待审查，不 Commit／Push／发布。
+
+后续安排：本项审查通过后，Work 再下发 C 区可玩视觉切片；H08 真实手机缺口单独跟踪，不因缺手机连续安排纯测试空转。
+
+### 交给 Codex 的执行提示词（本卡副本）
+
+执行《坡坎之间》H5-01-R2“输入诊断同步与浏览器证据收口”，只以本节 READY 卡为准。先检查最新 main／HEAD／git status、AGENTS、正式 PC-01／PC-02 与本节 Work 证据，保留现有 R1 的 7 个未提交文件。当前基线为 ffcba95；发现变化重新核对，不自动合并／回退。
+
+Work 已在 headed Chrome 证明：可信 KeyD keyup 后角色 vx=0 且位置稳定，root／diagnostics 的 touchSources 却陈旧，UI-only 刷新后才为空。保留 R1 输入算法，先补这个具体序列的失败回归，再只修 main.ts 的诊断采样与回调接线；不修改三个输入适配模块、核心或物理。禁止额外松键／点击／resize 来让断言通过。
+
+按 D01—D04 完善浏览器专项：来源与物理减速分开按实际 Tick 验证，保留混合来源与已修复行为；哈希提前记录，异常也有实际 finally 清理结果，模拟层与真机分开。白名单仅 main.ts 的诊断部分、h5-input-browser.mjs、README 和路线图。本节以外的 UI、输入框架、品牌、美术、配置均不实施。
+
+运行本节全部规定命令，交付先红后绿、真实 Chrome 截图／地址／事件与数值、源码和产物指纹。原报告保持 FAIL，R1／H5-01 是否收口交 Work；没有真机仍 H08 NOT RUN、父项 BLOCKED。相同超时再次出现便保留新的证据后停止，不连续重跑，不 Commit／Push／发布，不进入下一任务。
+
+
+<a id="h5-01-r1-input-interruptions"></a>
+
+## 2026-11-15 H5-01-R1：输入中断后的松键与触控终止修复（原交付，FAIL 保留；当前执行 R2）
+
+状态：`FAIL（核心／平台夹具修复完成；Chrome 混合来源分支未收口，待 Work 审查）`。由 Work 本轮审查发现并复现后下发；只修复 H5-01 输入缺陷，不进入 H5-02、BRAND-01、D13 或 MLV。父项 H5-01 继续 BLOCKED，原因包括 H08 真机缺证及本轮未收口的 Chrome 混合来源序列；修复通过也不自动满足 H08。
+
+### Work 审查结论与证据
+
+- 本轮 GitHub main、origin/main、HEAD 已更新且一致为 ffcba95a611b9c92bee44efa507838d8b9828d2c，开始时工作区干净。开发报告所用 d0c32c1 是实施起点，不是本轮审查 HEAD；本轮 Work 没有提交或同步改写 Git。
+- 原 run-2026-11-15T08-08-34-554Z 与后续 run-2026-11-15T08-40-32-451Z 各 12 项 PASS；两报告中 13 项源码／产物哈希均与本轮文件匹配。Android／iOS 仍 NOT RUN，原报告按原执行范围保留，不回写成 FAIL。
+- 本轮重新运行 npm.cmd test：186/186 PASS，0 fail、0 skipped，退出 0。没有重跑 Web 构建、Chrome 专项或任何真机。
+- 新增审查复现使用真实共享 core、原 PlayerMotor／InteractionController、首关 Matter World 与独立 Engine，DOM／窗口事件使用 EventTarget 夹具；这是核心／平台集成复现，不是 Chrome 或手机端到端。三次断言均 FAIL，复现程序退出 1。
+- [审查复现报告](../test-results/work-h5-01-review-20261115/report.json)、[可重放程序](../test-results/work-h5-01-review-20261115/reproduce-input-interruptions.mjs)。本轮证据按 ffcba95 及源码 SHA-256 记录，不改生产源码或历史测试。
+
+| 缺陷 | 当前代码及根因 | 实测结果／正确预期 |
+| --- | --- | --- |
+| R01 真实键盘松键被丢弃 | player-input.ts 的失焦路径调用 aggregator.cancelAll(false) 清空来源；后续 keyup 仅经 keyboardUp，已无该来源时不向原 core 传递有效释放。 | Space 松键后 needsRelease 仍 true；下一次按下后 jumps 保持 1→1。应在真实有效松键后解除门槛，下一次按下只跳一次；E 同路径也须回归。 |
+| R02 触控来源已空但核心仍按住 | touch-controls.ts 的 resize／orientation／关闭触控调用 releaseAllPointers(false)，只移除本层来源，不终止核心有效动作；这些路径没有 blur／hidden 的 setAvailable(false) 清理。 | 右移来源为 0，25 个实际 Tick 后 x=139→230.667，vx 仍约 220 px/s；resize 与 setEnabled(false) 均复现。应按原减速曲线停下，不要求瞬间位置不变。 |
+
+历史 H04 的旋转检查只核对 Runtime／进度未变；触控关闭检查在无按住指针时执行，未覆盖“按住中断”。来源聚合单测也没有验证清空来源后的真实核心状态。本轮将 H04、相关 H02／H07 中断子项记为 FAIL（仅新覆盖序列），原执行 PASS 不代表这些新序列已验收。
+
+### 目标、边界与白名单
+
+目标：真实键盘松键到达后下一次正常操作可用；旋转／resize／关闭触控／控件销毁后不粘移动或跳跃；其他仍有效来源不被误释放。共用原 core.key 和 PlayerMotor，不新增移动／跳跃算法，不用视觉或暂停掩盖残留输入。
+
+允许修改：
+
+| 文件 | 允许范围 |
+| --- | --- |
+| src/platform/web/input-sources.ts | 活动来源、有效动作边缘及有限的中断来源／代次记录，避免旧尾事件误释放新来源。 |
+| src/platform/web/player-input.ts | 键盘真实 keyup 与来源状态协调、触控中断入口；保留 PC-01／PC-02 和可用性边界。 |
+| src/platform/web/touch-controls.ts | 区分 blur／hidden 与触控主动终止，处理 resize／orientation／关闭／销毁及 pointer capture 和按下样式清理。 |
+| tests/h5-input.test.mjs | 先红后绿增加 R01／R02／R03；直接绑定适配器与真实核心验证，DOM 可用明示夹具。 |
+| tests/h5-input-browser.mjs | 在原生产 Chrome 专项补充真实键盘及按住中断用例，保留原检查与分层，不新增长平台入口。 |
+| README.md、docs/DEVELOPMENT_ROADMAP.md | 追加实际修复／命令／版本／截图与缺口，不改旧报告、正式设计或自行验收父项。 |
+
+禁止修改 src/core/**、src/physics/**、任何 Phaser 场景、index.html／CSS、UUID helper、visibility.ts、Electron、package／lock／构建配置、依赖和其他设计／资产。禁止借修复推进美术、菜单、横屏策略、改名或关卡内容。名单外确需修改先给 Work 具体差异，不自行扩围。
+
+### 实施与验收 R01—R03
+
+1. R01：Space 和 E 分别执行“有效按住 → blur／hidden → 真实 keyup → 回焦 → 新 keydown”，以及“回焦后才真实 keyup”顺序；真实释放必须在没有其他有效同动作来源时正确传达，下一次按下一次生效。不收到真实释放时，持续按住／repeat／旧事件不能绕过 PC-02。不得简单在 blur／hidden 无条件发 keyup，也不得所有 keyup 无条件转发而错误松开另一个指针或键盘别名。
+2. R02：在首关安全地面真实按住左／右触控，分别执行 resize、orientation、触控开关关闭、setEnabled(false)、控件销毁。只终止本控件持有的动作；没有其他来源时，原核心按原减速曲线归零，不持续跑动。跳跃／E 中断不在以后自动消费；触控关闭后键盘仍可操作。必须断言核心速度／位置与实际动作数，不能只看来源数组已清空或 Runtime 未变。
+3. R03：键盘＋触控同向、A＋← 别名、多指移动＋跳跃分别交错取消；触控终止不能释放仍有效的键盘。旧 pointerup／cancel／lost capture、重复销毁与复用 pointerId 不得影响新来源；解除本控件 capture 与按下样式，保留其他组件监听与 Token。
+4. 中断有两种语义：有效动作必须结束；真实松键证明与 PC-02 门槛仍由既有核心规则判断。允许最小平台侧状态记录，不新建输入框架；不得清核心私有状态、改物理参数、重建 Runtime、伪造全局失焦或随意释放 Pause Token 达到“停止”。
+5. 先加入失败回归并保存 FAIL，再最小修复。检查原菜单＋hidden 多 Owner、持 Space／E 恢复、NPC 只有正常完成才接取、短／长跳、cancel／lost capture 后新触摸、资源释放及 UUID 原测试仍通过。
+6. Chrome 必须验证按住中断：真实键盘通过浏览器键盘入口，触控可用 CDP 多指模拟；窗口尺寸变化与触控开关必须在动作持续时发生。恢复／重新输入先确认真实 focus／可用性，不通过强制持续重按补救。页面注入事件只标受控覆盖，模拟仍不算手机。
+
+### 必跑命令与证据
+
+- 修复前：原 node --experimental-strip-types --test tests/h5-input.test.mjs 追加 R01—R03 后应有对应 FAIL；保留先红输出，不削弱既有断言。
+- 修复后：node --experimental-strip-types --test tests/h5-input.test.mjs。
+- npm.cmd test（不加参数；原 186 项语义保持）。
+- npm.cmd run build。
+- node tests/h5-input-browser.mjs --browser=chrome --production。
+- git diff --check。
+
+Chrome 沿用 task=H5-01、scope=responsive-canvas-and-device-input，并在新检查／子任务字段中明确 H5-01-R1 的实际覆盖；不覆盖历史目录、不新增未实现参数或把旧平台长套件当本任务。记录当前 HEAD、工作区源码／构建哈希、运行 URL、设备层、指针／键盘顺序、sources、needsRelease、速度／跳跃／交互计数、Token 和清理结果。可重放的旧审查脚本不改写；修复后新报告单独保存。
+
+至少交付：真实 Chrome 的正常操作截图，以及按住中断前／后状态或短视频，证明角色停止且再次输入可用。H5-01-R1 的实现／模拟修复通过不等于手机通过；H08 无真机仍 NOT RUN，父项仍 BLOCKED。若已有真实设备，可按原 H08 补证，未具备则如实报告，不能建公开隧道、改防火墙／证书或自动发布。
+
+### 停止条件与交付
+
+同一缺陷两轮有效修复仍失败、必须改核心／暂停／物理／配置或正式规则、发现多窗口正在写相同文件时，保留最小复现与版本后交 Work；不盲目重跑挑选 PASS。完成后报告根因、最小差异、先红后绿证据、所有命令／退出码、Chrome 截图／入口／源码及产物指纹、真机与未覆盖项，等待 Work 审查，不 Commit／Push，不自动进入下一项。
+
+### H5-01-R1 原下发提示词（历史副本，当前勿重复执行）
+
+你负责《坡坎之间》H5-01-R1。只执行本节“输入中断后的松键与触控终止修复”READY 卡；先核对最新 main／HEAD／git status、AGENTS、正式 PC-01／PC-02、父 H5-01 原任务卡、本节 Work 复现报告和可重放程序。当前审查基线为 ffcba95，实施前若有变化重新核对，不自动合并或回退。
+
+按本节白名单先为 R01／R02／R03 增加失败回归，再最小修复。保留原 PlayerMotor／core.key／交互／暂停语义，分别处理真实键盘松键丢失和触控中断后核心仍 held 的问题；来源归零不等于有效动作已经结束。不要修改核心、物理、场景、CSS、HTML、UUID、visibility 或配置，不新增输入框架，不顺手执行改名或美术任务。
+
+运行本节规定的输入专项、npm.cmd test、Web 构建、生产 Chrome 专项和 diff 检查；保留原 186 项语义、旧 FAIL／PASS 证据。新 Chrome 检查必须在按住状态下 resize／关闭触控，并核对真实核心状态、混合来源与再次操作，不仅核对来源数组或 Runtime。记录修复前后的事件顺序、数值、截图、版本和报告哈希。
+
+逐层报告核心／平台夹具、Chrome 桌面、触屏模拟、Android／iOS 真机；没有真机仍 H08 NOT RUN，父项 BLOCKED。完成或达到停止条件后等 Work，不 Commit／Push／发布，不进入 H5-02、D13、BRAND-01 或 MLV。
+
+### 2026-11-15 H5-01-R1 实施记录
+
+实际基线 HEAD／origin/main 均为 `ffcba95a611b9c92bee44efa507838d8b9828d2c`；开始时保留 Work 对 README 与本任务卡的修改。先新增真实 core／Matter 与受控 DOM 夹具回归，修复前专项为 `6/9`，R01 真实 keyup 未解除门槛、R02 触控终止后仍以约 `220 px/s` 移动、R03 混合来源断言失败，日志保存在 `test-results/h5-01-r1-20261115/red-h5-input.log`。
+
+最小修复：
+
+- `InputSourceAggregator` 单独记录因失焦／隐藏而中断的 keyboard code，不在中断瞬间伪造 keyup；回焦后恢复来源身份，真实 Space／E keyup 只在没有其他同动作有效来源时提交一次释放，旧或重复 keyup 无效。
+- 触控 active pointer 记录 action、generation 和目标按钮；resize、orientation、关闭触控、`setEnabled(false)`、控件销毁通过原 pointer 释放入口提交本控件终止，并清理 capture、active 样式与自身记录。其他键盘／触控来源不被释放。
+- 没有修改 core、物理、场景、CSS、HTML、visibility、UUID、Electron、依赖或构建配置。
+
+验证结果：
+
+| 用例 | 状态 | 实际结果 |
+| --- | --- | --- |
+| R01 核心／平台夹具 | PASS | Space／E、blur／hidden、回焦前后真实 keyup 四种顺序均清除门槛；下一次按下只消费一次。专项修复后 `9/9`。 |
+| R02 核心／平台夹具 | PASS | resize、orientation、toggle、setEnabled、dispose 五种终止均使来源为空，25 Tick 后原减速至静止；再次触控可用。 |
+| R03 核心／平台夹具 | PASS | 键盘＋触控同向、A＋←、多指交错、旧指针代次、重复销毁和保留键盘来源均通过。 |
+| Chrome R01 | PASS | hidden 时 `tick=95`、`needsRelease=true`、`jumps=2`；真实 keyup 与回焦后为 false，下一次真实按下为 `jumps=3`。 |
+| Chrome resize／关闭触控 | PASS | 最终报告 resize 前 `x=91.667,vx=175,sources=pointer:0:71`；后 `x=131.000,vx=0,sources=[]`、active false。关闭触控专项在较早同脚本运行中通过。 |
+| Chrome 混合键盘＋触控 | FAIL | 触控终止后保留 `keyboard:KeyD`；页面重新激活并发送真实 `KeyD` keyup 后仍保留该来源，等待超时。核心夹具同序列通过，未继续重跑挑选 PASS。 |
+| 全量测试 | PASS | `npm.cmd test` 为 `189/189`，原 186 项保留，0 fail、0 skipped，退出码 0。 |
+| Web 构建 | PASS | `npm.cmd run build` 退出码 0；Vite 36 modules，仅既有 bundle 体积警告。 |
+
+最终生产 Chrome 报告为 `test-results/h5-01/run-2026-11-15T10-28-04-255Z/report.json`，页面错误与意外中断均为 0；报告仍为 FAIL，历史测试自身失败报告也保留。Chrome 版本 `156.0.8078.74`。混合来源分支根因尚未定位，不能归因于游戏缺陷或宣称 R03 三端通过。
+
+Android／iOS 真机仍 NOT RUN，H08 与父项 H5-01 保持 BLOCKED。当前只等待 Work 审查；不进入 H5-02、D13、BRAND-01 或 MLV，不 Commit／Push／发布。
+
+
+## 2026-11-15 H5-01 任务卡：响应式画布与设备输入原型（父项，原实施范围保留）
+
+状态：`BLOCKED（H5-01-R1 核心／平台夹具修复完成，Chrome 混合来源分支仍 FAIL；H08 真机未执行）`。历史实施及自动化证据保留；当前只审查上方 H5-01-R1，不重复实施父项原任务。负责人已批准首个受限原型，开发窗口已按本卡实施。这只批准下列边界试制，不把横屏／UI 提案升级为 CONFIRMED，不批准 H5-02—05 或 D13。本任务卡及其提示词是现有 H5-01 的细化，不是新建任务或第二队列。
 
 ### 目标、事实基线与非目标
 
@@ -119,7 +298,7 @@ tests/h5-input-browser.mjs 当前不存在，须在本任务中先实现再执�
 
 必须停止并报告：白名单内不能保持原协议、需改核心／碰撞／任务／已确认控制规则，需实施竖屏禁玩／方向强制暂停或 Esc 变更，需依赖／安全设置／公开发布，或同一问题两轮有效修复仍失败。提交最小复现／日志／版本，不扩为 MLV、换引擎或反复重跑挑 PASS。真实设备暂缺是验收缺口，不是安装新工具／伪造证据的理由。
 
-### H5-01 Codex 执行提示词（本卡交接副本）
+### H5-01 Codex 执行提示词（历史下发副本，当前勿重复执行）
 
 ~~~text
 项目：D:\Workspace\Code_Projects\mountain-city-last-delivery
@@ -253,7 +432,7 @@ H01—H09 的 PASS/FAIL/BLOCKED/NOT RUN、实际命令／退出码、源码与�
 | 顺序／编号 | 当前状态 | 范围／可见交付 | 边界与窗口建议 |
 | --- | --- | --- | --- |
 | H5-PLAN-01 | WAITING_DECISION | 合并范围／设备／UI／输入规划，负责人审查横屏方案和任务范围。 | 当前只文档；电脑／手机目标本身不再重复请求确认。 |
-| H5-01 | READY（受限原型，负责人转交执行；不冻结产品提案） | 响应式画布＋固定左右／跳跃／交互触控、必要对话关闭与简易暂停／继续；桌面与手机布局截图、按键／触控证据。 | 现有灰盒，不做正式美术／完整菜单；来源隔离、多指、短长跳和取消清理；11-16—17，1—2 天。 |
+| H5-01 | BLOCKED（R1 原报告 FAIL 保留；当前 H5-01-R2 READY，H08 真机 NOT RUN） | 响应式画布＋固定左右／跳跃／交互触控、必要对话关闭与简易暂停／继续；桌面与手机布局截图、按键／触控证据。 | 现有灰盒，不做正式美术／完整菜单；来源隔离、多指、短长跳和取消清理；11-16—17，1—2 天。 |
 | H5-02 | PLANNED（PROPOSED） | C 吊脚楼可玩视觉切片和统一角色；同一键盘／触屏输入，真实可操作。 | 原 H5-VIS-01 映射至此；不改碰撞、谜题或机关摆位；11-18—19。 |
 | H5-03 | PLANNED（PROPOSED） | 主菜单、HUD／E／手机动作提示、对话、暂停和完成／标题的双设备基础 UI。 | 原 H5-UI-01；不做完整日志／纪念册、不复制核心；11-20—21。 |
 | H5-04A | PLANNED（PROPOSED） | A 解放碑／街巷＋B 入口全景／游客／唯一线索的视觉推广。 | H5-04 阶段首个 1—2 天子任务，原 H5-VIS-02；11-22—23。 |
@@ -684,7 +863,7 @@ R1 未新增平台测试分支，未运行 GUI／三端长套件；V05-B、Chrom
 | 名称 | 当前中文项目名称为《坡坎之间》，英文名称未确定；旧工作名与旧正式名称表保留历史，正式发行名称尚未冻结。 |
 | 首关空间 | 方案 A 为 CONFIRMED，A 解放碑出生、C 下行、D 下层嘉陵江岸；不再待选方案。 |
 | 图 A／图 B | 两张原 PNG 已在 `2547b32` 归档；本轮格式／尺寸／哈希复核一致，原缺图 BLOCKED 为历史。按图制作与新空间验收仍 NOT RUN。 |
-| 下一建议 | H5-01 受限响应式／设备输入原型已准备为 READY，等待负责人转交；非阻断横屏建议、保留 Esc、独立按钮暂停，不决定竖屏豁免。后续 H5-02、D13 和 MLV 不启动。 |
+| 下一建议 | 当前仅执行 H5-01-R2（READY）：诊断来源同步及浏览器证据收口。R1 原 FAIL 保留，H08 真机 NOT RUN；通过后由 Work 安排 C 视觉切片，不自动启动其他任务。 |
 
 ### HISTORICAL：2026-11-12 初建基线
 
@@ -818,7 +997,7 @@ MLV-01 不在上表内改动 D13 的原任务、依赖或验收范围。其拆�
 
 ## 7. 当前任务与持续记录
 
-当前任务：H5-01 响应式画布与设备输入受限原型已实现并通过当前版本桌面 Chrome／触屏模拟自动化，状态为 `BLOCKED（H08 真机 NOT RUN，待 Work 审查）`。完整结果见文首实施记录；横屏豁免、全局 Esc 暂停和完整 UI 仍未确认且不在本卡实施；H5-02／D13／MLV 不启动。D12-A3 历史状态保持。
+当前任务：H5-01-R2 输入诊断同步与浏览器证据收口（READY），见文首。Work 在独立 Chrome 短实验确认可信松键后角色已停止、来源缓存滞后；R1 原报告 FAIL 与 9/9 夹具 PASS 保留，不重复试改输入算法。H08 真机 NOT RUN，父项 H5-01 保持 BLOCKED，其他开发未启动。
 
 当前实施范围：MLV-01A 的受限关卡描述、首关 Matter 适配器全生命周期配置化、无 DOM 物理装配、双布局真实 Matter 测试和 core／Body／Engine 终止已实现；没有接入 Phaser 测试地图或宿主。
 

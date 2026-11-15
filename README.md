@@ -2380,3 +2380,61 @@ V05-B 宿主监听、Chrome Web／Electron 开发版／独立包 GUI、平台长
 - R1 已确认并修复隐藏页面被 Tick 增长就绪条件误判的问题。更早的重启等待超时证据不足，仍未定位；不得仅凭回归通过认定同源或宣称长期稳定。
 - 历史 D01-R2 的 Chrome／Edge 定向曾因 blur 失败，当时完整三端 NOT RUN。后续 D01-R3 的 Chrome 三端已通过，旧根因和 Edge 兼容性未知项仍保留，不能据此宣称长期稳定性全面通过。
 - 当前 D12-A3 首关使用占位画面和 `TO_VALIDATE` 平台端点，已接入方案 A 的解放碑出生、沧白路入口、三层下行 C 与下层江岸 D，同时保留完成后接取的 NPC 交互、一个可试错单机关、真实升降平台和主动拍摄／分享完成条件；它不是正式美术、按图复刻、现实地理路线或最终叙事。任务和奖励仍只覆盖本切片；当前“永久”仅指页面运行内保留，页面刷新会创建新运行。D10 捕获与 D11 恢复继续只在调试灰盒中展示扩展原型，首关仅登记其初始备用快照，不代表正式检查点网络或跨会话存档。当前等待 Work 对 D12-A3 的审查，不自动进入 D13。
+
+### 2026-11-15 Work 审查补充：H5-01 输入中断缺口
+
+本轮审查基线为 ffcba95a611b9c92bee44efa507838d8b9828d2c，GitHub main／origin/main／HEAD 一致、开始时工作区干净；此前 d0c32c1 为开发实施起点。两份 Chrome 报告各 13 项源码／产物哈希均匹配当前文件，原 12 项 PASS 按原覆盖保留；本轮重新运行 npm.cmd test 为 186/186 PASS。未重跑构建、Chrome 或真机。
+
+Work 使用真实 core／PlayerMotor／首关 Matter 与受控 DOM EventTarget 夹具复现两类 FAIL：真实 Space keyup 在 blur 清空来源后未解除 needsRelease（下一次按下 jumps=1→1）；按住触控右移后 resize 或关闭触控，sources=0，但 25 个实际 Tick 后 x=139→230.667、vx 仍约 220 px/s。此为核心／平台集成复现，不是手机或 Chrome 端到端，不能由原模拟 PASS 覆盖。
+
+[审查复现报告](test-results/work-h5-01-review-20261115/report.json)及[复现程序](test-results/work-h5-01-review-20261115/reproduce-input-interruptions.mjs)保留当前 FAIL，程序退出 1；没有修改应用源码。当前只下发[H5-01-R1 最小修复任务](docs/DEVELOPMENT_ROADMAP.md#h5-01-r1-input-interruptions)，父项 H5-01 保持 BLOCKED，包含应用修复及 H08 真机缺证两类原因；Android／iOS 仍 NOT RUN。H5-02／D13／MLV／BRAND-01 未启动。
+
+### 2026-11-15 H5-01-R1 实施结果
+
+状态为 `FAIL（待 Work 审查）`，不把父项 H5-01 改为通过。核心／平台集成专项为 `9/9` PASS，先红记录为 `6/9` PASS、R01／R02／R03 三项 FAIL；全量 `npm.cmd test` 为 `189/189` PASS，原 186 项语义保留。`npm.cmd run build` PASS，生成 `dist/assets/index-CzHQvgUo.js` 与 `dist/assets/index-DZ_wJHKK.css`。
+
+修复实现只涉及三个输入适配文件：
+
+- 失焦／隐藏先暂停活动键盘来源，记录尚未收到真实松键的 keyboard code；回焦后恢复这些来源身份，使真实 Space／E keyup 能经原聚合器向 `core.key` 提交一次释放。键盘别名、触控来源和真实松键证明仍分别保留。
+- resize、orientation、关闭触控、`setEnabled(false)` 和控件销毁把本控件持有的 pointer 作为真实终止处理，发送本控件的释放边缘，解除 pointer capture 与 `data-active`。其他键盘或触控来源继续有效。
+- 未修改 `src/core/**`、`src/physics/**`、Phaser 场景、CSS、HTML、visibility、UUID、Electron、依赖或构建配置。
+
+修复前后证据与生产 Chrome 报告：
+
+| 证据 | 状态 | 实际结果 |
+| --- | --- | --- |
+| [修复前专项日志](test-results/h5-01-r1-20261115/red-h5-input.log) | FAIL | `6/9` PASS；真实 keyup 未清除门槛、触控终止后核心仍保持速度、混合来源回归失败。 |
+| [修复后专项日志](test-results/h5-01-r1-20261115/green-h5-input.log) | PASS | `9/9`；R01、R02、R03 全部通过，退出码 `0`。 |
+| `npm.cmd test` | PASS | `189/189`，0 fail、0 skipped，退出码 `0`。 |
+| `npm.cmd run build` | PASS | TypeScript 与 Vite 8.3.7 构建通过，退出码 `0`。 |
+| [Chrome 首轮测试变量笔误](test-results/h5-01/run-2026-11-15T10-24-09-914Z/report.json) | FAIL | 新增断言引用不存在的变量；R01 操作前测试自身报错，页面错误 `0`。 |
+| [Chrome R01 与 resize 证据](test-results/h5-01/run-2026-11-15T10-24-31-322Z/report.json) | FAIL | 前 8 组检查 PASS；resize 后来源为空且 `vx=0`，但测试没有给正常制动预留足够容差，后续未删除速度归零断言。 |
+| [Chrome 最终中断专项](test-results/h5-01/run-2026-11-15T10-28-04-255Z/report.json) | FAIL | R01、菜单／hidden 多 Owner、触控模拟等前 8 组 PASS；resize 后 `x=91.667→131.000`、`vx=175→0`、来源空、active false。随后混合键盘＋触控分支等待键盘释放超时，页面错误 `0`、非预期中断 `0`。 |
+
+最终 Chrome 报告使用 Google Chrome `156.0.8078.74`，运行 URL `http://127.0.0.1:49747/`。R01 中页面真实 hidden 后 Tick 保持 `95`、`needsRelease=true`、`jumps=2`；真实 keyup、回焦后为 `needsRelease=false`，下一次按下只增加至 `jumps=3`。截图为[按住触控、resize 前](test-results/h5-01/run-2026-11-15T10-28-04-255Z/chrome-touch-held-before-resize.png)与[resize 后停止](test-results/h5-01/run-2026-11-15T10-28-04-255Z/chrome-touch-after-resize.png)。
+
+当前未收口项是 Chrome 混合键盘＋触控用例：触控终止保留键盘来源的断言已经成立，但窗口 resize 后发送真实 `KeyD` keyup，来源仍保持 `keyboard:KeyD` 并超时。核心夹具 R03 已通过，因此当前证据支持“测试驱动／浏览器窗口焦点或事件送达仍待定位”，尚不足以断言应用无缺陷。按任务停止条件未继续重跑或削弱断言，也不把最终报告改写为 PASS。
+
+Android Chrome 与 iOS Safari 真机仍为 `NOT RUN`；H08 未通过，父项 H5-01 继续 `BLOCKED`。H5-02、D13、BRAND-01、MLV 未启动。Matter 仍只是验证候选。
+
+同版本源码／产物指纹：
+
+- `src/platform/web/input-sources.ts`：`6653E83685C3691678270A282E911B1CA95B29263AC942CB0247F4D9685634ED`。
+- `src/platform/web/player-input.ts`：`117E36EB34AD42AA92CD905A3EB26111FEAE798C273922F5C2ACCF70A95AAAA9`。
+- `src/platform/web/touch-controls.ts`：`5BB7607B9BC82F33BD47C7FA0A7E8C9F8015D8B49C069F735E95CC9E0F47C5ED`。
+- `tests/h5-input.test.mjs`：`D0B5614EBA0EBE960B76D98ADDC9AF8E94584DE99C5B7B436CCF82F5CA51356D`。
+- `tests/h5-input-browser.mjs`：`4726785D65AE203FB91B95326392952BEBECA9D07F4CE0C5000CA544C7D95639`。
+- `dist/assets/index-CzHQvgUo.js`：`81E6145966897AA495E282DC8131B32A3F9BDF452BF2EC826BC42D2A909CEDD6`。
+- `dist/assets/index-DZ_wJHKK.css`：`91F35A57112237855D16D892D04A384123ADAABD11B864690FE2DE614FC73107`。
+
+### 2026-11-15 Work 复审：R1 混合来源超时的诊断缓存缺陷
+
+审查基线为 ffcba95，开始时 R1 的 7 个修改文件保留。所报 5 项源码／测试哈希及最终 Chrome 报告哈希均匹配；原报告未记录 hashes，cleanup 为 NOT RUN，保留原 FAIL，不据此推断输入未释放或清理已验证。本轮重新运行输入专项 9/9 PASS；未重跑全量测试或构建。
+
+Work 对当前 dist 做一次独立 headed Google Chrome 156.0.8078.74 短实验：触控＋键盘右移后 resize，再发送一次浏览器可信 KeyD keyup；Tick 28 的 x=95、vx=200，Tick 34 已减速到 x=103.333、vx=0，随后 13 Tick 位置不变，但 root／diagnostics 来源仍显示 keyboard:KeyD。没有再发松键，仅触发无活动指针的 UI resize 刷新，来源即为空，Runtime 不变。
+
+原因路径为输入聚合器变化只调 showDiagnostics，而诊断又读取仅由触控 refresh 更新的 DOM 来源缓存。该短实验确认了目前的诊断滞后，可以解释对应断言超时；不能追溯宣称原 FAIL 的键事件一定送达。测试键盘经浏览器 API，触控是 DOM PointerEvent 注入，不是真机或原生触控硬件验证。
+
+[短实验报告](test-results/work-h5-01-r1-review-20261115/report.json)、[可重放程序](test-results/work-h5-01-r1-review-20261115/focus-and-cache-probe.mjs)、[输入专项日志](test-results/work-h5-01-r1-review-20261115/input-unit-review.log)均已保留。实验断言 PASS，Chrome／静态服务实际清理 PASS，页面错误 0。本轮没有修改应用源码或测试。
+
+当前下发 [H5-01-R2 诊断同步与证据收口](docs/DEVELOPMENT_ROADMAP.md#h5-01-r2-diagnostics)，只允许 main.ts 的诊断采样／回调接线及浏览器专项、README／路线图；保留 R1 输入修复，不重复试改核心或物理。H08 真机仍 NOT RUN，父项 BLOCKED；完成后 Work 审查再安排 C 区视觉切片，不自动继续。

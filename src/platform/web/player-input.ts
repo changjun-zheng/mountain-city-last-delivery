@@ -42,9 +42,12 @@ export function bindPlayerInput(
     if (!available) {
       // Input loss must not fabricate keyup: the original Space/E release
       // gates remain until the device reports a real release or new press.
-      aggregator.cancelAll(false);
+      // Keep the interrupted keyboard identities so that a later real keyup
+      // can clear those gates without releasing an unrelated active source.
+      aggregator.suspendAll();
       core.setAvailable(false);
     } else {
+      aggregator.restoreInterruptedKeyboards();
       core.setAvailable(true);
     }
     for (const listener of availabilityListeners) listener(available);
@@ -52,7 +55,7 @@ export function bindPlayerInput(
   };
   const clearStaleInputAfterVisibility = () => {
     if (document.visibilityState !== 'visible') return;
-    aggregator.cancelAll(false);
+    aggregator.restoreInterruptedKeyboards();
   };
 
   const keydown = (event: KeyboardEvent) => {

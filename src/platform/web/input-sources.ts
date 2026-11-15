@@ -43,6 +43,7 @@ export function codeForAction(action: GameAction): string {
 // effective count crosses zero, so releasing one alias never releases another.
 export class InputSourceAggregator {
   readonly #sources = new Map<GameAction, Map<string, InputSource>>();
+  readonly #interruptedKeyboards = new Map<GameAction, Set<string>>();
   readonly #sink: InputActionSink;
   readonly #onChange: () => void;
   #generation = 0;
@@ -55,6 +56,17 @@ export class InputSourceAggregator {
 
   get generation(): number {
     return this.#generation;
+  }
+
+  interruptedSnapshot(): Readonly<Record<GameAction, readonly string[]>> {
+    return Object.freeze(Object.fromEntries(
+      (Object.keys(ACTION_CODES) as GameAction[]).map(action => [
+        action,
+        Object.freeze(
+          [...(this.#interruptedKeyboards.get(action) ?? [])].sort(),
+        ),
+      ]),
+    )) as Readonly<Record<GameAction, readonly string[]>>;
   }
 
   pointerSource(pointerId: number): InputSource {
@@ -81,7 +93,23 @@ export class InputSourceAggregator {
   keyboardUp(code: string): boolean {
     const action = actionForKey(code);
     if (!action) return false;
-    return this.#release(action, Object.freeze({ kind: 'keyboard' as const, code }));
+    const source = Object.freeze({ kind: 'keyboard' as const, code });
+    const key = sourceKey(source);
+    const interruptedKey = code;
+    const sources = this.#sources.get(action);
+    const active = sources?.delete(key) === true;
+    const interruptedSources = this.#interruptedKeyboards.get(action);
+    const interrupted = interruptedSources?.delete(interruptedKey) === true;
+    if (interruptedSources?.size === 0) {
+      this.#interruptedKeyboards.delete(action);
+    }
+    if (!active && !interrupted) return false;
+    if (!active && interrupted && sources?.size) {
+      this.#onChange();
+      return true;
+    }
+    this.#settle(action);
+    return true;
   }
 
   pointerActionUp(
@@ -114,10 +142,47 @@ export class InputSourceAggregator {
   }
 
   cancelAll(emitEdges = true): void {
+    this.#interruptedKeyboards.clear();
     for (const action of Object.keys(ACTION_CODES) as GameAction[]) {
       this.#sources.delete(action);
       if (emitEdges) this.#sink(codeForAction(action), false, false);
     }
+    this.#onChange();
+  }
+
+  suspendAll(): void {
+    for (const [action, sources] of this.#sources) {
+      let interrupted = this.#interruptedKeyboards.get(action);
+      for (const source of sources.values()) {
+        if (source.kind !== 'keyboard') continue;
+        if (!interrupted) {
+          interrupted = new Set();
+          this.#interruptedKeyboards.set(action, interrupted);
+        }
+        interrupted.add(source.code);
+      }
+    }
+    for (const action of Object.keys(ACTION_CODES) as GameAction[]) {
+      this.#sources.delete(action);
+    }
+    this.#onChange();
+  }
+
+  restoreInterruptedKeyboards(): void {
+    for (const [action, interrupted] of this.#interruptedKeyboards) {
+      let sources = this.#sources.get(action);
+      for (const code of interrupted) {
+        if (!sources) {
+          sources = new Map();
+          this.#sources.set(action, sources);
+        }
+        sources.set(
+          `keyboard:${code}`,
+          Object.freeze({ kind: 'keyboard' as const, code }),
+        );
+      }
+    }
+    this.#interruptedKeyboards.clear();
     this.#onChange();
   }
 

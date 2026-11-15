@@ -37,6 +37,7 @@ await mkdir(evidenceDir, { recursive: true });
 const report = {
   task: TASK,
   scope: SCOPE,
+  subtask: 'H5-01-R1',
   command: [process.execPath, ...process.argv.slice(1)],
   startedAt: new Date().toISOString(),
   browser: {
@@ -357,6 +358,87 @@ try {
     after: keyboardState,
   });
 
+  await desktopPage.waitForFunction(() =>
+    document.querySelector('#diagnostics')?.dataset.grounded === 'true' &&
+    document.querySelector('#diagnostics')?.dataset.needsRelease === 'false' &&
+    document.querySelector('#diagnostics')?.dataset.controlAllowed === 'true',
+  undefined, { timeout: 10000, polling: 100 });
+  const beforeInterruptedKeyboard = await desktopPage.locator('#diagnostics')
+    .evaluate(element => ({
+      tick: Number(element.dataset.tick),
+      jumps: Number(element.dataset.jumps),
+      needsRelease: element.dataset.needsRelease,
+      runtime: element.dataset.firstLevelRuntimeInstanceId,
+    }));
+  await desktopPage.keyboard.down('Space');
+  await desktopPage.waitForFunction(jumps =>
+    Number(document.querySelector('#diagnostics')?.dataset.jumps) > jumps,
+  beforeInterruptedKeyboard.jumps, { timeout: 10000, polling: 100 });
+  const keyboardInterruptPage = await desktopContext.newPage();
+  await keyboardInterruptPage.goto('about:blank');
+  await keyboardInterruptPage.bringToFront();
+  await desktopPage.waitForFunction(() =>
+    document.visibilityState === 'hidden' && !document.hasFocus(),
+  undefined, { timeout: 10000, polling: 100 });
+  const heldHiddenKeyboard = await desktopPage.locator('#diagnostics')
+    .evaluate(element => ({
+      tick: Number(element.dataset.tick),
+      jumps: Number(element.dataset.jumps),
+      needsRelease: element.dataset.needsRelease,
+      visibility: document.visibilityState,
+      focused: document.hasFocus(),
+      runtime: element.dataset.firstLevelRuntimeInstanceId,
+    }));
+  report.keyboardInterruptScreenshot =
+    await screenshot(desktopPage, 'chrome-keyboard-hidden-before-keyup');
+  await desktopPage.keyboard.up('Space');
+  await desktopPage.bringToFront();
+  await desktopPage.waitForFunction(() =>
+    document.visibilityState === 'visible' && document.hasFocus(),
+  undefined, { timeout: 10000, polling: 100 });
+  await desktopPage.waitForFunction(() =>
+    document.querySelector('#diagnostics')?.dataset.grounded === 'true' &&
+    document.querySelector('#diagnostics')?.dataset.needsRelease === 'false' &&
+    document.querySelector('#diagnostics')?.dataset.controlAllowed === 'true',
+  undefined, { timeout: 10000, polling: 100 });
+  const afterRealInterruptedRelease = await desktopPage.locator('#diagnostics')
+    .evaluate(element => ({
+      tick: Number(element.dataset.tick),
+      jumps: Number(element.dataset.jumps),
+      needsRelease: element.dataset.needsRelease,
+      visibility: document.visibilityState,
+      focused: document.hasFocus(),
+      runtime: element.dataset.firstLevelRuntimeInstanceId,
+    }));
+  await desktopPage.keyboard.down('Space');
+  await desktopPage.waitForFunction(jumps =>
+    Number(document.querySelector('#diagnostics')?.dataset.jumps) > jumps,
+  afterRealInterruptedRelease.jumps, { timeout: 10000, polling: 100 });
+  await desktopPage.keyboard.up('Space');
+  const afterFreshInterruptedKeyboard = await desktopPage.locator('#diagnostics')
+    .evaluate(element => ({
+      jumps: Number(element.dataset.jumps),
+      needsRelease: element.dataset.needsRelease,
+      runtime: element.dataset.firstLevelRuntimeInstanceId,
+    }));
+  assert.equal(heldHiddenKeyboard.visibility, 'hidden');
+  assert.equal(heldHiddenKeyboard.focused, false);
+  assert.equal(heldHiddenKeyboard.needsRelease, 'true');
+  assert.equal(heldHiddenKeyboard.jumps, beforeInterruptedKeyboard.jumps + 1);
+  assert.equal(afterRealInterruptedRelease.needsRelease, 'false');
+  assert.equal(afterRealInterruptedRelease.jumps, heldHiddenKeyboard.jumps);
+  assert.equal(afterFreshInterruptedKeyboard.jumps,
+    afterRealInterruptedRelease.jumps + 1);
+  assert.equal(afterFreshInterruptedKeyboard.runtime,
+    beforeInterruptedKeyboard.runtime);
+  await keyboardInterruptPage.close();
+  record('H5-01-R1 R01 real keyboard keyup after hidden clears gate', 'PASS', {
+    beforeInterruptedKeyboard,
+    heldHiddenKeyboard,
+    afterRealInterruptedRelease,
+    afterFreshInterruptedKeyboard,
+  });
+
   await desktopPage.locator('#touch-pause').click();
   await desktopPage.waitForFunction(() =>
     document.querySelector('#diagnostics')?.dataset.paused === 'true');
@@ -510,6 +592,168 @@ try {
   report.mobileScreenshot = await screenshot(mobilePage, 'chrome-touch-emulation');
   record('H03/H06 Chrome touch emulation', 'PASS', mobileMetrics);
   report.layers.chromeTouchEmulation = 'PASS';
+
+  const interruptStartX = Number(
+    await mobilePage.locator('#diagnostics').getAttribute('data-x'),
+  );
+  await pointer(mobilePage, '[data-action="right"]', 'pointerdown', 71);
+  await mobilePage.waitForFunction(x =>
+    Number(document.querySelector('#diagnostics')?.dataset.x) > x + 8,
+  interruptStartX, { timeout: 10000, polling: 100 });
+  const touchHeldBeforeResize = await mobilePage.locator('#diagnostics')
+    .evaluate(element => ({
+      x: Number(element.dataset.x),
+      vx: Number(element.dataset.vx),
+      sources: JSON.parse(element.dataset.touchSources || '{}'),
+      active: document.querySelector('[data-action="right"]')?.dataset.active,
+      runtime: element.dataset.firstLevelRuntimeInstanceId,
+    }));
+  report.touchInterruptScreenshot =
+    await screenshot(mobilePage, 'chrome-touch-held-before-resize');
+  await mobilePage.setViewportSize({ width: 667, height: 375 });
+  await mobilePage.waitForFunction(() => {
+    const data = document.querySelector('#diagnostics')?.dataset;
+    const sources = JSON.parse(data?.touchSources || '{}');
+    return sources.right?.length === 0 &&
+      document.querySelector('[data-action="right"]')?.dataset.active === 'false';
+  }, undefined, { timeout: 10000, polling: 100 });
+  await mobilePage.waitForFunction(() =>
+    Math.abs(Number(document.querySelector('#diagnostics')?.dataset.vx)) < 1,
+  undefined, { timeout: 10000, polling: 100 });
+  const touchAfterResize = await mobilePage.locator('#diagnostics')
+    .evaluate(element => ({
+      x: Number(element.dataset.x),
+      vx: Number(element.dataset.vx),
+      sources: JSON.parse(element.dataset.touchSources || '{}'),
+      active: document.querySelector('[data-action="right"]')?.dataset.active,
+      runtime: element.dataset.firstLevelRuntimeInstanceId,
+    }));
+  report.touchInterruptAfterScreenshot =
+    await screenshot(mobilePage, 'chrome-touch-after-resize');
+  report.touchInterrupt = {
+    beforeResize: touchHeldBeforeResize,
+    afterResize: touchAfterResize,
+  };
+  assert.deepEqual(touchHeldBeforeResize.sources.right, ['pointer:0:71']);
+  assert.deepEqual(touchAfterResize.sources.right, []);
+  assert.equal(touchAfterResize.active, 'false');
+  assert.equal(touchAfterResize.runtime, touchHeldBeforeResize.runtime);
+  assert.ok(touchAfterResize.x - touchHeldBeforeResize.x < 80,
+    'Resize must stop the held touch without an unbounded slide');
+  await pointer(mobilePage, '[data-action="right"]', 'pointerdown', 72);
+  await mobilePage.waitForFunction(x =>
+    Number(document.querySelector('#diagnostics')?.dataset.x) > x + 4,
+  touchAfterResize.x, { timeout: 10000, polling: 100 });
+  await pointer(mobilePage, '[data-action="right"]', 'pointerup', 72);
+  const touchAfterResizeRetry = await mobilePage.locator('#diagnostics')
+    .evaluate(element => ({
+      x: Number(element.dataset.x),
+      sources: JSON.parse(element.dataset.touchSources || '{}'),
+    }));
+
+  const toggleStartX = touchAfterResizeRetry.x;
+  await pointer(mobilePage, '[data-action="right"]', 'pointerdown', 73);
+  await mobilePage.waitForFunction(x =>
+    Number(document.querySelector('#diagnostics')?.dataset.x) > x + 8,
+  toggleStartX, { timeout: 10000, polling: 100 });
+  const touchHeldBeforeToggle = await mobilePage.locator('#diagnostics')
+    .evaluate(element => ({
+      x: Number(element.dataset.x),
+      vx: Number(element.dataset.vx),
+      sources: JSON.parse(element.dataset.touchSources || '{}'),
+    }));
+  await mobilePage.locator('#touch-toggle').click();
+  await mobilePage.waitForFunction(() => {
+    const data = document.querySelector('#diagnostics')?.dataset;
+    return data?.touchEnabled === 'false' &&
+      JSON.parse(data?.touchSources || '{}').right?.length === 0;
+  }, undefined, { timeout: 10000, polling: 100 });
+  await mobilePage.waitForFunction(() =>
+    Math.abs(Number(document.querySelector('#diagnostics')?.dataset.vx)) < 1,
+  undefined, { timeout: 10000, polling: 100 });
+  const touchAfterToggle = await mobilePage.locator('#diagnostics')
+    .evaluate(element => ({
+      x: Number(element.dataset.x),
+      vx: Number(element.dataset.vx),
+      sources: JSON.parse(element.dataset.touchSources || '{}'),
+      touchEnabled: element.dataset.touchEnabled,
+    }));
+  assert.deepEqual(touchHeldBeforeToggle.sources.right, ['pointer:0:73']);
+  assert.deepEqual(touchAfterToggle.sources.right, []);
+  assert.equal(touchAfterToggle.touchEnabled, 'false');
+  assert.ok(touchAfterToggle.x - touchHeldBeforeToggle.x < 80);
+  await mobilePage.locator('#touch-toggle').click();
+  await mobilePage.waitForFunction(() =>
+    document.querySelector('#diagnostics')?.dataset.touchEnabled === 'true');
+  await pointer(mobilePage, '[data-action="right"]', 'pointerdown', 74);
+  await mobilePage.waitForFunction(x =>
+    Number(document.querySelector('#diagnostics')?.dataset.x) > x + 4,
+  touchAfterToggle.x, { timeout: 10000, polling: 100 });
+  await pointer(mobilePage, '[data-action="right"]', 'pointerup', 74);
+  const touchAfterToggleRetry = await mobilePage.locator('#diagnostics')
+    .evaluate(element => ({
+      x: Number(element.dataset.x),
+      sources: JSON.parse(element.dataset.touchSources || '{}'),
+    }));
+
+  const mixedStartX = touchAfterToggleRetry.x;
+  await pointer(mobilePage, '[data-action="right"]', 'pointerdown', 75);
+  await mobilePage.keyboard.down('KeyD');
+  await mobilePage.waitForFunction(x =>
+    Number(document.querySelector('#diagnostics')?.dataset.x) > x + 8,
+  mixedStartX, { timeout: 10000, polling: 100 });
+  await mobilePage.setViewportSize({ width: 800, height: 390 });
+  await mobilePage.waitForFunction(() => {
+    const sources = JSON.parse(
+      document.querySelector('#diagnostics')?.dataset.touchSources || '{}',
+    );
+    return JSON.stringify(sources.right) === JSON.stringify(['keyboard:KeyD']);
+  }, undefined, { timeout: 10000, polling: 100 });
+  const mixedAfterResize = await mobilePage.locator('#diagnostics')
+    .evaluate(element => ({
+      x: Number(element.dataset.x),
+      vx: Number(element.dataset.vx),
+      sources: JSON.parse(element.dataset.touchSources || '{}'),
+    }));
+  await mobilePage.waitForFunction(x =>
+    Number(document.querySelector('#diagnostics')?.dataset.x) > x + 4,
+  mixedAfterResize.x, { timeout: 10000, polling: 100 });
+  await mobilePage.bringToFront();
+  await mobilePage.waitForFunction(() =>
+    document.visibilityState === 'visible' && document.hasFocus(),
+  undefined, { timeout: 10000, polling: 100 });
+  await mobilePage.keyboard.up('KeyD');
+  const mixedAfterKeyboardRelease = await mobilePage.waitForFunction(
+    () => {
+      const element = document.querySelector('#diagnostics');
+      const sources = JSON.parse(element?.dataset.touchSources || '{}');
+      if (sources.right?.length !== 0) return false;
+      return {
+        x: Number(element?.dataset.x),
+        vx: Number(element?.dataset.vx),
+        sources,
+      };
+    },
+    undefined,
+    { timeout: 10000, polling: 100 },
+  ).then(handle => handle.jsonValue());
+  assert.deepEqual(mixedAfterResize.sources.right, ['keyboard:KeyD']);
+  assert.ok(mixedAfterResize.vx > 200);
+  assert.deepEqual(mixedAfterKeyboardRelease.sources.right, []);
+  assert.ok(mixedAfterKeyboardRelease.vx < mixedAfterResize.vx,
+    'Keyboard release must begin the unchanged deceleration path');
+  record('H5-01-R1 R02/R03 held touch termination stops only its source',
+    'PASS', {
+      touchHeldBeforeResize,
+      touchAfterResize,
+      touchAfterResizeRetry,
+      touchHeldBeforeToggle,
+      touchAfterToggle,
+      touchAfterToggleRetry,
+      mixedStartX,
+      mixedAfterResize,
+      mixedAfterKeyboardRelease,
+    });
 
   const initialX = Number(await mobilePage.locator('#diagnostics').getAttribute('data-x'));
   await pointer(mobilePage, '[data-action="right"]', 'pointerdown', 41);
