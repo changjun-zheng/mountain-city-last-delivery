@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="116" viewBox="0 0 220 116">
+  <defs>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b88a59"/>
+      <stop offset="1" stop-color="#5d4031"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#74838a"/>
+      <stop offset="1" stop-color="#3b4a50"/>
+    </linearGradient>
+  </defs>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 81H208L198 102H22Z" fill="url(#wood)" stroke="#d2a26b" stroke-width="4"/>
+    <rect x="40" y="35" width="140" height="50" rx="8" fill="url(#metal)" stroke="#9eabb0" stroke-width="4"/>
+    <path d="M55 45H165M55 57H165M55 69H165" stroke="#53636a" stroke-width="2"/>
+    <circle cx="72" cy="57" r="15" fill="#9b724b" stroke="#e1b779" stroke-width="3"/>
+    <circle cx="148" cy="57" r="15" fill="#9b724b" stroke="#e1b779" stroke-width="3"/>
+    <path d="M72 43V39M72 75V71M58 57H54M90 57H86M148 43V39M148 75V71M134 57H130M162 57H158" stroke="#f4d08e" stroke-width="3"/>
+    <path d="M56 35V23H164V35M83 23V12M137 23V12" fill="none" stroke="#805a3f" stroke-width="6"/>
+    <path d="M87 12H101L105 23H83ZM119 12H133L137 23H115Z" fill="#e9a65b" stroke="#ffd08d" stroke-width="2"/>
+    <path d="M31 84V106M189 84V106" stroke="#5f4232" stroke-width="7"/>
+  </g>
+</svg>

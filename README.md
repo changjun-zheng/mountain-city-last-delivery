@@ -2469,3 +2469,46 @@ Chrome 为 Google Chrome `156.0.8078.74`，运行 URL 为 `http://127.0.0.1:6071
 Work 本轮重新运行 npm.cmd test：189/189 PASS，0 fail、0 skipped，退出 0；[复验日志](test-results/work-h5-01-r2-review-unit-20261115.log)。未重新构建或运行浏览器，不把经哈希核对的开发浏览器证据称为本轮新执行。结论为 R2 当前 D01—D04 审查 PASS、DONE；H5-01 父项仍 BLOCKED，仅因 H08 至少一台真实手机尚未执行。
 
 下一独立开发任务已登记为 [H5-02：C 区可玩视觉切片与主角美术原型](docs/DEVELOPMENT_ROADMAP.md#h5-02-playable-visual-slice)。本轮 Work 仅维护审查与任务文档，没有改美术或应用源码，不把任务下发当视觉成果完成；D13／BRAND-01／MLV 未启动，未 Commit／Push。
+
+### 2026-11-15 H5-02 实施结果：C 区可玩视觉切片
+
+状态为 `DONE（待 Work／美术审查）`，当前范围只覆盖 C1—C3 与升降入口的可玩视觉切片。原首关几何、碰撞、固定步、输入、暂停、任务和事件事务没有改动；现有唯一机关仍在较高的 C 平台，没有搬到候选 C3-02。
+
+本轮以真实 Matter 几何为对齐基准，新增可编辑 SVG 的夜景远景、吊脚楼木构、木廊／支撑、少量前景、中性双操作位装置、路线门、升降平台和同一首关卡通探索者。Phaser 只读取原 `PlayerState`、Tick、平台 Body 和门／路线状态来更新显示；没有复制 `PlayerMotor`、创建第二套计时或使用 Tween 推进物理。脚底继续对齐原玩家 Body 底部。
+
+| 视觉检查 | 状态 | 实际结果 |
+| --- | --- | --- |
+| VIS01：C 区可辨认与主角替换 | PASS | 真实生产画面可辨认多层吊脚楼、木柱斜撑、木廊、窗格暖灯、远山／城市／江面；占位几何人已替换为同一首关卡通角色。最终 [C 区概览](test-results/h5-02/run-2026-11-15T14-24-05-892Z/vis01-C-overview-1280x720.png) 与 [主角／木构细节](test-results/h5-02/run-2026-11-15T14-24-05-892Z/vis01-C-actor-detail.png) 来自当前构建。 |
+| VIS02：真实 A→B→C 可玩 | PASS | 从默认出生点使用真实键盘移动／跳跃到 B，正常完成对话后接取委托，再进入 C；没有传送、直接改 snapshot 或绕过对话。 |
+| VIS03：单机关、开路与 D 通关 | PASS | 右侧错误操作可重试，左侧正确操作后真实 `routeOpen=true`、门碰撞关闭且升降平台启动；乘原平台下降、到 D 拍摄分享并出现通关反馈。 |
+| VIS04：暂停、恢复与 R | PASS | 真实隐藏期间 Tick、平台位置和平台时钟冻结；恢复后不追赶后台时间。R 后角色回到出生点、平台临时状态重置，任务、奖励、永久效果与业务 ID 保持。 |
+| VIS05：桌面与触屏模拟 | PASS | `1280×720`、`1920×1080`、`844×390`、`667×375` 下画面与控件可见；触屏模拟完成走跳、NPC 对话正常关闭、错误／正确操作与开路。[横屏触屏 C 区](test-results/h5-02/run-2026-11-15T14-24-05-892Z/vis05-touch-C-844x390.png) 为当前证据。 |
+| VIS06：构建、资源与范围 | PASS | 189/189 单元／集成测试、生产构建和两个 Chrome 生产专项均通过；报告无页面错误、404／网络失败或非预期中断。 |
+
+最终 H5-02 报告为 [run-2026-11-15T14-24-05-892Z](test-results/h5-02/run-2026-11-15T14-24-05-892Z/report.json)，报告 SHA-256 为 `ABC420789AE36B3449062547964266C68514C05BBD9FC7F92834E7339F1785AC`。Google Chrome `156.0.8078.74` 生产专项的 7 组功能检查全部 PASS，桌面键盘与触屏模拟层 PASS，自有 context、CDP 连接、Chrome 进程和静态服务清理均 PASS。连续关键帧见 [C2](test-results/h5-02/run-2026-11-15T14-24-05-892Z/vis03-C-middle-keyframe.png)、[C3](test-results/h5-02/run-2026-11-15T14-24-05-892Z/vis03-C-lower-keyframe.png)、[升降平台下降](test-results/h5-02/run-2026-11-15T14-24-05-892Z/vis03-lift-descending.png)、[D 区就绪](test-results/h5-02/run-2026-11-15T14-24-05-892Z/vis03-D-riverbank-ready.png) 与 [通关反馈](test-results/h5-02/run-2026-11-15T14-24-05-892Z/vis03-completed.png)。
+
+实际命令与结果：
+
+| 命令 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `npm.cmd test` | PASS | 类型检查、Electron Main 编译及 `189/189`，0 fail、0 skipped，退出码 `0`。 |
+| `npm.cmd run build` | PASS | TypeScript 与 Vite 8.3.7 构建通过，转换 46 modules；仅有既有主包体积警告。 |
+| `node tests/h5-input-browser.mjs --browser=chrome --production` | PASS | H5-01 输入回归 14 组检查 PASS，桌面 Chrome 与触屏模拟 PASS；[报告](test-results/h5-01/run-2026-11-15T13-29-09-811Z/report.json)。 |
+| `node tests/h5-02-browser.mjs --browser=chrome --production` | PASS | H5-02 7 组检查 PASS，退出码 `0`；真机层和美术审查仍 NOT RUN。 |
+| `git diff --check` | PASS | 只出现 Git 的既有 LF／CRLF 提示。 |
+
+当前源码、脚本与产物指纹：
+
+- `src/rendering/phaser/first-level.ts`：`4CE8FCA4E45A438D62BA5D5996232E064EE73B04B60D3D98F2399B1702978FC4`。
+- `src/rendering/phaser/first-level-art.ts`：`E55533ECD1AA9402BBF4DE5249A718140DB16CC5EC7652BDA5010C5A63C1FC4D`。
+- `src/rendering/phaser/first-level-actor.ts`：`FC246035891211FB0CE4A84720D44007F36436AB3F50B3538AFBF4149EBB6D94`。
+- `tests/h5-02-browser.mjs`：`6634A63B490BA3870995B74786C22B50FCC7E184BF0579635663D17690F35DB9`。
+- `dist/index.html`：`407D046253BA14338415522201788348BA406707302C61EF16DA9BFEF3A72B68`。
+- `dist/assets/index-DfmxeRhe.js`：`20E20EB8473C9FD0C5E2033923CCED56E1C8B2F9FF2E266D723F1DAD6FF3A229`。
+- `dist/assets/index-DZ_wJHKK.css`：`91F35A57112237855D16D892D04A384123ADAABD11B864690FE2DE614FC73107`。
+
+所有新增 SVG 均为项目内原创可编辑源文件，来源、制作方式和权利边界逐项记录在 [ASSET_SOURCES.md](src/rendering/phaser/assets/h5-02/ASSET_SOURCES.md)；未使用概念整图铺底、外部图库、付费服务、字体或来源不明素材。
+
+本地体验入口为 `http://127.0.0.1:4174/`，由开发服务 PID `37944` 提供；关闭时终止该 Vite 服务。操作：`A/D` 或方向键移动，`Space` 跳跃，靠近 NPC／装置／拍摄点按 `E`，对话内按 `Esc` 结束，`R` 为调试重置。Android Chrome、iOS Safari 真机、完整手机整关、Edge、Electron 本轮均 `NOT RUN`；自动化画面检查不等于负责人／美术观感通过，Matter 仍不是最终物理选型。当前等待 Work／美术审查，不进入 H5-03／H5-04、D13、BRAND-01 或 MLV。
+
+已知失败历史保留：首次报告 [run-2026-11-15T14-11-19-804Z](test-results/h5-02/run-2026-11-15T14-11-19-804Z/report.json) 功能检查 PASS，但 context 主动关闭后未投影清理状态，整体为 FAIL；随后 [run-2026-11-15T14-18-58-645Z](test-results/h5-02/run-2026-11-15T14-18-58-645Z/report.json) 在登上升降平台后因测试持续右移使角色滑出平台而超时。最终修复分别显式记录 context 清理，并按真实 `supportRelativeX`／速度制动至平台中部后继续，未改游戏物理或缩短断言。Android／iOS 真机、完整手机整关、Edge、Electron、独立人工长期手感和负责人／美术观感审查仍 NOT RUN；父项 H5-01 继续 BLOCKED。当前等待 Work／美术审查，不自动进入下一任务。

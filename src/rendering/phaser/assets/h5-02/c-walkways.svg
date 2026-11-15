@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="500" viewBox="0 0 900 500">
+  <defs>
+    <linearGradient id="deck" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d0a06a"/>
+      <stop offset=".16" stop-color="#a4734d"/>
+      <stop offset="1" stop-color="#563c31"/>
+    </linearGradient>
+    <linearGradient id="stone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8b9297"/>
+      <stop offset="1" stop-color="#4f5964"/>
+    </linearGradient>
+    <pattern id="deckLines" width="46" height="30" patternUnits="userSpaceOnUse">
+      <path d="M0 5H46M4 5V30M28 5V30" stroke="#5d4030" stroke-width="2" opacity=".55"/>
+    </pattern>
+    <pattern id="stoneLines" width="48" height="26" patternUnits="userSpaceOnUse">
+      <path d="M0 4H48M12 4V26M38 4V26" stroke="#3c4652" stroke-width="2" opacity=".65"/>
+    </pattern>
+  </defs>
+  <g>
+    <path d="M40 10H330L320 56H50Z" fill="#1d2a3b" stroke="#84654e" stroke-width="5"/>
+    <path d="M54 55H320V78H54Z" fill="url(#deck)" stroke="#d0a06a" stroke-width="4"/>
+    <rect x="58" y="58" width="258" height="16" fill="url(#deckLines)" opacity=".8"/>
+    <path d="M64 78V176M118 78V176M174 78V176M230 78V176M310 78V176" stroke="#624332" stroke-width="12"/>
+    <path d="M58 101H315M58 144H315" stroke="#a2704c" stroke-width="6"/>
+    <path d="M62 78L114 150L166 78M174 78L228 150L307 78" fill="none" stroke="#8b5b42" stroke-width="8"/>
+    <path d="M54 52H320M64 23H310" stroke="#d9ad73" stroke-width="4" opacity=".9"/>
+    <path d="M74 52V27M114 52V31M154 52V25M194 52V30M234 52V25M274 52V31M310 52V27" stroke="#9f6e49" stroke-width="5"/>
+  </g>
+  <g>
+    <path d="M294 204H588L576 248H306Z" fill="#1d2a3b" stroke="#84654e" stroke-width="5"/>
+    <path d="M310 247H576V270H310Z" fill="url(#deck)" stroke="#d0a06a" stroke-width="4"/>
+    <rect x="314" y="250" width="258" height="16" fill="url(#deckLines)" opacity=".8"/>
+    <path d="M318 270V382M376 270V382M434 270V382M492 270V382M568 270V382" stroke="#624332" stroke-width="12"/>
+    <path d="M314 299H572M314 347H572" stroke="#a2704c" stroke-width="6"/>
+    <path d="M318 270L374 352L430 270M436 270L490 352L568 270" fill="none" stroke="#8b5b42" stroke-width="8"/>
+    <path d="M310 244H576M322 216H564" stroke="#d9ad73" stroke-width="4" opacity=".9"/>
+    <path d="M332 244V220M374 244V221M416 244V216M458 244V220M500 244V218M542 244V220" stroke="#9f6e49" stroke-width="5"/>
+    <path d="M306 238V211M578 238V211M306 218H578" stroke="#b78658" stroke-width="4" opacity=".8"/>
+  </g>
+  <g>
+    <path d="M568 334H878L866 375H580Z" fill="#1d2a3b" stroke="#84654e" stroke-width="5"/>
+    <path d="M582 374H866V399H582Z" fill="url(#deck)" stroke="#d0a06a" stroke-width="4"/>
+    <rect x="586" y="377" width="276" height="17" fill="url(#deckLines)" opacity=".8"/>
+    <path d="M590 399V499M648 399V499M706 399V499M764 399V499M856 399V499" stroke="#624332" stroke-width="12"/>
+    <path d="M586 429H862M586 475H862" stroke="#a2704c" stroke-width="6"/>
+    <path d="M590 399L646 468L702 399M708 399L762 468L856 399" fill="none" stroke="#8b5b42" stroke-width="8"/>
+    <path d="M582 371H866M594 346H854" stroke="#d9ad73" stroke-width="4" opacity=".9"/>
+    <path d="M602 371V348M642 371V349M682 371V344M722 371V349M762 371V346M802 371V349M842 371V346" stroke="#9f6e49" stroke-width="5"/>
+  </g>
+  <g>
+    <path d="M0 288H198L190 315H0Z" fill="url(#stone)" stroke="#aeb6bb" stroke-width="4"/>
+    <rect x="0" y="292" width="198" height="23" fill="url(#stoneLines)"/>
+    <path d="M10 315V405M54 315V405M98 315V405M142 315V405M188 315V405" stroke="#4e5963" stroke-width="8"/>
+    <path d="M0 338H198M0 372H198" stroke="#6f7981" stroke-width="5"/>
+    <path d="M0 285H198" stroke="#bac2c5" stroke-width="3"/>
+  </g>
+  <g fill="#d59c61" opacity=".9">
+    <path d="M344 240H380V225H398V240H420V249H344Z"/>
+    <path d="M620 368H658V353H676V368H698V377H620Z"/>
+  </g>
+  <g fill="none" stroke="#e4bb7c" stroke-width="3" opacity=".8">
+    <path d="M340 40H430M480 234H548M620 365H700"/>
+  </g>
+</svg>
