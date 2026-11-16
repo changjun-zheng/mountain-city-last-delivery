@@ -2512,3 +2512,19 @@ Work 本轮重新运行 npm.cmd test：189/189 PASS，0 fail、0 skipped，退�
 本地体验入口为 `http://127.0.0.1:4174/`，由开发服务 PID `37944` 提供；关闭时终止该 Vite 服务。操作：`A/D` 或方向键移动，`Space` 跳跃，靠近 NPC／装置／拍摄点按 `E`，对话内按 `Esc` 结束，`R` 为调试重置。Android Chrome、iOS Safari 真机、完整手机整关、Edge、Electron 本轮均 `NOT RUN`；自动化画面检查不等于负责人／美术观感通过，Matter 仍不是最终物理选型。当前等待 Work／美术审查，不进入 H5-03／H5-04、D13、BRAND-01 或 MLV。
 
 已知失败历史保留：首次报告 [run-2026-11-15T14-11-19-804Z](test-results/h5-02/run-2026-11-15T14-11-19-804Z/report.json) 功能检查 PASS，但 context 主动关闭后未投影清理状态，整体为 FAIL；随后 [run-2026-11-15T14-18-58-645Z](test-results/h5-02/run-2026-11-15T14-18-58-645Z/report.json) 在登上升降平台后因测试持续右移使角色滑出平台而超时。最终修复分别显式记录 context 清理，并按真实 `supportRelativeX`／速度制动至平台中部后继续，未改游戏物理或缩短断言。Android／iOS 真机、完整手机整关、Edge、Electron、独立人工长期手感和负责人／美术观感审查仍 NOT RUN；父项 H5-01 继续 BLOCKED。当前等待 Work／美术审查，不自动进入下一任务。
+
+
+### 2026-11-15 Work／负责人审查：H5-02 视觉与空间未收口
+
+基线 main／origin/main／HEAD 为 06b203d954c86bed1900af0c8205675a8590787e，开始时工作区干净。本轮核对 H5-02 最终报告及 16 项源码／资源／产物哈希一致，7 项自动化 PASS 和原清理记录保留；未重跑测试或构建。
+
+Work 已查看实际桌面／触屏 C 图与原概念图 A，并检查当前静态矩形路线、背景美术视差、正常画面标签与相机实现。负责人明确当前外观／空间不符合预期，并再次选择“保留横版侧视，重做建筑探索空间”。结论：功能专项 PASS 按原范围保留，H5-02 整体 FAIL（视觉／建筑探索未通过），不是 DONE 收口。
+
+当前下发 [H5-02-R1](docs/DEVELOPMENT_ROADMAP.md#h5-02-r1-building-exploration)：以真实可步行楼梯、连续木廊与建筑剖面重做 C 样段，同时纠正美术、镜头及技术标签；允许受限静态几何调整，保留 PlayerMotor／Matter 路线、暂停、任务与单机关规则。旧 SVG、截图、报告和决策不删除，H08 真机仍未执行。本轮 Work 只维护审查／任务文档，未修改游戏源码、引擎或提交／推送。
+
+
+### 2026-11-15 最新安排：先视觉定锚，暂不继续 R1 代码实施
+
+本轮 main／origin/main／HEAD 均为 06b203d，开始时五份 Work 文档已有修改，源码尚无 R1 实施。按负责人最新指示，先完成[视觉与场景收敛方案](docs/ART_DIRECTION_AND_SCENE_PROTOTYPE.md#visual-anchor-plan-20261115)：当前高层横版／2.5D 方向保留，游戏内视觉仍未通过，不切换俯视、不重做代码。
+
+H5-02-R1 转 WAITING_DESIGN，原 READY 提示词仅保留历史，不执行。下一步可转交的是[H5-02-PRE 参考前置委托](docs/DEVELOPMENT_ROADMAP.md#h5-02-visual-prep)，只整理四区、人物和动作参考及实际资料；本轮没有制作新图，不虚报资产归档。图稿经负责人／策划评审后再由 Work 下发代码任务。本轮未改源码、测试、配置，未运行游戏测试／构建，未 Commit／Push。
