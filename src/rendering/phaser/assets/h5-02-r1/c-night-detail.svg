@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1450" height="760" viewBox="0 0 1450 760">
+  <defs>
+    <linearGradient id="mist" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7c8fb0" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#142747" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2d6e80"/>
+      <stop offset="1" stop-color="#0f2948"/>
+    </linearGradient>
+    <radialGradient id="lamp">
+      <stop offset="0" stop-color="#ffd47c" stop-opacity=".55"/>
+      <stop offset=".55" stop-color="#f1a354" stop-opacity=".13"/>
+      <stop offset="1" stop-color="#f1a354" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <path d="M0 270 C160 215 300 254 430 198 C610 122 760 216 920 154 C1090 88 1252 166 1450 105 V420H0Z" fill="#222c4f"/>
+  <path d="M0 330 C190 270 340 338 505 280 C690 214 830 320 1008 260 C1184 202 1302 274 1450 230 V465H0Z" fill="#192747"/>
+  <path d="M0 432 C190 380 352 438 526 390 C716 338 900 424 1080 376 C1238 334 1348 370 1450 340 V760H0Z" fill="url(#mist)"/>
+  <path d="M0 590 Q170 562 340 590 T680 590 T1020 590 T1360 590 T1450 584 V760H0Z" fill="url(#water)" opacity=".92"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M0 621H228M300 621H556M630 621H900M970 621H1240M1310 621H1450" stroke="#f1c877" stroke-width="3" opacity=".2"/>
+    <path d="M30 660H258M338 660H606M690 660H954M1030 660H1300M1378 660H1450" stroke="#a8d4d5" stroke-width="2" opacity=".13"/>
+  </g>
+  <path d="M705 454 Q872 418 1040 436 Q1200 452 1320 412" fill="none" stroke="#8c96ad" stroke-width="8" opacity=".62"/>
+  <path d="M705 462 Q872 426 1040 444 Q1200 460 1320 420" fill="none" stroke="#394965" stroke-width="3"/>
+  <path d="M820 445V505M900 432V504M980 440V508M1060 441V506M1140 430V500M1210 423V490" stroke="#6b778f" stroke-width="3"/>
+  <path d="M0 585H1450" stroke="#657991" stroke-width="3" opacity=".45"/>
+  <g opacity=".66">
+    <path d="M56 585V500H92V585M82 500L110 466L138 500M126 500V585M160 585V526H204V585M196 526L228 496L260 526M250 526V585" fill="#101c34" stroke="#34455f" stroke-width="3"/>
+    <path d="M1060 585V486H1108V585M1094 486L1132 442L1170 486M1156 486V585M1190 585V518H1236V585M1224 518L1260 480L1296 518M1286 518V585" fill="#101c34" stroke="#34455f" stroke-width="3"/>
+  </g>
+  <g fill="#f4c778" opacity=".58">
+    <rect x="68" y="515" width="7" height="9"/><rect x="112" y="544" width="7" height="9"/>
+    <rect x="176" y="535" width="7" height="9"/><rect x="224" y="557" width="7" height="9"/>
+    <rect x="1078" y="505" width="7" height="9"/><rect x="1122" y="540" width="7" height="9"/>
+    <rect x="1202" y="535" width="7" height="9"/><rect x="1248" y="555" width="7" height="9"/>
+  </g>
+  <circle cx="1050" cy="342" r="145" fill="url(#lamp)" opacity=".45"/>
+  <circle cx="1285" cy="520" r="110" fill="url(#lamp)" opacity=".35"/>
+  <path d="M0 106 C170 62 306 108 454 72 M1000 78 C1160 46 1290 88 1450 58" fill="none" stroke="#e6dab6" stroke-width="2" opacity=".11"/>
+</svg>

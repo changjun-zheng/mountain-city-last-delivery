@@ -20,6 +20,7 @@ type RectangleDefinition = Readonly<{
 
 export type PrototypeTerrainDefinition = RectangleDefinition & Readonly<{
   type: 'static-rectangle';
+  angle: number;
 }>;
 
 export type PrototypeRouteGateDefinition = RectangleDefinition & Readonly<{
@@ -87,6 +88,7 @@ const RECTANGLE_KEYS = [
   'width',
   'height',
 ] as const;
+const TERRAIN_KEYS = [...RECTANGLE_KEYS, 'angle'] as const;
 const FAILURE_ZONE_KEYS = [...RECTANGLE_KEYS, 'zoneId'] as const;
 const LIFT_KEYS = [
   'type',
@@ -199,11 +201,23 @@ function rectangle(
   label: string,
 ): PrototypeTerrainDefinition | PrototypeRouteGateDefinition {
   if (!isRecord(value)) throw new Error(`${label} must be an object.`);
-  exactKeys(value, RECTANGLE_KEYS, label);
+  if (expectedType === 'static-rectangle') {
+    const actual = Object.keys(value);
+    const required = new Set<string>(RECTANGLE_KEYS);
+    const allowed = new Set<string>(TERRAIN_KEYS);
+    if (
+      actual.some(key => !allowed.has(key)) ||
+      [...required].some(key => !(key in value))
+    ) {
+      throw new Error(`${label} has an unsupported shape.`);
+    }
+  } else {
+    exactKeys(value, RECTANGLE_KEYS, label);
+  }
   if (value.type !== expectedType) {
     throw new Error(`${label}.type is unsupported.`);
   }
-  return Object.freeze({
+  const parsed = {
     type: expectedType,
     objectId: nonEmptyString(value.objectId, `${label}.objectId`),
     label: nonEmptyString(value.label, `${label}.label`),
@@ -211,6 +225,23 @@ function rectangle(
     y: finite(value.y, `${label}.y`),
     width: positive(value.width, `${label}.width`),
     height: positive(value.height, `${label}.height`),
+  };
+  if (expectedType === 'static-rectangle') {
+    const angle = value.angle === undefined
+      ? 0
+      : finite(value.angle, `${label}.angle`);
+    if (angle < -60 || angle > 60) {
+      throw new Error(`${label}.angle must be between -60 and 60 degrees.`);
+    }
+    return Object.freeze({
+      ...parsed,
+      type: 'static-rectangle' as const,
+      angle,
+    });
+  }
+  return Object.freeze({
+    ...parsed,
+    type: 'route-gate' as const,
   });
 }
 

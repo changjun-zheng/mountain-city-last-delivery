@@ -294,6 +294,66 @@ test('D12-A3 SA01 spatial config places A/B above descending C tiers and lower D
   );
 });
 
+test('H5-02-R1 C01 real Matter staircase supports continuous walk down and back without jumping', () => {
+  const instance = fixture();
+  const stepUntil = (condition, maximum = 600) => {
+    for (let index = 0; index < maximum; index++) {
+      if (condition(instance.core.snapshot.player)) return index;
+      instance.step();
+    }
+    assert.fail('Stair traversal condition was not reached: ' +
+      JSON.stringify({
+        player: instance.core.snapshot.player,
+        diagnostics: instance.world.diagnostics,
+      }));
+  };
+
+  instance.core.key('KeyD', true);
+  instance.core.key('KeyD', false);
+  instance.world.placePlayerAtAnchor({ x: 880, y: 238, facing: 1 });
+  instance.step(4);
+  assert.equal(instance.core.snapshot.player.support, 'b-terrace');
+  instance.core.key('KeyD', true);
+  const upperArrival = stepUntil(player =>
+    player.support === 'c-upper-ground' && player.x > 1100);
+  assert.ok(upperArrival > 0);
+  assert.equal(instance.core.snapshot.player.jumps, 0);
+
+  instance.core.key('KeyD', false);
+  instance.core.key('KeyA', true);
+  const reverseArrival = stepUntil(player =>
+    player.support === 'b-terrace' && player.x < 950);
+  assert.ok(reverseArrival > 0);
+  assert.equal(instance.core.snapshot.player.jumps, 0);
+
+  instance.core.key('KeyA', false);
+  instance.core.key('KeyD', true);
+  stepUntil(player => player.support === 'c-upper-ground' && player.x > 1100);
+  instance.world.placePlayerAtAnchor({ x: 1040, y: 307, facing: 1 });
+  instance.core.key('KeyD', false);
+  instance.step(2);
+  assert.equal(instance.core.snapshot.player.support, 'c-stair-upper');
+  const restX = instance.core.snapshot.player.x;
+  instance.step(20);
+  const settledX = instance.core.snapshot.player.x;
+  instance.step(20);
+  assert.ok(
+    Math.abs(settledX - restX) < 2.5 &&
+      Math.abs(instance.core.snapshot.player.x - settledX) < 0.25,
+    'An idle player must stop on the real stair surface',
+  );
+
+  instance.core.key('KeyD', true);
+  stepUntil(player => player.support === 'c-upper-ground' && player.x > 1100);
+  stepUntil(player => player.support === 'c-middle-ground' && player.x > 1420);
+  stepUntil(player => player.support === 'c-lower-ground' && player.x > 1560);
+  instance.core.key('KeyD', false);
+  instance.step(2);
+  const c3 = instance.core.snapshot.player;
+  assert.equal(c3.jumps, 0);
+  assert.ok(c3.x < 1600, 'The walk route must reach the gate waiting area');
+});
+
 test('D12-A1 LV02 proximity and missing prerequisites do not complete; wrong lever is retryable', () => {
   const instance = fixture();
   const npc = interactionPoint('first-level-b-npc');

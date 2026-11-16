@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520">
+  <defs>
+    <linearGradient id="plaster" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#77695f"/>
+      <stop offset="1" stop-color="#3f3a3d"/>
+    </linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a47b54"/>
+      <stop offset=".48" stop-color="#765039"/>
+      <stop offset="1" stop-color="#50372d"/>
+    </linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2a3548"/>
+      <stop offset="1" stop-color="#111b2d"/>
+    </linearGradient>
+    <radialGradient id="warm">
+      <stop offset="0" stop-color="#ffd47c" stop-opacity=".5"/>
+      <stop offset=".5" stop-color="#efaa58" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#efaa58" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g opacity=".96">
+    <path d="M40 100H340L318 127H64Z" fill="url(#roof)" stroke="#9b7556" stroke-width="5"/>
+    <path d="M64 127H318V304H64Z" fill="url(#plaster)" stroke="#5d4638" stroke-width="5"/>
+    <path d="M44 304H340L320 331H66Z" fill="url(#wood)" stroke="#c08c5b" stroke-width="4"/>
+    <path d="M82 330V510M145 330V490M213 330V510M290 330V480" stroke="#654432" stroke-width="14"/>
+    <path d="M72 354H324M72 425H324M72 486H324" stroke="#a36f49" stroke-width="7"/>
+    <path d="M85 331L147 416L209 331M85 425L147 490L209 425M220 331L274 402L316 331" fill="none" stroke="#8d5b42" stroke-width="9"/>
+    <g fill="#f0bd69">
+      <rect x="92" y="166" width="34" height="49"/><rect x="150" y="166" width="34" height="49"/>
+      <rect x="208" y="166" width="34" height="49"/><rect x="266" y="166" width="34" height="49"/>
+      <rect x="150" y="238" width="34" height="38"/>
+    </g>
+    <g fill="none" stroke="#5c3f2e" stroke-width="4">
+      <path d="M109 166V215M167 166V215M225 166V215M283 166V215M92 190H126M150 190H184M208 190H242M266 190H300M167 238V276M150 257H184"/>
+    </g>
+    <circle cx="190" cy="258" r="92" fill="url(#warm)"/>
+  </g>
+  <g opacity=".96">
+    <path d="M315 194H612L590 220H337Z" fill="url(#roof)" stroke="#98714e" stroke-width="5"/>
+    <path d="M337 220H590V385H337Z" fill="#57463d" stroke="#70523e" stroke-width="5"/>
+    <path d="M317 385H612L592 411H338Z" fill="url(#wood)" stroke="#d09a64" stroke-width="4"/>
+    <path d="M348 410V510M410 410V498M475 410V510M540 410V495M580 410V510" stroke="#6a4835" stroke-width="14"/>
+    <path d="M338 438H592M338 479H592" stroke="#a77650" stroke-width="7"/>
+    <path d="M346 411L408 478L470 411M470 411L530 479L580 411" fill="none" stroke="#8d5b42" stroke-width="9"/>
+    <g fill="#f3c672">
+      <rect x="356" y="253" width="39" height="54"/><rect x="414" y="253" width="39" height="54"/>
+      <rect x="472" y="253" width="39" height="54"/><rect x="530" y="253" width="39" height="54"/>
+    </g>
+    <g fill="none" stroke="#5c3e2c" stroke-width="4">
+      <path d="M375 253V307M433 253V307M491 253V307M549 253V307M356 280H395M414 280H453M472 280H511M530 280H569"/>
+    </g>
+    <path d="M330 219V195M588 219V195M330 198H588" stroke="#bb8757" stroke-width="5"/>
+  </g>
+  <g opacity=".9">
+    <path d="M588 353H872L850 378H610Z" fill="url(#roof)" stroke="#98714e" stroke-width="5"/>
+    <path d="M610 378H850V486H610Z" fill="#51433b" stroke="#70523e" stroke-width="5"/>
+    <path d="M590 486H872L852 511H608Z" fill="url(#wood)" stroke="#c18d5d" stroke-width="4"/>
+    <path d="M622 510V520M690 510V520M758 510V520M824 510V520" stroke="#6b4836" stroke-width="13"/>
+    <g fill="#f0bd69">
+      <rect x="624" y="407" width="36" height="42"/><rect x="700" y="407" width="36" height="42"/><rect x="776" y="407" width="36" height="42"/>
+    </g>
+    <g fill="none" stroke="#5c3e2c" stroke-width="4">
+      <path d="M642 407V449M718 407V449M794 407V449M624 427H660M700 427H736M776 427H812"/>
+    </g>
+  </g>
+  <g fill="#e98c50">
+    <path d="M190 83H226L234 97H182Z"/><rect x="194" y="96" width="28" height="21" rx="4"/>
+    <path d="M560 181H592L599 193H553Z"/><rect x="563" y="192" width="24" height="18" rx="4"/>
+    <path d="M745 340H777L784 352H738Z"/><rect x="748" y="351" width="24" height="18" rx="4"/>
+  </g>
+  <g opacity=".62" fill="#241c20">
+    <path d="M58 320H330L316 342H72Z"/>
+    <path d="M330 399H596L582 420H344Z"/>
+    <path d="M602 495H858L844 511H616Z"/>
+  </g>
+</svg>

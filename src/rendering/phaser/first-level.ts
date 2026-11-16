@@ -45,6 +45,7 @@ export function mountFirstLevelScene(
   parent.dataset.firstLevelLiftValidation =
     FIRST_LEVEL_SPATIAL_CONFIG.lift.validation;
   parent.dataset.artTask = 'H5-02';
+  parent.dataset.artSubtask = 'H5-02-R1';
   parent.dataset.artAssetsReady = 'false';
   return new Promise(resolve => {
     new Phaser.Game({
@@ -115,19 +116,28 @@ export function mountFirstLevelScene(
             padding: { x: 7, y: 4 },
           });
 
-          const label = (x: number, y: number, text: string, color = '#f5eddb') =>
-            this.add.text(x, y, text, {
+          const areaLabels: Phaser.GameObjects.Text[] = [];
+          const label = (
+            x: number,
+            y: number,
+            text: string,
+            color = '#f5eddb',
+          ) => {
+            const areaLabel = this.add.text(x, y, text, {
               fontFamily: 'Microsoft YaHei, sans-serif',
               fontSize: '18px',
               color,
               backgroundColor: '#152a34',
               padding: { x: 7, y: 4 },
-            }).setDepth(9);
+            }).setDepth(9).setVisible(debugVisible());
+            areaLabels.push(areaLabel);
+            return areaLabel;
+          };
           label(35, 260, 'A · 解放碑出生街区');
           label(500, 202, 'B · 沧白路 / 洪崖洞入口');
-          label(955, 320, 'C1 · 上层木廊');
-          label(1270, 398, 'C2 · 中层街巷');
-          label(1395, 476, 'C3 · 下层檐廊');
+          label(965, 265, 'C1 · 上层木廊', '#f9dfad');
+          label(1260, 398, 'C2 · 中层街巷', '#f9dfad');
+          label(1400, 476, 'C3 · 下层檐廊', '#f9dfad');
           label(1685, 586, 'D · 嘉陵江岸');
 
           const monument = this.add.graphics().setDepth(2);
@@ -216,7 +226,7 @@ export function mountFirstLevelScene(
                   backgroundColor: '#152a34',
                   padding: { x: 4, y: 2 },
                 },
-              ).setDepth(11);
+              ).setDepth(11).setVisible(false);
               return [object.id, { range, marker, text, color }];
             }),
           );
@@ -292,6 +302,7 @@ export function mountFirstLevelScene(
             color: '#fff4cd',
             backgroundColor: '#294b54',
             padding: { x: 11, y: 6 },
+            wordWrap: { width: 820, useAdvancedWrap: true },
           }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(40).setVisible(false);
           const feedback = this.add.text(500, 480, '', {
             fontFamily: 'Microsoft YaHei, sans-serif',
@@ -381,8 +392,8 @@ export function mountFirstLevelScene(
           camera.setBounds(
             0,
             0,
-            FIRST_LEVEL_SIZE.width + camera.width,
-            FIRST_LEVEL_SIZE.height + camera.height,
+            FIRST_LEVEL_SIZE.width,
+            FIRST_LEVEL_SIZE.height,
           );
           camera.startFollow(player, true, 0.12, 0.12);
           const fade = this.add.rectangle(
@@ -397,6 +408,9 @@ export function mountFirstLevelScene(
           let observedPhase: FirstLevelRuntimeSnapshot['phase'] | null = null;
           let phaseAnnouncement = '';
           let phaseAnnouncementUntil = 0;
+          const touchControlsEnabled = () =>
+            document.querySelector<HTMLElement>('#touch-prototype')
+              ?.dataset.touchEnabled === 'true';
           this.events.on(Phaser.Scenes.Events.UPDATE, () => {
             const frameTime = now();
             core.frame(frameTime);
@@ -416,6 +430,7 @@ export function mountFirstLevelScene(
             }
             const recovery = snapshot.recovery;
             const showDebug = debugVisible();
+            const touchEnabled = touchControlsEnabled();
             art.update(world);
             liftLabel.setPosition(
               world.liftBody.position.x,
@@ -440,6 +455,9 @@ export function mountFirstLevelScene(
             ).setVisible(showDebug);
             fade.setAlpha(recovery.fadeAlpha).setVisible(recovery.fadeAlpha > 0.001);
             objective.setText(firstLevel?.objective ?? '首关状态加载中');
+            objective
+              .setFontSize(touchEnabled ? 18 : 21)
+              .setWordWrapWidth(touchEnabled ? 540 : 860, true);
             status.setText(
               `委托 ${firstLevel?.questAccepted ? '✓' : '—'}\n` +
               `路线 ${world.routeOpen ? 'OPEN' : 'CLOSED'}\n` +
@@ -448,8 +466,16 @@ export function mountFirstLevelScene(
               `DEBUG · ${platform}`,
             ).setVisible(showDebug);
             prompt.setText(interaction.prompt ?? '')
+              .setPosition(
+                touchEnabled ? 300 : 500,
+                touchEnabled ? 340 : 514,
+              )
+              .setFontSize(touchEnabled ? 18 : 21)
+              .setWordWrapWidth(touchEnabled ? 440 : 820, true)
               .setVisible(Boolean(interaction.prompt) && !firstLevel?.completed);
-            controls.setVisible(!firstLevel?.completionVisible);
+            controls.setVisible(
+              !firstLevel?.completionVisible && !touchEnabled,
+            );
             const runtimeFailure = firstLevel?.phase === 'blocked'
               ? firstLevel.feedback
               : null;
@@ -458,11 +484,17 @@ export function mountFirstLevelScene(
               interaction.feedbackText ??
               runtimeFailure ??
               '',
-            ).setVisible(Boolean(
-              frameTime < phaseAnnouncementUntil ||
-              interaction.feedbackText ||
-              runtimeFailure,
-            ));
+            )
+              .setPosition(
+                touchEnabled ? 330 : 500,
+                touchEnabled ? 318 : 480,
+              )
+              .setWordWrapWidth(touchEnabled ? 520 : 760, true)
+              .setVisible(Boolean(
+                frameTime < phaseAnnouncementUntil ||
+                interaction.feedbackText ||
+                runtimeFailure,
+              ));
             const dialogOpen = interaction.mode === 'investigation';
             const activeObject = FIRST_LEVEL_INTERACTIONS.find(
               object => object.id === interaction.activeId,
@@ -485,8 +517,14 @@ export function mountFirstLevelScene(
                 .setStrokeStyle(selected ? 3 : 1, visual.color, selected ? 0.9 : 0.45)
                 .setFillStyle(visual.color, selected ? 0.1 : 0.035)
                 .setVisible(showDebug);
-              visual.marker.setScale(selected ? 1.3 : 1);
+              visual.marker
+                .setScale(selected ? 1.3 : 1)
+                .setVisible(showDebug);
+              visual.text
+                .setVisible(showDebug)
+                .setAlpha(selected ? 1 : 0.82);
             }
+            for (const areaLabel of areaLabels) areaLabel.setVisible(showDebug);
             parent.dataset.debugVisible = String(showDebug);
             parent.dataset.visualState = JSON.stringify({
               task: 'H5-02',
@@ -506,6 +544,20 @@ export function mountFirstLevelScene(
               paused: snapshot.paused,
               tick: snapshot.tick,
               interactionMode: interaction.mode,
+              hud: {
+                touchControlsEnabled: touchEnabled,
+                desktopControlsVisible: controls.visible,
+                areaLabelsVisible: areaLabels.some(areaLabel => areaLabel.visible),
+                interactionDebugVisible: [...interactionVisuals.values()]
+                  .some(visual => visual.range.visible),
+                objectiveRight: objective.getBounds().right,
+                promptLeft: prompt.getBounds().left,
+                promptRight: prompt.getBounds().right,
+                promptBottom: prompt.y + prompt.height,
+                feedbackLeft: feedback.getBounds().left,
+                feedbackRight: feedback.getBounds().right,
+                feedbackBottom: feedback.y,
+              },
             });
             parent.dataset.dialogCompletesOnClose = String(
               Boolean(activeObject?.activateOnClose),

@@ -12,6 +12,8 @@ import explorerSvg from './assets/h5-02/explorer.svg?raw';
 import deviceSvg from './assets/h5-02/device-neutral.svg?raw';
 import liftSvg from './assets/h5-02/service-lift.svg?raw';
 import gateSvg from './assets/h5-02/route-gate.svg?raw';
+import nightDetailSvg from './assets/h5-02-r1/c-night-detail.svg?raw';
+import timberModuleSvg from './assets/h5-02-r1/c-timber-module.svg?raw';
 
 export const FIRST_LEVEL_ART_KEYS = Object.freeze({
   backdrop: 'h5-02-night-backdrop',
@@ -22,6 +24,8 @@ export const FIRST_LEVEL_ART_KEYS = Object.freeze({
   device: 'h5-02-device',
   lift: 'h5-02-service-lift',
   gate: 'h5-02-route-gate',
+  nightDetail: 'h5-02-r1-night-detail',
+  timberModule: 'h5-02-r1-timber-module',
 });
 
 export type FirstLevelArt = Readonly<{
@@ -51,6 +55,8 @@ export function preloadFirstLevelArt(scene: Phaser.Scene): void {
   loadSvg(FIRST_LEVEL_ART_KEYS.device, deviceSvg);
   loadSvg(FIRST_LEVEL_ART_KEYS.lift, liftSvg);
   loadSvg(FIRST_LEVEL_ART_KEYS.gate, gateSvg);
+  loadSvg(FIRST_LEVEL_ART_KEYS.nightDetail, nightDetailSvg);
+  loadSvg(FIRST_LEVEL_ART_KEYS.timberModule, timberModuleSvg);
 }
 
 export function assertFirstLevelArtLoaded(scene: Phaser.Scene): void {
@@ -70,21 +76,31 @@ export function createFirstLevelArt(
     .setDepth(-30)
     .setScrollFactor(0.18, 0.06);
   const cStructure = scene.add.image(
-    900,
-    158,
+    720,
+    132,
     FIRST_LEVEL_ART_KEYS.architecture,
   )
     .setOrigin(0)
-    .setScale(0.86)
-    .setAlpha(0.93)
+    .setScale(1.05)
+    .setAlpha(0.98)
     .setDepth(-16)
-    .setScrollFactor(0.58, 0.82);
-  scene.add.image(910, 248, FIRST_LEVEL_ART_KEYS.walkways)
+    .setScrollFactor(1, 1);
+  scene.add.image(720, 188, FIRST_LEVEL_ART_KEYS.walkways)
     .setOrigin(0)
-    .setScale(0.92)
-    .setAlpha(0.58)
+    .setScale(1.02)
+    .setAlpha(0.82)
     .setDepth(-11)
-    .setScrollFactor(0.82, 0.94);
+    .setScrollFactor(1, 1);
+  scene.add.image(680, 176, FIRST_LEVEL_ART_KEYS.timberModule)
+    .setOrigin(0)
+    .setAlpha(0.9)
+    .setDepth(-9)
+    .setScrollFactor(1, 1);
+  scene.add.image(360, 0, FIRST_LEVEL_ART_KEYS.nightDetail)
+    .setOrigin(0)
+    .setAlpha(0.62)
+    .setDepth(-22)
+    .setScrollFactor(0.08, 0.04);
 
   const terrain = scene.add.graphics().setDepth(-2);
   for (const body of world.terrain) {
@@ -161,18 +177,18 @@ export function createFirstLevelArt(
     FIRST_LEVEL_ROUTE_GATE.y,
     FIRST_LEVEL_ART_KEYS.gate,
   ).setOrigin(0.5).setDepth(7);
-  scene.add.image(500, 290, FIRST_LEVEL_ART_KEYS.foreground)
-    .setOrigin(0.5)
+  scene.add.image(860, 290, FIRST_LEVEL_ART_KEYS.foreground)
+    .setOrigin(0)
     .setScrollFactor(0)
-    .setAlpha(0.88)
+    .setAlpha(0.58)
     .setDepth(20);
 
   const camera = scene.cameras.main;
   camera.setBounds(
     0,
     0,
-    FIRST_LEVEL_SIZE.width + camera.width,
-    FIRST_LEVEL_SIZE.height + camera.height,
+    FIRST_LEVEL_SIZE.width,
+    FIRST_LEVEL_SIZE.height,
   );
 
   return Object.freeze({
@@ -186,12 +202,6 @@ export function createFirstLevelArt(
       ).setAlpha(currentWorld.routeOpen ? 1 : 0.78);
       gate.setVisible(!currentWorld.routeOpen)
         .setAlpha(currentWorld.routeOpen ? 0 : 0.96);
-      camera.setBounds(
-        0,
-        0,
-        FIRST_LEVEL_SIZE.width + camera.width,
-        FIRST_LEVEL_SIZE.height + camera.height,
-      );
     },
   });
 }

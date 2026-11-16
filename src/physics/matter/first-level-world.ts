@@ -195,6 +195,7 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
           width: number;
           height: number;
           label: string;
+          angle?: number;
         }>,
       ) => {
         const body = matter.Bodies.rectangle(
@@ -206,6 +207,9 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
             isStatic: true,
             friction: 1,
             label: object.label,
+            ...(object.angle === undefined
+              ? {}
+              : { angle: object.angle * Math.PI / 180 }),
           },
         );
         this.#trackBody(body);
@@ -338,6 +342,18 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
     this.#driveVelocity = { x: vx, y: vy };
     this.player.friction =
       this.#state.grounded && Math.abs(vx) < 0.01 ? 1 : 0;
+    if (
+      this.#state.grounded &&
+      Math.abs(vx) < 0.01 &&
+      Math.abs(vy) < 0.01 &&
+      this.#state.normalY > -0.999
+    ) {
+      // Keep the prototype player settled on a static stair while idle. This
+      // uses the already validated support normal and does not alter motion,
+      // slope ascent or moving-platform carry.
+      this.player.force.y -=
+        this.player.mass * this.#gravity.y * this.#gravity.scale;
+    }
   }
 
   setPermanentEffect(effectId: string, expectedActive: boolean): void {
@@ -570,6 +586,18 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
         );
       }
     }
+    for (const terrain of this.definition.terrain) {
+      const body = this.terrain.find(candidate =>
+        candidate.label === terrain.label);
+      if (!body || !bodySet.has(body)) continue;
+      const expectedRadians = terrain.angle * Math.PI / 180;
+      if (Math.abs(body.angle - expectedRadians) > 0.0001) {
+        fail(
+          'static-terrain-angle-mismatch',
+          `静态地形 ${terrain.label} 的真实角度与关卡定义不一致。`,
+        );
+      }
+    }
     const routeExpected = expectedPermanentEffects.some(effect =>
       effect.id === this.definition.routeEffectId &&
       effect.expectedActive);
@@ -653,16 +681,15 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
         },
       },
     );
+    const footBottom = anchor.y + PLAYER_PROTOTYPE.height / 2;
     const support = m.Query.collides(supportProbe, bodies)
       .map(collision =>
         collision.bodyA === supportProbe ? collision.bodyB : collision.bodyA)
       .find(body =>
         !body.isSensor &&
         collisionAllowed(supportProbe, body) &&
-        body.bounds.min.y >=
-          anchor.y + PLAYER_PROTOTYPE.height / 2 - TOP_TOLERANCE_PX &&
-        body.bounds.min.y <=
-          anchor.y + PLAYER_PROTOTYPE.height / 2 + 12);
+        body.vertices?.some(vertex =>
+          Math.abs(vertex.y - footBottom) <= TOP_TOLERANCE_PX + 8));
     return support
       ? Object.freeze({
         status: 'valid' as const,
@@ -834,6 +861,7 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
       x: this.definition.spawn.x,
       y: this.definition.spawn.y,
     });
+    m.Body.setAngle(this.player, 0);
     m.Body.setVelocity(this.player, { x: 0, y: 0 });
     m.Body.setAngularVelocity(this.player, 0);
     this.player.force.x = this.player.force.y = 0;
@@ -847,6 +875,7 @@ export class FirstLevelMatterWorld implements GrayboxPhysics {
       x: this.definition.lift.x,
       y: this.definition.lift.fromY,
     });
+    m.Body.setAngle(this.#lift.body, 0);
     m.Body.setVelocity(this.#lift.body, { x: 0, y: 0 });
     this.#lift.deltaX = this.#lift.deltaY = 0;
     this.#lift.vx = this.#lift.vy = 0;

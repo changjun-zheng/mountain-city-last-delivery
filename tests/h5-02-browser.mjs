@@ -11,7 +11,8 @@ import {
 } from './browser-selection.mjs';
 
 const TASK = 'H5-02';
-const SCOPE = 'c-area-playable-visual-slice';
+const SUBTASK = 'H5-02-R1';
+const SCOPE = 'continuous-c-building-exploration-correction';
 const args = process.argv.slice(2);
 const allowed = new Set(['--production']);
 const unknown = args.filter(argument =>
@@ -50,6 +51,7 @@ const evidenceDir = resolve('test-results/h5-02', `run-${runId}`);
 await mkdir(evidenceDir, { recursive: true });
 const report = {
   task: TASK,
+  subtask: SUBTASK,
   scope: SCOPE,
   command: [process.execPath, ...process.argv.slice(1)],
   startedAt: new Date().toISOString(),
@@ -127,11 +129,21 @@ const collectHashes = async () => {
     'src/rendering/phaser/first-level.ts',
     'src/rendering/phaser/first-level-art.ts',
     'src/rendering/phaser/first-level-actor.ts',
+    'src/core/first-level.ts',
+    'src/core/prototype-level.ts',
+    'src/physics/matter/first-level-world.ts',
     'tests/h5-02-browser.mjs',
     'dist/index.html',
   ];
   for (const file of await readdir(resolve('src/rendering/phaser/assets/h5-02'))) {
     paths.push(`src/rendering/phaser/assets/h5-02/${file}`);
+  }
+  try {
+    for (const file of await readdir(resolve('src/rendering/phaser/assets/h5-02-r1'))) {
+      paths.push(`src/rendering/phaser/assets/h5-02-r1/${file}`);
+    }
+  } catch {
+    // The R1 asset directory is created with the playable scene, not the test.
   }
   const html = await readFile(resolve('dist/index.html'), 'utf8');
   for (const match of html.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g)) {
@@ -539,11 +551,25 @@ try {
     document.querySelector('#diagnostics')?.dataset.needsRelease === 'false',
   undefined, { timeout: 12000, polling: 100 });
 
+  // Dialogue completion can trigger a real renderer focus change after the
+  // previous foreground assertion. Start the C traversal only from a fresh,
+  // observed visible/focused baseline instead of treating a paused page as a
+  // movement failure.
+  await ensurePageActive(page);
+  await visibleFocused(page);
   await reachCControls(page);
   await visibleFocused(page);
   const cInitial = await sample(page);
   assert.equal(cInitial.support, 'c-upper-ground');
   assert.ok(cInitial.x > 1050);
+  const desktopLayout = await page.locator('#game').evaluate(element => {
+    const visual = JSON.parse(element.dataset.visualState || '{}');
+    return visual.hud;
+  });
+  assert.equal(desktopLayout.touchControlsEnabled, false);
+  assert.equal(desktopLayout.desktopControlsVisible, true);
+  assert.equal(desktopLayout.areaLabelsVisible, false);
+  assert.equal(desktopLayout.interactionDebugVisible, false);
   await screenshot(page, 'vis01-C-overview-1280x720');
   await screenshot(page, 'vis01-C-actor-detail', {
     clip: await canvasClip(page),
@@ -553,6 +579,7 @@ try {
     dialog,
     accepted,
     cInitial,
+    desktopLayout,
   });
 
   await pressKey(page, 'KeyE');
@@ -589,18 +616,17 @@ try {
   await page.waitForFunction(() => {
     const data = document.querySelector('#diagnostics')?.dataset;
     return data?.grounded === 'true' &&
-      data?.support === 'c-middle-ground' &&
+      data?.support === 'c-stair-middle' &&
       Number(data.x) > 1290;
-  }, undefined, { timeout: 15000, polling: 100 });
-  await page.keyboard.down('Space');
+  }, undefined, { timeout: 16000, polling: 100 });
+  assert.equal((await sample(page)).jumps, accepted.jumps);
   await screenshot(page, 'vis03-C-middle-keyframe');
   await page.waitForFunction(() => {
     const data = document.querySelector('#diagnostics')?.dataset;
     return data?.grounded === 'true' &&
-      data?.support === 'c-lower-ground' &&
-      Number(data.x) > 1520;
-  }, undefined, { timeout: 15000, polling: 100 });
-  await page.keyboard.up('Space');
+      data?.support === 'c-stair-lower' &&
+      Number(data.x) > 1450;
+  }, undefined, { timeout: 16000, polling: 100 });
   await page.keyboard.up('KeyD');
   await page.waitForFunction(() =>
     Math.abs(Number(document.querySelector('#diagnostics')?.dataset.vx)) < 1,
@@ -811,6 +837,42 @@ try {
     ].includes(document.querySelector('#diagnostics')?.dataset.interactionSelected),
   undefined, { timeout: 15000, polling: 100 });
   await screenshot(touchPage, 'vis05-touch-C-844x390');
+  const touchLayout = await touchPage.evaluate(() => {
+    const game = document.querySelector('#game');
+    const canvas = game?.querySelector('canvas');
+    const visual = JSON.parse(game?.dataset.visualState || '{}');
+    if (!canvas) throw new Error('The touch game canvas must exist.');
+    const canvasBox = canvas.getBoundingClientRect();
+    const buttonTop = Math.min(...[
+      ...document.querySelectorAll('#touch-controls [data-action]'),
+    ].map(button => button.getBoundingClientRect().top));
+    const actionPad = document.querySelector(
+      '#touch-controls .touch-action-pad',
+    );
+    if (!actionPad) throw new Error('The touch action pad must exist.');
+    const actionPadLeft = actionPad.getBoundingClientRect().left;
+    const utilityLeft = Math.min(...[
+      ...document.querySelectorAll('#touch-prototype .touch-utility-button'),
+    ].map(button => button.getBoundingClientRect().left));
+    const scaleY = 580 / canvasBox.height;
+    const scaleX = 1000 / canvasBox.width;
+    return {
+      ...visual.hud,
+      touchButtonTopLogical: (buttonTop - canvasBox.top) * scaleY,
+      actionPadLeftLogical: (actionPadLeft - canvasBox.left) * scaleX,
+      utilityLeftLogical: (utilityLeft - canvasBox.left) * scaleX,
+    };
+  });
+  report.touchLayout = touchLayout;
+  assert.equal(touchLayout.touchControlsEnabled, true);
+  assert.equal(touchLayout.desktopControlsVisible, false);
+  assert.equal(touchLayout.areaLabelsVisible, false);
+  assert.equal(touchLayout.interactionDebugVisible, false);
+  assert.ok(touchLayout.objectiveRight < touchLayout.utilityLeftLogical);
+  assert.ok(touchLayout.promptRight < touchLayout.actionPadLeftLogical);
+  assert.ok(touchLayout.feedbackRight < touchLayout.actionPadLeftLogical);
+  assert.ok(touchLayout.promptBottom < touchLayout.touchButtonTopLogical);
+  assert.ok(touchLayout.feedbackBottom < touchLayout.touchButtonTopLogical);
   const touchBeforeJump = await sample(touchPage);
   await touchTap(touchPage, '[data-action="jump"]', 112);
   await touchPage.waitForFunction(jumps =>
@@ -849,10 +911,11 @@ try {
   assert.equal(touchFinal.routeUnlocked, true);
   assert.ok(touchFinal.tick > 0);
   report.layers.chromeTouchEmulation = 'PASS';
-  record('VIS05 touch-emulated C walk, jump and interaction', 'PASS', {
+  record('VIS05 touch-emulated C walk and interaction', 'PASS', {
     runtimeInstanceId: touchRuntime,
     beforeJump: touchBeforeJump,
     final: touchFinal,
+    layout: touchLayout,
   });
   await touchContext.close();
   report.cleanup.contexts = report.cleanup.contexts === 'FAIL'
@@ -970,6 +1033,6 @@ try {
     JSON.stringify(report, null, 2),
   );
   console.log('Evidence:', evidenceDir);
-  console.log(report.status, TASK, SCOPE);
+  console.log(report.status, TASK, SUBTASK, SCOPE);
   if (report.status === 'FAIL') process.exitCode = 1;
 }

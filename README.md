@@ -2513,6 +2513,64 @@ Work 本轮重新运行 npm.cmd test：189/189 PASS，0 fail、0 skipped，退�
 
 已知失败历史保留：首次报告 [run-2026-11-15T14-11-19-804Z](test-results/h5-02/run-2026-11-15T14-11-19-804Z/report.json) 功能检查 PASS，但 context 主动关闭后未投影清理状态，整体为 FAIL；随后 [run-2026-11-15T14-18-58-645Z](test-results/h5-02/run-2026-11-15T14-18-58-645Z/report.json) 在登上升降平台后因测试持续右移使角色滑出平台而超时。最终修复分别显式记录 context 清理，并按真实 `supportRelativeX`／速度制动至平台中部后继续，未改游戏物理或缩短断言。Android／iOS 真机、完整手机整关、Edge、Electron、独立人工长期手感和负责人／美术观感审查仍 NOT RUN；父项 H5-01 继续 BLOCKED。当前等待 Work／美术审查，不自动进入下一任务。
 
+### 2026-11-16 H5-02-R1：C 区连续建筑探索与视觉纠偏
+
+状态：**DONE（待 Work／负责人美术审查）**。本轮只完成 C 样段的真实楼梯、连续木廊、建筑剖面、镜头及正常画面技术标记纠偏；H5-02 整体视觉／美术验收仍未由开发窗口自行改为 PASS，Android／iOS 真机仍 `NOT RUN`，H5-01 保持 `BLOCKED`。
+
+基线 main／origin/main／HEAD 均为 `33c53a964e21ada9d700d582d0be2acc4c612dc8`；开始时五份 Work 文档修改全部保留。当前 C 路线为：
+
+```text
+B 出口 → c-stair-upper → c-upper-ground / 原机关
+       → c-stair-middle → c-middle-ground
+       → c-stair-lower → c-lower-ground / C3
+       → 原路线门与升降平台 → 下层 D
+```
+
+静态地形定义新增可选 `angle`（单位度，默认 `0`，严格限制 `-60..60`），Matter 适配器统一转换为弧度；路线门、升降平台、快照 schema、业务身份、PlayerMotor、移动参数、暂停、恢复和永久进度算法未改。三段真实楼梯参数如下，均明确为可调整原型值：
+
+| Body | 中心 x / y | 宽 × 高 | 角度 |
+| --- | --- | --- | --- |
+| `c-stair-upper` | `1025 / 313.5` | `212.43 × 12` | `26.565°` |
+| `c-stair-middle` | `1335 / 404.5` | `185.8 × 24` | `23.81°` |
+| `c-stair-lower` | `1510 / 477` | `122.07 × 24` | `35°` |
+
+新增 C01 真实 Matter 测试覆盖连续下梯、反向回走、坡上停步、机关层与 C3 到达，全程 `jumps=0`。浏览器主线在进入 C 后不再按 Space，实际走到 `c-stair-middle`、`c-stair-lower` 与原升降平台；错误右侧操作可重试，左侧正确操作后 `routeOpen=true`、`gateMask=0`，乘平台到 D 并完成拍摄分享。R 与真实隐藏暂停仍保留永久进度、业务 ID 和 OPEN 路线。
+
+渲染层修正如下：
+
+- `first-level.ts` 与 `first-level-art.ts` 的相机 bounds 均只使用真实关卡尺寸，删除 helper 每帧重设“关卡加视口”的逻辑。
+- 承担玩法的木构、木廊和楼梯固定在世界坐标；只有远山、城市与江面使用低视差。
+- 新增 [H5-02-R1 木构模块](src/rendering/phaser/assets/h5-02-r1/c-timber-module.svg) 与 [夜景远景模块](src/rendering/phaser/assets/h5-02-r1/c-night-detail.svg)，旧 H5-02 资源保留。
+- 正常画面隐藏交互范围、圆点和交互对象技术标签；只有 `?debug=1` 或既有调试状态显示。
+- 前景移至画面右侧边缘并降低不透明度，角色、楼梯、装置与提示保持可读。
+
+实际命令与结果：
+
+| 命令 | 状态 | 实际结果 |
+| --- | --- | --- |
+| `node --experimental-strip-types --test tests/first-level.test.mjs tests/level-assembly.test.mjs` | PASS | `19/19`，0 fail、0 skipped。 |
+| `npm.cmd test` | PASS | TypeScript、Electron Main 编译及 `190/190` 测试，0 fail、0 skipped。 |
+| `npm.cmd run build` | PASS | Vite 8.3.7 转换 48 modules，生产资源生成；仅有既有主包体积警告。 |
+| `node tests/h5-input-browser.mjs --browser=chrome --production` | PASS | [H5-01 输入回归](test-results/h5-01/run-2026-11-16T08-28-44-218Z/report.json) 14 组检查 PASS，清理 PASS。 |
+| `node tests/h5-02-browser.mjs --browser=chrome --production` | PASS | [H5-02-R1 最终报告](test-results/h5-02/run-2026-11-16T08-49-39-288Z/report.json) 7 组检查 PASS，退出码 `0`。 |
+
+浏览器报告 `task=H5-02`、`subtask=H5-02-R1`、`scope=continuous-c-building-exploration-correction`。桌面 Chrome、844×390 与 667×375 触屏模拟均 PASS；页面错误、网络失败、非预期中断为 `0`，自有 context、CDP 连接、Chrome 进程及静态服务清理均 PASS。触屏布局实测：目标文字右缘 `465`、提示右缘 `416`，右侧操作区左缘 `737.85`；提示下缘 `372`，触控按钮上缘 `435.82`（逻辑坐标）。新证据包括 [C 区概览](test-results/h5-02/run-2026-11-16T08-49-39-288Z/vis01-C-overview-1280x720.png)、[中段楼梯](test-results/h5-02/run-2026-11-16T08-49-39-288Z/vis03-C-middle-keyframe.png)、[下段楼梯](test-results/h5-02/run-2026-11-16T08-49-39-288Z/vis03-C-lower-keyframe.png)、[844×390](test-results/h5-02/run-2026-11-16T08-49-39-288Z/vis05-touch-C-844x390.png) 与 [667×375](test-results/h5-02/run-2026-11-16T08-49-39-288Z/vis05-touch-C-667x375.png)。
+
+最终报告 SHA-256：`D4B8FDE30BA5C44852AE4AC484B6F98DBFF4B1666524155FE0EE367847A0C7C6`。修复过程产生的三次新 FAIL 原样保留：[run-2026-11-16T08-29-11-282Z](test-results/h5-02/run-2026-11-16T08-29-11-282Z/report.json) 为 B 对话后真实失焦暂停导致 C 路线超时；[run-2026-11-16T08-38-06-989Z](test-results/h5-02/run-2026-11-16T08-38-06-989Z/report.json) 的桌面主线已通过，但触屏布局断言误用左侧移动按钮作为右侧操作区边界；两次根因修复后最终专项 PASS。旧 [run-2026-11-16T07-54-46-065Z](test-results/h5-02/run-2026-11-16T07-54-46-065Z/report.json) 继续保留。主要源码／脚本／产物哈希：
+
+| 文件 | SHA-256 |
+| --- | --- |
+| `src/core/first-level.ts` | `569A4A9AE9A4C463D387FE7ACAF38D6C19EA76320C927900AA3618702A69C5B1` |
+| `src/core/prototype-level.ts` | `9DD7A71E4AE1C913DF1508EEC5D16AFA507EA4FA657000EC2E6B9FF1346911F9` |
+| `src/physics/matter/first-level-world.ts` | `A4C5CC4F6AA5ADAD67966DFDC82D5EDB8256B7B1C1E8C55BC45AF18E70F7626A` |
+| `src/rendering/phaser/first-level.ts` | `0F6C8ED60FDA9E67FCE10CD6C85E1FE3B64C50EE9BDA6E57BBC19F0E141EE1DE` |
+| `src/rendering/phaser/first-level-art.ts` | `727ACBCBC57136A71714830ECBA1D35CAE4B3AE9C79A3D6B44523F6FDBAF9617` |
+| `tests/h5-02-browser.mjs` | `9FA8BCDE9A0F41C7FAD6C6ACC2666C25BEEA32782D5AC25A5B6F1C449040E371` |
+| `dist/assets/index-BAcOggt5.js` | `C84E5FEE977D6C58EE9CE516EF378010B85603D219DD136CC1ECA6340443AB9F` |
+| `dist/assets/index-DZ_wJHKK.css` | `91F35A57112237855D16D892D04A384123ADAABD11B864690FE2DE614FC73107` |
+
+素材来源、制作方式和许可边界记录在 [H5-02-R1 ASSET_SOURCES.md](src/rendering/phaser/assets/h5-02-r1/ASSET_SOURCES.md)。当前本地体验入口为 `http://127.0.0.1:4174/`，启动命令进程 PID `31536`、Vite 监听 PID `23564`；关闭时只终止这两个本任务进程。操作：A/D 或方向键移动，Space 跳跃，E 交互，对话内 Esc 完成，R 调试重置。真实手机、完整手机整关、Edge、Electron 本轮均 `NOT RUN`；自动化 PASS 不代表负责人／美术观感通过，Matter 仍不是最终物理选型。当前等待审查，不进入 H5-03／H5-04、D13、BRAND-01 或 MLV。
+
 
 ### 2026-11-15 Work／负责人审查：H5-02 视觉与空间未收口
 
