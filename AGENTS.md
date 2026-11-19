@@ -19,8 +19,8 @@
 - 赛事：2026 首届重庆市小游戏创新创业大赛。
 - 赛道：第一赛道，“渝你同行”特色赛道。
 - 参赛形式：个人参赛；主要目标：争取比赛获奖。
-- 必须支持网页浏览器直接游玩及 Windows PC 独立桌面程序运行。
-- 比赛版 H5 的设备目标已于 2026-11-15 CONFIRMED：同时支持电脑和手机浏览器，共用首关／共享核心，不复制游戏；横屏优先、触屏与 UI 实施方案仍 PROPOSED。具体见 `docs/DECISIONS.md` 和 `docs/COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md`。本届 Electron 交付豁免尚待审，不据此取消长期 Windows 要求或自动启动开发。
+- 长期平台方向保留网页浏览器直接游玩及 Windows PC 独立桌面程序；本届当前交付按 2026-11-19 负责人指示优先 H5 网页 Demo，不再把 Electron 打包／每轮三端回归作为 Demo 前置。保留既有 Electron 代码和历史，不将项目平台选择冒充赛事强制要求，不悄然缩减原 D13 卡。
+- 比赛版 H5 的设备目标已于 2026-11-15 CONFIRMED：同时支持电脑和手机浏览器，共用首关／共享核心，不复制游戏；横屏策略与具体 UI 参数仍按原确认状态管理，已有触控实现不等于真机通过。当前采用 Demo 空间／功能／界面优先、再优化美术的顺序，见 `docs/DECISIONS.md` 和 `docs/COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md`；文档完成不代表自动启动开发。
 
 项目事实和设计状态以 `docs/PROJECT_BRIEF.md` 与 `docs/DECISIONS.md` 为依据；用户新的明确指示优先，并应同步更新相关文档。
 

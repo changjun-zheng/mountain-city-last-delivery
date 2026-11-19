@@ -10,9 +10,9 @@ import {
   resolveBrowserExecutable,
 } from './browser-selection.mjs';
 
-const TASK = 'H5-02';
-const SUBTASK = 'H5-02-R1';
-const SCOPE = 'continuous-c-building-exploration-correction';
+const TASK = 'DEMO-01';
+const SUBTASK = 'DEMO-01';
+const SCOPE = 'first-level-expanded-spatial-demo';
 const args = process.argv.slice(2);
 const allowed = new Set(['--production']);
 const unknown = args.filter(argument =>
@@ -47,7 +47,7 @@ try {
 }
 
 const runId = new Date().toISOString().replace(/[:.]/g, '-');
-const evidenceDir = resolve('test-results/h5-02', `run-${runId}`);
+const evidenceDir = resolve('test-results/demo-01', `run-${runId}`);
 await mkdir(evidenceDir, { recursive: true });
 const report = {
   task: TASK,
@@ -61,6 +61,7 @@ const report = {
     executablePath: browser.executablePath,
     candidates: browser.candidates,
   },
+  world: { width: 8000, height: 1800, camera: { width: 1000, height: 580, zoom: 1 } },
   productionEntry: resolve('dist/index.html'),
   layers: {
     chromeDesktopKeyboard: 'NOT RUN',
@@ -252,18 +253,18 @@ const closeNpcDialogue = async page => {
 const reachNpc = async page => {
   await page.keyboard.down('KeyD');
   await page.waitForFunction(() =>
-    Number(document.querySelector('#diagnostics')?.dataset.x) > 340,
+    Number(document.querySelector('#diagnostics')?.dataset.x) > 1450,
   undefined, { timeout: 12000, polling: 100 });
   await page.keyboard.down('Space');
   await page.waitForFunction(() =>
-    Number(document.querySelector('#diagnostics')?.dataset.x) > 500,
+    Number(document.querySelector('#diagnostics')?.dataset.x) > 1650,
   undefined, { timeout: 12000, polling: 100 });
   await page.keyboard.up('Space');
   await page.waitForFunction(() => {
     const data = document.querySelector('#diagnostics')?.dataset;
     return data?.grounded === 'true' &&
       data?.support === 'b-terrace' &&
-      Number(data.x) > 550;
+      Number(data.x) > 1700;
   }, undefined, { timeout: 12000, polling: 100 });
   await page.waitForFunction(() =>
     document.querySelector('#diagnostics')?.dataset.interactionSelected ===
@@ -280,8 +281,8 @@ const reachCControls = async page => {
     const data = document.querySelector('#diagnostics')?.dataset;
     return data?.grounded === 'true' &&
       data?.support === 'c-upper-ground' &&
-      Number(data.x) > 1050;
-  }, undefined, { timeout: 16000, polling: 100 });
+      Number(data.x) > 3550;
+  }, undefined, { timeout: 24000, polling: 100 });
   await page.waitForFunction(() =>
     document.querySelector('#diagnostics')?.dataset.interactionSelected ===
       'first-level-c-lever-right',
@@ -355,18 +356,18 @@ const touchTap = async (page, selector, pointerId) => {
 const touchReachNpc = async page => {
   await pointer(page, '[data-action="right"]', 'pointerdown', 101);
   await page.waitForFunction(() =>
-    Number(document.querySelector('#diagnostics')?.dataset.x) > 340,
+    Number(document.querySelector('#diagnostics')?.dataset.x) > 1450,
   undefined, { timeout: 15000, polling: 100 });
   await pointer(page, '[data-action="jump"]', 'pointerdown', 102);
   await page.waitForFunction(() =>
-    Number(document.querySelector('#diagnostics')?.dataset.x) > 500,
+    Number(document.querySelector('#diagnostics')?.dataset.x) > 1650,
   undefined, { timeout: 15000, polling: 100 });
   await pointer(page, '[data-action="jump"]', 'pointerup', 102);
   await page.waitForFunction(() => {
     const data = document.querySelector('#diagnostics')?.dataset;
     return data?.grounded === 'true' &&
       data?.support === 'b-terrace' &&
-      Number(data.x) > 550;
+      Number(data.x) > 1700;
   }, undefined, { timeout: 15000, polling: 100 });
   await page.waitForFunction(() =>
     document.querySelector('#diagnostics')?.dataset.interactionSelected ===
@@ -383,7 +384,7 @@ const touchReachC = async page => {
     const data = document.querySelector('#diagnostics')?.dataset;
     return data?.grounded === 'true' &&
       data?.support === 'c-upper-ground' &&
-      Number(data.x) > 1050;
+      Number(data.x) > 3830;
   }, undefined, { timeout: 20000, polling: 100 });
   await pointer(page, '[data-action="right"]', 'pointerup', 111);
   await page.waitForFunction(() =>
@@ -561,7 +562,7 @@ try {
   await visibleFocused(page);
   const cInitial = await sample(page);
   assert.equal(cInitial.support, 'c-upper-ground');
-  assert.ok(cInitial.x > 1050);
+  assert.ok(cInitial.x > 3550);
   const desktopLayout = await page.locator('#game').evaluate(element => {
     const visual = JSON.parse(element.dataset.visualState || '{}');
     return visual.hud;
@@ -617,16 +618,16 @@ try {
     const data = document.querySelector('#diagnostics')?.dataset;
     return data?.grounded === 'true' &&
       data?.support === 'c-stair-middle' &&
-      Number(data.x) > 1290;
-  }, undefined, { timeout: 16000, polling: 100 });
+      Number(data.x) > 4450;
+  }, undefined, { timeout: 24000, polling: 100 });
   assert.equal((await sample(page)).jumps, accepted.jumps);
   await screenshot(page, 'vis03-C-middle-keyframe');
   await page.waitForFunction(() => {
     const data = document.querySelector('#diagnostics')?.dataset;
     return data?.grounded === 'true' &&
       data?.support === 'c-stair-lower' &&
-      Number(data.x) > 1450;
-  }, undefined, { timeout: 16000, polling: 100 });
+      Number(data.x) > 5850;
+  }, undefined, { timeout: 24000, polling: 100 });
   await page.keyboard.up('KeyD');
   await page.waitForFunction(() =>
     Math.abs(Number(document.querySelector('#diagnostics')?.dataset.vx)) < 1,
@@ -635,9 +636,9 @@ try {
 
   await page.waitForFunction(() => {
     const data = document.querySelector('#diagnostics')?.dataset;
-    return Number(data?.firstLevelLiftY) < 515 &&
+    return Number(data?.firstLevelLiftY) < 1075 &&
       Number(data?.firstLevelLiftDirection) === 1;
-  }, undefined, { timeout: 16000, polling: 100 });
+  }, undefined, { timeout: 24000, polling: 100 });
   await page.keyboard.down('KeyD');
   await page.waitForFunction(() =>
     document.querySelector('#diagnostics')?.dataset.support ===
@@ -664,8 +665,8 @@ try {
   await page.waitForFunction(() => {
     const data = document.querySelector('#diagnostics')?.dataset;
     return data?.support === 'first-level-service-lift' &&
-      Number(data.firstLevelLiftY) > 550;
-  }, undefined, { timeout: 16000, polling: 100 });
+      Number(data.firstLevelLiftY) > 1180;
+  }, undefined, { timeout: 24000, polling: 100 });
   await screenshot(page, 'vis03-lift-descending');
 
   const frozenBefore = await sample(page);
@@ -726,15 +727,15 @@ try {
   await page.waitForFunction(() => {
     const data = document.querySelector('#diagnostics')?.dataset;
     return data?.support === 'first-level-service-lift' &&
-      Number(data.firstLevelLiftY) > 620;
-  }, undefined, { timeout: 16000, polling: 100 });
+      Number(data.firstLevelLiftY) > 1360;
+  }, undefined, { timeout: 24000, polling: 100 });
   await page.keyboard.down('KeyD');
   await page.waitForFunction(() => {
     const data = document.querySelector('#diagnostics')?.dataset;
     return data?.grounded === 'true' &&
       data?.support === 'd-riverbank' &&
-      Number(data.x) > 1695;
-  }, undefined, { timeout: 16000, polling: 100 });
+      Number(data.x) > 6450;
+  }, undefined, { timeout: 24000, polling: 100 });
   await page.waitForFunction(() =>
     document.querySelector('#diagnostics')?.dataset.interactionSelected ===
       'first-level-d-photo',
@@ -752,6 +753,26 @@ try {
   assert.equal(completed.progressGoals, 3);
   assert.equal(completed.progressEffects, 3);
   await screenshot(page, 'vis03-completed');
+
+  // A genuine fall, not R or navigation: leave D while the lift is above it.
+  await page.waitForFunction(() =>
+    Number(document.querySelector('#diagnostics')?.dataset.firstLevelLiftY) < 1130,
+  undefined, { timeout: 22000, polling: 50 });
+  await page.keyboard.down('KeyA');
+  await page.waitForFunction(() =>
+    Number(document.querySelector('#diagnostics')?.dataset.x) < 6355,
+  undefined, { timeout: 10000, polling: 20 });
+  await page.keyboard.up('KeyA');
+  const recovered = await recoverFromFall(page, 0);
+  assert.equal(recovered.runtimeInstanceId, completed.runtimeInstanceId);
+  assert.equal(recovered.questEventId, completed.questEventId);
+  assert.equal(recovered.liftEventId, completed.liftEventId);
+  assert.equal(recovered.completeEventId, completed.completeEventId);
+  assert.equal(recovered.progressGoals, completed.progressGoals);
+  assert.equal(recovered.routeUnlocked, true);
+  assert.equal(recovered.gateMask, 0);
+  await screenshot(page, 'demo-fall-recovered');
+  record('DEMO-01 genuine fall preserves progress and business identity', 'PASS', { completed, recovered });
 
   await pressKey(page, 'KeyR');
   await page.waitForFunction(previous => {

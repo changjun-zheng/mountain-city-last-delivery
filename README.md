@@ -6,11 +6,11 @@
 
 名称说明（2026-11-15）：当前中文项目名称为《坡坎之间》（CONFIRMED），英文名称未确定；宣传语“在山与城之间，发现不一样的故事。”仅为 PROPOSED。旧工作名称为叠城大冒险／Layered City Adventures，商标注册、重名核验与正式发行名称冻结尚未完成。见[当前名称决策](docs/DECISIONS.md#project-name-pokan-20261115)及[品牌交接](docs/PROJECT_REBRANDING_HANDOFF.md#current-brand-20261115)。本轮只更新文档，当前源码界面及既有 Windows 产物仍可能显示旧名，不能据此宣称界面更名完成。
 
-当前默认打开 D12-A3 首关空间切片：从 A 区解放碑周边出生并学习移动、跳跃与交互，沿台阶前往 B 区沧白路与洪崖洞入口，主动完成游客对话并接取《把山城夜景寄给远方》；随后进入 C1 上层木廊、C2 中层街巷和 C3 下层檐廊，试错唯一机关并乘坐真实升降平台下到 D 区下层嘉陵江岸，最后主动完成拍摄与分享。A–D 的坐标、画面、NPC、线索和文案仍为占位原型；默认 HUD 显示当前目标，完整身份及 Tick 诊断收在「模拟诊断」中。顶部「调试入口」保留原固定步诊断场景和包含 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互、D08 运行内进度、D09-D1 目标 E、D10 检查点捕获及 D11 恢复能力的基础灰盒。Web 与 Windows 使用同一份首关配置、角色、物理、交互、进度、事件、快照、恢复及模拟代码。「重新启动」先销毁 Phaser 实例，再创建新运行；「重置灰盒」在首关中复位角色和升降平台临时状态，保留本次运行内的任务、机关、路线、完成、业务身份和永久效果，不重新捕获或覆盖初始备用快照，也不是正式检查点恢复。
+当前默认打开 DEMO-01 首关空间 Demo（8000×1800，最新验收与已知输入测试失败见文末）：从 A 区解放碑周边出生并学习移动、跳跃与交互，沿台阶前往 B 区沧白路与洪崖洞入口，主动完成游客对话并接取《把山城夜景寄给远方》；随后进入 C1 上层木廊、C2 中层街巷和 C3 下层檐廊，试错唯一机关并乘坐真实升降平台下到 D 区下层嘉陵江岸，最后主动完成拍摄与分享。A–D 的坐标、画面、NPC、线索和文案仍为占位原型；默认 HUD 显示当前目标，完整身份及 Tick 诊断收在「模拟诊断」中。顶部「调试入口」保留原固定步诊断场景和包含 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互、D08 运行内进度、D09-D1 目标 E、D10 检查点捕获及 D11 恢复能力的基础灰盒。Web 与 Windows 使用同一份首关配置、角色、物理、交互、进度、事件、快照、恢复及模拟代码。「重新启动」先销毁 Phaser 实例，再创建新运行；「重置灰盒」在首关中复位角色和升降平台临时状态，保留本次运行内的任务、机关、路线、完成、业务身份和永久效果，不重新捕获或覆盖初始备用快照，也不是正式检查点恢复。
 
 Mountain City: Last Delivery／山城有路：最后一单为历史名称。下文旧里程碑的日志、截图及证据保留当时名称，不改写为新名执行过的测试。真实地标资料与旧首关方案保留参考，其虚构世界叙事尚待适配；本次不新增玩法、不重写任务或通关条件。内部包名、appId、用户数据身份及项目目录不变。
 
-首关操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；在 B 区沧白路入口靠近游客后按 E 主动对话，只有对话完成才自动接取委托。根据 B 区唯一线索，在 C 区两个吊臂中按 E 试错；右侧错误操作可重试，左侧正确操作启动升降平台并开放通往下层 D 的真实碰撞路线。沿 C1、C2、C3 缺口逐层向下，乘平台下降至嘉陵江岸后，按住 D 走到指定范围并按 E 拍摄、分享；只有已接委托、机关完成、路线开放且主动交互全部满足时才完成。按 R 或「重置灰盒」回到出生点并保留上述永久进度。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
+首关操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；在 B 区沧白路入口靠近游客后按 E 主动对话，只有对话完成才自动接取委托。根据 B 区唯一线索，在 C 区两个吊臂中按 E 试错；右侧错误操作可重试，左侧正确操作启动升降平台并开放通往下层 D 的真实碰撞路线。沿 C1、C2、C3 连续楼梯与木廊逐层向下，乘平台下降至嘉陵江岸后，按住 D 走到指定范围并按 E 拍摄、分享；只有已接委托、机关完成、路线开放且主动交互全部满足时才完成。按 R 或「重置灰盒」回到出生点并保留上述永久进度。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
 
 调试灰盒操作：调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过并从上方落地；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。D 由 D08 原型直接登记一次测试收藏；目标 E 的按 E 只创建 Pending Event，真实命令接收和跨 Tick 事务完成后才登记目标／奖励／永久效果并开门。检查点与恢复原型、诊断区域和两条移动平台保留在「调试入口」；这些能力不等于正式存档或首关检查点。
 
@@ -2586,3 +2586,78 @@ Work 已查看实际桌面／触屏 C 图与原概念图 A，并检查当前静�
 本轮 main／origin/main／HEAD 均为 06b203d，开始时五份 Work 文档已有修改，源码尚无 R1 实施。按负责人最新指示，先完成[视觉与场景收敛方案](docs/ART_DIRECTION_AND_SCENE_PROTOTYPE.md#visual-anchor-plan-20261115)：当前高层横版／2.5D 方向保留，游戏内视觉仍未通过，不切换俯视、不重做代码。
 
 H5-02-R1 转 WAITING_DESIGN，原 READY 提示词仅保留历史，不执行。下一步可转交的是[H5-02-PRE 参考前置委托](docs/DEVELOPMENT_ROADMAP.md#h5-02-visual-prep)，只整理四区、人物和动作参考及实际资料；本轮没有制作新图，不虚报资产归档。图稿经负责人／策划评审后再由 Work 下发代码任务。本轮未改源码、测试、配置，未运行游戏测试／构建，未 Commit／Push。
+
+
+## 2026-11-19 DEMO-01 实施交付（待 Work 审查）
+
+整体验收：BLOCKED。当前空间与地图专项已实现；未修改的 H5 输入专项本次 FAIL，不能宣称全部验收通过。基线 HEAD / origin/main / GitHub main 均为 92ea48949dd87dcb6e3ba9860b830bb266c93aa9。开工时 8 份 Work 文档改动全部保留，未提交／推送。
+
+世界由 2050×760 改为 **8000×1800**。画布及相机仍为 1000×580、zoom=1，8 个逻辑画面宽，角色尺寸／速度不变。A：0–1600，B：1600–3000，C：3000–6300，D：6400–8000；中间为实体门／原升降井道。A 纪念碑及商铺、B 高处栏杆／下方楼群、C 木构剖面／楼梯、D 桥水样块均有实际绘制。场景细节、地标还原度和最终美术留负责人审查，不将样块称作正式美术。
+
+| 配置 | 当前工程值（TO_VALIDATE） |
+| --- | --- |
+| 出生／备用锚点 | (180,378,+1)；(360,378,+1)、(1700,328,+1) |
+| A／B 街面 | y=400／350；A→B 保留一处 50 px 安全短跳教学 |
+| 楼梯顶边 | (3000,350)→(3500,600)；(4300,600)→(4800,830)；(5700,830)→(6200,1060) |
+| C 三层木廊 | x=3500–4300 / y=600；4800–5700 / y=830；6200–6300 / y=1060 |
+| 原 NPC／线索 | (2350,328)／(2550,328) |
+| 原机关两个控制位 | (3850,578)／(3950,578)，仍在上层，身份与职责不变 |
+| 原升降平台 | x=6350，y=1069→1369，宽100，周期18000 ms，速度33.33 px/s |
+| 路线门 | x=6290，实体井道栅门顶700、底1600，未开路不能跨跳或下落绕行 |
+| D 街面／拍摄点 | y=1360；(7550,1338)，比 C3 低300 |
+| 失败 sensor | (4000,1740)，8000×58 |
+
+所有临时状态仍由同一个实例定义提供，初始 registry 仍只有原升降平台。未修改 Matter 适配器、PlayerMotor、恢复、输入、暂停或事务算法。升降最初尝试 12000 ms 导致两个真实承载断言 FAIL；改为18000 ms，保留原验证速度后通过。测试夹具从旧坐标改为当前布局，未删除原身份／进度／资源断言。
+
+| 验收 | 状态 | 实际证据 |
+| --- | --- | --- |
+| D01 空间／地点 | PASS | 8屏宽，四区实际样块及下列实机图；最终观感仍 NOT RUN |
+| D02 完整主线 | PASS | 从A真实键盘到B完成对话，C错误重试／正确开路，不跳跃走梯、乘台、D拍摄分享；未传送或写进度 |
+| D03 路线门槛 | PASS | 真实 Matter 闭门步行／跳跃／下落阻挡；上下坡、接缝、反向、坡上停步保留有效断言 |
+| D04 配置生命周期 | PASS | 新锚点与真实Matter恢复／重建通过；Chrome真实坠落回初始点，原Runtime、三个业务Event ID及OPEN保留；R同样保留 |
+| D05 原有回归 | FAIL | 单测191/191通过；地图hidden恢复通过，但未改H5输入专项在hidden且hasFocus=true时超时 |
+| D06 证据 | PASS | 新报告、错误现场、哈希、截图和本地入口齐备；真机分层见下 |
+
+| 命令 | 状态 | 退出码／证据 |
+| --- | --- | --- |
+| node --experimental-strip-types --test tests/first-level.test.mjs tests/level-assembly.test.mjs | PASS | 0；20/20；test-results/demo-01-specialist.log |
+| npm.cmd test | PASS | 0；191/191，0 fail/skip；test-results/demo-01-unit.log |
+| npm.cmd run build | PASS | 0；48 modules；test-results/demo-01-build.log；既有bundle体积警告 |
+| node tests/h5-input-browser.mjs --browser=chrome --production | FAIL | 1；[输入报告](test-results/h5-01/run-2026-11-19T06-28-45-538Z/report.json) |
+| node tests/h5-02-browser.mjs --browser=chrome --production | PASS | 0；[地图报告](test-results/demo-01/run-2026-11-19T06-27-13-972Z/report.json)，8组检查 |
+| git diff --check | PASS | 0，只有LF/CRLF提示 |
+
+地图报告 task=DEMO-01、scope=first-level-expanded-spatial-demo。桌面Chrome PASS；844×390、667×375为Chrome触屏模拟 PASS（控件动作包含DOM PointerEvent注入，不等于系统触摸／真机）。Android Chrome、iOS Safari、Electron、最终美术／长期人工体验 NOT RUN；父H5-01仍BLOCKED。地图报告页面错误、网络错误、crash为0，自有context/CDP/Chrome/服务清理PASS，报告的两个Chrome PID均已不存在。输入报告6项先行检查PASS后，在原脚本572行多Owner切页前置失败：visibility=hidden但hasFocus=true、Tick149、x214.11、vx0、paused=true；页面错误0，Chrome已退出，尚未创建的mobileContext为NOT RUN，整体cleanup字段FAIL，不能改记成功。未修改白名单外输入测试／协议，也没有重复执行该失败流程。
+
+历史报告保留：DEMO-01首轮06-23-05因显示元数据仍写H5-02而FAIL；06-23-34桌面完成但触屏旧停止坐标离机关过远而FAIL；06-25-28在D已落地时真实隐藏暂停而FAIL。元数据／路线停止位置按实际修正；一次明确告知勿切窗口的受控地图执行06-27-13通过。所有旧H5 FAIL亦保留，不改写历史。
+
+实机证据（同一生产构建）：
+
+- [A出生／纪念碑](test-results/demo-01/run-2026-11-19T06-27-13-972Z/vis01-A-before-after-spawn.png)
+- [B入口／游客](test-results/demo-01/run-2026-11-19T06-27-13-972Z/vis02-B-dialogue.png)
+- [C机关层](test-results/demo-01/run-2026-11-19T06-27-13-972Z/vis01-C-overview-1280x720.png)
+- [不跳跃走梯中段](test-results/demo-01/run-2026-11-19T06-27-13-972Z/vis03-C-middle-keyframe.png) → [下段](test-results/demo-01/run-2026-11-19T06-27-13-972Z/vis03-C-lower-keyframe.png) → [真实升降](test-results/demo-01/run-2026-11-19T06-27-13-972Z/vis03-lift-descending.png)
+- [D江岸](test-results/demo-01/run-2026-11-19T06-27-13-972Z/vis03-D-riverbank-ready.png) → [通关](test-results/demo-01/run-2026-11-19T06-27-13-972Z/vis03-completed.png) → [真实坠落恢复](test-results/demo-01/run-2026-11-19T06-27-13-972Z/demo-fall-recovered.png)
+- [844×390](test-results/demo-01/run-2026-11-19T06-27-13-972Z/vis05-touch-C-844x390.png)、[667×375](test-results/demo-01/run-2026-11-19T06-27-13-972Z/vis05-touch-C-667x375.png)
+
+素材：[来源记录](src/rendering/phaser/assets/demo-01/ASSET_SOURCES.md)。本轮新地标使用Phaser Graphics原创绘制，旧SVG角色／装置／升降资源继续使用，不导入新素材或依赖。所有原图与旧资源保留。
+
+正常体验入口：http://127.0.0.1:4174/ 。启动方式：npm.cmd run preview -- --host 127.0.0.1 --port 4174 --strictPort（先build）。操作：A/D或方向键走动，A街面末端短跳接B，靠近游客E、Esc正常结束后接取；看灯带，到C装置可先试右再选左；C段沿楼梯向右走不需Space，等待升降接近上站后上台，下降到D向右走至拍摄点E。R仅调试重置；触控开关与按钮沿用。关闭方式见下方启动记录，仅停止本次预览服务，不关闭用户其他窗口。
+
+版本 SHA-256：
+
+- src/core/first-level.ts：`1DB3892AA8C442637CCFDC858DE9DFA063FE56163E2E67BEB2697A57B54B213A`
+- src/rendering/phaser/first-level.ts：`377C4710725DE0E6CE3E4F762924AD1BFCFC2E2E9FFD6F714C45484F5D7CEA6B`
+- src/rendering/phaser/first-level-art.ts：`CB6EE53CA2E6F231232CD5DD3F25B4F3820896A2B640D73F92A0B27ADD7FE358`
+- src/rendering/phaser/first-level-actor.ts：`FC246035891211FB0CE4A84720D44007F36436AB3F50B3538AFBF4149EBB6D94`
+- tests/first-level.test.mjs：`B7B56D75AE8F18C03B06BFC01517155B7153D92BADE0490419A40B9A4385A249`
+- tests/h5-02-browser.mjs：`F681ECE263D8BB7DD0BEBC6FD71969E577AAE9612714F08B02FF3A9DF9821F8D`
+- dist/index.html：`BC52F166D9E21BA015309F48241E1B45762D080C53F9EEB0B67D173194F4ED77`
+- dist/assets/index-CJgtWxZZ.js：`52BDB3D422EF1D2D5BA356F8F2F6F719CEBADD0337C86358D5C46FC419CAF85D`
+- dist/assets/index-DZ_wJHKK.css：`91F35A57112237855D16D892D04A384123ADAABD11B864690FE2DE614FC73107`
+- test-results\demo-01\run-2026-11-19T06-27-13-972Z\report.json：`8BF2285B3915512DB88EA8655E4CE96DC1EB4F2CE36FF0FADD8C6F527F2E7A17`
+- test-results/h5-01/run-2026-11-19T06-28-45-538Z/report.json：`C156EE7186BC759AFC3D983F77A9D334AE0E8132A3DA5B237E396CAEF71A9F1A`
+
+完整指纹另见 test-results/demo-01/version-evidence.json。当前停止，等待 Work 对输入环境失败与地图样块审查，不进入 DEMO-02。
+
+本轮预览启动记录：cmd PID 34212，Vite监听PID 30992，127.0.0.1:4174已实测HTTP 200；关闭可执行 Stop-Process -Id 30992,34212，仅针对本轮服务。重新启动则使用上列preview命令。

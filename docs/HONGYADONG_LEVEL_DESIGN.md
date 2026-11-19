@@ -1,5 +1,7 @@
 # Hongyadong Level Design
 
+2026-11-19 制作顺序补充：负责人要求先做好 H5 整关 Demo、功能与界面，再提高美术完成度；不是改视角、谜题或通关条件。现行产品方案见 [H5 计划 V2](COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md#demo-first-v2-20261119)，空间修订统一放在 [综合空间主文](FIRST_LEVEL_GRAYBOX_SPATIAL_PROTOTYPE_V1.md#competition-demo-space-20261119)，不在本页另建地图。当前 `92ea489` 已有真实 C 楼梯与下行平台，旧章节中的“未同步上行差异”只保留历史；扩图、地标样块和最终美术均未在本轮实现。负责人后续已确认 7—9 屏宽／约三层、主线观景驻足而不加支路、沿用初始恢复，具体几何仍待验证；仅路线图 DEMO-01 READY，其余任务不自动进入。
+
 洪崖洞第一关设计文档
 
 项目：《坡坎之间》（当前中文项目名称；英文名称未确定）

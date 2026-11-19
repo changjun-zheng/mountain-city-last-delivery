@@ -44,8 +44,8 @@ export function mountFirstLevelScene(
     FIRST_LEVEL_SPATIAL_CONFIG.topology.join('>');
   parent.dataset.firstLevelLiftValidation =
     FIRST_LEVEL_SPATIAL_CONFIG.lift.validation;
-  parent.dataset.artTask = 'H5-02';
-  parent.dataset.artSubtask = 'H5-02-R1';
+  parent.dataset.artTask = 'DEMO-01';
+  parent.dataset.artSubtask = 'DEMO-01';
   parent.dataset.artAssetsReady = 'false';
   return new Promise(resolve => {
     new Phaser.Game({
@@ -94,79 +94,6 @@ export function mountFirstLevelScene(
           created(core);
           const art = createFirstLevelArt(this, world);
 
-          const clueLight = this.add.graphics();
-          clueLight.setDepth(-1);
-          clueLight.lineStyle(7, 0x80d8e8, 0.18);
-          clueLight.beginPath();
-          clueLight.moveTo(520, 170);
-          clueLight.lineTo(790, 218);
-          clueLight.lineTo(1135, 315);
-          clueLight.strokePath();
-          clueLight.lineStyle(3, 0xf1c875, 0.92);
-          clueLight.beginPath();
-          clueLight.moveTo(520, 170);
-          clueLight.lineTo(790, 218);
-          clueLight.lineTo(1135, 315);
-          clueLight.strokePath();
-          this.add.text(520, 138, '线索灯带 · 沿吊脚楼逐层向下', {
-            fontFamily: 'Microsoft YaHei, sans-serif',
-            fontSize: '14px',
-            color: '#c9f7fb',
-            backgroundColor: '#3c3029',
-            padding: { x: 7, y: 4 },
-          });
-
-          const areaLabels: Phaser.GameObjects.Text[] = [];
-          const label = (
-            x: number,
-            y: number,
-            text: string,
-            color = '#f5eddb',
-          ) => {
-            const areaLabel = this.add.text(x, y, text, {
-              fontFamily: 'Microsoft YaHei, sans-serif',
-              fontSize: '18px',
-              color,
-              backgroundColor: '#152a34',
-              padding: { x: 7, y: 4 },
-            }).setDepth(9).setVisible(debugVisible());
-            areaLabels.push(areaLabel);
-            return areaLabel;
-          };
-          label(35, 260, 'A · 解放碑出生街区');
-          label(500, 202, 'B · 沧白路 / 洪崖洞入口');
-          label(965, 265, 'C1 · 上层木廊', '#f9dfad');
-          label(1260, 398, 'C2 · 中层街巷', '#f9dfad');
-          label(1400, 476, 'C3 · 下层檐廊', '#f9dfad');
-          label(1685, 586, 'D · 嘉陵江岸');
-
-          const monument = this.add.graphics().setDepth(2);
-          monument.fillStyle(0xd7d2c5, 0.85);
-          monument.fillRect(168, 255, 24, 45);
-          monument.fillRect(158, 278, 44, 22);
-          monument.fillStyle(0xf3e6ba, 0.9);
-          monument.fillTriangle(180, 246, 170, 258, 190, 258);
-          this.add.text(76, 220, '解放碑', {
-            fontFamily: 'Microsoft YaHei, sans-serif',
-            fontSize: '13px',
-            color: '#fff0c7',
-            backgroundColor: '#273a40',
-            padding: { x: 5, y: 2 },
-          });
-
-          const entrance = this.add.graphics().setDepth(2);
-          entrance.lineStyle(6, 0xa56f4b, 0.9);
-          entrance.strokeRect(840, 188, 78, 72);
-          entrance.lineBetween(840, 188, 879, 168);
-          entrance.lineBetween(879, 168, 918, 188);
-          this.add.text(820, 148, '洪崖洞入口', {
-            fontFamily: 'Microsoft YaHei, sans-serif',
-            fontSize: '13px',
-            color: '#ffe4b7',
-            backgroundColor: '#402f28',
-            padding: { x: 5, y: 2 },
-          });
-
           const liftLabel = this.add.text(
             FIRST_LEVEL_SPATIAL_CONFIG.lift.x,
             FIRST_LEVEL_SPATIAL_CONFIG.lift.fromY - 30,
@@ -181,7 +108,7 @@ export function mountFirstLevelScene(
           ).setOrigin(0.5).setDepth(8);
           const gateText = this.add.text(
             FIRST_LEVEL_ROUTE_GATE.x - 54,
-            FIRST_LEVEL_ROUTE_GATE.y - 66,
+            FIRST_LEVEL_SPATIAL_CONFIG.lift.fromY - 110,
             '江岸路线关闭',
             {
               fontFamily: 'Microsoft YaHei, sans-serif',
@@ -231,7 +158,7 @@ export function mountFirstLevelScene(
             }),
           );
 
-          this.add.text(1185, 248, '吊脚楼控制装置', {
+          this.add.text(3900, 490, '吊脚楼控制装置', {
             fontFamily: 'Microsoft YaHei, sans-serif',
             fontSize: '14px',
             color: '#f5e9c7',
@@ -239,7 +166,7 @@ export function mountFirstLevelScene(
             padding: { x: 6, y: 3 },
           }).setOrigin(0.5).setDepth(9);
 
-          const npc = this.add.container(650, 238).setDepth(5);
+          const npc = this.add.container(2350, 328).setDepth(5);
           const npcHead = this.add.circle(0, -23, 11, 0xf2c79f)
             .setStrokeStyle(2, 0xffead3);
           const npcHair = this.add.ellipse(0, -32, 22, 10, 0x37414c);
@@ -250,17 +177,17 @@ export function mountFirstLevelScene(
           npc.add([npcLegs, npcBody, npcHair, npcHead, npcBag]);
 
           const photoFrame = this.add.rectangle(
-            1830,
-            598,
+            7550,
+            1338,
             42,
             30,
             0x2f4851,
             0.96,
           ).setStrokeStyle(3, 0x8dd8d4).setDepth(5);
-          this.add.circle(1830, 598, 9, 0x13232a)
+          this.add.circle(7550, 1338, 9, 0x13232a)
             .setStrokeStyle(2, 0x8dd8d4)
             .setDepth(6);
-          const photoLabel = this.add.text(1830, 632, 'D · 嘉陵江岸拍摄点', {
+          const photoLabel = this.add.text(7550, 1372, 'D · 嘉陵江岸拍摄点', {
             fontFamily: 'Microsoft YaHei, sans-serif',
             fontSize: '13px',
             color: '#d4fbf7',
@@ -524,10 +451,10 @@ export function mountFirstLevelScene(
                 .setVisible(showDebug)
                 .setAlpha(selected ? 1 : 0.82);
             }
-            for (const areaLabel of areaLabels) areaLabel.setVisible(showDebug);
+
             parent.dataset.debugVisible = String(showDebug);
             parent.dataset.visualState = JSON.stringify({
-              task: 'H5-02',
+              task: 'DEMO-01',
               assetsReady: this.textures.exists('h5-02-explorer'),
               player: {
                 x: Number(state.x.toFixed(2)),
@@ -547,7 +474,7 @@ export function mountFirstLevelScene(
               hud: {
                 touchControlsEnabled: touchEnabled,
                 desktopControlsVisible: controls.visible,
-                areaLabelsVisible: areaLabels.some(areaLabel => areaLabel.visible),
+                areaLabelsVisible: false,
                 interactionDebugVisible: [...interactionVisuals.values()]
                   .some(visual => visual.range.visible),
                 objectiveRight: objective.getBounds().right,
