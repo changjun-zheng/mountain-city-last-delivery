@@ -16,7 +16,7 @@ HISTORICAL：曾有开发窗口依路线图连续推进、完成后自行领取�
 
 ## 当前唯一入口：斜俯视探索设计重构（2026-11-19 后续轮次）
 
-状态：**EXP-03C DONE，Work 功能技术复核 PASS，待负责人体验**。负责人本轮明确继续上一轮单任务开发／审查／自动推送流程；Work 核对 GitHub main／HEAD 为 `b6d4fe0c0b93bcdc15a0686217e5f09cf321ec97`、工作区干净后，仅授权原开发会话执行下卡。开发已完成现有拍摄卡收尾、只读收藏摘要、三条路径、hidden 后取消恢复和专项／全量／生产回归；EXP-03B 已提交推送、功能技术复核 PASS。具体物品／称号仍为 Demo 试制，地图／美术满意度、真机及完整首章时长未验收，不将收尾 UI 通过升级为完整比赛版。产品依据见 [探索重构](DECISIONS.md#topdown-exploration-reboot-20261119)。
+状态：**EXP-05A DONE，Work功能技术复核PASS，待负责人体验**。负责人本轮明确地图骨架与玩法优先、界面美化后置；基线GitHub main／HEAD为 `3d5c088ee6a2eda1cbec3358e7f087de6c31da1b`、开工干净。原独立会话已完成中层／独立江岸、三层连接与严格旧档迁入；Work独立走图／触屏／档案与全量复验通过，按持续授权审查后提交推送。EXP-03C等上一轮证据保留在各自卡内；EXP-05B仅后续候选，不启动下一项。地图／美术满意度、真机及完整首章时长仍未验收。产品依据见[探索重构](DECISIONS.md#topdown-exploration-reboot-20261119)。
 
 HISTORICAL（设计重构初次同步时点）：当时核对 GitHub main／origin/main／HEAD 为 `b5b69f37385552c5ac085e532f6de965ec4e39ec`，开始工作区干净。Work 已读取两份策划聊天的可读取近期内容、当前源码／定义／进度白名单、报告与截图；没有修改代码、重跑测试或关闭体验服务。新完整分析在[总规划](FULL_GAME_CONTENT_AND_LEVEL_EXPANSION_ARCHITECTURE.md#exploration-reboot-20261119)，当前交付方案在[H5 V3](COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md#topdown-h5-v3-20261119)，唯一新空间主文在[关卡设计](HONGYADONG_LEVEL_DESIGN.md#topdown-first-chapter-20261119)。旧横版空间 V1、旧 READY 提示词和下方历史顺序不能继续作为开发授权。
 
@@ -43,9 +43,108 @@ HISTORICAL（设计重构初次同步时点）：当时核对 GitHub main／orig
 | EXP-03A 正式网页入口与旅程界面 | DONE／Work 功能技术复核 PASS，按授权提交推送，待负责人体验 | 普通首页标题／开始／继续，轻 HUD／已知手账、同实例标题往返；旧原型转显式调试入口。未新增谜题／收藏；真机／最终视觉待验收。 |
 | EXP-03B 可选纪念物与收藏展示 | DONE／Work 功能技术复核 PASS，按授权提交推送，待负责人体验 | 三件实际可收纸质纪念物、已获图案与一次试制称号；旧档保留，零收藏通关；非完整目录、真机或最终美术验收。 |
 | EXP-03C 委托完成页与旅程收尾 | DONE／Work 功能技术复核 PASS，按授权提交推送，待负责人体验 | 用现有拍摄成功纪念卡承载明确的委托完成、已获纪念总结和继续／标题／确认重开入口；不增加地图、任务、奖励或存档语义。 |
+| EXP-05A 三层街区与独立江岸骨架 | DONE／Work功能技术复核PASS，按授权提交推送，待负责人体验 | 三层可往返街区、路线选择、独立D江岸与原拍摄闭环，旧档安全继续；不加新谜题／奖励，不做界面精修。 |
+| EXP-05B 调查／用途节点深化 | PLANNED／不领取 | 在05A实际骨架上深化既有主线的观察、用途推理与世界反馈；先评审具体谜面，不靠增加空路承诺时长。 |
 | EXP-04 H5 候选验收与材料 | PLANNED／不领取 | 新视角下的桌面、真实手机、存档、地图往返／主线与新玩家时长证据，作品材料与运行包。公开托管／投稿另获授权；D13 原卡不改写。 |
 
-EXP-02 是内容阶段父项，不可与子项重复领取；EXP-02A／B／C 和 EXP-03A／B 的功能技术范围已复核，完整章仍未验收。本轮 EXP-03C 已实施完成并等待功能技术审查；其他收藏／成就目录仍待安排。不能继续旧 DEMO-02、H5-03／04、D13、BRAND-01、MLV 或架构任务绕过本次方向关口。
+EXP-02 是内容阶段父项，不可与子项重复领取；EXP-02A／B／C 和 EXP-03A／B／C 已完成功能技术复核，完整章仍未验收。负责人本轮将优先级转回地图骨架与玩法，只下发 EXP-05A；EXP-05B 调查／用途节点深化仅为后续候选，EXP-04 验收材料与界面美化均不在本项启动。不能继续旧 DEMO-02、H5-03／04、D13、BRAND-01、MLV 或架构任务绕过本次方向关口。
+
+<a id="exp-05a-spatial-backbone-20261120"></a>
+
+### EXP-05A：三层街区与独立江岸骨架
+
+**开发连接／锚点对照（2026-11-20，实施前试制参数）**：旧八图几何、四室内门口和19锚点原值保留。新增middle 3300×1500、riverfront 2600×1500，共10图／25锚点；以下连接均主动交互且受原unlocked约束。
+
+| 原侧目标／落点 | 新侧目标／落点 | 条件 |
+| --- | --- | --- |
+| upper east-down／eastUpper原值 | middle middle-east-upper／middleEastUpper(3000,450) | 原栈门开放 |
+| upper west-down／westUpper原值 | middle middle-west-upper／middleWestUpper(400,450) | 原栈门开放 |
+| lower east-up／eastLower原值 | middle middle-east-lower／middleEastLower(3000,1200) | 原栈门开放 |
+| lower west-up／westLower原值 | middle middle-west-lower／middleWestLower(400,1200) | 原栈门开放 |
+| lower riverfront-down(1700,1130)／overlook原值 | riverfront riverfront-up(310,650)／riverArrival(350,650) | 原栈门开放 |
+| lower window／photo-eaves原值 | riverfront view(1950,1050)／riverView(1910,1050) | 原拍摄条件保持 |
+
+middle四目标分别在(3000,410)／(400,410)／(3000,1250)／(400,1250)，返回原eastUpper／westUpper／eastLower／westLower。内院实体位于(1100,600,900,350)，内廊沿北侧500线、外廊沿南侧1100线绕行，西／中央／东路口及两观察驻足面不写永久进度。D沿650到达面绕建筑到1050沿江线，1150以南河面与栏杆真实阻挡。schema1六字段保持；冻结PRE05 19锚点、LEGACY 12锚点，新键pokan.exp05a.save.v1优先于03B/C/B/A，旧overlook不改义。
+
+**状态／授权**：DONE（2026-11-20，开发实现与规定验证完成，Work功能技术复核PASS，待负责人体验）。负责人要求继续地图整体骨架与玩法、界面美化后置。Work 按[唯一空间预算](HONGYADONG_LEVEL_DESIGN.md#district-skeleton-exp05a-20261120)下发原独立会话 `01a1f37c-9ce0-7fb3-a348-74c776daee5e` 单项实施；请求 GPT-6.1 Sol／High，理由是地图连接、拍摄位置与旧档封闭迁入跨模块，非简单文案／界面任务。基线 GitHub main／HEAD `3d5c088ee6a2eda1cbec3358e7f087de6c31da1b`、开工干净；Work派发前148文件哈希在忽略目录 `test-results/exp-05a-work-review/before-dispatch.json`，不得修改或成为正式测试的运行依赖。
+
+**目标**：A解放碑→B入口与游客→C上层调查找物／原栈门→C中层路线选择→C下层生活街巷／错误取景→D独立江岸主动拍摄；全程可八向走动、成对返回、进原四室内，实际连接不靠标签成立。当前有限谜题／导扣／奖励保持，不用空路、慢走／缩角色或必等计时凑30—45分钟。后续EXP-05B另行设计调查难度，不在本卡自动开始。
+
+**先读**：AGENTS、DECISIONS 最新探索方向／存档／菜单语义、PROJECT_BRIEF、H5 V3、关卡主文新骨架预算、QUEST现行N1—N4、PLAYER_CONTROL新探索部分、本卡及03B／03C审查；实际 core exploration／content／prologue／photo／mementos／progress，Web storage／input／exploration，Phaser exploration／city-art，全部 exploration 单测及03A／03B／03C／02C生产脚本。概念LevelLoader／Catalog不是现有能力，不开启架构抽取。
+
+**实施范围与顺序**：
+
+1. 先列出新旧地图／成对目标／安全点／开路条件对照，按有限纯数据新增 `middle`（约3300×1500）、`riverfront`（约2600×1500）；总计6室外＋4原室内，不额外造房间。中层有真实阻挡的内院、内外廊绕行、至少3个可辨路口与观察驻足面；允许路线选择和回访，不做空白矩形或三条无意义平行路。D含到达面、沿江实际步道、拍摄开阔面与安全回程，水面禁止行走。可按实际可走几何微调新布局并报告，不改旧八图bounds／建筑walls／原门口／NPC／收藏／取物对象／尺寸与碰撞参数。
+2. 原上层 `east-down`／`west-down` 均改到中层的上行侧落点；原下层 `east-up`／`west-up` 均改到中层的下行侧落点，补中层四个成对阶道目标，分别回原 `eastUpper`／`westUpper`／`eastLower`／`westLower`。新增下层↔D成对通路；允许两个中层可选调查目标，只描述当前可观察的院落／路线关系，无新pending／存档／主线答案／进度条件。所有进入中层、下层与D的通路都服从既有unlocked，未开栈门不可从任一侧／边缘绕入。主动E才切图，不因靠近自动传送；落点能脱离交互范围，反向切换和旧按键不连跳。
+3. 正确 `view` 取景目标从旧下层移到 `riverfront`，ID／照片siteId／原照片goal／reward均不变；下层旧取景附近改成明确的江岸通路入口。下层 `window` 与 `photo-eaves` 继续提供原两种不完整视野。PHOTO_SITES补受限地图归属，运行时拍摄guard、近处目标、预览标记、成功后安全点都读一致定义，不保留lower硬编码使D不可拍，也不留两个正确目标。正确拍摄只保存新增D取景锚点，旧 `overlook` 保留原lower坐标；旧已拍档可从手账重看，不重新发奖或强迫重新拍。原打开／取消／快门代次与owner规则保留。
+4. 轻量存档沿用schema1和原六字段，建议新内容 `exp05a-district-skeleton-1`／新键 `pokan.exp05a.save.v1`；进度仍是封闭exp03b目录，不改progress.ts或增加业务ID。原19个安全点保持原值，仅追加中层4落点与D到达／取景点（建议合计25）。冻结PRE05安全点白名单：旧03B与02C只接受原19，旧02B／02A只接受原12，不能因扩展EXP_SAFE放宽旧档；当前新地图锚点必须有unlocked。迁入顺序新→03B→C→B→A，旧进度／收藏／称号／照片／观察和原安全位置完整保留，无补发；坏／未来／矛盾的新键阻止回退及覆盖。明确重开写新键空白A，旧键和其他数据字节保留。原03B contentVersion须独立保留，不能拿新EXP_CONTENT_VERSION验证旧档；无新字段、云档或多槽。
+5. 只做服务于路线识别的程序化样块、楼梯／门口／实地阻挡一致的建筑与栏杆、必要水面／桥／木楼轮廓和路标，复用原角色及现有画布／zoom／镜头。新图所有对象归属原map layer，反复切图／销毁无旧对象残留。不改标题、HUD、对话框、手账、完成页或触控样式，不生成新概念图／正式美术资产，不引入素材下载／依赖。新路口／室内入口和楼梯应靠位置与结构可读，不能只有地名和无碰撞背景。
+
+**文件白名单**：新增 `src/core/exploration-district.ts`（仅新图／目标／锚点纯数据）及必要 `src/rendering/phaser/exploration-district-art.ts`（新图样块显示）；core `exploration-content.ts`（有限类型／新旧常量／连接／数据），`exploration-photo.ts`（site地图归属），`exploration.ts`（仅有限地图／照片位置及安全点适配、新旧严格验证／迁入、两处无pending观察对白；移动／阻挡／暂停／代次／提交算法不改）；Web `exploration-storage.ts`（仅新键与迁入链）。Phaser `exploration.ts`只接新图／目标／map过滤与资源归属，不改角色／镜头算法；原city-art／photo-art／memento-art及资产受保护。新增 `tests/exploration-skeleton.test.mjs`、`tests/exp-05a-browser.mjs`，现有 `tests/exploration*.test.mjs` 与02C／03A／03B／03C生产脚本仅必要新路线／当前键版本适配，保留旧版夹具、错误场景与原语义断言，不能把有意的新连接当原二层几何永远不变。README／本卡只补实施事实，其他正式文档由Work维护。
+
+**禁止**：模拟／生命周期／事件／事务／旧横版／physics／progress算法与目录、原prologue／mementos、exploration-input／visibility／runtime-uuid、Web host exploration.ts／所有UI／main／index、原图稿／资产／依赖／构建／Electron／CI／密钥。保持SPEED175、radius12、画布1100×650、zoom1，不新增机关、主线物件／前置、收费／战斗／传送作弊、额外支线或未经核实文化断言。不改变最终技术选型，不将骨架完成当完整章／最终美术完成。
+
+| 验收 | 可执行证据 |
+| --- | --- |
+| S01 图与通行 | 10图／25锚点（如需差异先报告）／全部成对连接与门口清单；真实核心验证每个落点、4原室内进出与新阶道双向返回。未开路各入口与边界均不能进入middle／lower／riverfront；已开后全图可回A／B，无软锁、落水、穿墙或错误回门。图论连通检查须辅以真实radius／阻挡／运动路径，不拿边列表当实际可走。 |
+| S02 空间玩法 | 中层内廊／外廊两条不同真实行走路线均从上层落点到下层去向，至少3个路口／1驻足面可达；两处可选观察不授予进度或阻止主线。实际走到新图两侧并有cameraX/Y滚动证据，不缩镜头。D步道可到完整取景与回程，河水／栏杆真实阻挡。 |
+| S03 主线与取景 | 从根标题空白A用真实键盘经B接取、四室内的既有用途、导扣／原门、三层、D成功拍摄，零纪念物仍只原一次照片奖励。lower两处错误视野不成功，旧lower正确位置只能进D、不直接完成。photo guard／target／safe一致；重复拍摄、取消、旧快门和收藏／称号互不影响。 |
+| S04 档案 | 当前新中层／D安全点保存刷新；旧03B未接／已开／已拍／三收藏称号及旧C／B／A各阶段迁入，进度／位置不补发。旧版伪造新锚点、坏新键+好旧键、未知／矛盾ID／未来版本均拒绝且零写原文；重开空白A后刷新不再迁旧，原文保留。测试内联或版本化，禁止依赖本地忽略报告。 |
+| S05 输入暂停资源 | 新中层与D实际键盘、原生多指摇杆／交互、pointercancel／旋转、真实hidden／恢复、新旧owner、暂停／标题／手账／完成卡回归。10次往返无map对象累计，pagehide／重复销毁清理自绑资源；Phaser内部监听另列。桌面1280×720与触屏模拟844×390／667×375有实际新图操作截图；手机缺失NOT RUN。 |
+| S06 交付与回归 | 原230项语义保留，必要路线适配与新增专项通过；新报告task=EXP-05A，scope／命令／退出码／事件／截图／fingerprint／错误／清理准确。02C主线、03B收藏、03C收尾生产回归，新旧版本与全部实际源码／脚本／dist指纹核对；UI未改时03A完整回归不强制重复。4199同源与当前dist字节核对，旧服务仍在则保留，不读取个人真实存储。记录操作路径的自动化耗时但不冒充新玩家首次时长。 |
+
+**必须执行**：探索相关真实Node专项（Windows明确列出实际文件）；`npm.cmd test`；`npm.cmd run build`；`node tests/exp-05a-browser.mjs --production --browser=chrome`；原 `exp-02c-browser.mjs`／`exp-03b-browser.mjs`／`exp-03c-browser.mjs` 同参数生产回归；`git diff --check`。优先短核心／新图可达性与旧档验证后再长主线。严禁为测试通过放宽输入／阻挡／旧档校验或把预填档当真实新局。新增05A不依赖test-results；失败原文／脚本版本保留。
+
+**阶段门槛／停止**：先在本卡补地图连接／锚点对照再实现；类型＋真实核心几何／存档阶段不通过，不继续长浏览器或美术。普通新坐标／动线细节自行处理；要改变受保护算法／正式玩法、扩大新图数或出现跨模块设计冲突，带最小复现交Work。同一问题两轮有效修复仍FAIL停下，不反复重跑挑PASS。原会话完成停止，不Commit／Push／部署／删除文件、不进入05B／04／D13等。Work持续监控、实际审查及必要复验，展示摘要后按负责人持续授权逐项提交推送。
+
+**Work必要缺陷补充白名单（2026-11-20，基于实际FAIL，不是美化任务）**：`run-2026-11-20T08-14-49-058Z` 与667×375独立短复现的可信pointer轨迹为 `pointerdown:exp-interact → pointerup:exp-photo-close → click:exp-photo-close`，同次触摸打开后立即关闭预览。这是应用手势归属问题，不能改点击位置／额外输入避开。仅允许 `src/platform/web/exploration.ts` 在原 `exp-photo-close` 接线增加“本按钮pointerdown起点＋pointerId＋当前previewId＋真实释放”小型校验，沿用现有快门／收藏按钮模式；兼容键盘detail0／E显式关闭，预览变化、取消、隐藏、旋转、销毁均使旧手势失效。不得修改输入／移动／暂停协议、其他业务提交或任何UI样式。修复前短探针FAIL已存在，保留原文；修复后短探针检验同次打开不关闭、下一次按钮主动关闭正常、旧代次关闭不影响新预览、奖励／进度不变，再回完整05A及原生产回归。此精确例外覆盖上方Web host禁改条款，其他禁改项有效；Work逐方法检查，不扩成通用输入框架。
+
+**Work对02C规定回归的受控处理（2026-11-20）**：`run-2026-11-20T10-56-16-737Z` 在2组后CDP目标关闭，原始关闭原因UNKNOWN；只加独立生命周期观测模块、不改应用／正式脚本／flags／超时／输入的下一次执行 `run-2026-11-20T11-01-08-348Z` 走过该处，在5组后暴露测试夹具矛盾：`migrationChecks` 把photographed.safe无条件改成overlook，随后却断言原value.safe=guideDoor。应用恢复overlook符合收到的档案。Work要求移除该多余安全点改写（真实路线此时已回原合法guideDoor），保留原精确锚点断言；先做隔离短验证，再允许一次最终完整带观测执行。两份FAIL、诊断模块／完整命令与日志保留，不把首次关闭归因或宣称修复；若最终规定回归仍FAIL，即停止交Work，不重复挑PASS。
+
+**HISTORICAL阶段停止交付（2026-11-20，后由Work以上述白名单恢复）**：10图／25锚点／41目标已接通，旧8图几何／19锚点原值保留；新键exp05a严格迁入03B/C/B/A，原进度目录／schema1六字段未扩。真实核心43/43、最终全量234/234、类型检查／构建／diff检查PASS。71个受保护文件与HEAD一致，移动／清输入、切图／阻挡与目标查询段未改。只追加新图必要程序化样块，UI未改。
+
+- 专项首轮 `run-2026-11-20T08-12-37-047Z` FAIL：核心切图先于Phaser新帧，夹具读到旧图对象数26／43；修正为等待实际渲染帧，原断言保留。
+- 第二轮 `run-2026-11-20T08-14-49-058Z` FAIL：已通过真实空白A四室内／原开门／中层内外廊／D零收藏拍摄、两错视野、三路径／五尺寸、十次新图往返对象不累计和cameraX/Y。新图触屏844×390已走通和刷新；667×375在D打开预览后，同手势释放落到新出现的关闭按钮，preview立即关闭。原报告、事件、脚本版本与截图保留。
+- 独立短探针844×390 PASS、667×375稳定FAIL，见[触屏最小复现](../test-results/exp-05a/touch-release-667-repro/report.json)与同目录释放前后截图／repro-source.mjs。trusted pointerdown=exp-interact，pointerup/click=exp-photo-close。首次短探针脚本相对import路径错误已纠正，未修改应用；不能把844探针PASS冒充667通过。
+- 按受保护模块停止条件交Work，未修改exploration-input／Web host／UI，未继续绕过或放宽测试。02C／03B／03C生产回归及05A后段原生hidden为NOT RUN；Android／iOS真机NOT RUN。服务仍为原4199 PID5460，不停服、不读个人档案、不Commit／Push／部署／删除／续项。
+- [交付清单](../test-results/exp-05a/delivery-manifest.json)补全本轮全部源码／脚本／Node专项／dist当前指纹及实际日志；currentFingerprints只表示当前版本，历史报告protectedHashes字段同样只是当轮哈希，不能据其名称说core/content/photo/storage/rendering未改。真正与HEAD不变比较在[boundary](../test-results/exp-05a/boundary.json)。Work已回报阶段旧图／锚点／档案独立检查PASS，正式整体审查仍待Work。
+
+**HISTORICAL第二阶段停止交接（2026-11-20，后经Work受控修复恢复）**：Work扩白名单后的close手势最小修复短探针844／667两组PASS；完整05A `run-2026-11-20T10-46-22-147Z` 15组PASS（页面／网络0、自有资源清理），中层／D独立原生hidden两组PASS，03B `10-51-27-631Z` 8组和03C `10-54-02-773Z` 13组PASS。最终全量234/234、探索专项43/43、构建PASS；65源码＋5配置与HEAD不变，Web host为精确例外，core算法未改。
+
+02C `10-56-16-737Z` 2组后CDP target关闭FAIL，原因UNKNOWN；原报告／脚本版本保留。按Work许可执行唯一受控诊断：`node --import ./test-results/exp-05a-lifecycle-diagnostic.mjs tests/exp-02c-browser.mjs --production --browser=chrome`，没有改应用／正式脚本／flags／超时／断言／焦点／输入。`11-01-08-348Z` 完成空白触屏D拍摄及旧快门等5组后，因开发适配错误把photographed夹具safe强制设overlook、传入合法旧safe实际guideDoor，原严格锚点断言FAIL。该轮没有重现提前关闭；不能据此宣布先前关闭原因已修复。诊断模块原文／哈希、close/crash/disconnected事件和清理在交付目录保留。
+
+按Work“仍无法完成规定回归就停止”要求，不再重跑；建议仅取消migrationChecks的强制safe覆盖并保留全部断言，交Work决定。05A新补tea-observe真实交互／进度不变测试尚NOT RUN；旧15组PASS绑定此前归档脚本，当前新增步骤不冒称通过。应用／测试已冻结，全部开发浏览器结束；只整理本卡／README／manifest，不Commit／Push／删除／部署／续项。Work独立5组回报的夹具为真实旧C-open进度＋指定合法旧overlook，非完整原样旧档或新局；旧safe保持另有档案组及迁入证据。真机／完整章／最终美术仍未验收。
+
+**最终开发交付（2026-11-20，DONE／待Work正式审查）**：应用／正式测试已冻结，全部开发侧浏览器结束。完整05A `run-2026-11-20T10-46-22-147Z` 15组、03B `10-51-27-631Z` 8组、03C `10-54-02-773Z` 13组、最终受控02C `11-08-56-720Z` 14组PASS；探索43/43、全量234/234、构建与diff检查PASS。05A／03B／03C页面／网络错误0，02C页面错误0且其旧schema无独立networkErrors字段。自有浏览器／context／测试服务清理PASS，4199原PID5460保留，HTTP及当前dist字节一致。
+
+02C按Work许可只去掉photographed夹具无条件overlook覆盖，保留value.safe及原精确位置断言。guideDoor短探针迁入／刷新两检查PASS后，获准最终一次完整 `node --import ./test-results/exp-05a-lifecycle-diagnostic.mjs tests/exp-02c-browser.mjs --production --browser=chrome` 退出0。两次旧FAIL／脚本版本／诊断模块／每轮事件原文保留；首轮CDP关闭原因仍UNKNOWN，不写成环境／浏览器缺陷已修复。
+
+[最终manifest](../test-results/exp-05a/delivery-manifest.json)逐项列当前源码／脚本／dist指纹与currentFingerprintCoverage。旧PASS报告的辅助02C指纹绑定匹配旧脚本副本，当前一行夹具修正由最终02C报告独立覆盖，不为辅助元数据重复其他已通过路线，也不冒称所有旧辅助指纹当前一致。65源码＋5配置与HEAD不变，Web host是Work精确例外；Work独立回报9核心方法不变、档案6组／浏览器5组PASS。该5组浏览器夹具为真实旧C-open进度＋指定合法旧overlook，非完整原样旧档或新局；原safe保持另有档案证据。
+
+tea-observe测试增强另存草案NOT RUN，正式05A恢复已验证15组版本；不把未执行草案写成PASS。真机／最终美术／文化细化／负责人体验与完整30—45分钟首章仍单独验收。本窗口不Commit／Push／部署／删除／领取05B或下一项，交Work正式审查。
+
+<a id="exp-05a-work-review-20261120"></a>
+
+#### Work正式审查（2026-11-20）
+
+**结论**：EXP-05A在本卡及已记录必要手势缺陷范围DONE／PASS，原独立会话已完成并idle；Work展示具体摘要后按负责人持续授权提交推送。未领取05B／04／D13，未开展界面美化。该结论只覆盖可玩骨架与技术功能，不确认地图满意度、最终内容、美术、真机或30—45分钟首章。
+
+Work核对实际Git差异和148文件派发基线：65个受保护源码文件保持；`frame`／`move`／`clearInput`／`#step`／`#switch`／`openPhotoCard`／`closePhotoCard`／`closeDialogue`／`dispose`九方法逐字不变，`closePhotoPreview`只将旧安全点表达式改为PHOTO_SITES.river.safe。Web host仅新增已获精确范围的关闭手势校验及失效清理；原UI／输入／progress／physics／依赖未改。原5份Node专项只适配新连接／安全点／键版本，旧断言与历史夹具保留；旧目标哈希仅对明确改接的4楼梯和迁D的view作显式历史归一化，新连接另有真实核心／浏览器检查，不用归一化掩盖新行为。
+
+| 证据层 | 核对结论 |
+| --- | --- |
+| 空间精确对照 | 原8图全部几何、19锚点、28个未迁目标逐字段相同；另4阶道改接、view迁D；新增2图／6点／8目标，合计10图／25点／41目标。5对楼梯／江岸通路均原unlocked，所有安全点半径12与边界／阻挡一致。 |
+| 开发验证 | 探索43/43、全量234/234、类型检查／构建PASS；05A完整15组、关闭手势短探针2组、新图原生hidden2组、03B收藏8组、03C收尾13组、02C最终完整14组PASS。单独短探针不冒充完整路线，所有真手机NOT RUN。 |
+| Work独立全量／档案 | `npm.cmd test`234/234、0 fail／skipped；6组旧03B三阶段／三收藏称号、全部新锚点拒旧格式、B/A旧12点、当前开路前置、坏新不回退／不覆盖、明确重开保留旧字节均PASS。原始旧safe保持由档案对照核验。 |
+| Work独立Chrome | 667触屏误关／旧代次关闭、D主动拍摄一次奖励、新D安全点刷新、江岸→下层→中层外廊→上层→中层内廊→下层实际键盘5组PASS，页面错误0、自有资源清理PASS。起点是实际旧C-open进度加显式合法旧overlook落点的兼容夹具，不是完整原样旧安全位置或新玩家从A通关；后者由开发根标题真实路线覆盖。 |
+| 当前版本覆盖 | 18项实际源码／测试变更均有当前执行指纹。05A完整／短探针和03B旧PASS报告的辅助02C脚本哈希保留旧版，由最终02C报告独立覆盖当前一行修正；03C和新图native报告当前匹配。其余运行代码／dist不变，不追改历史报告或只为辅助哈希盲重跑。`protectedHashes`字段只表示当轮哈希，与HEAD不变结论来自独立边界比较。 |
+| 入口与服务 | 4199 HTTP200、入口与实际 `index-pyWoDYKo.js`／`index-BqzETvdL.css` 字节匹配当前dist，保留原PID5460；不读取个人浏览器存储，不停止其他服务、不公开部署。 |
+
+最终02C为[run-2026-11-20T11-08-56-720Z](../test-results/exp-02c/run-2026-11-20T11-08-56-720Z/report.json)，带独立生命周期观测模块执行；完整命令／模块原文与哈希在开发manifest，Work已读模块确认只监听，不改Chrome参数、输入／焦点／超时／断言。此前2组后CDP关闭仍UNKNOWN；诊断下一次5组后发现夹具强制overlook却断言guideDoor的矛盾，移除多余改写、保留原精确位置断言，短迁入／刷新验证后才作上述最终一次完整执行。两份FAIL及生命周期日志保留，不宣称已修复未知浏览器关闭或原环境原因。
+
+原05A渲染对象数过早采样FAIL、667实际触摸穿透FAIL及修复前短复现也均保留；前者等待真实渲染帧，后者按明确白名单修应用，不改点击位置／额外输入绕过。未执行的测试增强另存草稿，正式测试保留已执行版本，不计额外覆盖。
+
+独立审查总表：[review-summary](../test-results/exp-05a-work-review/review-summary.json)，含 [geometry](../test-results/exp-05a-work-review/geometry-comparison.json)、[档案6组](../test-results/exp-05a-work-review/archive-validation.json)、[浏览器5组](../test-results/exp-05a-work-review/browser-work-skeleton.json)、[当前指纹与同源入口](../test-results/exp-05a-work-review/evidence-review.json)及全量日志。开发manifest保留交付时点状态／文档哈希，Work追加正式结论不改旧快照。模型按复杂任务请求GPT-6.1 Sol／High，工具不提供实际模型标识独立回读，不把配置请求当实测模型证明。
 
 <a id="exp-03c-completion-20261120"></a>
 

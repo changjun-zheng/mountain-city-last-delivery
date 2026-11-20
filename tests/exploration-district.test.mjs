@@ -15,7 +15,7 @@ function driver(save={...emptyExplorationSave(),safe:'arrival'}) {
 function fullProgress(){const p=new InMemoryRunProgress('exp02a');p.completeGoal(P.accepted);p.completeGoal(P.clue);p.recordCollection(P.item);p.completeGoal(P.unlocked);return p.snapshot;}
 
 test('EXP-02A A1 five bounded maps, three paired doorways and all safe anchors clear foot blockers',()=>{
-  assert.equal(Object.keys(EXP_MAPS).length,8);
+  assert.equal(Object.keys(EXP_MAPS).length,10);
   for(const id of ['upper','lower']){assert.equal(EXP_MAPS[id].width,3300);assert.equal(EXP_MAPS[id].height,1300);assert.ok(EXP_MAPS[id].buildings.length>=7);}
   assert.deepEqual(Object.keys(EXP_LEGACY_SAFE),['arrival','guideDoor','guideRoom','workshopDoor','workshopRoom','teaDoor','teaRoom','eastUpper','eastLower','westUpper','westLower','overlook']);
   for(const [door,room,back] of [['guide-door','guide','guideDoor'],['workshop-door','workshop','workshopDoor'],['tea-door','tea','teaDoor']]){
@@ -46,8 +46,8 @@ test('EXP-02A A3 no interaction through the workshop screen or across maps',()=>
 test('EXP-02A A3 west connection cannot bypass unlock; unlocked paired loop keeps same runtime',()=>{
   const d=driver();d.to(540,690);d.to(540,1150);d.interact('west-down');d.r.closeDialogue();assert.equal(d.r.snapshot.map,'upper');
   const save={...d.r.save,safe:'westUpper',progress:fullProgress()},loop=driver(save),id=loop.r.id;
-  loop.interact('west-down');assert.equal(loop.r.snapshot.map,'lower');assert.equal(loop.r.id,id);assert.deepEqual(loop.r.snapshot.position,{x:430,y:1030});
-  loop.interact('west-up');assert.equal(loop.r.snapshot.map,'upper');assert.equal(loop.r.id,id);assert.deepEqual(loop.r.snapshot.position,{x:540,y:1150});
+  loop.interact('west-down');assert.equal(loop.r.snapshot.map,'middle');loop.to(400,1200);loop.interact('middle-west-lower');assert.equal(loop.r.snapshot.map,'lower');assert.equal(loop.r.id,id);assert.deepEqual(loop.r.snapshot.position,{x:430,y:1030});
+  loop.interact('west-up');assert.equal(loop.r.snapshot.map,'middle');loop.to(400,450);loop.interact('middle-west-upper');assert.equal(loop.r.snapshot.map,'upper');assert.equal(loop.r.id,id);assert.deepEqual(loop.r.snapshot.position,{x:540,y:1150});
 });
 test('EXP-02A A4 independent content IDs, future/old version protection and unchanged old storage key',()=>{
   const old=new InMemoryRunProgress('exp01');old.completeGoal(EXP01_PROGRESS_CONTENT.accepted);old.completeGoal(EXP01_PROGRESS_CONTENT.clue);old.recordCollection(EXP01_PROGRESS_CONTENT.item);old.completeGoal(EXP01_PROGRESS_CONTENT.unlocked);old.completeGoal(EXP01_PROGRESS_CONTENT.completed);

@@ -1,3 +1,4 @@
+import {drawDistrict} from './exploration-district-art';
 import Phaser from 'phaser';
 import type { ExplorationRuntime, ExplorationSnapshot } from '../../core/exploration';
 import { EXP_MAPS, EXP_GATE, EXP_RIVER, EXP_TARGETS } from '../../core/exploration-content';
@@ -77,6 +78,8 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
               const b=definition.bounds;
               if(s.map==='plaza'||s.map==='entry'||s.map==='service'){
                 drawPrologueCity(scene,map,s.map,()=>actor(scene,0xc88c6a,0xdac5a5));
+              }else if(s.map==='middle'||s.map==='riverfront'){
+                drawDistrict(scene,map,s.map);
               }else if(definition.outdoor){
                 for(let y=0;y<240;y+=6){const c=Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(0x244353),Phaser.Display.Color.ValueToColor(0x61908d),240,y);rect(bg,0,y,3300,6,Phaser.Display.Color.GetColor(c.r,c.g,c.b));}
                 poly(bg,[0,190,220,100,400,150,650,70,900,170,1200,95,1500,145,1800,80,2100,180,2450,110,2800,145,3100,70,3300,170,3300,240,0,240],0x315361);
@@ -121,9 +124,9 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
                   bg.lineStyle(8,0x9faaa0);bg.lineBetween(1870,1150,3230,1080);
                   for(const x of [2150,2900]){rect(bg,x,1000,12,130,0x91a3a0);bg.lineStyle(3,0xb8c1aa);bg.lineBetween(x,1003,x-250,1138);bg.lineBetween(x,1003,x+240,1120);}
                   const rail=scene.add.graphics().setDepth(1251);map.add(rail);rect(rail,1820,990,10,250,0x69533c);for(let y=990;y<1240;y+=30)rect(rail,1805,y,25,7,0xc09b64);
-                  text(1680,1055,'望江开阔面',20).setDepth(1260);text(900,615,'花窗长廊',18).setDepth(1260);
+                  text(1680,1055,'江岸阶道入口',20).setDepth(1260);text(900,615,'花窗长廊',18).setDepth(1260);
                   const views=scene.add.graphics().setDepth(1261);map.add(views);
-                  for(const site of Object.values(PHOTO_SITES)){views.lineStyle(2,0xd8c392,.7);views.strokeEllipse(site.x,site.y,38,16);}
+                  for(const site of Object.values(PHOTO_SITES).filter(site=>site.map===s.map)){views.lineStyle(2,0xd8c392,.7);views.strokeEllipse(site.x,site.y,38,16);}
                   text(2180,632,'檐下回望',18).setDepth(1262);
                 }
                 // Stair landings are paired with explicit map connections, never screen-y teleports.

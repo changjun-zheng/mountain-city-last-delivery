@@ -4,17 +4,17 @@ export const PHOTO_CARD_ID = 'card.exp02b.night-for-faraway';
 export const PHOTO_CONTENT_VERSION = 'exp02b-photo-quest-1';
 export const PHOTO_SITES = Object.freeze({
   eaves: Object.freeze({
-    id:'eaves', targetId:'photo-eaves', name:'檐下回望', x:2180,y:680,
+    id:'eaves', map:'lower',safe:'overlook', targetId:'photo-eaves', name:'檐下回望', x:2180,y:680,
     elements:Object.freeze({bridge:'occluded',water:'visible',timber:'visible'}),
     observation:'江水与木楼在画内，前方低檐挡住了桥面。',
   }),
   window: Object.freeze({
-    id:'window',targetId:'window',name:'花窗望江',x:900,y:650,
+    id:'window',map:'lower',safe:'overlook',targetId:'window',name:'花窗望江',x:900,y:650,
     elements:Object.freeze({bridge:'visible',water:'visible',timber:'outside'}),
     observation:'窗外能看清桥和江水，木楼留在窗框外，没有进入画面。',
   }),
   river: Object.freeze({
-    id:'river',targetId:'view',name:'江边开阔面',x:1700,y:1130,
+    id:'river',map:'riverfront',safe:'riverView',targetId:'view',name:'江边开阔面',x:1950,y:1050,
     elements:Object.freeze({bridge:'visible',water:'visible',timber:'visible'}),
     observation:'桥面、江水与层叠木楼都能清楚地留在同一幅画内。',
   }),

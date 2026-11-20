@@ -1,17 +1,19 @@
-export type ExplorationMap = 'upper' | 'lower' | 'guide' | 'workshop' | 'tea' | 'plaza' | 'entry' | 'service';
+import {DISTRICT_MAPS,DISTRICT_SAFE,DISTRICT_TARGETS} from './exploration-district.ts';
+export type ExplorationMap = 'upper' | 'lower' | 'middle' | 'riverfront' | 'guide' | 'workshop' | 'tea' | 'plaza' | 'entry' | 'service';
 export type Rect = Readonly<{ x: number; y: number; w: number; h: number }>;
 export type Point = Readonly<{ x: number; y: number }>;
 export type TargetId = 'visitor' | 'guide-door' | 'workshop-door' | 'tea-door' | 'note' | 'plaque' |
   'guide-exit' | 'workshop-exit' | 'tea-exit' | 'gate' | 'wrong-gate' | 'east-down' | 'east-up' |
   'west-down' | 'west-up' | 'view' | 'tea-observe' | 'window' | 'street-sign' | 'photo-eaves' |
-  'city-monument'|'city-sign'|'service-door'|'service-exit'|'service-guide'|'city-to-entry'|'entry-to-city'|'entry-to-core'|'core-to-entry'|'entry-view'|'memento-bookmark'|'memento-sketch'|'memento-postcard';
+  'city-monument'|'city-sign'|'service-door'|'service-exit'|'service-guide'|'city-to-entry'|'entry-to-city'|'entry-to-core'|'core-to-entry'|'entry-view'|'memento-bookmark'|'memento-sketch'|'memento-postcard'|'middle-east-upper'|'middle-west-upper'|'middle-east-lower'|'middle-west-lower'|'middle-court'|'middle-outer'|'riverfront-down'|'riverfront-up';
 import {PHOTO_CONTENT_VERSION} from './exploration-photo.ts';
 import {PROLOGUE_MAPS,PROLOGUE_SAFE,PROLOGUE_TARGETS} from './exploration-prologue.ts';
 import {MEMENTO_TARGETS} from './exploration-mementos.ts';
 export const EXP02A_CONTENT_VERSION = 'exp02a-core-district-1';
 export const EXP02B_CONTENT_VERSION = PHOTO_CONTENT_VERSION;
 export const EXP02C_CONTENT_VERSION = 'exp02c-prologue-1';
-export const EXP_CONTENT_VERSION = 'exp03b-city-mementos-1';
+export const EXP03B_CONTENT_VERSION = 'exp03b-city-mementos-1';
+export const EXP_CONTENT_VERSION = 'exp05a-district-skeleton-1';
 export type Building = Rect & Readonly<{ name: string; kind?: 'guide' | 'workshop' | 'tea' | 'market' | 'city' | 'service' }>;
 export type ExplorationMapDefinition = Readonly<{
   name: string; width: number; height: number; bounds: Rect;
@@ -58,6 +60,7 @@ export const EXP_MAPS: Readonly<Record<ExplorationMap, ExplorationMapDefinition>
     bounds:{x:180,y:240,w:740,h:360},buildings:[],
     walls:[{x:340,y:370,w:90,h:80},{x:630,y:370,w:90,h:80},{x:460,y:260,w:170,h:40}] },
   ...PROLOGUE_MAPS,
+  ...DISTRICT_MAPS,
 });
 export const EXP_LEGACY_SAFE = Object.freeze({
   arrival: { map:'upper',x:230,y:690 },
@@ -73,7 +76,8 @@ export const EXP_LEGACY_SAFE = Object.freeze({
   westLower: { map:'lower',x:430,y:1030 },
   overlook: { map:'lower',x:1660,y:1120 },
 } as const);
-export const EXP_SAFE=Object.freeze({...EXP_LEGACY_SAFE,...PROLOGUE_SAFE});
+export const EXP_PRE05_SAFE=Object.freeze({...EXP_LEGACY_SAFE,...PROLOGUE_SAFE});
+export const EXP_SAFE=Object.freeze({...EXP_PRE05_SAFE,...DISTRICT_SAFE});
 export type SafeId = keyof typeof EXP_SAFE;
 export type ExplorationTarget = Point & Readonly<{id:TargetId;map:ExplorationMap;label:string;destination?:SafeId;locked?:boolean}>;
 export const EXP_TARGETS: readonly ExplorationTarget[] = Object.freeze([
@@ -89,16 +93,17 @@ export const EXP_TARGETS: readonly ExplorationTarget[] = Object.freeze([
   {id:'tea-observe',map:'tea',x:545,y:325,label:'看看茶桌与竹椅'},
   {id:'gate',map:'upper',x:2710,y:750,label:'核对江纹栈门'},
   {id:'wrong-gate',map:'upper',x:110,y:850,label:'查看山纹杂物门'},
-  {id:'east-down',map:'upper',x:3060,y:750,label:'沿东侧木阶下楼',destination:'eastLower',locked:true},
-  {id:'east-up',map:'lower',x:3000,y:650,label:'沿东侧木阶上楼',destination:'eastUpper',locked:true},
-  {id:'west-down',map:'upper',x:540,y:1190,label:'打开西回廊短连接',destination:'westLower',locked:true},
-  {id:'west-up',map:'lower',x:430,y:1080,label:'沿西回廊回上层',destination:'westUpper',locked:true},
-  {id:'view',map:'lower',x:1700,y:1130,label:'调查江边开阔面'},
+  {id:'east-down',map:'upper',x:3060,y:750,label:'沿东侧木阶下楼',destination:'middleEastUpper',locked:true},
+  {id:'east-up',map:'lower',x:3000,y:650,label:'沿东侧木阶上楼',destination:'middleEastLower',locked:true},
+  {id:'west-down',map:'upper',x:540,y:1190,label:'打开西回廊短连接',destination:'middleWestUpper',locked:true},
+  {id:'west-up',map:'lower',x:430,y:1080,label:'沿西回廊回上层',destination:'middleWestLower',locked:true},
+  {id:'view',map:'riverfront',x:1950,y:1050,label:'调查江边开阔面'},
   {id:'window',map:'lower',x:900,y:650,label:'调查花窗视野'},
   {id:'photo-eaves',map:'lower',x:2180,y:680,label:'调查檐下视野'},
   {id:'street-sign',map:'upper',x:1120,y:650,label:'看看岔口路牌'},
   ...PROLOGUE_TARGETS,
   ...MEMENTO_TARGETS,
+  ...DISTRICT_TARGETS,
 ].map(t=>Object.freeze(t)) as readonly ExplorationTarget[]);
 
 // Closed, data-only connections; no generic map loader or behavior registry.

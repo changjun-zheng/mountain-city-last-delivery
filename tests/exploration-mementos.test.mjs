@@ -3,7 +3,7 @@ import{test}from'node:test';
 import{createHash}from'node:crypto';
 import{readFileSync}from'node:fs';
 import{ExplorationRuntime,emptyExplorationSave,validateExplorationSave,migrateExp02ASave,migrateExp02BSave,migrateExp02CSave}from'../src/core/exploration.ts';
-import{EXP_MAPS,EXP_SAFE,EXP_TARGETS,EXP02A_CONTENT_VERSION,EXP02B_CONTENT_VERSION,EXP02C_CONTENT_VERSION,EXP_CONTENT_VERSION}from'../src/core/exploration-content.ts';
+import{EXP_MAPS,EXP_SAFE,EXP_PRE05_SAFE,EXP_TARGETS,EXP02A_CONTENT_VERSION,EXP02B_CONTENT_VERSION,EXP02C_CONTENT_VERSION,EXP_CONTENT_VERSION}from'../src/core/exploration-content.ts';
 import{MEMENTOS,MEMENTO_COLLECTION_IDS,MEMENTO_COMPLETION as M}from'../src/core/exploration-mementos.ts';
 import{InMemoryRunProgress,EXP02A_PROGRESS_CONTENT as P,EXP02B_PROGRESS_CONTENT as Q}from'../src/core/progress.ts';
 import{ExplorationStorage,EXP_STORAGE_KEY,EXP_02C_STORAGE_KEY,EXP_02B_STORAGE_KEY,EXP_PREVIOUS_STORAGE_KEY}from'../src/platform/web/exploration-storage.ts';
@@ -56,7 +56,7 @@ test('EXP-03B M03 C/B/A strict migrations preserve old states and never admit ne
   const value=old(stage,version),raw=JSON.stringify(value),convert=version==='c'?migrateExp02CSave:version==='b'?migrateExp02BSave:migrateExp02ASave,m=convert(value);assert.ok(m);assert.deepEqual(m.progress,value.progress);assert.equal(m.safe,value.safe);assert.equal(JSON.stringify(value),raw);assert.equal(m.progress.collections.some(id=>MEMENTO_COLLECTION_IDS.includes(id)),false);assert.equal(m.progress.goals.includes(M.goal),false);assert.equal(new ExplorationRuntime('migrated',m).snapshot.mementos.length,0);
   for(const id of MEMENTO_COLLECTION_IDS){const invalid=structuredClone(value);invalid.progress.collections.push(id);invalid.progress.counts.collections++;assert.equal(convert(invalid),undefined);}
  }
- for(const safe of Object.keys(EXP_SAFE)){const c=migrateExp02CSave({...old('open'),safe});assert.ok(c,safe);}
+ for(const safe of Object.keys(EXP_PRE05_SAFE)){const c=migrateExp02CSave({...old('open'),safe});assert.ok(c,safe);}
  for(const version of ['a','b'])for(const safe of ['chapterStart','serviceRoom','entryFromCore','coreFromEntry'])assert.equal((version==='a'?migrateExp02ASave:migrateExp02BSave)({...old('open',version),safe}),undefined);
 });
 test('EXP-03B M03 corrupt sets/rewards/title/counts/unknown IDs reject whole record without any partial restore',()=>{
@@ -79,6 +79,6 @@ test('EXP-03B M03 priority new > C > B > A, blocking fallback, original bytes an
  const denied=new ExplorationStorage({...p,setItem:()=>{throw new Error('Quota');}});denied.load();denied.save(emptyExplorationSave());assert.match(denied.status,/未保存/);assert.equal(denied.restart(),false);
 });
 test('EXP-03B M04 M05 editable drawings differ and old eight maps, nineteen anchors and all old targets remain exact',()=>{
- const hash=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');assert.equal(hash(EXP_MAPS),'b7ade9f5c2dde243798c3e1a0e19b6083eb764d3c2d5bedbba13361864768a81');assert.equal(hash(EXP_SAFE),'2e4f609b2fc34605b40e627ac378b648b0487c199b8056bb0ed067b6f4ab89e9');assert.equal(hash(EXP_TARGETS.filter(t=>!t.id.startsWith('memento-'))),'9741d6d6c7040a2f93b3d154a2c4c7e4f0aed47121c07fdbe68254e57a73a574');
- const hashes=MEMENTOS.map(m=>createHash('sha256').update(readFileSync(new URL('../src/rendering/phaser/assets/exp-03b/'+m.id+'.svg',import.meta.url))).digest('hex'));assert.equal(new Set(hashes).size,3);assert.equal(Object.keys(EXP_MAPS).length,8);assert.equal(Object.keys(EXP_SAFE).length,19);assert.equal(EXP_TARGETS.filter(t=>!t.id.startsWith('memento-')).length,30);assert.equal(EXP_TARGETS.length,33);assert.equal(EXP_CONTENT_VERSION,'exp03b-city-mementos-1');
+ const hash=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');assert.equal(hash(Object.fromEntries(Object.entries(EXP_MAPS).filter(([k])=>!['middle','riverfront'].includes(k)))),'b7ade9f5c2dde243798c3e1a0e19b6083eb764d3c2d5bedbba13361864768a81');assert.equal(hash(EXP_PRE05_SAFE),'2e4f609b2fc34605b40e627ac378b648b0487c199b8056bb0ed067b6f4ab89e9');assert.equal(hash(EXP_TARGETS.filter(t=>!t.id.startsWith('memento-')&&!t.id.startsWith('middle-')&&!t.id.startsWith('riverfront-')).map(t=>t.id==='view'?{...t,map:'lower',x:1700,y:1130}:({...t,...({'east-down':{destination:'eastLower'},'west-down':{destination:'westLower'},'east-up':{destination:'eastUpper'},'west-up':{destination:'westUpper'}}[t.id]??{})}))),'9741d6d6c7040a2f93b3d154a2c4c7e4f0aed47121c07fdbe68254e57a73a574');
+ const hashes=MEMENTOS.map(m=>createHash('sha256').update(readFileSync(new URL('../src/rendering/phaser/assets/exp-03b/'+m.id+'.svg',import.meta.url))).digest('hex'));assert.equal(new Set(hashes).size,3);assert.equal(Object.keys(EXP_MAPS).length,10);assert.equal(Object.keys(EXP_SAFE).length,25);assert.equal(EXP_TARGETS.filter(t=>!t.id.startsWith('memento-')&&!t.id.startsWith('middle-')&&!t.id.startsWith('riverfront-')).length,30);assert.equal(EXP_TARGETS.length,41);assert.equal(EXP_CONTENT_VERSION,'exp05a-district-skeleton-1');
 });

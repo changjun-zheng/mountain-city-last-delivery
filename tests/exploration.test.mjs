@@ -53,9 +53,9 @@ test('EXP E02 real multi-room navigation, missing conditions, held interaction a
   const revision=d.r.snapshot.revision;d.r.interact(true);d.step(20);assert.equal(d.r.snapshot.revision,revision);d.close();d.r.interact(false);assert.equal(d.r.snapshot.accepted,true);
   d.to(2040,800);d.to(2040,780);d.interact('entry-to-core');d.to(230,650);d.to(2700,650);d.to(2700,750);d.interact('gate');assert.equal(d.r.snapshot.unlocked,false);d.close();assert.equal(d.r.snapshot.unlocked,true);
   const before=d.r.snapshot.progress;d.interact('gate');d.close();assert.deepEqual(d.r.snapshot.progress,before);
-  d.to(3060,750);d.interact('east-down');assert.equal(d.r.snapshot.map,'lower');assert.equal(d.r.id,id);
-  d.to(2100,650);d.to(1780,650);d.to(1780,1120);d.to(1700,1120);d.interact('view');d.r.closePhotoPreview();assert.equal(d.r.snapshot.completed,true);assert.equal(d.r.snapshot.photographed,false,'Old found-view goal is not a photograph');
-  const restored=new ExplorationRuntime('new-runtime',d.r.save);assert.equal(restored.snapshot.completed,true);assert.equal(restored.snapshot.map,'lower');assert.deepEqual(restored.snapshot.position,{x:1660,y:1120});assert.equal(restored.snapshot.pauseCount,0);
+  d.to(3060,750);d.interact('east-down');assert.equal(d.r.snapshot.map,'middle');d.to(3000,1200);d.interact('middle-east-lower');assert.equal(d.r.snapshot.map,'lower');assert.equal(d.r.id,id);
+  d.to(2100,650);d.to(1780,650);d.to(1780,1120);d.to(1700,1120);d.interact('riverfront-down');d.to(900,650);d.to(900,1050);d.to(1950,1050);d.interact('view');d.r.closePhotoPreview();assert.equal(d.r.snapshot.completed,true);assert.equal(d.r.snapshot.photographed,false,'Old found-view goal is not a photograph');
+  const restored=new ExplorationRuntime('new-runtime',d.r.save);assert.equal(restored.snapshot.completed,true);assert.equal(restored.snapshot.map,'riverfront');assert.deepEqual(restored.snapshot.position,{x:1910,y:1050});assert.equal(restored.snapshot.pauseCount,0);
 });
 test('EXP E03 closed records, immutable targets, atomic validation and every unlocked safe anchor',()=>{
   const isolated=driver();assert.deepEqual(isolated.r.snapshot.position,{x:230,y:690});isolated.to(880,690);isolated.to(880,580);

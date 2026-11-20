@@ -1,5 +1,6 @@
-import { validateExplorationSave, migrateExp02ASave, migrateExp02BSave, migrateExp02CSave, emptyExplorationSave, type ExplorationSave } from '../../core/exploration.ts';
-export const EXP_STORAGE_KEY = 'pokan.exp03b.save.v1';
+import { validateExplorationSave, migrateExp02ASave, migrateExp02BSave, migrateExp02CSave, migrateExp03BSave, emptyExplorationSave, type ExplorationSave } from '../../core/exploration.ts';
+export const EXP_STORAGE_KEY = 'pokan.exp05a.save.v1';
+export const EXP_03B_STORAGE_KEY = 'pokan.exp03b.save.v1';
 export const EXP_02C_STORAGE_KEY = 'pokan.exp02c.save.v1';
 export const EXP_02B_STORAGE_KEY = 'pokan.exp02b.save.v1';
 export const EXP_PREVIOUS_STORAGE_KEY = 'pokan.exp02a.save.v1';
@@ -15,6 +16,12 @@ export class ExplorationStorage {
     try {
       const raw = this.port.getItem(EXP_STORAGE_KEY);
       if (raw === null) {
+        const previousMementos=this.port.getItem(EXP_03B_STORAGE_KEY);
+        if(previousMementos!==null){
+          const migrated=migrateExp03BSave(JSON.parse(previousMementos));
+          if(!migrated){this.#blocked=true;this.status='上版纪念档案未通过校验，本次未保存；原档保留';return;}
+          this.notice='已沿用旅程、纪念物与称号；原档案保留。';this.status='已读取上版纪念档案';return migrated;
+        }
         const previousCity=this.port.getItem(EXP_02C_STORAGE_KEY);
         if(previousCity!==null){
           const migrated=migrateExp02CSave(JSON.parse(previousCity));

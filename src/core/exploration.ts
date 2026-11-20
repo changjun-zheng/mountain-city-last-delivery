@@ -1,26 +1,26 @@
 import { FixedStepSimulation } from './simulation.ts';
 import { RuntimeLifecycleController, type PauseToken } from './lifecycle.ts';
 import { InMemoryRunProgress, EXP02A_PROGRESS_CONTENT as P, EXP02B_PROGRESS_CONTENT as Q, type RunProgressSnapshot } from './progress.ts';
-import { EXP_MAPS, EXP_SAFE, EXP_LEGACY_SAFE, EXP_TARGETS, EXP_CONTENT_VERSION, EXP02A_CONTENT_VERSION, EXP02B_CONTENT_VERSION, EXP02C_CONTENT_VERSION, explorationWalls, segmentHitsRect, type ExplorationMap, type SafeId, type Point, type Rect } from './exploration-content.ts';
+import { EXP_MAPS, EXP_SAFE, EXP_LEGACY_SAFE, EXP_TARGETS, EXP_CONTENT_VERSION, EXP02A_CONTENT_VERSION, EXP02B_CONTENT_VERSION, EXP02C_CONTENT_VERSION, EXP03B_CONTENT_VERSION, EXP_PRE05_SAFE, explorationWalls, segmentHitsRect, type ExplorationMap, type SafeId, type Point, type Rect } from './exploration-content.ts';
 import { PHOTO_SITES, PHOTO_SITE_IDS, PHOTO_METADATA, missingPhotoElements, type PhotoSiteId, type PhotoMetadata } from './exploration-photo.ts';
 import {MEMENTOS,MEMENTO_COLLECTION_IDS,MEMENTO_COMPLETION,type MementoId,type MementoTargetId} from './exploration-mementos.ts';
 
 export type LegacyExplorationSave = Readonly<{schemaVersion:1;contentVersion:string;safe:SafeId;progress:RunProgressSnapshot}>;
 export type ExplorationSave = LegacyExplorationSave & Readonly<{observedSites:readonly PhotoSiteId[];photo:PhotoMetadata|null}>;
-function validateBaseSave(value:unknown,content:'exp02a'|'exp02b'|'exp02c'|'exp03b'):LegacyExplorationSave|undefined {
+function validateBaseSave(value:unknown,content:'exp02a'|'exp02b'|'exp02c'|'exp03b'|'exp05a'):LegacyExplorationSave|undefined {
   if (!value || typeof value !== 'object') return;
   const s = value as LegacyExplorationSave;
-  const expected=content==='exp02a'?EXP02A_CONTENT_VERSION:content==='exp02b'?EXP02B_CONTENT_VERSION:content==='exp02c'?EXP02C_CONTENT_VERSION:EXP_CONTENT_VERSION;
+  const expected=content==='exp02a'?EXP02A_CONTENT_VERSION:content==='exp02b'?EXP02B_CONTENT_VERSION:content==='exp02c'?EXP02C_CONTENT_VERSION:content==='exp03b'?EXP03B_CONTENT_VERSION:EXP_CONTENT_VERSION;
   if (s.schemaVersion !== 1 || s.contentVersion !== expected ||
-      typeof s.safe !== 'string' || !Object.hasOwn(content==='exp02c'||content==='exp03b'?EXP_SAFE:EXP_LEGACY_SAFE, s.safe)) return;
-  const progress = new InMemoryRunProgress(content==='exp02a'?'exp02a':content==='exp03b'?'exp03b':'exp02b');
+      typeof s.safe !== 'string' || !Object.hasOwn(content==='exp05a'?EXP_SAFE:content==='exp02c'||content==='exp03b'?EXP_PRE05_SAFE:EXP_LEGACY_SAFE, s.safe)) return;
+  const progress = new InMemoryRunProgress(content==='exp02a'?'exp02a':(content==='exp03b'||content==='exp05a')?'exp03b':'exp02b');
   if (!progress.restore(s.progress)) return;
   const has = (id: string) => progress.verifyGoal(id);
   const item = progress.snapshot.collections.includes(P.item);
   if ((has(P.unlocked) && (!has(P.accepted) || !has(P.clue) || !item)) ||
       (has(P.completed) && !has(P.unlocked)) ||
-      ((EXP_SAFE[s.safe].map==='lower'||s.safe==='eastUpper'||s.safe==='westUpper')&&!has(P.unlocked))) return;
-  if(content==='exp03b'&&has(MEMENTO_COMPLETION.goal)!==MEMENTO_COLLECTION_IDS.every(id=>progress.snapshot.collections.includes(id)))return;
+      ((['lower','middle','riverfront'].includes(EXP_SAFE[s.safe].map)||s.safe==='eastUpper'||s.safe==='westUpper')&&!has(P.unlocked))) return;
+  if((content==='exp03b'||content==='exp05a')&&has(MEMENTO_COMPLETION.goal)!==MEMENTO_COLLECTION_IDS.every(id=>progress.snapshot.collections.includes(id)))return;
   return Object.freeze({ schemaVersion: 1, contentVersion: EXP_CONTENT_VERSION, safe: s.safe, progress: progress.snapshot });
 }
 export function migrateExp02ASave(value:unknown):ExplorationSave|undefined {
@@ -28,12 +28,12 @@ export function migrateExp02ASave(value:unknown):ExplorationSave|undefined {
   const base=validateBaseSave(value,'exp02a');
   return base?Object.freeze({...base,observedSites:Object.freeze([]),photo:null}):undefined;
 }
-function validatePhotoSave(value:unknown,content:'exp02b'|'exp02c'|'exp03b'):ExplorationSave|undefined {
+function validatePhotoSave(value:unknown,content:'exp02b'|'exp02c'|'exp03b'|'exp05a'):ExplorationSave|undefined {
   if(!value||typeof value!=='object'||Object.keys(value).sort().join(',')!=='contentVersion,observedSites,photo,progress,safe,schemaVersion')return;
   const base=validateBaseSave(value,content);if(!base)return;
   const s=value as ExplorationSave;
   if(!Array.isArray(s.observedSites)||s.observedSites.some(id=>!PHOTO_SITE_IDS.includes(id))||new Set(s.observedSites).size!==s.observedSites.length)return;
-  const p=new InMemoryRunProgress(content==='exp03b'?'exp03b':'exp02b');p.restore(base.progress);
+  const p=new InMemoryRunProgress((content==='exp03b'||content==='exp05a')?'exp03b':'exp02b');p.restore(base.progress);
   const photographed=p.verifyGoal(Q.photographed);
   if(s.observedSites.length&&!p.verifyGoal(P.unlocked))return;
   if(photographed){
@@ -42,7 +42,8 @@ function validatePhotoSave(value:unknown,content:'exp02b'|'exp02c'|'exp03b'):Exp
   }else if(s.photo!==null)return;
   return Object.freeze({...base,observedSites:Object.freeze([...s.observedSites]),photo:photographed?PHOTO_METADATA:null});
 }
-export function validateExplorationSave(value:unknown):ExplorationSave|undefined {return validatePhotoSave(value,'exp03b');}
+export function validateExplorationSave(value:unknown):ExplorationSave|undefined {return validatePhotoSave(value,'exp05a');}
+export function migrateExp03BSave(value:unknown):ExplorationSave|undefined {return validatePhotoSave(value,'exp03b');}
 export function migrateExp02CSave(value:unknown):ExplorationSave|undefined {return validatePhotoSave(value,'exp02c');}
 export function migrateExp02BSave(value:unknown):ExplorationSave|undefined {return validatePhotoSave(value,'exp02b');}
 export function emptyExplorationSave():ExplorationSave {
@@ -88,7 +89,7 @@ export class ExplorationRuntime {
   constructor(id: string, save?: unknown) {
     this.id = id;
     const validated = save === undefined ? undefined : validateExplorationSave(save);
-    if (save !== undefined && !validated) throw new Error('Invalid EXP-03B save.');
+    if (save !== undefined && !validated) throw new Error('Invalid EXP-05A save.');
     if (validated) {
       this.#progress.restore(validated.progress);
       this.#safe = validated.safe;
@@ -128,6 +129,8 @@ export class ExplorationRuntime {
       case 'city-sign':this.#say('方向牌：沿东侧过渡街巷前往沧白路高处入口；回望西侧是解放碑广场。街面是游戏化改编，不是现实精确步行导航。');break;
       case 'service-guide':this.#say('先在街面自由行走，靠近门口或导览牌，再主动交互。松开后可再次操作。\n沿商业步行街向东，经街巷到沧白路入口，那里能俯看木楼群。小店调查可跳过，不需要购买或收集。');break;
       case 'entry-view':this.#say('栏杆下是层叠的木楼，江桥在更远处。东侧门廊连到上层街区，西侧街巷可回解放碑。先听听身旁游客想找什么。');break;
+      case 'middle-court':this.#say('内院木楼挡在中央。北侧内廊通向东西木阶，沿院墙两侧能绕到南侧外廊；回望可见上层来路。');break;
+      case 'middle-outer':this.#say('外廊沿院落南缘展开，东西两端都有下层木阶。绕回北侧可返回上层；这里的观察不影响通路。');break;
       case 'visitor':
         this.#say('游客：想把桥、江水和木楼一起寄给远方。上层檐廊挡住了低处的视野，得找到下层朝江的开阔面。\n我在这里等你。导览小店有楼层示意，木作间保管着旧门扣。', 'accepted'); break;
       case 'note':
@@ -166,7 +169,7 @@ export class ExplorationRuntime {
   closePhotoPreview(discovered=true):void {
     if(this.#disposed||!this.#photoPreview)return;
     if(discovered&&this.#photoPreview.siteId==='river'&&this.#progress.verifyGoal(P.unlocked)&&this.lifecycle.pauseCount===1){
-      this.#progress.completeGoal(P.completed);this.#safe='overlook';this.#revision++;
+      this.#progress.completeGoal(P.completed);this.#safe=PHOTO_SITES.river.safe;this.#revision++;
     }
     if(this.#photoToken)this.lifecycle.release(this.#photoOwner,this.#photoToken);
     this.#photoToken=undefined;this.#photoPreview=undefined;this.clearInput();
@@ -174,14 +177,14 @@ export class ExplorationRuntime {
   takePhoto(previewId:string):'rejected'|'incomplete'|'captured'|'existing' {
     const preview=this.#photoPreview;
     if(this.#disposed||!preview||preview.id!==previewId||!this.#photoToken||this.lifecycle.pauseCount!==1||
-      this.#map!=='lower'||!this.#progress.verifyGoal(P.accepted)||!this.#progress.verifyGoal(P.unlocked)||
+      this.#map!==PHOTO_SITES[preview.siteId].map||!this.#progress.verifyGoal(P.accepted)||!this.#progress.verifyGoal(P.unlocked)||
       this.snapshot.target?.id!==PHOTO_SITES[preview.siteId].targetId)return 'rejected';
     const missing=missingPhotoElements(preview.siteId);
     if(missing.length){this.#photoPreview=Object.freeze({...preview,feedback:PHOTO_SITES[preview.siteId].observation+' 再换一个视野看看；物品和次数都不受影响。'});return 'incomplete';}
     const existing=this.#progress.verifyGoal(Q.photographed);
     this.#progress.completeGoal(P.completed);
     this.#progress.completeGoal(Q.photographed);
-    this.#safe='overlook';this.#revision++;
+    this.#safe=PHOTO_SITES.river.safe;this.#revision++;
     this.closePhotoPreview(false);this.openPhotoCard();
     return existing?'existing':'captured';
   }

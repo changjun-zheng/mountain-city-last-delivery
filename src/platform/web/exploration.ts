@@ -35,6 +35,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
   let shownPhoto:PhotoSiteId|undefined;
   let notesSignature='';
   let shutterGesture:{id:string;pointerId:number;released:boolean}|undefined;
+  let photoCloseGesture:{id:string;pointerId:number;released:boolean}|undefined;
   let mementoGesture:{id:string;pointerId:number;released:boolean}|undefined;
   let lastMementoCount=0,feedbackUntil=0;
   let collectionFeedback='';
@@ -45,6 +46,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     input?.sync();
     const s=runtime.snapshot;
     if(shutterGesture&&shutterGesture.id!==s.photoPreview?.id)shutterGesture=undefined;
+    if(photoCloseGesture&&photoCloseGesture.id!==s.photoPreview?.id)photoCloseGesture=undefined;
     if(mementoGesture&&mementoGesture.id!==s.mementoInspectionId)mementoGesture=undefined;
     if(started&&savedRevision!==s.revision){storage?.save(runtime.save);savedRevision=s.revision;}
     get('exp-objective').textContent=s.objective;
@@ -100,7 +102,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
   };
   const setView=(view:View,open:boolean,{preserveCard=false}:{preserveCard?:boolean}={})=>{
     if(!runtime||disposed)return;
-    input?.clear();shutterGesture=undefined;mementoGesture=undefined;
+    input?.clear();shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;
     if(open&&!tokens[view])tokens[view]=runtime.lifecycle.acquire(owners[view],Symbol(view));
     if(open){runtime.closeDialogue(false);runtime.closePhotoPreview(false);if(!preserveCard)runtime.closePhotoCard();}
     if(!open&&tokens[view]){runtime.lifecycle.release(owners[view],tokens[view]);delete tokens[view];}
@@ -134,6 +136,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     if(disposed)return;
     disposed=true;
     shutterGesture=undefined;
+    photoCloseGesture=undefined;
     mementoGesture=undefined;
     // Reverse acquisition order: frame/rendering, platform listeners, runtime.
     for(const release of cleanup.reverse())await release();
@@ -172,7 +175,24 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     },{signal:abort.signal});
     on('exp-memento-cancel',()=>{input?.clear();mementoGesture=undefined;runtime?.closeDialogue(false);update();});
     on('exp-menu-button',()=>setMenu(!views.menu));on('exp-resume',()=>setMenu(false));
-    on('exp-photo-close',close);
+    const photoClose=get<HTMLButtonElement>('exp-photo-close');
+    photoClose.addEventListener('pointerdown',event=>{
+      const preview=runtime?.snapshot.photoPreview;
+      photoCloseGesture=preview?{id:preview.id,pointerId:event.pointerId,released:false}:undefined;
+    },{signal:abort.signal});
+    photoClose.addEventListener('pointerup',event=>{
+      if(photoCloseGesture?.pointerId===event.pointerId)photoCloseGesture.released=true;
+    },{signal:abort.signal});
+    photoClose.addEventListener('pointercancel',()=>{photoCloseGesture=undefined;},{signal:abort.signal});
+    photoClose.addEventListener('lostpointercapture',event=>{
+      if(photoCloseGesture?.pointerId===event.pointerId&&!photoCloseGesture.released)photoCloseGesture=undefined;
+    },{signal:abort.signal});
+    photoClose.addEventListener('click',event=>{
+      const preview=runtime?.snapshot.photoPreview;
+      const owned=event.detail===0||photoCloseGesture?.released&&photoCloseGesture.pointerId===event.pointerId&&photoCloseGesture.id===preview?.id;
+      photoCloseGesture=undefined;
+      if(!disposed&&preview&&owned)close();
+    },{signal:abort.signal});
     on('exp-photo-menu',()=>setMenu(true));
     const shutter=get<HTMLButtonElement>('exp-shutter');
     shutter.addEventListener('pointerdown',event=>{
@@ -203,8 +223,8 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     on('exp-restart',()=>confirm('play'));on('exp-title-restart',()=>confirm('title'));
     on('exp-cancel-restart',cancelRestart);
     on('exp-confirm-restart',()=>{if(storage?.restart())location.reload();else update();});
-    window.addEventListener('resize',()=>{shutterGesture=undefined;mementoGesture=undefined;update();},{signal:abort.signal});
-    window.addEventListener('blur',()=>{shutterGesture=undefined;mementoGesture=undefined;},{signal:abort.signal});
+    window.addEventListener('resize',()=>{shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;update();},{signal:abort.signal});
+    window.addEventListener('blur',()=>{shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;},{signal:abort.signal});
     root.addEventListener('keydown',event=>{
       if(event.code!=='Tab')return;
       const panel=[get('exp-confirm'),get('exp-instructions-panel'),get('exp-notes'),get('exp-menu'),get('exp-title-screen'),get('exp-photo-card'),get('exp-photo'),get('exp-dialogue')].find(p=>!p.hidden);
