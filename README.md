@@ -4,7 +4,7 @@
 
 现行产品设计（2026-11-19 后续重构）：《坡坎之间》转为以重庆山城为灵感的 2D 斜俯视、非战斗探索冒险，支持八向走动、可进入建筑、调查／物品用途、地域收藏与轻量本地存档；手绘卡通与 H5 电脑／手机目标保留。正式范围见[探索重构决策](docs/DECISIONS.md#topdown-exploration-reboot-20261119)、[H5 V3](docs/COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md#topdown-h5-v3-20261119)和路线图页首。
 
-实现状态（2026-11-20 EXP-03B）：现有街区新增三件可选纸质纪念物，明确收进后进入旅程手账；集齐给一次试制称号，与原夜景照片奖励独立，零收藏仍能通关。DONE（[Work 功能技术复核 PASS](docs/DEVELOPMENT_ROADMAP.md#exp-03b-work-review-20261120)，待负责人体验）。基线 `221fa7a`；本项按负责人授权由 Work 审查后提交推送，不自动续项。真机、最终美术和完整章仍未验收。
+实现状态（2026-11-20 EXP-03C）：既有夜景拍摄成功卡现在明确显示“本次委托已完成”、《把山城夜景寄给远方》、原纪念卡、只读的已收纪念物数与已获称号，并提供继续探索／返回标题／确认重新开始三条路径。DONE（Work 功能技术复核 PASS，待负责人体验）。基线 `b6d4fe0`；本项未新增业务状态、奖励、存档版本或地图，真机、最终美术和完整章仍未验收，不自动续项。
 
 名称说明（2026-11-15）：当前中文项目名称为《坡坎之间》（CONFIRMED），英文名称未确定；宣传语“在山与城之间，发现不一样的故事。”仅为 PROPOSED。旧工作名称为叠城大冒险／Layered City Adventures，商标注册、重名核验与正式发行名称冻结尚未完成。见[当前名称决策](docs/DECISIONS.md#project-name-pokan-20261115)及[品牌交接](docs/PROJECT_REBRANDING_HANDOFF.md#current-brand-20261115)。EXP-01 使用当前中文名称；部分旧横版界面、Electron 与既有 Windows 产物仍保留旧显示名；当前 Web 页标题已更新，不据此宣称全工程更名完成。
 
@@ -15,6 +15,52 @@ Mountain City: Last Delivery／山城有路：最后一单为历史名称。下�
 旧横版调试首关操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；在 B 区沧白路入口靠近游客后按 E 主动对话，只有对话完成才自动接取委托。根据 B 区唯一线索，在 C 区两个吊臂中按 E 试错；右侧错误操作可重试，左侧正确操作启动升降平台并开放通往下层 D 的真实碰撞路线。沿 C1、C2、C3 连续楼梯与木廊逐层向下，乘平台下降至嘉陵江岸后，按住 D 走到指定范围并按 E 拍摄、分享；只有已接委托、机关完成、路线开放且主动交互全部满足时才完成。按 R 或「重置灰盒」回到出生点并保留上述永久进度。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
 
 调试灰盒操作：调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过并从上方落地；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。D 由 D08 原型直接登记一次测试收藏；目标 E 的按 E 只创建 Pending Event，真实命令接收和跨 Tick 事务完成后才登记目标／奖励／永久效果并开门。检查点与恢复原型、诊断区域和两条移动平台保留在「调试入口」；这些能力不等于正式存档或首关检查点。
+
+<a id="exp-03c-delivery-20261120"></a>
+
+## EXP-03C 委托完成页与旅程收尾（2026-11-20）
+
+DONE（[Work 功能技术复核 PASS](docs/DEVELOPMENT_ROADMAP.md#exp-03c-work-review-20261120)，待负责人体验），仅实施[本卡](docs/DEVELOPMENT_ROADMAP.md#exp-03c-completion-20261120)。直接完善现有 `exp-photo-card`，保留旧 `exp-card-close` 选择器与手账重看入口；没有另叠完成弹窗，也没有修改 core、input、storage、visibility、物理、渲染、依赖或存档版本。
+
+只有既有有效拍摄状态打开的卡片显示“本次委托已完成”、委托名《把山城夜景寄给远方》和原夜景纪念卡。已收纪念物数及称号来自 `runtime.snapshot` 只读投影：0／1 件只显示“尚未获得 · 选做奖励”，3 件才显示既有“山城拾光者”；未获名称不泄露。收藏明确标为全部选做，不显示探索率、时长、评分、全章或全收藏数据。
+
+三条路径共用既有 owner：
+
+- “继续探索”只关闭 photo card，保持同一 Runtime、坐标、进度与后续 Tick。
+- “返回标题”使用既有 title owner，旅程保留；开始后回到同一 Runtime，不强制重开卡片。
+- “重新开始”先打开既有 confirm；按钮与 Escape 取消都回到合法完成卡。确认后才调用既有 `storage.restart()` 写空白 A 并刷新，历史键与其他数据原文保留。
+
+确认状态使用独立 confirm owner 并暂时保留 photo owner。若原生 hidden 关闭卡片，回焦后取消会用既有 `openPhotoCard()` 恢复同一拍照完成卡、photo owner、焦点和进度，不重发照片／收藏奖励。Tab 限定在卡片，Space 可激活真实按钮，触屏取消／继续／标题均可用；销毁时自有 AbortSignal、Canvas 和纪念卡图像引用清理。
+
+| 验收 | 开发实际结果与边界 |
+| --- | --- |
+| F01 | PASS：根标题新局，真实键盘走完 A→B→C→江岸，比较三处取景；檐下与花窗错误取景不完成，江边明确拍摄后才出现零纪念物完成卡。继续后重复快门不能增加第二个照片奖励。 |
+| F02 | PASS：同一 Runtime 继续／标题往返；刷新从标题与手账重看不自动弹卡。确认前无 storage 写入；点击与 Escape 取消回卡；确认后空白 A，历史键与其他键字节保持。 |
+| F03 | PASS：card／confirm／title／原生 hidden owner 计数与 Tick 冻结分层验证。确认状态中按 E 不释放隐藏卡片；hidden 后回焦，Escape 与按钮取消均恢复原卡、owner、焦点及进度。pagehide 重复销毁通过。 |
+| F04 | PASS：0 件来自真实新局，1／3 件使用显式内联兼容夹具；1280×720、1920×1080、844×390、667×375、390×844 截图与真实按钮检查，正文至少 14 CSS px、按钮至少 48 CSS px、图片盒保持比例。Android Chrome／iOS Safari 真机 NOT RUN。 |
+| F05 | PASS：230/230 原全量、构建、EXP-03C 13 组、EXP-03A 11 组、EXP-03B 8 组、EXP-02C 14 组与格式检查通过。EXP-03C 页面／网络错误为 0，自有 context／普通 Chrome／原生 Chrome／服务边界已记录；旧报告不追改。 |
+
+实际必跑命令最终均退出 0：
+
+```powershell
+npm.cmd test
+npm.cmd run build
+node tests/exp-03c-browser.mjs --production --browser=chrome
+node tests/exp-03a-browser.mjs --production --browser=chrome
+node tests/exp-03b-browser.mjs --production --browser=chrome
+node tests/exp-02c-browser.mjs --production --browser=chrome
+git diff --check
+```
+
+最终报告：[EXP-03C 13 组](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/report.json)，SHA-256 `8d918dd3d1821211d8907b7219997512999f34f990097967ecd6e9f29173da1e`；[EXP-03A 11 组](test-results/exp-03a/run-2026-11-20T07-30-57-703Z/report.json)，SHA-256 `ae93028e16d38a350fc732d5ec92f7c39874f032bcf8cb345011ed014c230c3b`；[EXP-03B 8 组](test-results/exp-03b/run-2026-11-20T07-31-28-092Z/report.json)，SHA-256 `1aaa43704360ca8f3c3ac325bde507a7a87ac0971428ec6b4a893c0e9480aad2`；[EXP-02C 14 组](test-results/exp-02c/run-2026-11-20T07-33-34-558Z/report.json)，SHA-256 `136c68019fcb28917906241f31205d1577f7291fdc53077d914b60f90444281f`。
+
+实际构建入口为 `dist/index.html`，只引用 `dist/assets/index-CeYOfMCr.js`／`dist/assets/index-BqzETvdL.css`。Chrome `157.0.8103.79`。本任务在确认 4199 原本空闲后启动自有隐藏 Vite preview，PID `5460`、命令 `node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4199 --strictPort`；HTTP 200，保留服务供 Work 复验，不停止其他服务、不读取个人浏览器档案。
+
+实机图：[零纪念物真实完成](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/04-zero-mementos-completion.png)、[1280×720](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/05-completion-1280x720.png)、[1920×1080](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/05-completion-1920x1080.png)、[844×390](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/05-completion-844x390.png)、[667×375](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/05-completion-667x375.png)、[390×844](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/05-completion-390x844.png)、[1 件纪念物](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/06-fixture-1-mementos.png)、[3 件纪念物与称号](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/06-fixture-3-mementos.png)、[844 触屏完成卡](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/07-touch-completion-844x390.png)、[触屏返回标题](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/08-touch-card-to-title.png)、[667 触屏](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/09-touch-completion-667x375.png)、[390 竖屏](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/10-touch-completion-390x844.png)。
+
+失败历史原样保留：`run-2026-11-20T07-20-35-113Z` 首次在 844×390 发现图片元素被压成约 3.28:1；`run-2026-11-20T07-22-47-654Z` 第一次 CSS 修正仍受 `38dvh` 覆盖，约 2.96:1。随后用短完成档探针读取 computed style，确认图片元素盒的 `max-height` 被覆盖，去掉该覆盖并保持 `object-fit:contain`，没有放宽比例断言。`run-2026-11-20T07-24-54-721Z` 为原生 Chrome 夹具在后台页尝试点击；`run-2026-11-20T07-27-13-210Z` 为 hidden Tick 断言误用较早基准。后两项只调整测试前台顺序与每次后台前基准，应用源码未再改；最终 13 组 PASS。
+
+本窗口未 Commit／Push／部署／删除文件，未进入 EXP-04 或下一项。真机、最终美术、文化细化、负责人体验与 30—45 分钟完整章时长均未验收。
 
 <a id="exp-03b-delivery-20261120"></a>
 

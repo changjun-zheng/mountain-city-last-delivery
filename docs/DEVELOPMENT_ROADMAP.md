@@ -16,9 +16,9 @@ HISTORICAL：曾有开发窗口依路线图连续推进、完成后自行领取�
 
 ## 当前唯一入口：斜俯视探索设计重构（2026-11-19 后续轮次）
 
-状态：**EXP-03B DONE，Work 功能技术复核 PASS，待负责人体验**。本轮已沿用原独立开发会话实施、监控到停止并完成独立复验，按负责人逐项完成推送授权审查后提交推送。基线为已推送 `221fa7a`；当前没有自动获授权的下一任务。具体物品／称号仍为Demo试制，地图／美术满意度、真机及完整首章时长未验收，不将本次功能通过升级为完整比赛版。产品依据见 [探索重构](DECISIONS.md#topdown-exploration-reboot-20261119)。
+状态：**EXP-03C DONE，Work 功能技术复核 PASS，待负责人体验**。负责人本轮明确继续上一轮单任务开发／审查／自动推送流程；Work 核对 GitHub main／HEAD 为 `b6d4fe0c0b93bcdc15a0686217e5f09cf321ec97`、工作区干净后，仅授权原开发会话执行下卡。开发已完成现有拍摄卡收尾、只读收藏摘要、三条路径、hidden 后取消恢复和专项／全量／生产回归；EXP-03B 已提交推送、功能技术复核 PASS。具体物品／称号仍为 Demo 试制，地图／美术满意度、真机及完整首章时长未验收，不将收尾 UI 通过升级为完整比赛版。产品依据见 [探索重构](DECISIONS.md#topdown-exploration-reboot-20261119)。
 
-本轮核对 GitHub main／origin/main／HEAD 为 `b5b69f37385552c5ac085e532f6de965ec4e39ec`，开始工作区干净。Work 已读取两份策划聊天的可读取近期内容、当前源码／定义／进度白名单、报告与截图；没有修改代码、重跑测试或关闭体验服务。新完整分析在[总规划](FULL_GAME_CONTENT_AND_LEVEL_EXPANSION_ARCHITECTURE.md#exploration-reboot-20261119)，当前交付方案在[H5 V3](COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md#topdown-h5-v3-20261119)，唯一新空间主文在[关卡设计](HONGYADONG_LEVEL_DESIGN.md#topdown-first-chapter-20261119)。旧横版空间 V1、旧 READY 提示词和下方历史顺序不能继续作为开发授权。
+HISTORICAL（设计重构初次同步时点）：当时核对 GitHub main／origin/main／HEAD 为 `b5b69f37385552c5ac085e532f6de965ec4e39ec`，开始工作区干净。Work 已读取两份策划聊天的可读取近期内容、当前源码／定义／进度白名单、报告与截图；没有修改代码、重跑测试或关闭体验服务。新完整分析在[总规划](FULL_GAME_CONTENT_AND_LEVEL_EXPANSION_ARCHITECTURE.md#exploration-reboot-20261119)，当前交付方案在[H5 V3](COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md#topdown-h5-v3-20261119)，唯一新空间主文在[关卡设计](HONGYADONG_LEVEL_DESIGN.md#topdown-first-chapter-20261119)。旧横版空间 V1、旧 READY 提示词和下方历史顺序不能继续作为开发授权。
 
 ### DEMO-01 的本轮审查结论（证据保留）
 
@@ -42,9 +42,75 @@ HISTORICAL：曾有开发窗口依路线图连续推进、完成后自行领取�
 | EXP-03 收藏／成就与产品 UI | PLANNED／父项不整体领取 | 图鉴／纪念册、少量收藏与奖励及产品 UI 分项实施；正式数量与表现待审，不因 UI 子项完成宣称全收藏／成就完成。 |
 | EXP-03A 正式网页入口与旅程界面 | DONE／Work 功能技术复核 PASS，按授权提交推送，待负责人体验 | 普通首页标题／开始／继续，轻 HUD／已知手账、同实例标题往返；旧原型转显式调试入口。未新增谜题／收藏；真机／最终视觉待验收。 |
 | EXP-03B 可选纪念物与收藏展示 | DONE／Work 功能技术复核 PASS，按授权提交推送，待负责人体验 | 三件实际可收纸质纪念物、已获图案与一次试制称号；旧档保留，零收藏通关；非完整目录、真机或最终美术验收。 |
+| EXP-03C 委托完成页与旅程收尾 | DONE／Work 功能技术复核 PASS，按授权提交推送，待负责人体验 | 用现有拍摄成功纪念卡承载明确的委托完成、已获纪念总结和继续／标题／确认重开入口；不增加地图、任务、奖励或存档语义。 |
 | EXP-04 H5 候选验收与材料 | PLANNED／不领取 | 新视角下的桌面、真实手机、存档、地图往返／主线与新玩家时长证据，作品材料与运行包。公开托管／投稿另获授权；D13 原卡不改写。 |
 
-EXP-02 是内容阶段父项，不可与子项重复领取；EXP-02A／B／C 和 EXP-03A 的功能技术范围已复核，完整章仍未验收。EXP-03A 已结束；EXP-03B 本轮三件可选纪念物与一次试制称号已完成，其他收藏／成就目录仍待安排，不自动领取下一项。不能继续旧 DEMO-02、H5-03／04、D13、BRAND-01、MLV 或架构任务绕过本次方向关口。
+EXP-02 是内容阶段父项，不可与子项重复领取；EXP-02A／B／C 和 EXP-03A／B 的功能技术范围已复核，完整章仍未验收。本轮 EXP-03C 已实施完成并等待功能技术审查；其他收藏／成就目录仍待安排。不能继续旧 DEMO-02、H5-03／04、D13、BRAND-01、MLV 或架构任务绕过本次方向关口。
+
+<a id="exp-03c-completion-20261120"></a>
+
+### EXP-03C：委托完成页与旅程收尾
+
+**状态／交接**：DONE／Work 功能技术复核 PASS，待负责人体验（2026-11-20）。原独立开发会话 `01a1f37c-9ce0-7fb3-a348-74c776daee5e` 单项实施；本项以既有 UI／只读投影为主，优先尝试 DeepSeek V4.1 Flash／High，若客户端不支持该模型选择则报告 Work，不自行新建会话。开发不 Commit／Push；Work 审查、展示摘要后按负责人持续授权提交推送。无下一项自动授权。
+
+**目标与依据**：现有拍摄成功仅显示纪念卡和返回探索，补足比赛可玩短篇的清晰收尾；沿用已确认主线及返回标题保留／明确重开清空语义。不新增“全章完成”状态，不把本短篇描述为 30—45 分钟完整章，不制作另一套完成／奖励业务。
+
+**先读**：AGENTS、本页最新入口、DECISIONS 探索重构／菜单语义、PROJECT_BRIEF、H5 V3；实际 core exploration 的 takePhoto／openPhotoCard／closePhotoCard 与 snapshot、Web exploration／UI／journal／storage／input、既有 03A／03B／02C 生产测试。使用 frontend-design 与 webapp-testing 技能时先读技能文件；仓库既有 playwright-core＋branded Chrome 优先，不为技能示例新增 Python 或其他依赖。
+
+**实施要求**：
+
+1. 直接完善现有 `exp-photo-card`，保留旧选择器与纪念卡重看入口，不再叠一个独立完成弹窗。只在现有已拍摄状态可打开时展示“本次委托已完成”、委托名、原纪念卡；用只读 snapshot 显示已收纪念物数量、已获称号（未获不展示名称），明确收藏选做。不制造探索率、游戏时长、评分、上传分享、全章或全收藏通过数据。
+2. 提供“继续探索”“返回标题”“重新开始”三条明确路径。继续只关闭原 card owner，保持同 Runtime／位置／进度；标题使用既有协调路径，保留旅程；重开必须复用既有确认与 storage.restart，不新建清档方法。取消重开返回原完成卡（包括键盘 Escape），不能落入不可见菜单或失去暂停；确认才按原规则清当前键、新局 A，历史键／其他数据原文保留。无有效拍摄状态不得伪造完成；载入完成档只按既有标题／手账重看，不自动重复发奖或强制弹出。
+3. 不改 core、input 或生命周期协议。卡片本身复用既有 photo owner，确认／标题只用已有 UI owner，关闭不释放 hidden 等其他 owner。输入清理、持键不漏进下一视图、焦点可达／Tab 限定／Space 键、关闭与标题／刷新／重复点击均无旧快门或收藏提交。若为正确视图返回需记录 UI 来源，只存本次显示状态，不写存档、业务字段或事件。
+4. 视觉延续现有夜景／纸质手账：纪念卡为主视觉、少量清楚的收尾文字与按钮，电脑双栏／手机紧凑滚动可自行选择。1280×720、1920×1080、844×390、667×375、390×844 正文实际约14 CSS px、按钮至少48 CSS px、固定关键操作可达，不拉伸图片、不让文本挤掉操作；reduced-motion 与可见焦点沿用现有规范。无外部素材下载、无新资产依赖；不声明最终美术已验收。
+
+**文件白名单**：`src/platform/web/exploration.ts`（只 UI 收尾接线／返回焦点／自有资源）、`exploration-ui.ts`／`exploration-ui.css`；如确有需要新增纯只读 `exploration-completion.ts` 和相应 `tests/exploration-completion.test.mjs`。新增 `tests/exp-03c-browser.mjs`；既有 03A／03B／02C 生产测试只作必要当前收尾导航／指纹适配，保留原断言、独立夹具与失败记录；README／本卡仅追加实施事实。Work 派发前快照 `test-results/exp-03c-work-review/before-dispatch.json` 不得修改。
+
+**禁止**：所有 `src/core/**`／`src/physics/**`／`src/rendering/**`、exploration-input／storage／visibility／main、index／全局style、依赖／配置／锁文件／Electron／CI／密钥，以及历史报告／素材／用户服务。无新地图、谜题、文化结论、奖励、存档版本或主线前置。超范围／跨模块冲突先带证据交 Work，不自行放宽。
+
+| 验收 | 可执行证据 |
+| --- | --- |
+| F01 真实收尾 | 根标题新局，真实键盘完成原主线、比较取景并拍摄，零纪念物即可出现收尾；照片／奖励只有原一次。未完成与错误取景不出现完成，现有条件不削弱。 |
+| F02 三条路径 | 同一 Runtime 继续、标题往返、确认重开取消回卡（点击和 Escape）、确认后新局 A。卡片重看／刷新保持已完成与已收记录、不重发；确认前无 storage.restart，历史键／其他键字节保持。 |
+| F03 暂停输入 | 卡／确认／标题与原生隐藏多 owner 隔离，Tick 冻结；按住移动／交互／旧快门切换不漏输入。Tab／Space 与触屏按钮可实际使用；多次开关／销毁自有监听和图像引用清理。 |
+| F04 已知信息与适配 | 0／1／3 纪念物与称号只读展示正确，未获名称不泄露；五尺寸截图／真实按钮点击，触屏模拟至少完成一次收尾取消／继续／标题路径。真机缺失 NOT RUN，不冒充 H5 双设备完成。 |
+| F05 回归与交付 | 230 项原全量不减弱，03A UI、03B 收藏、02C 零收藏主线回归。新报告 task=EXP-03C、scope 明确、实际版本指纹、命令／退出码／页面与网络错误／资源清理／失败历史齐全。原同源4199入口与当前dist及引用资源核对，不操作用户真实存储、不停止既有服务。 |
+
+**必须执行**：`npm.cmd test`、`npm.cmd run build`、`node tests/exp-03c-browser.mjs --production --browser=chrome`、既有 `exp-03a-browser.mjs`／`exp-03b-browser.mjs`／`exp-02c-browser.mjs` 的同参数生产回归、`git diff --check`。只读投影如新增有意义边界则加测试，不写镜像实现的模板测试。测试夹具须内联／版本化，不依赖忽略的历史报告；区分实际从新局走通和预填档兼容场景。
+
+**停止／交付**：同一问题两轮有效修复仍失败、必须动受保护核心／存档或出现产品冲突即停止，保留最小复现交 Work；不要挑选重跑 PASS。交付完成页／小屏／触屏截图、主线与3路径证据、实际修改与测试结果／受保护文件哈希／当前入口。原会话完成停下，不推送、不进入EXP-04等下一项。Work独立审查后登记功能技术结论；负责人视觉／真机／完整章时长仍单独验收。
+
+**实施记录（DONE，待 Work 审查；2026-11-20）**：
+
+- 现有 `exp-photo-card` 已承载“本次委托已完成”、委托名《把山城夜景寄给远方》、原纪念卡、只读 0／3 至 3／3 收藏及既有称号；未获称号不出现“山城拾光者”。旧 `#exp-card-close` 与手账 `#exp-card-reopen` 保留。
+- “继续探索”只关闭 photo owner；“返回标题”保留同 Runtime／位置／进度；“重新开始”复用 confirm 与 `storage.restart()`。点击／Escape 取消回原卡；确认前无 storage 写入。原生 hidden 关闭卡片后，取消用既有 `openPhotoCard()` 恢复原卡、photo owner、焦点与进度，不重发照片／收藏奖励。
+- 视觉继续夜景纸质卡，电脑双栏、窄屏纵向滚动；五尺寸正文至少 14 CSS px、按钮至少 48 CSS px、图片元素盒保持约 9:5。没有新增资产、地图、任务、奖励、业务字段、存档版本或依赖；core／input／storage／visibility／物理／渲染受保护文件未改。
+- 最终命令均退出 0：`npm.cmd test` 230/230；`npm.cmd run build`；EXP-03C 专项 13 组；EXP-03A 11 组；EXP-03B 8 组；EXP-02C 14 组；`git diff --check`。EXP-03C 页面／网络错误为空，普通 Chrome、原生 Chrome、context 与自有资源清理 PASS；true Android／iOS NOT RUN。
+- 最终报告：[EXP-03C](../test-results/exp-03c/run-2026-11-20T07-29-07-360Z/report.json)，SHA-256 `8d918dd3d1821211d8907b7219997512999f34f990097967ecd6e9f29173da1e`；03A 为 `ae93028e16d38a350fc732d5ec92f7c39874f032bcf8cb345011ed014c230c3b`；03B 为 `1aaa43704360ca8f3c3ac325bde507a7a87ac0971428ec6b4a893c0e9480aad2`；02C 为 `136c68019fcb28917906241f31205d1577f7291fdc53077d914b60f90444281f`。构建入口 `dist/index.html` 引用 `index-CeYOfMCr.js`／`index-BqzETvdL.css`。
+- 4199 在开工时实测空闲；本任务启动自有隐藏 Vite preview，PID `5460`、HTTP 200，保留供 Work 复验，不停止其他服务。失败历史 `07-20-35-113Z`／`07-22-47-654Z` 为图片元素被 `max-height` 压扁；`07-24-54-721Z` 与 `07-27-13-210Z` 为测试夹具前台顺序／Tick 基准错误；均原样保留，最终报告才 PASS。
+- 本窗口未 Commit／Push／部署／删除文件，未进入 EXP-04 或下一项。真机、最终美术、文化细化、负责人体验与 30—45 分钟完整章时长未验收。
+
+<a id="exp-03c-work-review-20261120"></a>
+
+#### Work 正式复核（2026-11-20）
+
+**结论**：EXP-03C 在本卡功能技术范围 DONE／PASS。原独立会话已完成并 idle，没有领取下一项；Work 独立核对源码、实际差异、版本指纹和截图后，按负责人逐项完成推送授权展示摘要并提交推送。负责人视觉满意度、Android／iOS 真机与完整30—45分钟首章仍未验收，不因本次收尾通过升级。
+
+基线为 GitHub main／HEAD `b6d4fe0c0b93bcdc15a0686217e5f09cf321ec97`，开工干净。实际应用只改三个 Web UI 文件与新增生产专项，未增加核心状态／奖励／存档字段／新地图；无需新增只读辅助类或模板单测。派发前后逐文件核对68个受保护源码哈希，core／physics／rendering／input／storage／visibility／main及配置不变，原三套生产脚本也没有改写断言。
+
+| 层次 | 实际证据与边界 |
+| --- | --- |
+| 新收尾专项 | `EXP-03C/run-2026-11-20T07-29-07-360Z` 13组 PASS；从空白标题真实键盘完成原主线、零纪念物拍摄、错误取景／重复拍摄、三路径、0／1／3已获投影、五尺寸、触屏模拟、原生hidden与资源清理。1／3件展示使用明确标注的内联合法档案，不能冒充实际拾取。页面／网络错误0。 |
+| 原有回归 | `EXP-03A/run-2026-11-20T07-30-57-703Z` 11组、`EXP-03B/run-2026-11-20T07-31-28-092Z` 8组、`EXP-02C/run-2026-11-20T07-33-34-558Z` 14组均 PASS；所有原断言保留。03C／03A／03B／02C分别18／35／36／34项实际文件指纹全部匹配当前版本。02C旧报告schema没有独立networkErrors字段，不据此补称网络0。 |
+| Work全量 | 冻结版本独立执行 `npm.cmd test`：230/230、0 fail／0 skipped、退出0；独立边界比较 PASS，`git diff --check` PASS。开发构建 PASS，Work核对实际dist及同源内容，没有重复构建冒充独立构建证据。 |
+| Work原生Chrome | 独立隔离Chrome157.0.8103.79／CDP五组 PASS：实际历史C完成档继续、原生切页后取消重开回卡、Tab／Space与可见焦点、同Runtime标题往返与刷新、明确新局空白A且旧键／其他数据原文保留；三种小尺寸操作可达。页面错误0、自有Chrome进程已退出；此为兼容与收尾复验，不是新玩家整章时长测试。 |
+| 入口与证据 | `http://127.0.0.1:4199/` 实测HTTP200，入口与引用 `index-CeYOfMCr.js`／`index-BqzETvdL.css` 均与当前dist字节匹配。旧4199服务本轮开工前已退出，现为本任务新PID5460，不误写沿用旧PID。未读取用户个人存储，未停止其他服务。 |
+
+Work审查文件在 [exp-03c-work-review](../test-results/exp-03c-work-review/review-summary.json)：派发前147文件哈希、边界比较、四报告指纹／入口核对、独立全量日志、原生浏览器五组与截图。开发 [manifest](../test-results/exp-03c/delivery-manifest.json) 保留交付时点内容／待审状态，Work后续文档追加不回写历史快照；最终源码／测试／dist指纹仍匹配。
+
+失败记录保留：两次图片布局FAIL（原版及首次修正）后以实际computed style短探针定位并修正窄屏max-height；后两次为后台点击和使用旧Tick基准的测试准备错误，应用未因此修改，原断言按各次进入后台前状态检查。Work初次托管浏览器探针未形成原生hidden而超时，原JSON／日志单独保留；改独立Chrome/CDP后一次通过，未改应用。Work指纹汇总辅助脚本初次假定所有旧报告都有networkErrors，已按真实schema记录缺失，未编辑旧报告或把缺失视为0。
+
+模型交接按简单UI任务请求DeepSeek V4.1 Flash／High，工具接受参数；执行侧不提供实际模型标识独立回读，故不把请求配置描述为已核实生效。未改变重大产品决策／技术选型，不启动EXP-04、D13、MLV或其他任务。
 
 ### EXP-01 历史准备范围（保留确认前记录，由下方实施卡接续）
 

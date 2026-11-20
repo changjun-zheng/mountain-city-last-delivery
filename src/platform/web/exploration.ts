@@ -38,6 +38,8 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
   let mementoGesture:{id:string;pointerId:number;released:boolean}|undefined;
   let lastMementoCount=0,feedbackUntil=0;
   let collectionFeedback='';
+  let lastCardOpen=false;
+  let restartSource:'play'|'title'|'card'='play';
   const update=()=>{
     if(disposed||!runtime)return;
     input?.sync();
@@ -65,6 +67,8 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     get('exp-memento-feedback').textContent=performance.now()<feedbackUntil?collectionFeedback:'';
     get('exp-photo').hidden=!s.photoPreview||uiOpen;
     get('exp-photo-card').hidden=!s.cardOpen||uiOpen;
+    get('exp-card-memento-count').textContent=`${s.mementos.length}/3 · 全部选做`;
+    get('exp-card-memento-title').textContent=s.mementoTitle??'尚未获得 · 选做奖励';
     get<HTMLButtonElement>('exp-shutter').disabled=s.pauseCount!==1||!s.photoPreview;
     if(s.photoPreview){
       const site=PHOTO_SITES[s.photoPreview.siteId];get('exp-photo-title').textContent=site.name;
@@ -84,18 +88,21 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     get('exp-restart-status').textContent=storage?.status.includes('无法写入')?storage.status:'';
     get('exp-archive-notice').hidden=!storage?.notice;
     get('exp-orientation').hidden=innerWidth>=innerHeight;
-    root.dataset.view=views.confirm?'confirm':views.help?'help':views.journal?'journal':views.menu?'menu':views.title?'title':'play';
+    root.dataset.view=views.confirm?'confirm':views.help?'help':views.journal?'journal':views.menu?'menu':views.title?'title':s.cardOpen?'completion':'play';
     root.dataset.uiOwners=JSON.stringify(Object.keys(tokens));
     root.dataset.hasJourney=String(hasJourney);
     Object.assign(root.dataset,{runtimeId:s.runtimeId,map:s.map,x:String(s.position.x),y:String(s.position.y),tick:String(s.tick),paused:String(s.paused),tokens:String(s.pauseCount),
       target:s.target?.id??'',accepted:String(s.accepted),clue:String(s.clue),item:String(s.item),unlocked:String(s.unlocked),completed:String(s.completed),
       revision:String(s.revision),mapRevision:String(s.mapRevision),progress:JSON.stringify(s.progress),dialogue:String(!!s.dialogue),preview:s.photoPreview?.siteId??'',previewId:s.photoPreview?.id??'',observations:JSON.stringify(s.observations.map(o=>o.id)),photographed:String(s.photographed),cardOpen:String(s.cardOpen),pending:s.pending??'',mementoInspection:s.mementoInspectionId??'',mementos:JSON.stringify(s.mementos.map(m=>m.id)),mementoTitle:s.mementoTitle??'',safe:s.safe,worldWidth:String(s.worldWidth),worldHeight:String(s.worldHeight),disposed:String(s.disposed)});
+    const cardOpened=!!s.cardOpen&&!lastCardOpen;
+    lastCardOpen=!!s.cardOpen;
+    if(cardOpened)focus('exp-card-close');
   };
-  const setView=(view:View,open:boolean)=>{
+  const setView=(view:View,open:boolean,{preserveCard=false}:{preserveCard?:boolean}={})=>{
     if(!runtime||disposed)return;
     input?.clear();shutterGesture=undefined;mementoGesture=undefined;
     if(open&&!tokens[view])tokens[view]=runtime.lifecycle.acquire(owners[view],Symbol(view));
-    if(open){runtime.closeDialogue(false);runtime.closePhotoPreview(false);runtime.closePhotoCard();}
+    if(open){runtime.closeDialogue(false);runtime.closePhotoPreview(false);if(!preserveCard)runtime.closePhotoCard();}
     if(!open&&tokens[view]){runtime.lifecycle.release(owners[view],tokens[view]);delete tokens[view];}
     views[view]=open;update();
   };
@@ -108,8 +115,15 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     for(const view of ['menu','journal','help','confirm'] as const)if(views[view])setView(view,false);
     focus('exp-begin');
   };
+  const cancelRestart=()=>{
+    const source=restartSource;
+    setView('confirm',false);
+    if(source==='card'&&!runtime?.snapshot.cardOpen){runtime?.openPhotoCard();update();}
+    focus(source==='card'&&runtime?.snapshot.cardOpen?'exp-card-restart':views.title?'exp-title-restart':'exp-restart');
+    restartSource='play';
+  };
   const escape=()=>{
-    if(views.confirm){setView('confirm',false);focus(views.title?'exp-title-restart':'exp-restart');}
+    if(views.confirm)cancelRestart();
     else if(views.help){setView('help',false);focus(views.title?'exp-instructions':'exp-menu-help');}
     else if(views.journal)setJournal(false);
     else if(!views.title)setMenu(!views.menu);
@@ -141,7 +155,8 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     // Acquire before mounting Phaser or binding input: even the first frame is paused.
     if(showTitle)tokens.title=runtime.lifecycle.acquire(owners.title,Symbol('initial-title'));
     input=bindExplorationInput({runtime,root,stick:get('exp-stick'),knob:get('exp-knob'),interact:get<HTMLButtonElement>('exp-interact'),close,menu:escape,changed:update,
-      uiKey:event=>Object.values(views).some(Boolean)&&event.code==='Space'&&event.target instanceof HTMLButtonElement});
+      uiKey:event=>Object.values(views).some(Boolean)&&(event.code==='KeyE'||event.code==='Space')||
+        !!runtime?.snapshot.cardOpen&&event.code==='Space'&&event.target instanceof HTMLButtonElement});
     cleanup.push(input.dispose);
     root.dataset.inputBindings='1';root.dataset.hostBindings='1';
     const visibility=bindVisibilityPause(runtime.lifecycle,()=>{input?.clear();if(document.visibilityState==='hidden'){runtime?.closeDialogue(false);runtime?.closePhotoPreview(false);runtime?.closePhotoCard();}update();});cleanup.push(visibility);
@@ -175,16 +190,18 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
       shutterGesture=undefined;input?.clear();runtime.takePhoto(id??'');update();
     },{signal:abort.signal});
     on('exp-card-close',close);
-    on('exp-card-reopen',()=>{input?.clear();shutterGesture=undefined;setView('journal',false);setView('menu',false);runtime?.openPhotoCard();update();focus('exp-card-close');});
+    on('exp-card-title',returnTitle);
+    on('exp-card-restart',()=>{restartSource='card';setView('confirm',true,{preserveCard:true});focus('exp-cancel-restart');});
+    on('exp-card-reopen',()=>{input?.clear();shutterGesture=undefined;setView('journal',false);setView('menu',false);runtime?.openPhotoCard();update();});
     on('exp-notes-toggle',()=>setJournal(true));on('exp-menu-journal',()=>setJournal(true));on('exp-notes-close',()=>setJournal(false));
     get<HTMLImageElement>('exp-card-image').src=`data:image/svg+xml;charset=utf-8,${encodeURIComponent(explorationPhotoSvg('river'))}`;
     on('exp-begin',begin);on('exp-title',returnTitle);
     const instructions=()=>{setView('help',true);focus('exp-instructions-close');};
     on('exp-instructions',instructions);on('exp-menu-help',instructions);
     on('exp-instructions-close',()=>{setView('help',false);focus(views.title?'exp-instructions':'exp-menu-help');});
-    const confirm=()=>{setView('confirm',true);focus('exp-cancel-restart');};
-    on('exp-restart',confirm);on('exp-title-restart',confirm);
-    on('exp-cancel-restart',()=>{setView('confirm',false);focus(views.title?'exp-title-restart':'exp-restart');});
+    const confirm=(source:'play'|'title'='play')=>{restartSource=source;setView('confirm',true);focus('exp-cancel-restart');};
+    on('exp-restart',()=>confirm('play'));on('exp-title-restart',()=>confirm('title'));
+    on('exp-cancel-restart',cancelRestart);
     on('exp-confirm-restart',()=>{if(storage?.restart())location.reload();else update();});
     window.addEventListener('resize',()=>{shutterGesture=undefined;mementoGesture=undefined;update();},{signal:abort.signal});
     window.addEventListener('blur',()=>{shutterGesture=undefined;mementoGesture=undefined;},{signal:abort.signal});
