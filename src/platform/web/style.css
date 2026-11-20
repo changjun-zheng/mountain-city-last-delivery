@@ -5,6 +5,77 @@
   color: #fff4dc;
 }
 
+/* EXP-01 owns only this root. The legacy shell and controls are never bound. */
+body.exp-mode { overflow: hidden; background: #244a59; }
+.exp-mode > main, .exp-mode > .recovery-overlay { display: none; }
+#exp-root { position: fixed; inset: 0; color: #fff1d2; font-family: 'Microsoft YaHei', sans-serif; text-align: left; background: #244a59; touch-action: none; user-select: none; -webkit-user-select: none; }
+#exp-stage { position: absolute; inset: 0; }
+#exp-stage canvas { display: block; }
+#exp-root [hidden] { display: none !important; }
+#exp-root button { color: #fff1d2; background: #304b50; border: 1px solid #bba47c; border-radius: 7px; padding: 10px 18px; min-height: 44px; font: inherit; cursor: pointer; touch-action: none; }
+#exp-root button:focus-visible { outline: 3px solid #ffe49b; outline-offset: 3px; }
+#exp-root button:disabled { opacity: .45; }
+#exp-root p { margin: 0; }
+.exp-hud { position: absolute; top: max(10px, env(safe-area-inset-top)); left: max(15px,env(safe-area-inset-left)); right: max(15px,env(safe-area-inset-right)); display: flex; align-items: center; gap: 24px; background: #233e49e8; border-bottom: 2px solid #c4a56c; padding: 12px 18px; }
+.exp-hud strong { font-family: 'KaiTi','STKaiti',serif; font-size: 28px; letter-spacing: 3px; white-space: nowrap; }
+.exp-hud span { display: block; font-size: 12px; color: #d7c49c; }
+#exp-objective { flex: 1; font-size: 16px; }
+.exp-record { position: absolute; top: 104px; left: max(20px, env(safe-area-inset-left)); padding: 10px 14px; background: #233e49d9; border-left: 3px solid #c4a56c; font-size: 13px; line-height: 1.8; max-width: 290px; }
+#exp-save { color: #c7dbc5; }
+#exp-help { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); font-size: 12px; white-space: nowrap; color: #f7e6bb; background: #233e49c9; padding: 7px 14px; border-radius: 4px; }
+#exp-prompt { position: absolute; bottom: 55px; left: 50%; transform: translateX(-50%); padding: 8px 15px; background: #243d48e6; border-radius: 5px; color: #ffe49b; white-space: nowrap; }
+#exp-prompt:empty { display: none; }
+#exp-touch { position: absolute; inset: 0; pointer-events: none; }
+#exp-stick { position: absolute; bottom: max(24px,env(safe-area-inset-bottom)); left: max(28px,env(safe-area-inset-left)); width: 106px; height: 106px; border-radius: 50%; border: 2px solid #e4cb955c; background: #203d486b; pointer-events: auto; touch-action: none; }
+#exp-knob { position: absolute; width: 44px; height: 44px; border-radius: 50%; background: #e7c88dc9; top: 31px; left: 31px; pointer-events: none; }
+#exp-root #exp-interact { position: absolute; right: max(32px,env(safe-area-inset-right)); bottom: max(38px,env(safe-area-inset-bottom)); width: 84px; height: 70px; pointer-events: auto; background: #3f615cdb; border-radius: 35px; }
+.exp-panel { background: #243e49f5; border: 2px solid #c6a36a; box-shadow: 0 8px 30px #102a3560; padding: 20px 24px; border-radius: 10px; }
+#exp-dialogue { position: absolute; width: min(540px, calc(100vw - 64px)); box-sizing: border-box; left: 50%; bottom: 42px; transform: translateX(-50%); }
+#exp-dialogue p { line-height: 1.8; font-size: 16px; white-space: pre-line; margin-bottom: 12px; }
+#exp-dialogue button { display: block; margin-left: auto; }
+.exp-shade { position: absolute; inset: 0; background: #152f3bb0; display: grid; place-items: center; }
+.exp-shade .exp-panel { width: min(400px,calc(100vw - 70px)); max-height: calc(100dvh - 70px); overflow: auto; text-align: center; }
+.exp-shade h1 { font-family: 'KaiTi',serif; font-size: 32px; margin: 0 0 15px; }
+.exp-shade p { line-height: 1.7; }
+.exp-shade button { margin: 12px 5px 0; }
+#exp-confirm { border-top: 1px solid #bba47c; margin-top: 16px; padding-top: 12px; }
+#exp-error { position: absolute; inset: 40% 10%; background: #4c302f; padding: 25px; }
+.exp-photo-overlay { position:absolute; inset:0; display:grid; place-items:center; background:#17313bd4; z-index:4; }
+.exp-photo-panel { box-sizing:border-box; width:min(720px,calc(100vw - 28px)); max-height:calc(100dvh - 20px); overflow:auto; }
+.exp-photo-panel h2 { font-family:'KaiTi',serif; font-size:26px; margin:0 0 6px; }
+.exp-photo-panel p { font-size:14px; line-height:1.6; }
+.exp-photo-panel img { display:block; width:100%; max-height:53dvh; object-fit:contain; margin:10px 0; background:#1e3b4c; }
+.exp-photo-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:12px; flex-wrap:wrap; }
+#exp-root .exp-photo-actions button { min-height:44px; }
+.exp-postcard { background:#f1e2ba; color:#29474f; border:5px solid #bda071; }
+.exp-postcard small { display:block; margin-top:8px; font-size:12px; }
+#exp-root .exp-record button { padding:3px 8px; min-height:32px; margin-top:5px; font-size:12px; }
+#exp-notes { max-height:30dvh; overflow:auto; max-width:280px; margin-top:8px; }
+#exp-notes ul { margin:4px 0 0; padding-left:18px; font-size:12px; }
+@media (max-height:500px) {
+  .exp-photo-panel { padding:10px 15px; }
+  .exp-photo-panel h2 { font-size:21px; }
+  .exp-photo-panel img { max-height:43dvh; margin:5px 0; }
+  .exp-photo-panel p { font-size:12px; line-height:1.4; }
+  .exp-photo-actions { margin-top:7px; }
+}
+#exp-orientation { position: absolute; bottom: 150px; left: 15px; right: 15px; text-align: center; background: #233e49e6; padding: 10px; font-size: 13px; }
+@media (max-height: 500px), (max-width: 700px) {
+  .exp-hud { top: max(4px,env(safe-area-inset-top)); left: 6px; right: 6px; padding: 6px 10px; gap: 12px; }
+  .exp-hud strong { font-size: 21px; }
+  .exp-hud span { font-size: 10px; }
+  #exp-objective { font-size: 13px; }
+  #exp-root .exp-hud button { padding: 6px 12px; }
+  .exp-record { top: 67px; left: 10px; font-size: 11px; padding: 4px 9px; line-height: 1.6; max-width: 235px; }
+  #exp-help { display: none; }
+  #exp-prompt { bottom: 20px; font-size: 13px; max-width: 50vw; white-space: normal; text-align: center; }
+  #exp-dialogue { bottom: 12px; padding: 12px 18px; width: min(510px, calc(100vw - 40px)); }
+  #exp-dialogue p { font-size: 14px; line-height: 1.6; }
+  #exp-stick { width: 94px; height: 94px; bottom: 17px; left: 20px; }
+  #exp-knob { top: 25px; left: 25px; }
+  #exp-root #exp-interact { width: 76px; height: 66px; bottom: 30px; right: 20px; }
+}
+
 body {
   margin: 0;
   min-height: 100vh;

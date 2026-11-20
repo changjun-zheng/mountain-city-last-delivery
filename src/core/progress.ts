@@ -136,6 +136,29 @@ const EFFECT_RELATIONS = new Map<string, string>([
   ],
 ]);
 
+// A closed, separate content directory for EXP-01; legacy callers stay unchanged.
+export const EXP01_PROGRESS_CONTENT = Object.freeze({
+  item: 'collection.exp01.passage-plaque',
+  accepted: 'goal.exp01.photo-request',
+  clue: 'goal.exp01.route-note',
+  unlocked: 'goal.exp01.passage-open',
+  completed: 'goal.exp01.view-found',
+  effect: 'effect.exp01.passage-open',
+});
+
+export const EXP02A_PROGRESS_CONTENT = Object.freeze({
+  item: 'collection.exp02a.river-clasp',
+  accepted: 'goal.exp02a.photo-request',
+  clue: 'goal.exp02a.river-route-note',
+  unlocked: 'goal.exp02a.east-passage-open',
+  completed: 'goal.exp02a.lower-view-found',
+  effect: 'effect.exp02a.east-passage-open',
+});
+export const EXP02B_PROGRESS_CONTENT = Object.freeze({
+  photographed:'goal.exp02b.night-postcard.photographed',
+  reward:'reward.exp02b.night-postcard',
+});
+
 const rejected = (category: ProgressCategory, id: unknown): ProgressMutation => Object.freeze({
   category,
   id: typeof id === 'string' ? id : '',
@@ -149,15 +172,65 @@ export class InMemoryRunProgress {
   readonly #goals = new Set<string>();
   readonly #rewards = new Set<string>();
   readonly #effects = new Map<string, boolean>();
+  readonly #collectionIds: ReadonlySet<string>;
+  readonly #goalRelations: ReadonlyMap<string, GoalProgressDefinition>;
+  readonly #rewardRelations: ReadonlyMap<string, string>;
+  readonly #effectRelations: ReadonlyMap<string, string>;
+
+  constructor(content: 'legacy' | 'exp01' | 'exp02a' | 'exp02b' = 'legacy') {
+    if (content !== 'legacy' && content !== 'exp01' && content !== 'exp02a' && content !== 'exp02b') throw new Error('Unknown progress content.');
+    const e = content === 'exp02a'||content==='exp02b' ? EXP02A_PROGRESS_CONTENT : EXP01_PROGRESS_CONTENT;
+    this.#collectionIds = content === 'legacy' ? COLLECTION_IDS : new Set([e.item]);
+    const goals = new Map<string,GoalProgressDefinition>([
+      [e.accepted, {}], [e.clue, {}], [e.unlocked, { effectId: e.effect }], [e.completed, {}],
+    ]);
+    if(content==='exp02b')goals.set(EXP02B_PROGRESS_CONTENT.photographed,{rewardId:EXP02B_PROGRESS_CONTENT.reward});
+    this.#goalRelations = content === 'legacy' ? GOAL_RELATIONS : goals;
+    this.#rewardRelations = content === 'legacy' ? REWARD_RELATIONS : content==='exp02b'?new Map([[EXP02B_PROGRESS_CONTENT.reward,EXP02B_PROGRESS_CONTENT.photographed]]):new Map();
+    this.#effectRelations = content === 'legacy' ? EFFECT_RELATIONS : new Map([[e.effect, e.unlocked]]);
+  }
+
+  // Validate the entire closed-directory record before changing any live state.
+  restore(value: unknown): boolean {
+    if (!value || typeof value !== 'object') return false;
+    const s = value as RunProgressSnapshot;
+    if (!Array.isArray(s.collections) || !Array.isArray(s.goals) ||
+        !Array.isArray(s.rewards) || !Array.isArray(s.effects) || !s.counts ||
+        Object.keys(s).sort().join(',') !== 'collections,counts,effects,goals,rewards') return false;
+    const unique = (ids: readonly unknown[]) => ids.every(id => typeof id === 'string') && new Set(ids).size === ids.length;
+    if (![s.collections, s.goals, s.rewards].every(unique) ||
+        s.collections.some(id => !this.#collectionIds.has(id)) ||
+        s.goals.some(id => !this.#goalRelations.has(id))) return false;
+    const rewards: string[] = [];
+    const effects: string[] = [];
+    for (const goal of s.goals) {
+      const relation = this.#goalRelations.get(goal)!;
+      if (relation.rewardId) rewards.push(relation.rewardId);
+      if (relation.effectId) effects.push(relation.effectId);
+    }
+    const equal = (a: readonly string[], b: readonly string[]) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+    if (!equal(s.rewards, rewards) || s.effects.some(e => !e || typeof e.id !== 'string' ||
+        e.expectedActive !== true || Object.keys(e).sort().join(',') !== 'expectedActive,id') ||
+        !equal(s.effects.map(e => e.id), effects)) return false;
+    const counts = { collections: s.collections.length, goals: s.goals.length, rewards: rewards.length, effects: effects.length };
+    if (Object.keys(s.counts).sort().join(',') !== 'collections,effects,goals,rewards' ||
+        (Object.keys(counts) as (keyof typeof counts)[]).some(k => s.counts[k] !== counts[k])) return false;
+    this.#collections.clear(); this.#goals.clear(); this.#rewards.clear(); this.#effects.clear();
+    s.collections.forEach(id => this.#collections.add(id));
+    s.goals.forEach(id => this.#goals.add(id));
+    s.rewards.forEach(id => this.#rewards.add(id));
+    s.effects.forEach(e => this.#effects.set(e.id, true));
+    return true;
+  }
 
   recordCollection(collectionId: string): ProgressMutation {
-    if (!COLLECTION_IDS.has(collectionId)) return rejected('collection', collectionId);
+    if (!this.#collectionIds.has(collectionId)) return rejected('collection', collectionId);
     const status = this.#add(this.#collections, collectionId);
     return Object.freeze({ category: 'collection' as const, id: collectionId, status });
   }
 
   completeGoal(goalId: string): GoalCompletionResult {
-    const relation = GOAL_RELATIONS.get(goalId);
+    const relation = this.#goalRelations.get(goalId);
     if (!relation) {
       return Object.freeze({
         status: 'rejected' as const,
@@ -184,7 +257,7 @@ export class InMemoryRunProgress {
   }
 
   claimReward(rewardId: string, goalId: string): ProgressMutation {
-    if (REWARD_RELATIONS.get(rewardId) !== goalId || !this.#goals.has(goalId)) {
+    if (this.#rewardRelations.get(rewardId) !== goalId || !this.#goals.has(goalId)) {
       return rejected('reward', rewardId);
     }
     return Object.freeze({
@@ -195,7 +268,7 @@ export class InMemoryRunProgress {
   }
 
   setPermanentEffect(effectId: string, expectedActive: boolean): ProgressMutation {
-    const goalId = EFFECT_RELATIONS.get(effectId);
+    const goalId = this.#effectRelations.get(effectId);
     if (!goalId || !this.#goals.has(goalId) || typeof expectedActive !== 'boolean') {
       return rejected('effect', effectId);
     }
@@ -209,7 +282,7 @@ export class InMemoryRunProgress {
   }
 
   verifyGoal(goalId: string): boolean {
-    const relation = GOAL_RELATIONS.get(goalId);
+    const relation = this.#goalRelations.get(goalId);
     if (!relation || !this.#goals.has(goalId)) return false;
     if (relation.rewardId && !this.#rewards.has(relation.rewardId)) return false;
     if (relation.effectId) {

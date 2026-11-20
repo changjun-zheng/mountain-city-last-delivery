@@ -17,6 +17,11 @@ import {
 } from './touch-controls';
 import { runtimeUuidProvider } from './runtime-uuid';
 import './style.css';
+import { launchExploration } from './exploration';
+
+if (new URLSearchParams(window.location.search).get('scene') === 'exploration-prototype') {
+  void launchExploration().catch(cause => console.error('EXP-01 startup failed', cause));
+} else {
 
 const parent = document.querySelector<HTMLElement>('#game');
 const error = document.querySelector<HTMLElement>('#error');
@@ -735,3 +740,4 @@ recoveryReturn.addEventListener('click', () => {
   }
 });
 void launch();
+}

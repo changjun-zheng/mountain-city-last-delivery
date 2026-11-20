@@ -4,17 +4,248 @@
 
 现行产品设计（2026-11-19 后续重构）：《坡坎之间》转为以重庆山城为灵感的 2D 斜俯视、非战斗探索冒险，支持八向走动、可进入建筑、调查／物品用途、地域收藏与轻量本地存档；手绘卡通与 H5 电脑／手机目标保留。正式范围见[探索重构决策](docs/DECISIONS.md#topdown-exploration-reboot-20261119)、[H5 V3](docs/COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md#topdown-h5-v3-20261119)和路线图页首。
 
-实现状态必须区分：当前源码／可打开体验仍是 DEMO-01 的 8000×1800 横版原型，地图专项 PASS、规定 H5 输入回归 FAIL，整体验收 BLOCKED，负责人产品评审未通过；新方向尚未实现。本轮只重构文档，没有修改源码、资源、测试或构建。下方既有操作说明、截图和报告保留旧原型实际事实，不能证明新玩法通过；当前没有新代码 READY，不继续按旧提示词领取 DEMO-02。
+实现状态（2026-11-20 EXP-02C）：新局已从解放碑 A 起步，经商业街与 B 高处入口接入原 C 找物／开路／拍摄。新增 A、B 与可选服务小店三图；同一游客迁到 B，新键受限沿用合法 02B／02A。DONE（[Work 功能技术复核 PASS](docs/DEVELOPMENT_ROADMAP.md#exp-02c-work-review-20261120)，待负责人体验／美术评审）。EXP-02A／B 的 Work 功能复核和默认横版历史 FAIL／BLOCKED 保留；不是完整首章／比赛候选版，不自动进入后续任务。
 
-名称说明（2026-11-15）：当前中文项目名称为《坡坎之间》（CONFIRMED），英文名称未确定；宣传语“在山与城之间，发现不一样的故事。”仅为 PROPOSED。旧工作名称为叠城大冒险／Layered City Adventures，商标注册、重名核验与正式发行名称冻结尚未完成。见[当前名称决策](docs/DECISIONS.md#project-name-pokan-20261115)及[品牌交接](docs/PROJECT_REBRANDING_HANDOFF.md#current-brand-20261115)。本轮只更新文档，当前源码界面及既有 Windows 产物仍可能显示旧名，不能据此宣称界面更名完成。
+名称说明（2026-11-15）：当前中文项目名称为《坡坎之间》（CONFIRMED），英文名称未确定；宣传语“在山与城之间，发现不一样的故事。”仅为 PROPOSED。旧工作名称为叠城大冒险／Layered City Adventures，商标注册、重名核验与正式发行名称冻结尚未完成。见[当前名称决策](docs/DECISIONS.md#project-name-pokan-20261115)及[品牌交接](docs/PROJECT_REBRANDING_HANDOFF.md#current-brand-20261115)。EXP-01 使用当前中文名称；旧默认入口、Electron 与既有 Windows 产物仍保留旧显示名，不据此宣称全工程更名完成。
 
 当前默认打开 DEMO-01 首关空间 Demo（8000×1800，最新验收与已知输入测试失败见文末）：从 A 区解放碑周边出生并学习移动、跳跃与交互，沿台阶前往 B 区沧白路与洪崖洞入口，主动完成游客对话并接取《把山城夜景寄给远方》；随后进入 C1 上层木廊、C2 中层街巷和 C3 下层檐廊，试错唯一机关并乘坐真实升降平台下到 D 区下层嘉陵江岸，最后主动完成拍摄与分享。A–D 的坐标、画面、NPC、线索和文案仍为占位原型；默认 HUD 显示当前目标，完整身份及 Tick 诊断收在「模拟诊断」中。顶部「调试入口」保留原固定步诊断场景和包含 D04 水平／垂直移动平台、D05 非实体诊断区域、D07 统一交互、D08 运行内进度、D09-D1 目标 E、D10 检查点捕获及 D11 恢复能力的基础灰盒。Web 与 Windows 使用同一份首关配置、角色、物理、交互、进度、事件、快照、恢复及模拟代码。「重新启动」先销毁 Phaser 实例，再创建新运行；「重置灰盒」在首关中复位角色和升降平台临时状态，保留本次运行内的任务、机关、路线、完成、业务身份和永久效果，不重新捕获或覆盖初始备用快照，也不是正式检查点恢复。
 
-Mountain City: Last Delivery／山城有路：最后一单为历史名称。下文旧里程碑的日志、截图及证据保留当时名称，不改写为新名执行过的测试。真实地标资料与旧首关方案保留参考，其虚构世界叙事尚待适配；本次不新增玩法、不重写任务或通关条件。内部包名、appId、用户数据身份及项目目录不变。
+Mountain City: Last Delivery／山城有路：最后一单为历史名称。下文旧里程碑的日志、截图及证据保留当时名称，不改写为新名执行过的测试。真实地标资料与旧首关方案保留参考，其虚构世界叙事尚待适配；旧任务／通关条件未被 EXP-01 改写。内部包名、appId、用户数据身份及项目目录不变。
 
 首关操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；在 B 区沧白路入口靠近游客后按 E 主动对话，只有对话完成才自动接取委托。根据 B 区唯一线索，在 C 区两个吊臂中按 E 试错；右侧错误操作可重试，左侧正确操作启动升降平台并开放通往下层 D 的真实碰撞路线。沿 C1、C2、C3 连续楼梯与木廊逐层向下，乘平台下降至嘉陵江岸后，按住 D 走到指定范围并按 E 拍摄、分享；只有已接委托、机关完成、路线开放且主动交互全部满足时才完成。按 R 或「重置灰盒」回到出生点并保留上述永久进度。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
 
 调试灰盒操作：调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过并从上方落地；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。D 由 D08 原型直接登记一次测试收藏；目标 E 的按 E 只创建 Pending Event，真实命令接收和跨 Tick 事务完成后才登记目标／奖励／永久效果并开门。检查点与恢复原型、诊断区域和两条移动平台保留在「调试入口」；这些能力不等于正式存档或首关检查点。
+
+<a id="exp-02c-delivery-20261120"></a>
+
+## EXP-02C 解放碑序章与入口接续（2026-11-20）
+
+DONE（[Work 功能技术复核 PASS](docs/DEVELOPMENT_ROADMAP.md#exp-02c-work-review-20261120)，待负责人体验），仅执行[当前任务卡](docs/DEVELOPMENT_ROADMAP.md#exp-02c-prologue-20261119)。新局 A 广场 3300×1500 → 现代商业街 → 过渡街巷 → B 高处入口 2200×1300 → C 原街区；可主动进入 A 服务小店 1100×650、查看导览并返回原门口，也可以跳过。主碑钟面、浅色柱体与分层基座为原创模块试制，基座真实阻挡，可从两侧绕行；B 栏杆下能看到木楼与江桥。只读 A-01 原图／manifest 未修改，不作为最终美术。
+
+试玩：[原同源探索入口](http://127.0.0.1:4199/?scene=exploration-prototype)。原预览 PID `22184` 仍在监听，本轮没有重启／停止它或原 `4198`；实际 HTTP 200，入口与当前构建逐字节一致，实际引用 JS／CSS 哈希也一致，见 `test-results/exp-02c/preview-origin-verification.json`。临时测试 HTTP／Chrome 已清理，原预览保留。
+
+WASD／方向键走，E／Space 交互，Esc 暂停；触屏摇杆＋交互。A 出生后沿东侧商业街到最东街巷，交互进入 B；在高处入口找年轻游客，正常收起对话才接取。再沿东侧门廊进入 C，调查临江导览、取得木作导扣、核对江纹栈门、经东阶到下层，主动打开江边视野并点击快门。C 西口可返回 B，B 西侧可返回 A。三处取景、旧卡片身份与一次奖励规则保留。
+
+新键 `pokan.exp02c.save.v1`／内容 `exp02c-prologue-1`，新建与明确重新开始使用 `chapterStart`。原 C `arrival` 仍为 upper `(230,690)`，原五图几何、原 12 安全点及其他旧目标保持；同一游客只在 B 一份。当前 → 02B → 02A 严格整体校验；较新键已存在但坏／未来／矛盾时不回退更旧键、不覆盖原文，写失败明确显示。旧版本仍只接受原 12 锚点，不能借新 A／B 锚点伪造旧档。合法旧照片／奖励不重做；旧 02A found-view 不生成照片。重新开始写合法空白 A，再刷新不重复迁入，旧键与其他数据保留。同源旧进度须使用原浏览器／配置目录，本轮兼容测试只用隔离 fixture，没有读取用户真实浏览器档案。
+
+| 验收 | 开发实际证据 |
+| --- | --- |
+| C01 | PASS：真实空白 A、碑体阻挡／绕行、广场／商业街／街巷／B 高差画面；同角色、速度 175、zoom 1。美术满意度待负责人评审。 |
+| C02 | PASS：服务店调查／原门返回，A↔B↔C 三轮同 Runtime／单 Canvas、持续按键不连切；原五图／12 锚点／旧其他目标与派发快照哈希一致，旧锁门不可绕过。 |
+| C03 | PASS：单游客取消／正常关闭／重访不重复登记；桌面真实空白 A 完整走到旧线索／导扣／开路／拍摄／卡片，错误视野与旧快门保护保留。 |
+| C04 | PASS：A／B／服务店保存刷新；旧 02B 未接／开路／已拍照分别迁入，原安全点／照片／奖励保留，旧未接 C 可回 B；02A 严格性、坏档／不可写／新局后刷新有专项。 |
+| C05 | PASS：Chrome 1280×720 桌面、844×390 触屏空白 A 完整主线；多指、touchCancel、可信 lost capture、旋转 390×844、原生 hidden＋menu 与旧快门。Android／iOS 真机 NOT RUN。 |
+| C06 | PASS：探索专项 24/24（新增 C 六项）、全量 215/215、生产构建、Chrome 14 组、旧默认移动／跳跃／B 对话冒烟与格式检查；零非预期页面错误，自有资源回收 PASS。 |
+
+实际命令最终均退出 0：
+
+```powershell
+node --experimental-strip-types --test tests/exploration*.test.mjs
+npm.cmd test
+npm.cmd run build
+node tests/exp-02c-browser.mjs --production --browser=chrome
+git diff --check
+```
+
+最终生产 [report.json](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/report.json)，SHA-256 `104f107eb33a7269262ce201685ca48e83ab379c512f55824654ab9753bb7893`，task=EXP-02C、scope=production-prologue-quest-migration-input-regression。全部新增源码／测试／来源文件与当前入口实际引用的 `index-DlHNZGFx.js`、`index-BWcOtaEV.css` 指纹均在报告；最终汇总见 `test-results/exp-02c/delivery-manifest.json`。Chrome 157.0.8103.79，完整路线为实际品牌 headless Chrome 输入，原生隐藏另用普通 Chrome＋CDP noDefaults；测试 Chrome PID `28384`、自有 HTTP／上下文已清理。AbortSignal、ResizeObserver、Layer／Canvas 与图片引用已检查；Phaser 内部全局监听随页面回收，未冒称全部第三方内部监听逐项销毁。
+
+截图：[A 广场](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/01-a-plaza.png)、[商业街](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/03-a-commercial.png)、[过渡街巷](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/04-a-alley.png)、[B 高处入口](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/05-b-entry.png)、[A 服务小店](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/02-a-service.png)、[C 衔接](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/06-c-seam.png)、[桌面纪念卡](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/04-postcard.png)、[空白触屏全链纪念卡](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/touch-fresh-postcard.png)、[旧 B 卡片迁入](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/legacy-b-card.png)、[旋转竖屏](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/08-touch-portrait-card.png)。
+
+历史不追改：`run-2026-11-19T15-58-32-961Z` 仅为城市预览／新图进出刷新阶段 PASS，不是全链；`unit-prologue-stage.log` 保留 21/24、退出 1 的首次新测试失败（测试调用不存在的手动奖励 API；以及用重复逻辑上升沿代替物理持续按键）。修正测试为目标自动发奖、切图后无输入不连切，并在最终浏览器保留真实持续按键断言，随后专项 24/24。未为此改动移动／输入／拍摄业务。最终生产首轮 PASS，无删除或挑选失败报告；原 02B 与更早 focus FAIL 历史保留，旧 focus 长套件 NOT RUN。
+
+本轮修改仅为地图／目标／新局与受限迁入、独立城市表现、对应测试与事实记录。`progress.ts`、`exploration-input.ts`、旧 `main.ts`、样式、照片配置／SVG、依赖／配置和物理目录均未因本卡改动；Work 正式文档既有修改保留，派发基线未写。未 Commit／Push／部署／删除文件，到此停止等待 Work。整章 30—45 分钟、新玩家首次时长、负责人内容／美术满意度及真机仍未验收。
+
+<a id="exp-02b-delivery-20261119"></a>
+
+## EXP-02B 取景与夜景纪念卡（2026-11-19）
+
+HISTORICAL：以下保留当时交付／Work 复核；当前同源入口由 EXP-02C 接续，新局出生与存档兼容以本页 EXP-02C 为准。
+
+DONE（Work 本卡功能技术复核 PASS，待负责人体验；真机／整章未验收），依据仅为[本卡](docs/DEVELOPMENT_ROADMAP.md#exp-02b-photo-quest-20261119)。Work 独立 209 项测试与浏览器 5 项短流程、指纹核对及范围说明见[审查记录](docs/DEVELOPMENT_ROADMAP.md#exp-02b-work-review-20261119)。`HEAD`／`origin/main` 为 `8d5865b7cd7beacf1da931ba724946d512afb169`，GitHub main 采用本轮 Work 派发核对。保留全部既有未提交内容；未写 `test-results/exp-02b-work-review/before-dispatch.json`，未 Commit／Push／部署／删用户文件或进入后续。
+
+试玩：[http://127.0.0.1:4199/?scene=exploration-prototype](http://127.0.0.1:4199/?scene=exploration-prototype)。交付时先查到 `4199` 无监听且 fetch failed，随后在空闲原端口启动当前生产预览 PID `22184`，实际 HTTP 200 且页面与当前 `dist/index.html` 完全一致，证据在 `test-results/exp-02b/preview-origin-verification.json`。未停止原用户服务；本轮临时另建的 `4200` 已清理。关闭本轮服务前核对 PID `22184` 仍为本仓库 `vite.js preview --port 4199`，再 `Stop-Process -Id 22184`；不要关闭全部 Node／Chrome。重启命令：
+
+```powershell
+npm.cmd run preview -- --host 127.0.0.1 --port 4199 --strictPort
+```
+
+继续旧进度须在原浏览器／配置目录打开同一 `http://127.0.0.1:4199` 来源，且其中有合法旧 02A 键；其他端口、主机名或浏览器配置的存储独立，不会自动读取原档。本轮没有读取用户原浏览器档案来冒称已经迁入，兼容验收使用明确隔离 fixture。
+
+WASD／方向键移动，E／Space 交互或关闭，Esc 暂停；触屏摇杆＋交互。满足上述条件的合法旧 02A 玩家从原安全点继续；新局仍按游客 → 导览 → 木作导扣 → 江纹栈门 → 东阶下层。下层任选顺序调查檐下回望 `(2180,680)`、花窗望江 `(900,650)`、江边开阔面 `(1700,1130)`，对照游客的“桥、江水与木楼同框”，明确点击“拍摄这一刻”。正确点可先找到，不要求看完三处；错误拍摄反馈画面缺失，不消耗导扣／次数。记录只展示已知要求与实际调查条目。
+
+预览分别有低檐遮桥、窗外缺木楼、江边三要素同框的真实图像差异；为本游戏原创 SVG 构图，不是现实照片／旧侧视 PNG，不调用相机、下载、上传或外部分享。纪念卡含“坡坎之间”和委托故事，可关闭、继续行走／回屋、重看及刷新恢复。旧 `goal.exp02a.lower-view-found` 仍仅表示找到视野；新目标 `goal.exp02b.night-postcard.photographed` 与单次奖励 `reward.exp02b.night-postcard` 分开登记，不能用旧通关代替拍摄。
+
+核心在快门时复验含 Runtime 的预览 ID、真实地图／距离／墙段可达性、任务／开路和仅自身预览暂停；UI 不传合格布尔值。快门绑定按下时的预览身份，取消后的旧 Pointer／鼠标释放不能拍新开的预览。打开、取消、held、菜单／后台／恢复都不自动提交拍摄。
+
+| 验收 | 本轮结果与边界 |
+| --- | --- |
+| P01 | PASS：真实走到三处，图像不同、记录逐项出现；触屏只看正确点也成功。 |
+| P02 | PASS：核心拒绝缺前置、无／旧／异 Runtime 预览、无效位置／地图／墙段资格及额外暂停；真实旧快门 click、held、菜单／隐藏不发奖；明确新快门成功一次。 |
+| P03 | PASS：桌面／触屏卡片可读可关、重看／刷新重建，回访不增目标或奖励，开路／物件保持。 |
+| P04 | PASS：旧空白／接受／调查／道具／开路／找到视野分别迁入；坏／未来／矛盾／不可写与原文保护有专项。真实确认新局后再刷新仍为空白，不重迁旧档，其他键保留。 |
+| P05 | 桌面 Chrome 1280×720、原生触屏模拟 844×390／390×844 PASS；取消／可信 lost capture、旋转、隐藏＋菜单 Owner 通过。Android／iOS 真机 NOT RUN。 |
+| P06 | PASS：专项 18/18、全量 209/209、构建、最终生产 Chrome 10 组、旧默认移动／跳跃／B 对话冒烟及格式检查。旧 focus 长套件 NOT RUN，历史 FAIL 不追改。 |
+
+实际命令最终均退出 0：
+
+```powershell
+node --experimental-strip-types --test tests/exploration.test.mjs tests/exploration-district.test.mjs tests/exploration-photo.test.mjs
+npm.cmd test
+npm.cmd run build
+node tests/exp-02b-browser.mjs --production --browser=chrome
+git diff --check
+```
+
+最终实际执行 [run-2026-11-19T15-21-02-266Z/report.json](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/report.json)，SHA-256 `7b879e2497d4d633e5c8e2171d3ce8d8429e0a4c1a4d6b30046730d4030509ba`。全部新增／迁移测试、源码脚本及实际 `dist/index.html` 引用的 `index-BVzP9YEa.js`／`index-BWcOtaEV.css` 指纹在报告中，不拿旧残留产物代替。Chrome `157.0.8103.79`；完整路线使用真实品牌 headless Chrome 输入，原生隐藏另用普通 Chrome＋CDP `noDefaults`，不把 hidden 等同于失焦。测试 Chrome PID `21064`、上下文／HTTP 清理 PASS；自有 AbortSignal／ResizeObserver／Layer／Canvas 和预览／卡片图像引用已清理，Phaser 内部全局监听整页回收单列。
+
+截图：[檐下](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/01-eaves-preview.png)、[花窗](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/02-window-preview.png)、[江边](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/03-river-preview.png)、[纪念卡](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/04-postcard.png)、[刷新重看](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/05-postcard-restored.png)、[触屏预览](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/06-touch-direct-preview.png)、[触屏卡片](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/07-touch-postcard.png)、[竖屏卡片](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/08-touch-portrait-card.png)。初阶段 `run-2026-11-19T13-02-57-403Z` 仅验证三处预览，不冒充拍摄／兼容通过。
+
+失败均原样保留：`run-2026-11-19T15-11-55-167Z` full FAIL 为 lostcapture 尚未派发即读状态，现场随后已有可信事件／pointers=0，改等事件后保持零指针断言；`run-2026-11-19T15-14-06-857Z` full FAIL 为竖屏重看无 click。先用 `run-2026-11-19T15-18-24-828Z` 最小探针复现“pointerdown/up 有、click 无”，排除核心拒绝／先开后关；该报告 PASS 只表示诊断采样取得，非功能通过。`run-2026-11-19T15-19-03-178Z` 最小验证：CDP 跨 viewport 手势用原生 touchCancel 结束，再一次新 tap 就有 click／卡片；保持应用 resize 清输入断言。再补快门按下身份保护及原生旧 click 负向回归后才执行最终完整 PASS，无盲重跑／删断言／改旧报表。
+
+日志与探针位于 `test-results/exp-02b/`：`unit-attempt-1.log`、`npm-test-gesture-final.log`、`build-gesture-final.log`、`browser-full-attempt-1.log`／`2.log`／`3.log`、`input-probe.mjs`／`input-probe-cancel.mjs` 及日志、`diff-check-final.log`。诊断 fixture 从实际失败记录的稳定元数据重建，仅用于最小复现；完整浏览器路线没有写当前进度／dataset 或传送。最终文件／截图／报告与 Work 基线核对见 `delivery-manifest.json`。
+
+新键 `pokan.exp02b.save.v1`、schema 1／`exp02b-photo-quest-1`；仅兼容确切旧 `exp02a-core-district-1`，整体校验后沿用原稳定进度／安全点，保留两份历史键原文，旧完成不映射新拍摄。新档只保存正式进度、已调查 ID 和 `{cardId,siteId}`；无图像／DOM／输入／暂停／速度／队列。坏新档不回读旧档，坏旧档不半份导入或自动覆盖；明确新局写合法空白新档，防止循环迁入；写失败标“本次未保存”。
+
+源码仅新增 photo 内容／SVG art 与来源记录、拍摄纯测试／浏览器脚本；更新探索核心／封闭 progress、三处目标／世界标记、平台 UI／存储／局部样式。输入仅扩 E／Space 关闭预览／卡片，来源与摇杆算法不改。原纯测试保留 found-view 与 photographed 的区别，并按授权的新局空白档替代旧删键断言。地图／道路／三室、比例／速度／相机、旧入口／物理／事务／Electron／依赖／配置不改。
+
+到此停止待 Work／负责人审查。真机、负责人内容／美术满意度和完整首章 30—45 分钟未验收，取景点／画面仍为试制，不自动领取后续。
+
+<a id="exp-02a-delivery-20261119"></a>
+
+## EXP-02A 核心街区扩建（2026-11-19）
+
+HISTORICAL：以下保留当时开发与 Work 复核；当前入口由 EXP-02B 接续，新增拍摄／新档兼容／新局语义以本页 EXP-02B 为准，旧报告不追填。
+
+状态：DONE（Work 本卡功能／技术复核 PASS，待负责人地图／内容／美术试玩；真机与首次时长未验收）。依据仅为[本任务卡](docs/DEVELOPMENT_ROADMAP.md#exp-02a-core-district-20261119)，Work 复验与开发历史执行区分见[审查记录](docs/DEVELOPMENT_ROADMAP.md#exp-02a-work-review-20261119)。`HEAD`／`origin/main` 保持 `8d5865b7cd7beacf1da931ba724946d512afb169`；承接 EXP-01 未提交实现与 Work 修改。没有 Commit、Push、部署、删文件或进入其他任务。Work 派发基线 `test-results/exp-02a-work-review/before-dispatch.json` 未修改。
+
+试玩直达：[http://127.0.0.1:4199/?scene=exploration-prototype](http://127.0.0.1:4199/?scene=exploration-prototype)。本轮生产预览 PID `20592` 留用；原 `4198` 服务保留，二者都读取当前 `dist`，旧服务端口不是旧代码隔离版本。自己的 `5199` 开发服务已停止。若需关闭本轮预览，先核对 PID `20592` 仍是本仓库 `vite.js preview --port 4199`，再运行 `Stop-Process -Id 20592`；不关闭全部 Node／Chrome。重启命令：
+
+```powershell
+npm.cmd run preview -- --host 127.0.0.1 --port 4199 --strictPort
+```
+
+操作仍为 WASD／方向键八向、E／Space 完成交互，Esc 暂停；左摇杆＋右交互支持多指。正常读完／收起对话才提交委托、线索、取物或开路；暂停取消未完成交互，恢复不会自动提交。游客的目标是寻找桥、水与木楼同框的下层视野。导览小店说明“山纹留上层、江纹向下”的楼层关系；木作间提供两道水波的导扣，可先拿物再调查导览；错误门／缺条件操作只反馈原因，保留唯一道具。
+
+可复现路线：上层西口游客完成对话 → 北檐导览小店进屋调查 → 绕北侧后街／前街到东侧木作间取导扣 → 回到江纹栈门核对并完成开路 → 真正穿过门的缺口 → 东侧木阶下层 → 绕过望江木楼到江桥开阔面主动观察 → 西回廊回上层，或沿东阶原路回访。南檐绕行可进茶歇，完全选做；触屏专项跳过茶歇也可完成阶段。没有用传送／直接写当前进度完成浏览器路线。
+
+| 地图／连接 | 当前实际工程尺寸与用途 |
+| --- | --- |
+| `upper` 上层木廊 | 3300×1300；可活动边界 3180×1000，10 个有真实脚底阻挡的门面／街边构筑物；前街、北侧后街、南檐绕行与纵向岔口，三处主动入屋门。 |
+| `lower` 下层街巷 | 3300×1300；可活动边界 3180×1000，7 个真实阻挡构筑物，右下江面不可踏入；花窗廊、望江木楼与桥景开阔面，可从东西两端回访。 |
+| `guide` 导览小店 | 1100×650 逻辑图，740×380 可走室内；楼层／纹样信息，桌柜阻挡，回到上层对应门口。 |
+| `workshop` 木作间 | 1100×650 逻辑图，840×390 可走室内；导扣取用、桌架／工具屏阻挡；隔屏不能取物，回对应木作门口。 |
+| `tea` 茶歇 | 1100×650 逻辑图，740×360 可走室内；桌椅观察／驻足，非通关条件，回对应茶歇门口。 |
+
+逻辑视口仍为 1100×650、相机 zoom=1、原角色 scale=0.95、速度 175 世界单位／秒；没有缩角色、拉远镜头或减速凑规模／时长。镜头在世界边界内跟随，HUD／摇杆固定屏幕位置。建筑、路口与江桥都是试制样块／原创物件，不代表真实设施或已冻结文化内容。完整首章 30—45 分钟及本段新玩家 10—15 分钟均没有实测。
+
+```mermaid
+flowchart LR
+  U[上层前街／北后街／南檐回路] <--> G[导览小店：纹样与楼层]
+  U <--> W[木作间：可借导扣]
+  U <--> T[茶歇：选做]
+  U -->|完成条件后真实开栈门| E[东阶上层落脚]
+  E <--> L[东阶下层落脚]
+  L <--> C[下层生活街巷]
+  C <--> V[江桥取景面]
+  C <-->|开路后西回廊短连接| U
+```
+
+全图结构图见[map-structure.svg](test-results/exp-02a/run-2026-11-19T12-17-59-906Z/map-structure.svg)，只作坐标／连接示意，不能替代实机图。[上层西口](test-results/exp-02a/run-2026-11-19T12-17-59-906Z/01-upper-west.png)、[上层东侧](test-results/exp-02a/run-2026-11-19T12-17-59-906Z/02-upper-east.png)、[上层后街](test-results/exp-02a/run-2026-11-19T12-17-59-906Z/13-upper-rear-lane.png)、[下层东阶](test-results/exp-02a/run-2026-11-19T12-17-59-906Z/03-lower-east.png)、[下层桥景](test-results/exp-02a/run-2026-11-19T12-17-59-906Z/04-lower-overlook.png)、[导览室内](test-results/exp-02a/run-2026-11-19T12-17-59-906Z/05-guide-room.png)、[木作室内](test-results/exp-02a/run-2026-11-19T12-17-59-906Z/06-workshop-room.png)、[茶歇室内](test-results/exp-02a/run-2026-11-19T12-17-59-906Z/07-tea-room.png)、[开门前](test-results/exp-02a/run-2026-11-19T12-17-59-906Z/08-gate-closed.png)、[开门后](test-results/exp-02a/run-2026-11-19T12-17-59-906Z/09-gate-open.png)、[触屏模拟](test-results/exp-02a/run-2026-11-19T12-17-59-906Z/10-touch-lower.png)均为真实操作截图。
+
+| 验收条目 | 实际结果与边界 |
+| --- | --- |
+| A1 比例、镜头、街区 | PASS：两张 3300×1300 世界图、多个横向视野与纵向后街绕行，跟随限界、zoom=1；实测 HUD 边界不随世界镜头移动，横竖屏画布保持 FIT。 |
+| A2 三室内／往返 | PASS：三室均实际行走／调查、对应门口返回，每间连续三轮；同运行内不换 Runtime、不复制 Canvas／输入绑定。两条主线用途不同，茶歇可跳过。 |
+| A3 因果、提交、交互资格 | PASS：游客正常完成才接取、暂停不提交；信息与导扣支持判断；栈门先阻挡后能真实通过，西回廊不能提前绕过。隔工具屏不能拿物／跨图不能交互；误用和重复取物／开门无重复永久记录或道具丢失。 |
+| A4 保存／版本 | PASS：桌面在导览、木作、茶歇及两层室外逐一刷新，安全锚点一致、运行 UUID 更换；坏／未来／矛盾档、不可写与旧档保护有纯专项。最终触屏上下文保留旧单庭院通关 fixture，确认新街区初始未通关且旧原文不变；该 fixture 仅是版本保护测试，不写当前街区进度。 |
+| A5 键盘／触屏 | PASS：桌面键盘和 Chrome 原生触屏模拟分别走全用途链，触屏先物后线索仍能完成；多指、切图、cancel、真实 lost capture、旋转／暂停与普通 Chrome 原生隐藏独立 Owner 验证通过。Android／iOS 真机 NOT RUN。 |
+| A6 工程与证据 | PASS：专项 11/11、全量 202/202、生产构建、生产 Chrome 11 组检查、旧默认移动／跳跃／B 对话冒烟、格式检查。负责人视觉／规模满意度与新玩家时长 NOT RUN；旧 focus 长套件 NOT RUN，历史 FAIL 保留。 |
+
+实际命令、最终退出码均为 0：
+
+```powershell
+node --experimental-strip-types --test tests/exploration.test.mjs tests/exploration-district.test.mjs
+npm.cmd test
+npm.cmd run build
+node tests/exp-02a-browser.mjs --production --browser=chrome
+git diff --check
+```
+
+最终执行报告：[run-2026-11-19T12-17-59-906Z/report.json](test-results/exp-02a/run-2026-11-19T12-17-59-906Z/report.json)，SHA-256 `1357637216f84bded1f0feef4ad162fe8f72122e280d14dac612bbbdfeccbd9e`。含 `tests/exploration-district.test.mjs` SHA-256 `4f4d618e7c9f0f32bdb5272d1aa3cbc6907fd082da7887be9cb66001c31f8264` 以及当前核心、平台、渲染、浏览器脚本／产物哈希。Chrome `157.0.8103.79`；完整路线为真实品牌 Chrome headless 键盘／Pointer 输入，原生切页另用普通 Chrome＋CDP `noDefaults`，不把焦点模拟或伪造 hidden 当原生证据。自有测试 Chrome PID `32832`、上下文和随机 HTTP 服务清理 PASS。自有监听 AbortSignals、ResizeObserver、当前 Layer／Canvas 回收通过；Phaser 自身全局 visibility／window handler 仍由整页销毁回收，未改第三方内部算法。
+
+首轮与补测分开保留：`run-2026-11-19T12-14-46-896Z` 已 PASS 四处室外／三室内、两层刷新、导览／茶歇刷新、双端完整路线与清理；其哈希在新增 district 测试文件建立前采集，因此未含该文件。最终第二轮实际新增木作间刷新、旧庭院档原文保护／不继承当前通关、北后街绕行与截图，并把新增测试纳入哈希清单；没有单纯为补清单无理由重跑。两个报告原样保留。早期 `npm.cmd run typecheck` 有一次 TS1003 草稿语法 FAIL（私有字段的 typeof 类型查询），改为显式 `PendingDiscovery` 类型后通过，记录在 `test-results/exp-02a/initial-typecheck-failure.json`，未删除断言。完整日志在同目录 `unit-attempt-1.log`／`npm-test-attempt-1.log`／`build-stage-1.log`／`browser-attempt-2-final.log`。
+
+实际修改仅限：`core/exploration-content.ts` 多图／成对入口／安全点／视线；`core/exploration.ts` 读取受限地图、延迟正常完成提交及多图进度；`core/progress.ts` 加封闭 `exp02a` 目录，旧默认及 exp01 保留；`rendering/phaser/exploration.ts` 当前地图世界绘制／脚底深度／限界镜头；`platform/web/exploration.ts` 新地名／线索／取消接线，`exploration-storage.ts` 新档案／旧档提示；exp-02a 来源记录、当前纯测试迁移及新增专项／浏览器脚本、README／本卡。`exploration-input.ts`、旧浏览器脚本、旧资产与旧 PlayerMotor／Matter／simulation／lifecycle／事件事务、Electron／依赖／配置未改。当前原有 5 组探索测试保留等速／滑动／幂等／恢复／来源语义，只把坐标与 ID 迁移到新版地图，并按已授权正常完成语义收口，不删除旧范围断言。
+
+当前存档键 `pokan.exp02a.save.v1`、schema 1、内容版本 `exp02a-core-district-1`；不迁移旧 `pokan.exp01.save.v1`，检测到旧键时明确提示开始新街区且旧档保留。两层／三室共享同 Runtime，刷新才创建新 UUID。安全点为 12 个封闭落脚身份；下层、东阶／西回廊的已开通上层返回点均要求永久解锁，整体校验后一次恢复，不序列化输入／暂停／事件队列。损坏新档不覆盖，重新开始也只清新键。完整最终文件清单／源码哈希及与 Work 基线的保护核对见 `test-results/exp-02a/delivery-manifest.json`。
+
+待 Work 审查真实差异／最终报告与负责人地图体验；真机、最终美术、新玩家 10—15 分钟和完整首章时长未验收。到此停止，不领取后续。
+
+<a id="exp-01-delivery-20261119"></a>
+
+## EXP-01 斜俯视街区与室内小样（2026-11-19）
+
+HISTORICAL：以下是当时单庭院交付记录，原图／脚本／报告和旧档案保留。当前同一专用入口已由 EXP-02A 内容接续，原端口读取当前 `dist`，不能用它复现旧庭院或把本节旧路径当现行操作说明。
+
+状态：DONE（待 Work／负责人方向试玩）。唯一实施依据为[路线图 EXP-01 卡](docs/DEVELOPMENT_ROADMAP.md#exp-01-implementation-20261119)。开工 `HEAD`／`origin/main` 与实际 `git ls-remote origin refs/heads/main` 均为 `8d5865b7cd7beacf1da931ba724946d512afb169`；开工仅有 Work 的 `AGENTS.md`／路线图修改，均保留。没有 Commit、Push、部署、依赖／配置修改或进入后续任务。
+
+直接试玩：[http://127.0.0.1:4198/?scene=exploration-prototype](http://127.0.0.1:4198/?scene=exploration-prototype)。本轮自有生产预览监听 `127.0.0.1:4198`（Vite PID `33312`），保留供试玩；`5198` 的自有开发服务已停止。其他体验服务／用户窗口未关闭。
+
+应用内预览已排队，尚未观察到打开；额外启动独立 Chrome 试玩窗口被自动审批拒绝，返回原因仅为 `blocked by policy`。可直接点击上述已核对可达的链接。该限制不影响此前已执行并回收的生产 Chrome 专项。完整交付／工作文件哈希与清理记录另见 `test-results/exp-01/delivery-manifest.json`。
+
+服务关闭后，可在仓库根目录重新运行：
+
+```powershell
+npm.cmd run preview -- --host 127.0.0.1 --port 4198 --strictPort
+```
+
+只关闭本轮服务时，先核对 PID `33312` 仍对应本仓库的 `vite.js preview --port 4198`，再执行 `Stop-Process -Id 33312`；不要关闭所有 Node／Chrome 进程。浏览器关闭不自动停服务。换端口／浏览器／配置目录会使用不同的本地存储，不能据此认定存档丢失。
+
+操作：WASD／方向键八向移动，E／Space 交互／收起对话，Esc 暂停；触屏使用左摇杆＋右交互按钮，可多指同时操作。路线：游客交谈 → 中央导览小屋门口主动进入 → 绕桌观察左侧窗边导览 → 右侧柜边取得燕尾木牌 → 从下方门口返回 → 东侧栈门主动使用木牌 → 穿过实际开放的门 → 观景台观察江桥 → 刷新后从安全点继续。允许先调查小屋，但开路需要游客委托、已发现线索和木牌；错误使用保留道具。标题保留本局；“重新开始”须再次确认，只清本小样键。
+
+本小样只有一个庭院街区、一间可行走室内和一条短用途链；没有实测新玩家 3—5 分钟或完整首章 30—45 分钟。木牌／小屋／栈门和对白属于工程试制，非文化史实或已冻结正式章节内容。原创 Phaser 样块来源见[资产记录](src/rendering/phaser/assets/exp-01/ASSET_SOURCES.md)，没有使用旧侧视 PNG。
+
+| 项目 | 本轮结果与边界 |
+| --- | --- |
+| E01 新地面与呈现 | PASS：八个真实键盘方向、每 Tick 3.5 的直／斜向等速、墙／门与真实锁门阻挡；固定镜头、脚底深度分层、建筑正／侧面／屋顶、街廊、窗灯和江桥。最终画面满意度仍待负责人试玩。 |
+| E02 室内与状态 | PASS：桌面／原生触屏模拟均真实进入、移动、观察、拿物、返回；三次往返保持同一 Runtime、一张画布、一套输入；重复调查／拿取不增记录。 |
+| E03 开路与保存 | PASS：先阻挡后实际穿过；刷新／同源重新打开生成新 Runtime，进度不重发、安全点可走。纯专项拒绝损坏／未来版本／矛盾／未知记录，整体恢复不污染已有状态；写失败反馈“本次未保存”，坏记录不静默覆盖。 |
+| E04 输入与暂停 | PASS：键盘别名、键盘＋摇杆、原生多指、cancel、真实 lost capture、对话／切图清理、旋转与尺寸恢复；普通 Chrome 无焦点模拟的真实隐藏／显示验证双 Owner 令牌与冻结，不断言 hidden 必然等于失焦。 |
+| E05 宿主与回收 | PASS：自有 AbortSignal 监听、可见性解绑、ResizeObserver、地图对象与 Canvas 回收；重复 pagehide 探针后旧回调无效；Canvas 启动失败在输入接线后逆序回收。pagehide 销毁探针为显式事件派发，原生隐藏另有独立证据。Phaser 自身 document visibility／window onblur/onfocus 的遗留行为单列，完整页面销毁回收，不声称已修改第三方。 |
+| E06 回归与报告 | PASS：专项 5/5、全量 196/196、生产构建、生产 Chrome 14 组检查、旧默认移动／跳跃／B 对话冒烟、差异格式检查。旧 H5 focus FAIL 未重跑或追改。 |
+| E07 证据分级 | 桌面 Chrome 1280×720 PASS；触屏模拟 844×390、旋转 390×844 PASS；真实 Android／iOS NOT RUN；负责人方向／美术／新玩家时长试玩 NOT RUN。 |
+
+实际命令与退出码（均为 0）：
+
+```powershell
+node --experimental-strip-types --test tests/exploration.test.mjs
+npm.cmd test
+npm.cmd run build
+node tests/exp-01-browser.mjs --production --browser=chrome
+git diff --check
+```
+
+最终生产证据：[report.json](test-results/exp-01/run-2026-11-19T11-30-53-621Z/report.json)，SHA-256 `9a1ba51bb0a3f5ce0bd560246ccefb21a69192f81a9854299e4de12560274d14`，Chrome `157.0.8103.79`。报告包括全部源码／脚本／产物哈希、真实按键／触屏操作路径、原生 visibility 轨迹、指针真实 ID／isTrusted、截图与自有测试 Chrome PID `28140`／HTTP 服务回收 PASS。当前产物 `index-D6rB0Iza.js` SHA-256 `bf67942b95871d09fe62ed06e5c37d73d3339d2d8208a2a8c57547a13a8ea6d7`。全量日志 [npm-test-resize-final.log](test-results/exp-01/npm-test-resize-final.log)、[build-resize-final.log](test-results/exp-01/build-resize-final.log)；构建保留既有大包体积提示与 npm 配置提示，非退出失败。
+
+实机截图：[街区](test-results/exp-01/run-2026-11-19T11-30-53-621Z/01-street-first.png)、[室内](test-results/exp-01/run-2026-11-19T11-30-53-621Z/03-room.png)、[取物](test-results/exp-01/run-2026-11-19T11-30-53-621Z/04-item.png)、[开路／观景](test-results/exp-01/run-2026-11-19T11-30-53-621Z/05-open-view.png)、[触屏室内](test-results/exp-01/run-2026-11-19T11-30-53-621Z/10-touch-room.png)、[竖屏](test-results/exp-01/run-2026-11-19T11-30-53-621Z/08-portrait.png)。第一版可操作街区截图另保留在 `test-results/exp-01/first-visible/street.png`。
+
+模块／资源所有权：`core/exploration*.ts` 是无 DOM／Phaser 的固定步二维脚底阻挡、地图／交互／任务权威及存档验证；同一 Runtime 在两图间共用进度，新建／读档才换 UUID。`progress.ts` 只增加显式 `exp01` 封闭目录与整体恢复，默认旧目录和拒绝关系不变。`platform/web/exploration*.ts` 持有键盘／Pointer 来源、UI、localStorage、可见性与菜单 Owner；`rendering/phaser/exploration.ts` 读取权威快照，持有一个 Game、当前 Layer 与 ResizeObserver。入口在 `main.ts` 独立分支，局部样式在 `style.css`；旧输入／PlayerMotor／Matter／事务／快照／Electron 算法与所有依赖、配置保持原状。
+
+存档键为 `pokan.exp01.save.v1`，`schemaVersion=1`，内容版本 `exp01-wooden-court-1`；只保存封闭 `exp01` 业务记录和 `arrival`／`doorstep`／`room`／`overlook` 安全点。保存不含速度、输入、暂停令牌或旧事件队列。校验前不导入；受损原记录阻止自动覆盖，负责人明确点击重新开始才清本键。关键木牌使用 collection 目录作受限任务持有记录，不代表正式地域收藏／图鉴已实现。二维矩形滑动仅本小样物理验证，不是最终物理选型。
+
+失败与修正均保留在 `test-results/exp-01/`，不把后来的 PASS 回填旧报告：
+
+| 证据 | 原结果与处理 |
+| --- | --- |
+| `unit-attempt-1.json`／`unit-attempt-2.log` | FAIL：strip-only 不支持参数属性；随后测试驱动时钟倒退。分别改显式字段、单调测试时钟，未改模拟算法／删断言。首轮未现场采集完整工作树哈希，此证据缺口保留；基线、错误位置和后续最终哈希齐全，不补造历史哈希。 |
+| `run-2026-11-19T11-18-42-854Z` | FAIL：报告写入被冻结的浏览器选择对象；改为报告独立副本。 |
+| `run-2026-11-19T11-19-27-758Z` | FAIL：错误期待 CDP frozen 自动触发 hidden；改普通 Chrome＋CDP `noDefaults` 的真实切页，另保留两份探针日志，未伪造 visibility。 |
+| `run-2026-11-19T11-21-36-183Z` | FAIL：墙钟起停采样混入空闲 Tick；改持续按住期间取稳定 Tick 区间，并扩为八向逐项严格 3.5／Tick。 |
+| `run-2026-11-19T11-22-02-023Z`／`run-2026-11-19T11-23-03-682Z` | FAIL：捕获释放夹具先猜错浏览器 Pointer ID、后未触发 pending capture 处理；改读取实际 gotpointercapture ID，并发下一真实 pointermove。保留 cancel／lost capture 的原断言。 |
+| `run-2026-11-19T11-23-57-678Z` | FAIL：Canvas 故障注入过早破坏 Phaser 导入，未到预期回收阶段；注入限制为 EXP 根建立之后，最终启动失败回收通过。 |
+| `run-2026-11-19T11-25-46-955Z`／`run-2026-11-19T11-27-38-792Z` | 原脚本 PASS；后续截图复核发现旋转画布滞后一轮（视觉 FAIL，不改原报告）。最终补父容器 ResizeObserver 与双方向画布完整适配断言，`run-2026-11-19T11-30-53-621Z` PASS：横屏 660×390，竖屏 390×230.45 等比且无裁切。 |
+
+正式设计正文交 Work；物件／对白／坐标／速度／横屏 UI 均为试制参数。最终物理、整章内容、收藏成就、真机和负责人方向验收未完成；不以本小样 PASS 推定比赛版完成。证据目录由 Git 忽略，但本地保留可直接审阅。
 
 ## 设计与参考图当前状态（2026-11-14）
 

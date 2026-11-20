@@ -1,6 +1,6 @@
 # 《坡坎之间》— 项目概述
 
-更新日期：2026-11-19
+更新日期：2026-11-20
 
 本文记录已确认的项目需求、候选技术方案和待讨论事项，供后续策划与开发交接使用。已确认需求以项目负责人本次指示为依据；候选方案不代表最终决策。
 
@@ -10,9 +10,13 @@
 
 保留解放碑序章→沧白路／洪崖洞入口→吊脚楼核心街区→下层江岸的主题旅行框架。空间不再按 7—9 横向屏规划，旧单线索单机关／不做收藏／运行内无存档的限制在新方案内被取代。已确认轻量浏览器本地自动存档，保留正式任务、收藏和解锁状态，从安全地点继续；不做云存档或精确世界快照。返回标题保留本局，明确重新开始才清空。
 
-正式依据见[探索重构决策](DECISIONS.md#topdown-exploration-reboot-20261119)。产品／技术取舍集中见[总规划现行重构](FULL_GAME_CONTENT_AND_LEVEL_EXPANSION_ARCHITECTURE.md#exploration-reboot-20261119)，比赛交付见[H5 方案 V3](COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md#topdown-h5-v3-20261119)，唯一新空间主文为[关卡设计](HONGYADONG_LEVEL_DESIGN.md#topdown-first-chapter-20261119)，旧横版空间原型保留历史。具体节点、物品／房间数量和工程方案仍 PROPOSED／TO_VALIDATE，当前没有新代码 READY。
+正式依据见[探索重构决策](DECISIONS.md#topdown-exploration-reboot-20261119)。产品／技术取舍集中见[总规划现行重构](FULL_GAME_CONTENT_AND_LEVEL_EXPANSION_ARCHITECTURE.md#exploration-reboot-20261119)，比赛交付见[H5 方案 V3](COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md#topdown-h5-v3-20261119)，唯一新空间主文为[关卡设计](HONGYADONG_LEVEL_DESIGN.md#topdown-first-chapter-20261119)，旧横版空间原型保留历史。具体节点、物品／房间数量和工程方案仍 PROPOSED／TO_VALIDATE；当前任务／已实现能力以路线图实施与审查记录为准，不将候选或局部实现升级为完整章。
 
-本轮核对 main／origin/main／HEAD 为 `b5b69f37385552c5ac085e532f6de965ec4e39ec`，开始工作区干净。DEMO-01 已实现 8000×1800 横版地图，地图报告 8 项 PASS、22 项指纹匹配；规定输入报告 FAIL，旧交付整体验收 BLOCKED，负责人不接受产品体验。新玩法尚未实现，本轮未修改源码／测试／资产、未重跑游戏／构建，也不关闭现有体验服务。旧成果保留，不继续按旧 DEMO-02／03 卡开发。
+HISTORICAL（最初设计重构时的核对）：当时 main／origin/main／HEAD 为 `b5b69f37385552c5ac085e532f6de965ec4e39ec`，开始工作区干净。DEMO-01 已实现 8000×1800 横版地图，地图报告 8 项 PASS、22 项指纹匹配；规定输入报告 FAIL，旧交付整体验收 BLOCKED，负责人不接受产品体验。当时新玩法尚未实现，该文档轮未改源码／测试／资产或重跑游戏／构建。旧成果保留，不继续按旧 DEMO-02／03 卡开发。
+
+HISTORICAL 实现补记（2026-11-19，EXP-02B）：基于 `8d5865b` 工作区增量，斜俯视八向／摇杆、上下层各 3300×1300／三室内、调查找物与开路、三处取景／主动拍摄／单次故事纪念卡、轻量本地保存与旧 02A 合法进度迁入已有受限实现。Work 全量 209/209 与独立 Chrome 短流程通过，具体归属见[审查](DEVELOPMENT_ROADMAP.md#exp-02b-work-review-20261119)。当时完整解放碑—江岸前段尚未接通，保留原时点结论。
+
+当前实现补记（2026-11-20，EXP-02C）：同一原独立会话新增 A 解放碑广场／商业街／过渡巷、B 沧白路高处入口及 A 可选服务小店，连到原 C 调查找物、开路与江岸拍摄卡片。新局解放碑出生、同一游客迁至 B；旧档保留原 12 安全点、已开路线、照片与奖励，新档使用独立版本／键。Work 全量 215/215 与独立 Chrome 新 A 真实阻挡、旧 B 已拍照迁入／刷新及重新开始后空白 A 复验 PASS；开发 14 组生产检查与 22 项实际文件指纹核对通过，详见[EXP-02C 审查](DEVELOPMENT_ROADMAP.md#exp-02c-work-review-20261120)。当前只是可玩前段／样块，不代表最终美术、正式 D 江岸、真机或 30—45 分钟完整首章通过。未提交；无自动获授权的下一任务。
 
 ## HISTORICAL：2026-11-19 较早轮次的横版 Demo 优先方案
 
