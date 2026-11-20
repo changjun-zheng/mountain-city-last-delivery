@@ -4,7 +4,7 @@
 
 现行产品设计（2026-11-19 后续重构）：《坡坎之间》转为以重庆山城为灵感的 2D 斜俯视、非战斗探索冒险，支持八向走动、可进入建筑、调查／物品用途、地域收藏与轻量本地存档；手绘卡通与 H5 电脑／手机目标保留。正式范围见[探索重构决策](docs/DECISIONS.md#topdown-exploration-reboot-20261119)、[H5 V3](docs/COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md#topdown-h5-v3-20261119)和路线图页首。
 
-实现状态（2026-11-20 EXP-03A）：普通网页根地址已进入《坡坎之间》标题／开始／合法继续，同一实例支持暂停／返回标题、轻 HUD 与已知旅程手账；原短流程与纪念卡保留。DONE（[Work 功能技术复核 PASS](docs/DEVELOPMENT_ROADMAP.md#exp-03a-work-review-20261120)，待负责人体验）。已审查累积基线为 `523ea51`；本任务依负责人授权由 Work 审查后提交推送，不自动开始下一项。真机、美术满意度与完整章仍未验收。
+实现状态（2026-11-20 EXP-03B）：现有街区新增三件可选纸质纪念物，明确收进后进入旅程手账；集齐给一次试制称号，与原夜景照片奖励独立，零收藏仍能通关。DONE（[Work 功能技术复核 PASS](docs/DEVELOPMENT_ROADMAP.md#exp-03b-work-review-20261120)，待负责人体验）。基线 `221fa7a`；本项按负责人授权由 Work 审查后提交推送，不自动续项。真机、最终美术和完整章仍未验收。
 
 名称说明（2026-11-15）：当前中文项目名称为《坡坎之间》（CONFIRMED），英文名称未确定；宣传语“在山与城之间，发现不一样的故事。”仅为 PROPOSED。旧工作名称为叠城大冒险／Layered City Adventures，商标注册、重名核验与正式发行名称冻结尚未完成。见[当前名称决策](docs/DECISIONS.md#project-name-pokan-20261115)及[品牌交接](docs/PROJECT_REBRANDING_HANDOFF.md#current-brand-20261115)。EXP-01 使用当前中文名称；部分旧横版界面、Electron 与既有 Windows 产物仍保留旧显示名；当前 Web 页标题已更新，不据此宣称全工程更名完成。
 
@@ -16,9 +16,54 @@ Mountain City: Last Delivery／山城有路：最后一单为历史名称。下�
 
 调试灰盒操作：调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过并从上方落地；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。D 由 D08 原型直接登记一次测试收藏；目标 E 的按 E 只创建 Pending Event，真实命令接收和跨 Tick 事务完成后才登记目标／奖励／永久效果并开门。检查点与恢复原型、诊断区域和两条移动平台保留在「调试入口」；这些能力不等于正式存档或首关检查点。
 
+<a id="exp-03b-delivery-20261120"></a>
+
+## EXP-03B 可选纪念物与收藏展示（2026-11-20）
+
+DONE（[Work 功能技术复核 PASS](docs/DEVELOPMENT_ROADMAP.md#exp-03b-work-review-20261120)，待负责人体验），仅执行[本卡](docs/DEVELOPMENT_ROADMAP.md#exp-03b-mementos-20261120)。[普通首页](http://127.0.0.1:4199/)继续使用标题／开始／合法继续，同一探索核心与原主线保留。原 PID `22184` 的 `4199` 预览服务未停止／重启，`4198` 未操作；HTTP 200、入口及实际 JS／CSS 与当前构建一致，证据在 `test-results/exp-03b/preview-origin-verification.json`。不读取个人浏览器档案，所有兼容测试用隔离上下文。
+
+三件原创 Demo 纸质纪念：导览室右侧阅览位 `(780,470)` 的吊脚楼书签、茶歇桌边 `(300,520)` 的竹椅茶歇速写、已开下层西侧展架 `(470,900)` 的江桥夜色明信片。靠近／打开不会获得；按钮“收进纪念册”或新一次 E 明确完成才登记，“先放回”、菜单、标题与原生隐藏中断不登记。纪念物使用独立 target／collection ID，世界显示收好标记，手账只显示实际已获的图案／短文；主线导扣不计入 0/3。三件集齐在同次同步提交中登记一次“山城拾光者”试制称号／故事奖励，不新增背包、货币或正式成就框架。
+
+从空白 A 可按原路线到 B 接委托、进 C 导览拿线索并顺路收书签，再到茶歇收速写；回木作间拿主线导扣、开原江纹栈门，到下层西侧收明信片，最后按原要求主动拍摄。三件也可不同顺序／回访收取；全都跳过仍能完成主线。只有照片为一份原奖励，只有收藏目录为一份称号奖励，两者完成才共两份。街边明信片与游客拍摄获得的夜景纪念卡始终是不同内容。
+
+新键 `pokan.exp03b.save.v1`／`exp03b-city-mementos-1`，schema 1、六个存档字段保持受限形状，收藏／称号只进入原 progress 类别。读取新→C→B→A，旧 C 仍用封闭 exp02b 目录与 19 原锚点，旧 B／A 各限 12 原锚点，不因新 exp03b 目录接受新 ID。合法旧 safe／进度／照片／观察保留，新收藏与称号为空；坏／未知／重复／矛盾／未来版本、称号与三件不一致均整档拒绝，不回退更旧键、不写原文或修补发奖。明确重开写新键空白 A，刷新不重迁旧档；旧键／其他数据字节保留。
+
+图案为三份原创可编辑 SVG，世界用对应微型纸面图形；调查／手账读同一组 SVG。名称、坐标、图案和称号均为 PROPOSED／TO_VALIDATE 试制，不是实物商品／正式文化目录，不复制来源图片、不引入年代／层数／抗震／独有工艺等结论。有限参考语境及限制见 `src/rendering/phaser/assets/exp-03b/ASSET_SOURCES.md`。手账支持真实触屏纵向滚动，固定关闭按钮保持可见，主要按钮至少 48px，正文至少约 14px，竖屏仍可操作。
+
+| 验收 | 开发实际结果与边界 |
+| --- | --- |
+| M01 | PASS：三件实际行走、查看未得、明确完成才得；放回／菜单／标题／原生 hidden／重复／旧代次／旧鼠标释放不误收。原输入／运动／照片算法不改。 |
+| M02 | PASS：0/1/2/3 件的投影与保存，三件才一称号；未获不列名称／地点，主线物件不计入；称号与照片两类奖励独立，刷新不重发。 |
+| M03 | PASS：当前各阶段恢复，旧 C 未接／开路／照片三阶段浏览器迁入，B／A 及旧目录严格性专项；坏／伪造／矛盾／不可写保护、新局防重迁与原文保护。兼容夹具内联，来源与哈希明确，不冒充空白通关。 |
+| M04 | PASS：根标题真实键盘主线并收三件；原生双指触屏走到茶歇收取、三档触屏滚动／关闭；1280×720／1920×1080／844×390／667×375／390×844 实机图、字体与按钮检查。Android／iOS 真机 NOT RUN。 |
+| M05 | PASS：8 图／19 锚点／30 旧目标数据全量哈希保持，移动／阻挡与通用 progress 方法保持；旧 UI／hidden／快门／销毁回归保留。02C 桌面与触屏空白完整链在卡片后明确断言零纪念物、一份原奖励。 |
+| M06 | PASS：探索专项 39/39（新增 9）、全量 230/230、构建、收藏 8 组、UI 11 组、原流程 14 组及格式检查。页面／网络与自有清理按各报告分层，最终汇总覆盖当前全部文件。 |
+
+实际必跑命令最终均退出 0：
+
+```powershell
+node --experimental-strip-types --test tests/exploration*.test.mjs
+npm.cmd test
+npm.cmd run build
+node tests/exp-03b-browser.mjs --production --browser=chrome
+node tests/exp-03a-browser.mjs --production --browser=chrome
+node tests/exp-02c-browser.mjs --production --browser=chrome
+git diff --check
+```
+
+实际报告：[收藏 8 组](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/report.json)，SHA-256 `36357a722e9c1effbb0477272186ccb0b8787bddb3c721223ea9ac17d047da8a`；[UI 11 组](test-results/exp-03a/run-2026-11-20T05-31-22-710Z/report.json)，SHA-256 `5dff3abdbaed47834869497ddc48885963280932acbda9192d384fbe45c965cf`；[零收藏主线 14 组](test-results/exp-02c/run-2026-11-20T05-31-51-482Z/report.json)，SHA-256 `bc65daac8aab2c46f8a384460b13aacd2930b28662791289eaf3d3382b2a3f08`。实际构建只引用 `index-0tcpjqxl.js`／`index-BSwlCNKm.css`，所有新源码／SVG／测试／当前产物与来源指纹在报告和 `test-results/exp-03b/delivery-manifest.json`；03B 报告中的一个辅助 UI 测试脚本后来仅调整输入准备路线，其当前版本由后续 03A 报告独立覆盖，旧报告不追改。Chrome 157.0.8103.79，自有原生 Chrome／临时 HTTP／上下文清理 PASS；Phaser 内部监听整页回收另列。
+
+实机图：[书签调查](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/02-bookmark-inspection.png)、[速写调查](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/05-sketch-inspection.png)、[明信片调查](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/08-postcard-inspection.png)、[三件与称号](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/collection-1280x720.png)、[拍摄奖励独立](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/10-photo-independent.png)、[双指查看](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/touch-two-finger-inspection.png)、[667 触屏滚动](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/touch-collection-667x375.png)、[竖屏手账](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/touch-collection-390x844.png)。0/1/2/3 阶段及其他尺寸在同目录，允许滚动阅读，不以单张截图代替全流程。
+
+失败原样保留：`run-2026-11-20T02-00-37-138Z` 为浏览器路线准备错误，读 note 后 helper 先横移而撞原柜台，补先退到 `(340,540)` 的真实路线后通过；该首轮控制台残留 EXP-03A 字样，JSON task 为 EXP-03B，不改旧报。03A `run-2026-11-20T02-07-40-239Z` 在双指调查失败，末态持续右移至边界、交互 held；失败脚本已按原报告 SHA 精确归档，不能拿后来编辑后的向下版本解释旧现场。原报告未采第二指当刻世界坐标，不把边界末态当精确根因证明。经最小真实输入探针验证朝目标准备路线后，修正当前测试为从上方接近并向目标持续移动，完整 11 组通过；输入／距离／地图未改。首个探针还因缺 notebook helper 失败，补齐后探针 PASS 仅是诊断，不冒充验收。所有日志、可信 Pointer 事件、报告哈希和归因限制保留在 manifest／`touch-failure-version.json`。
+
+本任务只追加封闭 exp03b 内容目录分支、三目标／同步提交／严格存档迁入、三物件与手账表现；progress 通用 mutation／restore、原照片方法、运动／阻挡方法保持。旧图稿／正式设计、输入／visibility／Lifecycle、main／index、物理、依赖与配置未改。Work 已回报独立 230/230、旧 C 照片迁入／真实回访收书签／取消／重复／刷新／重开等复验 PASS；正式审查登记／摘要／提交推送仍由 Work 在本会话停止后处理。本窗口未 Commit／Push／部署／删文件，未进入下一项。真机、最终美术、文化细化与完整章时长仍未验收。
+
 <a id="exp-03a-delivery-20261120"></a>
 
 ## EXP-03A 正式网页入口与旅程界面（2026-11-20）
+
+HISTORICAL：保留当时交付与审查。当前收藏／新键由 EXP-03B 接续，原标题与旅程功能继续共用，旧报告不追填。
 
 DONE（[Work 功能技术复核 PASS](docs/DEVELOPMENT_ROADMAP.md#exp-03a-work-review-20261120)，待负责人体验），只实施[本卡](docs/DEVELOPMENT_ROADMAP.md#exp-03a-product-ui-20261120)。[普通首页](http://127.0.0.1:4199/)现在是真正暂停的标题页；无档开始冒险，合法当前／迁入档显示继续，坏／未来／不可读取记录明确保护原档。先读取已有 `storage.load()` 结果，不修改存档键／格式／迁入算法。标题首次出现 Tick=0；返回标题保留当前 Runtime、坐标与本局进度，再继续不退回安全点；只有刷新按既有安全点恢复，明确重新开始才写空白档并刷新。
 

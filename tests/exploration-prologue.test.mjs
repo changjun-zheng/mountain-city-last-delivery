@@ -3,6 +3,7 @@ import {test} from 'node:test';
 import {createHash} from 'node:crypto';
 import {ExplorationRuntime,emptyExplorationSave,validateExplorationSave,migrateExp02ASave,migrateExp02BSave} from '../src/core/exploration.ts';
 import {EXP_MAPS,EXP_SAFE,EXP_LEGACY_SAFE,EXP_TARGETS,EXP02A_CONTENT_VERSION,EXP02B_CONTENT_VERSION,EXP_CONTENT_VERSION} from '../src/core/exploration-content.ts';
+import {MEMENTO_TARGETS} from '../src/core/exploration-mementos.ts';
 import {PROLOGUE_TARGETS} from '../src/core/exploration-prologue.ts';
 import {InMemoryRunProgress,EXP02A_PROGRESS_CONTENT as P,EXP02B_PROGRESS_CONTENT as Q} from '../src/core/progress.ts';
 import {ExplorationStorage,EXP_STORAGE_KEY,EXP_02B_STORAGE_KEY,EXP_PREVIOUS_STORAGE_KEY} from '../src/platform/web/exploration-storage.ts';
@@ -44,7 +45,7 @@ test('EXP-02C C01 original five map geometry, original 12 safe identities and ol
  assert.equal(Object.keys(EXP_MAPS).length,8);assert.equal(Object.keys(EXP_LEGACY_SAFE).length,12);assert.equal(Object.keys(EXP_SAFE).length,19);
  assert.equal(hash(Object.fromEntries(oldMaps.map(k=>[k,EXP_MAPS[k]]))),'fd07f9b70a1812ffd0904c0cc5703a5dfc63996b6d4ec9bd470bf5d5aa90c398');
  assert.equal(hash(EXP_LEGACY_SAFE),'63448e372985889e4bb3334d0baba4b8b02335224edb2a4531f47995cdcdc71e');
- const newIds=new Set(PROLOGUE_TARGETS.map(t=>t.id));assert.equal(hash(EXP_TARGETS.filter(t=>t.id!=='visitor'&&!newIds.has(t.id))),'2eaf847171e84d0d055d4a990d89b960dced854b9b979b2bfa7ceb74aa498f74');
+ const newIds=new Set([...PROLOGUE_TARGETS,...MEMENTO_TARGETS].map(t=>t.id));assert.equal(hash(EXP_TARGETS.filter(t=>t.id!=='visitor'&&!newIds.has(t.id))),'2eaf847171e84d0d055d4a990d89b960dced854b9b979b2bfa7ceb74aa498f74');
  assert.deepEqual([EXP_MAPS.plaza.width,EXP_MAPS.plaza.height,EXP_MAPS.entry.width,EXP_MAPS.entry.height,EXP_MAPS.service.width,EXP_MAPS.service.height],[3300,1500,2200,1300,1100,650]);
  const d=driver();assert.equal(d.r.snapshot.safe,'chapterStart');assert.equal(d.r.snapshot.map,'plaza');assert.deepEqual(EXP_SAFE.arrival,{map:'upper',x:230,y:690});
 });

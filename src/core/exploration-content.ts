@@ -4,12 +4,14 @@ export type Point = Readonly<{ x: number; y: number }>;
 export type TargetId = 'visitor' | 'guide-door' | 'workshop-door' | 'tea-door' | 'note' | 'plaque' |
   'guide-exit' | 'workshop-exit' | 'tea-exit' | 'gate' | 'wrong-gate' | 'east-down' | 'east-up' |
   'west-down' | 'west-up' | 'view' | 'tea-observe' | 'window' | 'street-sign' | 'photo-eaves' |
-  'city-monument'|'city-sign'|'service-door'|'service-exit'|'service-guide'|'city-to-entry'|'entry-to-city'|'entry-to-core'|'core-to-entry'|'entry-view';
+  'city-monument'|'city-sign'|'service-door'|'service-exit'|'service-guide'|'city-to-entry'|'entry-to-city'|'entry-to-core'|'core-to-entry'|'entry-view'|'memento-bookmark'|'memento-sketch'|'memento-postcard';
 import {PHOTO_CONTENT_VERSION} from './exploration-photo.ts';
 import {PROLOGUE_MAPS,PROLOGUE_SAFE,PROLOGUE_TARGETS} from './exploration-prologue.ts';
+import {MEMENTO_TARGETS} from './exploration-mementos.ts';
 export const EXP02A_CONTENT_VERSION = 'exp02a-core-district-1';
 export const EXP02B_CONTENT_VERSION = PHOTO_CONTENT_VERSION;
-export const EXP_CONTENT_VERSION = 'exp02c-prologue-1';
+export const EXP02C_CONTENT_VERSION = 'exp02c-prologue-1';
+export const EXP_CONTENT_VERSION = 'exp03b-city-mementos-1';
 export type Building = Rect & Readonly<{ name: string; kind?: 'guide' | 'workshop' | 'tea' | 'market' | 'city' | 'service' }>;
 export type ExplorationMapDefinition = Readonly<{
   name: string; width: number; height: number; bounds: Rect;
@@ -96,6 +98,7 @@ export const EXP_TARGETS: readonly ExplorationTarget[] = Object.freeze([
   {id:'photo-eaves',map:'lower',x:2180,y:680,label:'调查檐下视野'},
   {id:'street-sign',map:'upper',x:1120,y:650,label:'看看岔口路牌'},
   ...PROLOGUE_TARGETS,
+  ...MEMENTO_TARGETS,
 ].map(t=>Object.freeze(t)) as readonly ExplorationTarget[]);
 
 // Closed, data-only connections; no generic map loader or behavior registry.

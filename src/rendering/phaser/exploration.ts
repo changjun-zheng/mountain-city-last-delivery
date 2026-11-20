@@ -3,6 +3,8 @@ import type { ExplorationRuntime, ExplorationSnapshot } from '../../core/explora
 import { EXP_MAPS, EXP_GATE, EXP_RIVER, EXP_TARGETS } from '../../core/exploration-content';
 import {PHOTO_SITES} from '../../core/exploration-photo';
 import {drawPrologueCity} from './exploration-city-art';
+import {MEMENTOS} from '../../core/exploration-mementos';
+import {drawMemento} from './exploration-memento-art';
 
 // Original procedural artwork for EXP-01. Coordinates are shared with the
 // limited content definition; no old side-view assets are used.
@@ -26,6 +28,7 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
             let lastMap = '';
             let lastOpen = false;
             let lastItem = false;
+            let lastMementos='';
             let previous = { x: 0, y: 0 };
             const poly = (g: Phaser.GameObjects.Graphics, points: number[], color: number, alpha = 1) => {
               g.fillStyle(color, alpha); g.fillPoints(points.reduce<Phaser.Math.Vector2[]>((p, _, i) => {
@@ -149,6 +152,7 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
                 const front=scene.add.graphics().setDepth(615);map.add(front);rect(front,b.x,600,315,14,0x644933);rect(front,585,600,b.x+b.w-585,14,0x644933);poly(front,[495,595,585,595,600,615,480,615],0xc7a675);
                 text(540,590,'返回原门口',16).setDepth(620);text(550,96,definition.name,25).setDepth(630);lantern(bg,b.x+30,b.y-20);lantern(bg,b.x+b.w-30,b.y-20);
               }
+              for(const m of MEMENTOS)if(m.map===s.map)drawMemento(scene,map,m.id,m.x,m.y,s.mementos.some(owned=>owned.id===m.id));
               map.add([player, ring, hint]);mapObjects=map.length;
               scene.cameras.main.setBounds(0,0,definition.width,definition.height);
             }
@@ -159,7 +163,8 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
               if(disposed)return;
               runtime.frame(performance.now());
               const s=runtime.snapshot;
-              if(lastMap!==s.map || lastOpen!==s.unlocked || lastItem!==s.item){draw(s);lastMap=s.map;lastOpen=s.unlocked;lastItem=s.item;}
+              const mementoSignature=s.mementos.map(m=>m.id).join(',');
+              if(lastMap!==s.map || lastOpen!==s.unlocked || lastItem!==s.item||lastMementos!==mementoSignature){draw(s);lastMap=s.map;lastOpen=s.unlocked;lastItem=s.item;lastMementos=mementoSignature;}
               const moving=s.position.x!==previous.x || s.position.y!==previous.y;
               player.setPosition(s.position.x,s.position.y).setDepth(s.position.y);
               player.setScale(s.facing.x<0?-.95:.95,.95);

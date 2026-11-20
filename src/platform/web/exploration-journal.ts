@@ -13,5 +13,7 @@ export function projectExplorationJournal(s:ExplorationSnapshot) {
     discoveries,
     observations:s.observations.map(o=>({id:o.id,title:o.name,text:o.observation})),
     canReviewCard:s.photographed,
+    mementos:(s.mementos??[]).map(m=>({id:m.id,title:m.name,text:m.text})),
+    mementoTitle:s.mementoTitle,
   };
 }

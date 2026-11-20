@@ -9,6 +9,7 @@ import {PHOTO_SITES,type PhotoSiteId} from '../../core/exploration-photo';
 import {explorationPhotoSvg} from '../../rendering/phaser/exploration-photo-art';
 import {explorationUiMarkup,renderExplorationJournal} from './exploration-ui';
 import './exploration-ui.css';
+import {mementoImageUrl} from '../../rendering/phaser/exploration-memento-art';
 
 export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}) {
   document.title='坡坎之间';
@@ -34,11 +35,15 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
   let shownPhoto:PhotoSiteId|undefined;
   let notesSignature='';
   let shutterGesture:{id:string;pointerId:number;released:boolean}|undefined;
+  let mementoGesture:{id:string;pointerId:number;released:boolean}|undefined;
+  let lastMementoCount=0,feedbackUntil=0;
+  let collectionFeedback='';
   const update=()=>{
     if(disposed||!runtime)return;
     input?.sync();
     const s=runtime.snapshot;
     if(shutterGesture&&shutterGesture.id!==s.photoPreview?.id)shutterGesture=undefined;
+    if(mementoGesture&&mementoGesture.id!==s.mementoInspectionId)mementoGesture=undefined;
     if(started&&savedRevision!==s.revision){storage?.save(runtime.save);savedRevision=s.revision;}
     get('exp-objective').textContent=s.objective;
     get('exp-place').textContent=s.place;
@@ -49,6 +54,15 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     get<HTMLButtonElement>('exp-interact').disabled=!s.target||!!s.pauseCount;
     get('exp-dialogue').hidden=!s.dialogue||uiOpen;
     get('exp-dialogue-text').textContent=s.dialogue;
+    const mementoImage=get<HTMLImageElement>('exp-memento-image');
+    mementoImage.hidden=!s.inspectingMemento;
+    if(s.inspectingMemento){const url=mementoImageUrl(s.inspectingMemento);if(mementoImage.getAttribute('src')!==url)mementoImage.src=url;}else mementoImage.removeAttribute('src');
+    const collecting=!!s.inspectingMemento&&!!s.pending;
+    get('exp-close').textContent=collecting?'收进纪念册 · E':'收起 · E';
+    get('exp-memento-cancel').hidden=!collecting;
+    if(s.mementos.length>lastMementoCount){collectionFeedback=s.mementoTitle?`已获得试制称号：${s.mementoTitle}`:'已收进纪念册，可在旅程记录中查看。';feedbackUntil=performance.now()+4500;}
+    lastMementoCount=s.mementos.length;
+    get('exp-memento-feedback').textContent=performance.now()<feedbackUntil?collectionFeedback:'';
     get('exp-photo').hidden=!s.photoPreview||uiOpen;
     get('exp-photo-card').hidden=!s.cardOpen||uiOpen;
     get<HTMLButtonElement>('exp-shutter').disabled=s.pauseCount!==1||!s.photoPreview;
@@ -59,7 +73,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
       get('exp-photo-feedback').textContent=s.photoPreview.feedback;
       get('exp-shutter').dataset.previewId=s.photoPreview.id;
     }
-    const signature=JSON.stringify([s.accepted,s.clue,s.item,s.unlocked,s.photographed,s.observations.map(o=>o.id)]);
+    const signature=JSON.stringify([s.accepted,s.clue,s.item,s.unlocked,s.photographed,s.observations.map(o=>o.id),s.mementos.map(m=>m.id),s.mementoTitle]);
     if(signature!==notesSignature){
       renderExplorationJournal(root,s);
       notesSignature=signature;
@@ -75,11 +89,11 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     root.dataset.hasJourney=String(hasJourney);
     Object.assign(root.dataset,{runtimeId:s.runtimeId,map:s.map,x:String(s.position.x),y:String(s.position.y),tick:String(s.tick),paused:String(s.paused),tokens:String(s.pauseCount),
       target:s.target?.id??'',accepted:String(s.accepted),clue:String(s.clue),item:String(s.item),unlocked:String(s.unlocked),completed:String(s.completed),
-      revision:String(s.revision),mapRevision:String(s.mapRevision),progress:JSON.stringify(s.progress),dialogue:String(!!s.dialogue),preview:s.photoPreview?.siteId??'',previewId:s.photoPreview?.id??'',observations:JSON.stringify(s.observations.map(o=>o.id)),photographed:String(s.photographed),cardOpen:String(s.cardOpen),pending:s.pending??'',safe:s.safe,worldWidth:String(s.worldWidth),worldHeight:String(s.worldHeight),disposed:String(s.disposed)});
+      revision:String(s.revision),mapRevision:String(s.mapRevision),progress:JSON.stringify(s.progress),dialogue:String(!!s.dialogue),preview:s.photoPreview?.siteId??'',previewId:s.photoPreview?.id??'',observations:JSON.stringify(s.observations.map(o=>o.id)),photographed:String(s.photographed),cardOpen:String(s.cardOpen),pending:s.pending??'',mementoInspection:s.mementoInspectionId??'',mementos:JSON.stringify(s.mementos.map(m=>m.id)),mementoTitle:s.mementoTitle??'',safe:s.safe,worldWidth:String(s.worldWidth),worldHeight:String(s.worldHeight),disposed:String(s.disposed)});
   };
   const setView=(view:View,open:boolean)=>{
     if(!runtime||disposed)return;
-    input?.clear();shutterGesture=undefined;
+    input?.clear();shutterGesture=undefined;mementoGesture=undefined;
     if(open&&!tokens[view])tokens[view]=runtime.lifecycle.acquire(owners[view],Symbol(view));
     if(open){runtime.closeDialogue(false);runtime.closePhotoPreview(false);runtime.closePhotoCard();}
     if(!open&&tokens[view]){runtime.lifecycle.release(owners[view],tokens[view]);delete tokens[view];}
@@ -100,18 +114,20 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     else if(views.journal)setJournal(false);
     else if(!views.title)setMenu(!views.menu);
   };
-  const close=()=>{input?.clear();if(runtime?.snapshot.photoPreview)runtime.closePhotoPreview();else if(runtime?.snapshot.cardOpen)runtime.closePhotoCard();else runtime?.closeDialogue();update();};
+  const close=()=>{input?.clear();if(runtime?.snapshot.photoPreview)runtime.closePhotoPreview();else if(runtime?.snapshot.cardOpen)runtime.closePhotoCard();else runtime?.closeDialogue(true,runtime.snapshot.mementoInspectionId);mementoGesture=undefined;update();};
   const on=(id:string,callback:()=>void)=>get(id).addEventListener('click',callback,{signal:abort.signal});
   const dispose=async()=>{
     if(disposed)return;
     disposed=true;
     shutterGesture=undefined;
+    mementoGesture=undefined;
     // Reverse acquisition order: frame/rendering, platform listeners, runtime.
     for(const release of cleanup.reverse())await release();
     for(const view of Object.keys(tokens) as View[]){if(runtime&&tokens[view])runtime.lifecycle.release(owners[view],tokens[view]);delete tokens[view];}
     abort.abort();runtime?.dispose();
     get('exp-photo').hidden=true;get('exp-photo-card').hidden=true;
     get('exp-photo-image').removeAttribute('src');get('exp-card-image').removeAttribute('src');
+    for(const img of Array.from(root.querySelectorAll('#exp-memento-list img, #exp-memento-image')))img.removeAttribute('src');
     root.dataset.disposed='true';root.dataset.tokens='0';root.dataset.hostBindings='0';
   };
   try {
@@ -121,6 +137,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     storage=new ExplorationStorage(port);
     const loaded=storage.load();loadStatus=storage.status;hasJourney=!!loaded;
     runtime=new ExplorationRuntime(runtimeUuidProvider().generate(),loaded);
+    lastMementoCount=runtime.snapshot.mementos.length;
     // Acquire before mounting Phaser or binding input: even the first frame is paused.
     if(showTitle)tokens.title=runtime.lifecycle.acquire(owners.title,Symbol('initial-title'));
     input=bindExplorationInput({runtime,root,stick:get('exp-stick'),knob:get('exp-knob'),interact:get<HTMLButtonElement>('exp-interact'),close,menu:escape,changed:update,
@@ -128,7 +145,18 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     cleanup.push(input.dispose);
     root.dataset.inputBindings='1';root.dataset.hostBindings='1';
     const visibility=bindVisibilityPause(runtime.lifecycle,()=>{input?.clear();if(document.visibilityState==='hidden'){runtime?.closeDialogue(false);runtime?.closePhotoPreview(false);runtime?.closePhotoCard();}update();});cleanup.push(visibility);
-    on('exp-close',close);on('exp-menu-button',()=>setMenu(!views.menu));on('exp-resume',()=>setMenu(false));
+    const collectButton=get<HTMLButtonElement>('exp-close');
+    collectButton.addEventListener('pointerdown',event=>{const id=runtime?.snapshot.mementoInspectionId;mementoGesture=id?{id,pointerId:event.pointerId,released:false}:undefined;},{signal:abort.signal});
+    collectButton.addEventListener('pointerup',event=>{if(mementoGesture?.pointerId===event.pointerId)mementoGesture.released=true;},{signal:abort.signal});
+    collectButton.addEventListener('pointercancel',()=>{mementoGesture=undefined;},{signal:abort.signal});
+    collectButton.addEventListener('lostpointercapture',event=>{if(mementoGesture?.pointerId===event.pointerId&&!mementoGesture.released)mementoGesture=undefined;},{signal:abort.signal});
+    collectButton.addEventListener('click',event=>{
+      const inspection=runtime?.snapshot.mementoInspectionId;
+      if(inspection&&event.detail!==0&&(!mementoGesture?.released||mementoGesture.id!==inspection)){mementoGesture=undefined;return;}
+      close();
+    },{signal:abort.signal});
+    on('exp-memento-cancel',()=>{input?.clear();mementoGesture=undefined;runtime?.closeDialogue(false);update();});
+    on('exp-menu-button',()=>setMenu(!views.menu));on('exp-resume',()=>setMenu(false));
     on('exp-photo-close',close);
     on('exp-photo-menu',()=>setMenu(true));
     const shutter=get<HTMLButtonElement>('exp-shutter');
@@ -158,8 +186,8 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     on('exp-restart',confirm);on('exp-title-restart',confirm);
     on('exp-cancel-restart',()=>{setView('confirm',false);focus(views.title?'exp-title-restart':'exp-restart');});
     on('exp-confirm-restart',()=>{if(storage?.restart())location.reload();else update();});
-    window.addEventListener('resize',()=>{shutterGesture=undefined;update();},{signal:abort.signal});
-    window.addEventListener('blur',()=>{shutterGesture=undefined;},{signal:abort.signal});
+    window.addEventListener('resize',()=>{shutterGesture=undefined;mementoGesture=undefined;update();},{signal:abort.signal});
+    window.addEventListener('blur',()=>{shutterGesture=undefined;mementoGesture=undefined;},{signal:abort.signal});
     root.addEventListener('keydown',event=>{
       if(event.code!=='Tab')return;
       const panel=[get('exp-confirm'),get('exp-instructions-panel'),get('exp-notes'),get('exp-menu'),get('exp-title-screen'),get('exp-photo-card'),get('exp-photo'),get('exp-dialogue')].find(p=>!p.hidden);

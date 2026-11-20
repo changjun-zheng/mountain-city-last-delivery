@@ -1,3 +1,4 @@
+import {MEMENTO_COLLECTION_IDS,MEMENTO_COMPLETION} from './exploration-mementos.ts';
 export type ProgressCategory = 'collection' | 'goal' | 'reward' | 'effect';
 export type ProgressMutationStatus = 'added' | 'existing' | 'rejected';
 
@@ -158,6 +159,7 @@ export const EXP02B_PROGRESS_CONTENT = Object.freeze({
   photographed:'goal.exp02b.night-postcard.photographed',
   reward:'reward.exp02b.night-postcard',
 });
+export const EXP03B_PROGRESS_CONTENT=Object.freeze({collections:MEMENTO_COLLECTION_IDS,completed:MEMENTO_COMPLETION.goal,reward:MEMENTO_COMPLETION.reward});
 
 const rejected = (category: ProgressCategory, id: unknown): ProgressMutation => Object.freeze({
   category,
@@ -177,16 +179,17 @@ export class InMemoryRunProgress {
   readonly #rewardRelations: ReadonlyMap<string, string>;
   readonly #effectRelations: ReadonlyMap<string, string>;
 
-  constructor(content: 'legacy' | 'exp01' | 'exp02a' | 'exp02b' = 'legacy') {
-    if (content !== 'legacy' && content !== 'exp01' && content !== 'exp02a' && content !== 'exp02b') throw new Error('Unknown progress content.');
-    const e = content === 'exp02a'||content==='exp02b' ? EXP02A_PROGRESS_CONTENT : EXP01_PROGRESS_CONTENT;
-    this.#collectionIds = content === 'legacy' ? COLLECTION_IDS : new Set([e.item]);
+  constructor(content: 'legacy' | 'exp01' | 'exp02a' | 'exp02b' | 'exp03b' = 'legacy') {
+    if (content !== 'legacy' && content !== 'exp01' && content !== 'exp02a' && content !== 'exp02b' && content !== 'exp03b') throw new Error('Unknown progress content.');
+    const e = content === 'exp02a'||content==='exp02b'||content==='exp03b' ? EXP02A_PROGRESS_CONTENT : EXP01_PROGRESS_CONTENT;
+    this.#collectionIds = content === 'legacy' ? COLLECTION_IDS : new Set([e.item,...(content==='exp03b'?MEMENTO_COLLECTION_IDS:[])]);
     const goals = new Map<string,GoalProgressDefinition>([
       [e.accepted, {}], [e.clue, {}], [e.unlocked, { effectId: e.effect }], [e.completed, {}],
     ]);
-    if(content==='exp02b')goals.set(EXP02B_PROGRESS_CONTENT.photographed,{rewardId:EXP02B_PROGRESS_CONTENT.reward});
+    if(content==='exp02b'||content==='exp03b')goals.set(EXP02B_PROGRESS_CONTENT.photographed,{rewardId:EXP02B_PROGRESS_CONTENT.reward});
+    if(content==='exp03b')goals.set(MEMENTO_COMPLETION.goal,{rewardId:MEMENTO_COMPLETION.reward});
     this.#goalRelations = content === 'legacy' ? GOAL_RELATIONS : goals;
-    this.#rewardRelations = content === 'legacy' ? REWARD_RELATIONS : content==='exp02b'?new Map([[EXP02B_PROGRESS_CONTENT.reward,EXP02B_PROGRESS_CONTENT.photographed]]):new Map();
+    this.#rewardRelations = content === 'legacy' ? REWARD_RELATIONS : content==='exp03b'?new Map([[EXP02B_PROGRESS_CONTENT.reward,EXP02B_PROGRESS_CONTENT.photographed],[MEMENTO_COMPLETION.reward,MEMENTO_COMPLETION.goal]]):content==='exp02b'?new Map([[EXP02B_PROGRESS_CONTENT.reward,EXP02B_PROGRESS_CONTENT.photographed]]):new Map();
     this.#effectRelations = content === 'legacy' ? EFFECT_RELATIONS : new Map([[e.effect, e.unlocked]]);
   }
 
