@@ -19,8 +19,9 @@ import { runtimeUuidProvider } from './runtime-uuid';
 import './style.css';
 import { launchExploration } from './exploration';
 
-if (new URLSearchParams(window.location.search).get('scene') === 'exploration-prototype') {
-  void launchExploration().catch(cause => console.error('EXP-01 startup failed', cause));
+const requestedScene = new URLSearchParams(window.location.search).get('scene');
+if (!['first-level','graybox','diagnostic'].includes(requestedScene ?? '')) {
+  void launchExploration({showTitle:requestedScene!=='exploration-prototype'}).catch(cause => console.error('Exploration startup failed', cause));
 } else {
 
 const parent = document.querySelector<HTMLElement>('#game');
@@ -65,9 +66,8 @@ type RuntimeDiagnostics =
   | MatterGrayboxDiagnostics
   | FirstLevelMatterDiagnostics;
 let lastRuntimeDiagnostics: RuntimeDiagnostics | undefined;
-const storedMode = sessionStorage.getItem('scene');
-const mode = storedMode === 'graybox' || storedMode === 'diagnostic'
-  ? storedMode
+const mode = requestedScene === 'graybox' || requestedScene === 'diagnostic'
+  ? requestedScene
   : 'first-level';
 const debugVisible = () => debugTools.open;
 sceneSelect.value = mode;
@@ -717,6 +717,9 @@ const reload = async () => {
 restart.addEventListener('click', reload);
 sceneSelect.addEventListener('change', () => {
   sessionStorage.setItem('scene', sceneSelect.value);
+  const target = new URL(window.location.href);
+  target.searchParams.set('scene', sceneSelect.value);
+  history.replaceState(null, '', target);
   void reload();
 });
 reset.addEventListener('click', () => { if (core && 'reset' in core) { core.reset(); showDiagnostics(); } });

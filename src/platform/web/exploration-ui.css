@@ -1,0 +1,149 @@
+/* EXP-03A UI trial: river blue, lamplight, and a quiet travel notebook.
+   Local system fonts; no new scene artwork, remote assets or game parameters. */
+#exp-root {
+  --exp-ink:#213d46; --exp-river:#173f4b; --exp-water:#386c77;
+  --exp-lamp:#edc781; --exp-paper:#efe6cc; --exp-wood:#795c47;
+  font: 15px/1.6 'Microsoft YaHei','PingFang SC',sans-serif;
+}
+#exp-root button { min-height:48px; padding:10px 18px; border:1px solid #b8c9c5; border-radius:5px; background:#274e57; font:inherit; line-height:1.3; }
+#exp-root button:hover:not(:disabled) { background:#38616a; }
+#exp-root button:focus-visible { outline:3px solid var(--exp-lamp); outline-offset:3px; }
+#exp-root .exp-primary { background:var(--exp-lamp); border-color:var(--exp-lamp); color:var(--exp-ink); font-weight:700; }
+#exp-root .exp-primary:hover { background:#f5dba5; }
+#exp-root .exp-hud { top:max(14px,env(safe-area-inset-top)); left:max(18px,env(safe-area-inset-left)); right:max(18px,env(safe-area-inset-right)); gap:22px; padding:10px 14px; background:#193c46e8; border:0; border-left:3px solid var(--exp-lamp); border-radius:4px; align-items:center; z-index:2; }
+#exp-root .exp-location { min-width:180px; }
+#exp-root .exp-location span { color:#d2dbce; font-size:12px; }
+#exp-root .exp-location strong { display:block; font:600 18px/1.4 'Microsoft YaHei',sans-serif; letter-spacing:0; white-space:normal; }
+#exp-root #exp-objective { font-size:16px; line-height:1.5; margin-right:auto; }
+#exp-root .exp-hud nav { display:flex; gap:8px; flex-shrink:0; }
+#exp-root .exp-hud button { padding:10px 14px; background:#244c55; }
+#exp-root .exp-save { position:absolute; left:max(20px,env(safe-area-inset-left)); top:102px; padding:3px 9px; background:#193c46db; color:#edf2e5; font-size:14px; border-radius:3px; z-index:1; max-width:calc(100vw - 40px); }
+#exp-root #exp-help { bottom:max(14px,env(safe-area-inset-bottom)); padding:4px 10px; font-size:14px; background:#193c46db; }
+#exp-root #exp-prompt { max-width:calc(100vw - 300px); white-space:normal; text-align:center; bottom:64px; font-size:15px; padding:7px 14px; }
+#exp-root #exp-orientation { font-size:14px; bottom:146px; left:16px; right:16px; z-index:1; }
+#exp-root #exp-touch { z-index:2; }
+#exp-root #exp-interact { min-height:70px; }
+@media (pointer:fine) { #exp-root #exp-touch { display:none; } }
+#exp-root .exp-panel { background:var(--exp-river); border:1px solid #8ba8a4; border-top:3px solid var(--exp-lamp); border-radius:6px; box-shadow:0 18px 65px #102a3570; }
+#exp-root .exp-shade { z-index:6; padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left)); box-sizing:border-box; background:#102e3bc9; backdrop-filter:blur(3px); }
+#exp-root .exp-shade .exp-panel { box-sizing:border-box; width:min(470px,100%); max-height:100%; padding:28px 32px; overflow:auto; text-align:left; }
+#exp-root .exp-shade h1 { margin:4px 0 12px; font:700 32px/1.3 'KaiTi','STKaiti',serif; }
+#exp-root .exp-shade p { font-size:15px; line-height:1.7; }
+#exp-root .exp-page-label { font-size:14px; color:#cdd5c5; }
+#exp-root .exp-menu-actions { display:grid; gap:10px; margin-top:24px; }
+#exp-root .exp-menu-actions button { margin:0; width:100%; }
+#exp-root #exp-confirm { margin:0; border:0; z-index:10; }
+#exp-root #exp-instructions-panel { z-index:9; }
+#exp-root .exp-instructions-panel dl { margin:22px 0; }
+#exp-root .exp-instructions-panel dt { color:var(--exp-lamp); font-weight:700; margin-top:14px; }
+#exp-root .exp-instructions-panel dd { margin:4px 0 0; font-size:15px; }
+#exp-root #exp-instructions-close { width:100%; margin:0; }
+
+#exp-root .exp-title-screen { position:absolute; inset:0; z-index:5; display:grid; grid-template-columns:minmax(400px,46%) 1fr; background:linear-gradient(90deg,#153b48 0%,#173f4be8 36%,#173f4b20 70%); box-sizing:border-box; }
+#exp-root .exp-title-copy { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; padding:28px clamp(28px,5vw,84px); box-sizing:border-box; max-height:100dvh; overflow:auto; }
+#exp-root .exp-title-intro { color:#cedacc; font-size:15px; }
+#exp-root #exp-title-name { margin:14px 0 18px; font:700 clamp(76px,8.5vw,126px)/1.02 'KaiTi','STKaiti',serif; letter-spacing:.04em; color:#fff0cc; text-shadow:2px 3px #173743; }
+#exp-root #exp-title-name span { display:block; padding-left:.7em; }
+#exp-root .exp-title-description { font-size:17px; line-height:1.7; color:#e0e9dc; }
+#exp-root .exp-title-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; width:min(360px,100%); margin:24px 0 16px; }
+#exp-root #exp-begin { grid-column:1 / -1; min-height:54px; }
+#exp-root #exp-title-status,#exp-root #exp-archive-notice { font-size:14px; line-height:1.5; color:#ecdfbb; max-width:360px; }
+#exp-root #exp-archive-notice { margin-top:6px; }
+#exp-root .exp-title-copy small { display:block; margin-top:18px; color:#bccdc6; font-size:12px; }
+#exp-root .exp-title-window { display:flex; align-items:flex-end; justify-content:flex-end; padding:30px; pointer-events:none; }
+#exp-root .exp-title-window span { padding:7px 13px; color:#f5e3bb; background:#173f4bd9; font-size:14px; border-left:2px solid var(--exp-lamp); }
+
+#exp-root .exp-journal { z-index:8; background:#102e3bbd; }
+#exp-root .exp-journal-book { color:var(--exp-ink); background:var(--exp-paper); box-sizing:border-box; width:min(960px,100%); max-height:100%; overflow:auto; border-radius:4px 12px 12px 4px; border-left:9px solid var(--exp-wood); box-shadow:0 18px 65px #102a3570; }
+#exp-root .exp-journal-book > header { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:20px 28px 16px; border-bottom:1px solid #b8b39c; position:sticky; top:0; background:var(--exp-paper); z-index:1; }
+#exp-root .exp-journal-book h1 { margin:0; color:var(--exp-ink); }
+#exp-root .exp-journal-book .exp-page-label { color:#546e6e; }
+#exp-root .exp-journal-book button { background:var(--exp-water); color:#fff4dc; border-color:var(--exp-water); margin:0; }
+#exp-root .exp-journal-book button:focus-visible { outline-color:var(--exp-ink); }
+#exp-root .exp-journal-pages { display:grid; grid-template-columns:1fr 1fr; }
+#exp-root .exp-journal-pages > section { padding:24px 28px 30px; min-width:0; }
+#exp-root .exp-journal-pages > section + section { border-left:1px solid #b8b39c; background:#e9dfc2; }
+#exp-root .exp-journal-pages h2 { font-size:19px; line-height:1.4; margin:6px 0 12px; }
+#exp-root .exp-journal-pages h2:not(:first-child) { margin-top:28px; }
+#exp-root .exp-journal-pages h3 { font-size:15px; font-weight:700; margin:0 0 5px; }
+#exp-root .exp-journal-pages p { font-size:15px; line-height:1.8; }
+#exp-root .exp-journal-pages article { margin:18px 0 0; border-left:2px solid #83a3a0; padding-left:12px; }
+#exp-root .exp-status-label { font-size:14px; color:#486b6e; }
+#exp-root #exp-notes { max-width:none; margin:0; max-height:none; }
+#exp-root #exp-notes-list { list-style:none; padding:0; margin:18px 0 0; }
+#exp-root #exp-notes-list li { margin-top:18px; }
+#exp-root .exp-journal-card { margin-top:28px; padding-top:16px; border-top:1px solid #b8b39c; }
+#exp-root .exp-journal-card button { margin-top:14px; }
+
+#exp-root #exp-dialogue { z-index:4; bottom:max(24px,env(safe-area-inset-bottom)); max-height:calc(100dvh - 120px); overflow:auto; width:min(650px,calc(100vw - 40px)); padding:20px 24px; }
+#exp-root #exp-dialogue-text { font-size:16px; line-height:1.8; }
+#exp-root .exp-photo-overlay { z-index:4; padding:10px; box-sizing:border-box; }
+#exp-root .exp-photo-panel { max-height:100%; width:min(740px,100%); padding:20px 24px; display:flex; flex-direction:column; }
+#exp-root .exp-photo-panel img { min-height:0; flex:1 1 auto; }
+#exp-root .exp-photo-panel h2,#exp-root .exp-photo-panel p,#exp-root .exp-photo-panel small,#exp-root .exp-photo-actions { flex-shrink:0; }
+#exp-root .exp-photo-panel p,#exp-root .exp-photo-panel small { font-size:14px; line-height:1.6; }
+#exp-root .exp-photo-actions { margin-top:12px; }
+#exp-root .exp-photo-actions button { min-height:48px; }
+#exp-root .exp-postcard { background:var(--exp-paper); color:var(--exp-ink); border:4px solid #bda071; }
+#exp-root[data-view]:not([data-view="play"]) .exp-hud,
+#exp-root[data-view]:not([data-view="play"]) #exp-touch,
+#exp-root[data-view]:not([data-view="play"]) #exp-save,
+#exp-root[data-view]:not([data-view="play"]) #exp-help,
+#exp-root[data-view]:not([data-view="play"]) #exp-orientation { display:none; }
+
+@media(max-height:540px) {
+  #exp-root .exp-title-screen { grid-template-columns:53% 1fr; }
+  #exp-root .exp-title-copy { padding:18px 28px; justify-content:flex-start; }
+  #exp-root #exp-title-name { font-size:68px; margin:4px 0 8px; }
+  #exp-root #exp-title-name span { display:inline; padding:0; }
+  #exp-root .exp-title-description { font-size:14px; }
+  #exp-root .exp-title-description br { display:none; }
+  #exp-root .exp-title-intro { font-size:14px; }
+  #exp-root .exp-title-actions { margin:12px 0 10px; gap:8px; }
+  #exp-root .exp-title-copy small { margin-top:8px; }
+  #exp-root .exp-title-window { padding:18px; }
+  #exp-root .exp-shade .exp-panel { padding:18px 24px; }
+  #exp-root .exp-menu-actions { grid-template-columns:1fr 1fr; gap:8px; margin-top:16px; }
+  #exp-root #exp-resume { grid-column:1 / -1; }
+  #exp-root .exp-shade h1 { font-size:27px; margin:3px 0 8px; }
+  #exp-root .exp-photo-panel { padding:12px 18px; }
+  #exp-root .exp-photo-panel img { max-height:38dvh; margin:5px 0; }
+  #exp-root .exp-photo-panel h2 { font-size:22px; }
+  #exp-root .exp-photo-panel p { line-height:1.4; }
+  #exp-root .exp-photo-actions { margin-top:8px; }
+}
+@media(max-width:900px) {
+  #exp-root .exp-hud { top:max(7px,env(safe-area-inset-top)); left:max(8px,env(safe-area-inset-left)); right:max(8px,env(safe-area-inset-right)); padding:7px 10px; gap:12px; }
+  #exp-root .exp-location { min-width:150px; max-width:185px; }
+  #exp-root .exp-location span { display:none; }
+  #exp-root .exp-location strong { font-size:14px; }
+  #exp-root #exp-objective { font-size:14px; }
+  #exp-root .exp-hud button { padding:8px 10px; font-size:14px; }
+  #exp-root .exp-hud nav { gap:6px; }
+  #exp-root .exp-save { top:80px; left:12px; }
+  #exp-root #exp-prompt { bottom:20px; font-size:14px; }
+  #exp-root #exp-help { display:none; }
+}
+@media(max-width:700px) {
+  #exp-root .exp-location { min-width:125px; max-width:140px; }
+  #exp-root .exp-hud { gap:8px; }
+  #exp-root .exp-journal-book > header { padding:14px 18px; }
+  #exp-root .exp-journal-pages > section { padding:18px; }
+  #exp-root #exp-title-name { font-size:58px; }
+}
+@media(orientation:portrait) {
+  #exp-root .exp-title-screen { grid-template-columns:1fr; background:linear-gradient(90deg,#153b48f5,#173f4be0); }
+  #exp-root .exp-title-copy { padding:38px 32px; }
+  #exp-root #exp-title-name { font-size:96px; }
+  #exp-root .exp-title-window { display:none; }
+  #exp-root .exp-hud { flex-wrap:wrap; }
+  #exp-root .exp-location { min-width:0; max-width:calc(100% - 180px); flex:1; }
+  #exp-root .exp-hud nav { order:1; }
+  #exp-root #exp-objective { order:2; flex-basis:100%; }
+  #exp-root .exp-save { top:127px; }
+  #exp-root #exp-prompt { max-width:calc(100vw - 170px); bottom:144px; }
+  #exp-root #exp-orientation { bottom:180px; }
+  #exp-root .exp-journal-pages { grid-template-columns:1fr; }
+  #exp-root .exp-journal-pages > section + section { border-left:0; border-top:1px solid #b8b39c; }
+}
+@media(prefers-reduced-motion:reduce) { #exp-root *,#exp-root *::before,#exp-root *::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }

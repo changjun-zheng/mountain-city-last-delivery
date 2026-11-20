@@ -20,6 +20,7 @@ export class ExplorationInputSources {
 export function bindExplorationInput(options: {
   runtime: ExplorationRuntime; root: HTMLElement; stick: HTMLElement; knob: HTMLElement;
   interact: HTMLButtonElement; close: () => void; menu: () => void; changed: () => void;
+  uiKey?: (event:KeyboardEvent)=>boolean;
 }) {
   const {runtime,root,stick,knob,interact,changed}=options;
   const sources=new ExplorationInputSources();
@@ -47,6 +48,7 @@ export function bindExplorationInput(options: {
   };
   const keys=new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowLeft','ArrowDown','ArrowRight','KeyE','Space']);
   window.addEventListener('keydown',e=>{
+    if(options.uiKey?.(e))return;
     if(e.code==='Escape' && !e.repeat){e.preventDefault();options.menu();return;}
     if(!keys.has(e.code))return;
     if(e.target instanceof HTMLElement && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
