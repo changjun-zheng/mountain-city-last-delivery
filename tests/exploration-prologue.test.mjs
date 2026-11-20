@@ -1,3 +1,4 @@
+import {runFloorRoute} from './exploration-floor-routes.mjs';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {createHash} from 'node:crypto';
@@ -24,8 +25,8 @@ function front(d,accept=true){
  d.to(2040,800);d.to(2040,780);d.interact('entry-to-core');
 }
 function chain(d){
- d.to(880,690);d.to(880,580);d.interact('guide-door');d.to(340,540);d.to(340,325);d.interact('note');d.close();d.to(340,540);d.to(540,540);d.interact('guide-exit');
- d.to(880,650);d.to(2300,650);d.to(2300,580);d.interact('workshop-door');d.to(760,540);d.to(760,430);d.interact('plaque');d.close();d.to(760,540);d.to(540,540);d.interact('workshop-exit');
+ d.to(880,690);d.to(880,580);d.interact('guide-door');runFloorRoute(d,'guideUp');d.interact('note');d.close();runFloorRoute(d,'guideBack');d.interact('guide-exit');
+ d.to(880,650);d.to(2300,650);d.to(2300,580);d.interact('workshop-door');runFloorRoute(d,'workshopUp');d.interact('plaque');d.close();runFloorRoute(d,'workshopBack');d.interact('workshop-exit');
  d.to(2300,650);d.to(2700,650);d.to(2700,750);d.interact('gate');d.close();d.to(3060,750);d.interact('east-down');d.to(3000,1200);d.interact('middle-east-lower');
  d.to(2180,650);d.to(2180,680);d.interact('photo-eaves');const wrong=d.r.snapshot.photoPreview.id;assert.equal(d.r.takePhoto(wrong),'incomplete');d.r.closePhotoPreview(false);
  d.to(2180,650);d.to(1100,650);d.to(1100,1120);d.to(1700,1120);d.interact('riverfront-down');d.to(900,650);d.to(900,1050);d.to(1950,1050);d.interact('view');const id=d.r.snapshot.photoPreview.id;assert.equal(d.r.takePhoto(id),'captured');d.r.closePhotoCard();
@@ -42,10 +43,10 @@ function legacy(stage='empty',version='b'){
 const port=(entries=[])=>{const data=new Map(entries);return{data,getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v),removeItem:()=>assert.fail('Must preserve archive keys')};};
 
 test('EXP-02C C01 original five map geometry, original 12 safe identities and old targets remain exact',()=>{
- assert.equal(Object.keys(EXP_MAPS).length,10);assert.equal(Object.keys(EXP_LEGACY_SAFE).length,12);assert.equal(Object.keys(EXP_SAFE).length,25);
- assert.equal(hash(Object.fromEntries(oldMaps.map(k=>[k,EXP_MAPS[k]]))),'fd07f9b70a1812ffd0904c0cc5703a5dfc63996b6d4ec9bd470bf5d5aa90c398');
+ assert.equal(Object.keys(EXP_MAPS).length,13);assert.equal(Object.keys(EXP_LEGACY_SAFE).length,12);assert.equal(Object.keys(EXP_SAFE).length,31);
+ assert.equal(hash(Object.fromEntries(oldMaps.map(k=>[k,{...EXP_MAPS[k],...(k==='guide'?{name:'临江导览小店'}:k==='workshop'?{name:'木作间'}:{})}]))),'fd07f9b70a1812ffd0904c0cc5703a5dfc63996b6d4ec9bd470bf5d5aa90c398');
  assert.equal(hash(EXP_LEGACY_SAFE),'63448e372985889e4bb3334d0baba4b8b02335224edb2a4531f47995cdcdc71e');
- const newIds=new Set([...PROLOGUE_TARGETS,...MEMENTO_TARGETS].map(t=>t.id));assert.equal(hash(EXP_TARGETS.filter(t=>t.id!=='visitor'&&!newIds.has(t.id)&&!t.id.startsWith('middle-')&&!t.id.startsWith('riverfront-')).map(t=>t.id==='view'?{...t,map:'lower',x:1700,y:1130}:({...t,...({'east-down':{destination:'eastLower'},'west-down':{destination:'westLower'},'east-up':{destination:'eastUpper'},'west-up':{destination:'westUpper'}}[t.id]??{})}))),'2eaf847171e84d0d055d4a990d89b960dced854b9b979b2bfa7ceb74aa498f74');
+ const newIds=new Set([...PROLOGUE_TARGETS,...MEMENTO_TARGETS].map(t=>t.id));assert.equal(hash(EXP_TARGETS.filter(t=>t.id!=='visitor'&&!newIds.has(t.id)&&!t.id.startsWith('middle-')&&!t.id.startsWith('riverfront-')&&!t.id.startsWith('building-')&&!['guide-up','guide-down','workshop-up-2','workshop-up-3','workshop-down-1','workshop-down-2'].includes(t.id)).map(t=>t.id==='note'?{...t,map:'guide',x:340,y:320}:t.id==='plaque'?{...t,map:'workshop',x:760,y:415}:t.id==='view'?{...t,map:'lower',x:1700,y:1130}:({...t,...({'east-down':{destination:'eastLower'},'west-down':{destination:'westLower'},'east-up':{destination:'eastUpper'},'west-up':{destination:'westUpper'}}[t.id]??{})}))),'2eaf847171e84d0d055d4a990d89b960dced854b9b979b2bfa7ceb74aa498f74');
  assert.deepEqual([EXP_MAPS.plaza.width,EXP_MAPS.plaza.height,EXP_MAPS.entry.width,EXP_MAPS.entry.height,EXP_MAPS.service.width,EXP_MAPS.service.height],[3300,1500,2200,1300,1100,650]);
  const d=driver();assert.equal(d.r.snapshot.safe,'chapterStart');assert.equal(d.r.snapshot.map,'plaza');assert.deepEqual(EXP_SAFE.arrival,{map:'upper',x:230,y:690});
 });

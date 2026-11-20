@@ -1,3 +1,4 @@
+import {runBrowserFloorRoute} from './exploration-floor-routes.mjs';
 import assert from 'node:assert/strict';
 import {EXP_MAPS,EXP_TARGETS} from '../src/core/exploration-content.ts';
 import { createHash } from 'node:crypto';
@@ -21,7 +22,7 @@ const report={task:'EXP-02C',scope:args.includes('--preview-only')?'production-c
 const record=(name,details={})=>{report.checks.push({name,status:'PASS',...details});console.log('PASS',name);};
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
 async function hashTree(path){for(const e of await readdir(path,{withFileTypes:true})){const p=join(path,e.name);if(e.isDirectory())await hashTree(p);else report.hashes[relative(process.cwd(),p).replaceAll('\\','/')]=await sha(p);}}
-const files=['src/core/exploration-district.ts','src/rendering/phaser/exploration-district-art.ts','src/core/exploration-mementos.ts','src/rendering/phaser/exploration-memento-art.ts','src/rendering/phaser/assets/exp-03b/bookmark.svg','src/rendering/phaser/assets/exp-03b/sketch.svg','src/rendering/phaser/assets/exp-03b/postcard.svg','src/rendering/phaser/assets/exp-03b/ASSET_SOURCES.md','tests/exploration-mementos.test.mjs','index.html','src/platform/web/exploration-ui.ts','src/platform/web/exploration-journal.ts','src/platform/web/exploration-ui.css','tests/exploration-journal.test.mjs','src/core/exploration-prologue.ts','src/rendering/phaser/exploration-city-art.ts','src/core/progress.ts','src/core/exploration.ts','src/core/exploration-content.ts','src/core/exploration-photo.ts','src/rendering/phaser/exploration-photo-art.ts','src/platform/web/main.ts','src/platform/web/style.css','src/rendering/phaser/exploration.ts','src/platform/web/exploration.ts','src/platform/web/exploration-input.ts','src/platform/web/exploration-storage.ts','tests/exploration-prologue.test.mjs','tests/exploration.test.mjs','tests/exploration-district.test.mjs','tests/exploration-photo.test.mjs','tests/exp-02c-browser.mjs','src/rendering/phaser/assets/exp-02c/ASSET_SOURCES.md'];
+const files=['src/core/exploration-building-floors.ts','src/rendering/phaser/exploration-building-art.ts','tests/exploration-floor-routes.mjs','src/core/exploration-district.ts','src/rendering/phaser/exploration-district-art.ts','src/core/exploration-mementos.ts','src/rendering/phaser/exploration-memento-art.ts','src/rendering/phaser/assets/exp-03b/bookmark.svg','src/rendering/phaser/assets/exp-03b/sketch.svg','src/rendering/phaser/assets/exp-03b/postcard.svg','src/rendering/phaser/assets/exp-03b/ASSET_SOURCES.md','tests/exploration-mementos.test.mjs','index.html','src/platform/web/exploration-ui.ts','src/platform/web/exploration-journal.ts','src/platform/web/exploration-ui.css','tests/exploration-journal.test.mjs','src/core/exploration-prologue.ts','src/rendering/phaser/exploration-city-art.ts','src/core/progress.ts','src/core/exploration.ts','src/core/exploration-content.ts','src/core/exploration-photo.ts','src/rendering/phaser/exploration-photo-art.ts','src/platform/web/main.ts','src/platform/web/style.css','src/rendering/phaser/exploration.ts','src/platform/web/exploration.ts','src/platform/web/exploration-input.ts','src/platform/web/exploration-storage.ts','tests/exploration-prologue.test.mjs','tests/exploration.test.mjs','tests/exploration-district.test.mjs','tests/exploration-photo.test.mjs','tests/exp-02c-browser.mjs','src/rendering/phaser/assets/exp-02c/ASSET_SOURCES.md'];
 for(const file of files)report.hashes[file]=await sha(file);
 const entry='dist/index.html',html=await readFile(entry,'utf8');report.hashes[entry]=await sha(entry);const assets=[...html.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g)].map(m=>'dist/'+m[1].replace(/^\//,''));for(const asset of assets)report.hashes[asset]=await sha(asset);report.actualDist={entry,assets};
 const dist=resolve('dist');
@@ -105,8 +106,8 @@ async function touchPort(page){
  }});
 }
 async function reviewCard(page,touch=false){const action=touch?'tap':'click';if((await state(page)).view!=='journal')await page.locator('#exp-notes-toggle')[action]();await page.locator('#exp-card-reopen')[action]();}
-async function originalChain(p){  await walk(p,880,690);await walk(p,880,580);await interact(p,'guide-door');await walk(p,340,540);await walk(p,340,325);await interact(p,'note');await close(p);await walk(p,340,540);await walk(p,540,540);await interact(p,'guide-exit');
-  await walk(p,880,650);await walk(p,2300,650);await walk(p,2300,580);await interact(p,'workshop-door');await walk(p,760,540);await walk(p,760,430);await interact(p,'plaque');await close(p);await walk(p,760,540);await walk(p,540,540);await interact(p,'workshop-exit');
+async function originalChain(p){  await walk(p,880,690);await walk(p,880,580);await interact(p,'guide-door');await runBrowserFloorRoute(p,'guideUp',walk,interact);await interact(p,'note');await close(p);await runBrowserFloorRoute(p,'guideBack',walk,interact);await interact(p,'guide-exit');
+  await walk(p,880,650);await walk(p,2300,650);await walk(p,2300,580);await interact(p,'workshop-door');await runBrowserFloorRoute(p,'workshopUp',walk,interact);await interact(p,'plaque');await close(p);await runBrowserFloorRoute(p,'workshopBack',walk,interact);await interact(p,'workshop-exit');
   await walk(p,2300,650);await walk(p,2700,650);await walk(p,2700,750);await interact(p,'gate');await close(p);await walk(p,3060,750);await interact(p,'east-down');await walk(p,3000,1200);await interact(p,'middle-east-lower');
 }
 async function migrationChecks(empty,opened,photo){
@@ -129,7 +130,7 @@ try{
  browser=await chromium.launch({executablePath:selection.executablePath,headless:true});
  const p=await newPage({viewport:{width:1280,height:720}});const cdp=await p.context().newCDPSession(p);report.browser.actual=identifyBrowser(await cdp.send('Browser.getVersion'));
  await p.goto(report.url);await loaded(p);
- const blank=await p.evaluate(()=>JSON.parse(localStorage.getItem('pokan.exp05a.save.v1')));const oldEmpty={...blank,safe:'arrival'};
+ const blank=await p.evaluate(()=>JSON.parse(localStorage.getItem('pokan.exp05b.save.v1')));const oldEmpty={...blank,safe:'arrival'};
  await front(p,{refresh:true});record('C01 C04 fresh A, physical monument, three positions, B, service and refresh');
  const loopId=(await state(p)).runtimeId;
  for(let i=0;i<3;i++){
@@ -139,7 +140,7 @@ try{
   await walk(p,2040,800);await walk(p,2040,780);await interact(p,'entry-to-core');assert.equal((await state(p)).runtimeId,loopId);assert.equal(await p.locator('#exp-stage canvas').count(),1);
  }
  record('C02 three A B C round trips, same runtime/canvas, held key suppression and no repeated quest');
- await originalChain(p);const oldOpen={...await p.evaluate(()=>JSON.parse(localStorage.getItem('pokan.exp05a.save.v1'))),safe:'eastLower'};
+ await originalChain(p);const oldOpen={...await p.evaluate(()=>JSON.parse(localStorage.getItem('pokan.exp05b.save.v1'))),safe:'eastLower'};
  // A second blank context uses only native touch joystick/taps for A -> B -> C
  // and the original clue/item/gate/photo chain, with no fixture or state writes.
  const freshTouch=await newPage({viewport:{width:844,height:390},hasTouch:true,isMobile:true,deviceScaleFactor:1});await freshTouch.goto(report.url);await loaded(freshTouch);await touchPort(freshTouch);await front(freshTouch,{optional:false,touch:true});await originalChain(freshTouch);
@@ -178,7 +179,7 @@ try{
     await p.reload();await loaded(p);const restored=await state(p);assert.notEqual(restored.runtimeId,captured.runtimeId);assert.equal(restored.progress,captured.progress);assert.equal(restored.photographed,'true');assert.equal(restored.cardOpen,'false');assert.deepEqual(JSON.parse(restored.observations),['eaves','window','river']);
     await reviewCard(p);await shot(p,'05-postcard-restored');await p.locator('#exp-card-close').click();
     await walk(p,900,1050);await walk(p,900,650);await walk(p,350,650);await interact(p,'riverfront-up');await walk(p,1100,1120);await walk(p,430,1120);await walk(p,430,1060);await interact(p,'west-up');await walk(p,400,450);await interact(p,'middle-west-upper');await walk(p,1010,1150);await walk(p,1010,650);await walk(p,880,650);await walk(p,880,580);await interact(p,'guide-door');await interact(p,'guide-exit');assert.equal((await state(p)).progress,captured.progress);
-    await migrationChecks(oldEmpty,oldOpen,await p.evaluate(()=>JSON.parse(localStorage.getItem('pokan.exp05a.save.v1'))));active=p;
+    await migrationChecks(oldEmpty,oldOpen,await p.evaluate(()=>JSON.parse(localStorage.getItem('pokan.exp05b.save.v1'))));active=p;
     record('P02 P03 explicit shutter, wrong-view feedback, held/menu/resize cancellation, one reward, replay and refresh',{captureId,before:captured.runtimeId,after:restored.runtimeId});report.layers.desktopChrome='PASS';
     // Raw ordinary Chrome gives native hidden/visible events; focus combinations
     // are recorded separately rather than inferred from hidden.
@@ -202,7 +203,7 @@ try{
     await dispatch('touchStart',[point(4,x,y)]);await dispatch('touchMove',[point(4,x+32,y)]);const releasedPointer=await touch.locator('#exp-stick').evaluate(el=>{const e=window.__pointerEvents.findLast(e=>e.type==='gotpointercapture'&&e.target==='exp-stick');if(!e||!el.hasPointerCapture(e.pointerId))throw new Error('No native capture');el.releasePointerCapture(e.pointerId);return e.pointerId;});await dispatch('touchMove',[point(4,x+31,y)]);await wait(touch,id=>window.__pointerEvents.some(e=>e.type==='lostpointercapture'&&e.pointerId===id&&e.trusted),releasedPointer);assert.equal(JSON.parse((await state(touch)).input).pointers,0);await dispatch('touchEnd',[]);
     await dispatch('touchStart',[point(5,x,y)]);await dispatch('touchMove',[point(5,x+32,y)]);await touch.setViewportSize({width:390,height:844});await fitCanvas(touch);assert.equal(JSON.parse((await state(touch)).input).pointers,0);await dispatch('touchCancel',[]);await reviewCard(touch,true);await wait(touch,()=>document.querySelector('#exp-root').dataset.cardOpen==='true');await shot(touch,'08-touch-portrait-card');await touch.locator('#exp-card-close').tap();await touch.setViewportSize({width:844,height:390});await fitCanvas(touch);assert.equal((await state(touch)).progress,touchProgress);
     await touch.locator('#exp-menu-button').tap();await touch.locator('#exp-restart').tap();await touch.locator('#exp-confirm-restart').tap();await loaded(touch);assert.equal((await state(touch)).map,'plaza');assert.equal((await state(touch)).accepted,'false');assert.equal((await state(touch)).photographed,'false');assert.equal(await touch.evaluate(()=>localStorage.getItem('pokan.exp02a.save.v1')),oldArchive);assert.equal(await touch.evaluate(()=>localStorage.getItem('other-game.fixture')),'keep');
-    await touch.reload();await loaded(touch);assert.equal((await state(touch)).accepted,'false');assert.equal((await state(touch)).unlocked,'false');assert.equal((await state(touch)).photographed,'false');assert.ok(await touch.evaluate(()=>JSON.parse(localStorage.getItem('pokan.exp05a.save.v1')).progress.goals.length===0));record('P04 P05 explicit new game remains blank after refresh; old keys and unrelated data preserved, cancel/capture/rotation clean');report.layers.touchEmulation='PASS';
+    await touch.reload();await loaded(touch);assert.equal((await state(touch)).accepted,'false');assert.equal((await state(touch)).unlocked,'false');assert.equal((await state(touch)).photographed,'false');assert.ok(await touch.evaluate(()=>JSON.parse(localStorage.getItem('pokan.exp05b.save.v1')).progress.goals.length===0));record('P04 P05 explicit new game remains blank after refresh; old keys and unrelated data preserved, cancel/capture/rotation clean');report.layers.touchEmulation='PASS';
   // Dispatched pagehide is an explicit disposal probe, separate from native visibility above.
   await touch.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide')));
   await wait(touch,()=>document.querySelector('#exp-root').dataset.disposed==='true'&&document.querySelector('#exp-stage').dataset.mapObjects==='0');

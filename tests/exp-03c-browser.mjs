@@ -1,3 +1,4 @@
+import {runBrowserFloorRoute} from './exploration-floor-routes.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
@@ -20,7 +21,7 @@ const report={task:'EXP-03C',scope:'completion-card-readonly-summary-three-exits
   limitations:['True Android Chrome and iOS Safari were not available.','The completion card closes the existing Demo route; it does not prove a full 30-45 minute chapter.','Final art, culture review and real-device H5 acceptance remain separate.']};
 const record=(name,details={})=>{report.checks.push({name,status:'PASS',...details});console.log('PASS',name);};
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
-const changedFiles=['src/core/exploration-district.ts','src/rendering/phaser/exploration-district-art.ts','src/platform/web/exploration.ts','src/platform/web/exploration-ui.ts','src/platform/web/exploration-ui.css','tests/exp-03c-browser.mjs'];
+const changedFiles=['src/core/exploration-building-floors.ts','src/rendering/phaser/exploration-building-art.ts','tests/exploration-floor-routes.mjs','src/core/exploration-district.ts','src/rendering/phaser/exploration-district-art.ts','src/platform/web/exploration.ts','src/platform/web/exploration-ui.ts','src/platform/web/exploration-ui.css','tests/exp-03c-browser.mjs'];
 for(const file of changedFiles)report.hashes[file]=await sha(file);
 const protectedFiles=['src/core/exploration.ts','src/core/exploration-photo.ts','src/core/exploration-mementos.ts','src/core/exploration-content.ts',
   'src/rendering/phaser/exploration.ts','src/rendering/phaser/exploration-photo-art.ts','src/platform/web/exploration-input.ts',
@@ -102,11 +103,11 @@ async function front(page){
 }
 async function originalCoreRoute(page){
   await walk(page,880,690);await walk(page,880,580);await interact(page,'guide-door');
-  await walk(page,340,540);await walk(page,340,325);await interact(page,'note');await closeDialogue(page);
-  await walk(page,340,540);await walk(page,540,540);await interact(page,'guide-exit');
+  await runBrowserFloorRoute(page,'guideUp',walk,interact);await interact(page,'note');await closeDialogue(page);
+  await runBrowserFloorRoute(page,'guideBack',walk,interact);await interact(page,'guide-exit');
   await walk(page,880,650);await walk(page,2300,650);await walk(page,2300,580);await interact(page,'workshop-door');
-  await walk(page,760,540);await walk(page,760,430);await interact(page,'plaque');await closeDialogue(page);
-  await walk(page,760,540);await walk(page,540,540);await interact(page,'workshop-exit');
+  await runBrowserFloorRoute(page,'workshopUp',walk,interact);await interact(page,'plaque');await closeDialogue(page);
+  await runBrowserFloorRoute(page,'workshopBack',walk,interact);await interact(page,'workshop-exit');
   await walk(page,2300,650);await walk(page,2700,650);await walk(page,2700,750);await interact(page,'gate');await closeDialogue(page);
   await walk(page,3060,750);await interact(page,'east-down');await walk(page,3000,1200);await interact(page,'middle-east-lower');assert.equal((await state(page)).map,'lower');
 }
@@ -188,10 +189,10 @@ try{
   record('F02 completed save reloads from title/journal only; reopening does not force the card or reissue a reward');
 
   await page.evaluate(()=>{window.__storageMutations=[];});
-  const beforeConfirmRaw=await page.evaluate(()=>localStorage.getItem('pokan.exp05a.save.v1'));
+  const beforeConfirmRaw=await page.evaluate(()=>localStorage.getItem('pokan.exp05b.save.v1'));
   await page.locator('#exp-card-restart').click();
   assert.equal((await state(page)).view,'confirm');assert.equal((await state(page)).cardOpen,'true');assert.equal((await state(page)).tokens,2);
-  assert.equal(await page.evaluate(()=>localStorage.getItem('pokan.exp05a.save.v1')),beforeConfirmRaw);
+  assert.equal(await page.evaluate(()=>localStorage.getItem('pokan.exp05b.save.v1')),beforeConfirmRaw);
   assert.deepEqual(await page.evaluate(()=>window.__storageMutations),[]);
   await key(page,'KeyE');
   assert.equal((await state(page)).view,'confirm');assert.equal((await state(page)).cardOpen,'true');assert.equal((await state(page)).tokens,2);
@@ -299,7 +300,7 @@ try{
   await page.locator('#exp-card-restart').click();assert.equal((await state(page)).view,'confirm');
   await page.locator('#exp-confirm-restart').click();await loaded(page);
   const fresh=await state(page);assert.equal(fresh.view,'title');assert.equal(fresh.tokens,1);assert.equal(fresh.map,'plaza');assert.equal(fresh.accepted,'false');assert.equal(fresh.photographed,'false');
-  const persistent=await page.evaluate(()=>({pokan:localStorage.getItem('pokan.exp02c.save.v1'),other:localStorage.getItem('other-data'),fresh:JSON.parse(localStorage.getItem('pokan.exp05a.save.v1'))}));
+  const persistent=await page.evaluate(()=>({pokan:localStorage.getItem('pokan.exp02c.save.v1'),other:localStorage.getItem('other-data'),fresh:JSON.parse(localStorage.getItem('pokan.exp05b.save.v1'))}));
   assert.equal(persistent.pokan,historicalBefore.pokan);assert.equal(persistent.other,historicalBefore.other);assert.equal(persistent.fresh.safe,'chapterStart');assert.equal(persistent.fresh.progress.goals.length,0);assert.equal(persistent.fresh.progress.collections.length,0);
   record('F02 confirmed restart reuses the existing storage method, writes blank A and leaves historical/other keys byte-for-byte intact');
 

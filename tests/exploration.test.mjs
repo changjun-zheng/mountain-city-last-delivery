@@ -1,3 +1,4 @@
+import {runFloorRoute} from './exploration-floor-routes.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ExplorationRuntime, validateExplorationSave, emptyExplorationSave } from '../src/core/exploration.ts';
@@ -25,11 +26,11 @@ function driver(save={...emptyExplorationSave(),safe:'arrival'}) {
 }
 function takeItem(d) {
   d.to(880,690);d.to(880,580);d.interact('guide-door');assert.equal(d.r.snapshot.map,'guide');
-  d.to(340,540);d.to(340,325);d.interact('note');d.close();
-  d.to(340,540);d.to(540,540);d.interact('guide-exit');
+  runFloorRoute(d,'guideUp');d.interact('note');d.close();
+  runFloorRoute(d,'guideBack');d.interact('guide-exit');
   d.to(880,630);d.to(2300,630);d.to(2300,580);d.interact('workshop-door');
-  d.to(760,540);d.to(760,430);d.interact('plaque');d.close();
-  d.to(760,540);d.to(540,540);d.interact('workshop-exit');
+  runFloorRoute(d,'workshopUp');d.interact('plaque');d.close();
+  runFloorRoute(d,'workshopBack');d.interact('workshop-exit');
 }
 
 // EXP-01 movement, persistence, idempotence and source coverage is retained;

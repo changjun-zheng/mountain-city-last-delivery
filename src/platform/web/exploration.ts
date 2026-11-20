@@ -37,6 +37,8 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
   let shutterGesture:{id:string;pointerId:number;released:boolean}|undefined;
   let photoCloseGesture:{id:string;pointerId:number;released:boolean}|undefined;
   let mementoGesture:{id:string;pointerId:number;released:boolean}|undefined;
+  let dialogueGeneration=0,lastDialogue='';
+  let dialogueCloseGesture:{generation:number;pointerId:number;released:boolean}|undefined;
   let lastMementoCount=0,feedbackUntil=0;
   let collectionFeedback='';
   let lastCardOpen=false;
@@ -45,6 +47,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     if(disposed||!runtime)return;
     input?.sync();
     const s=runtime.snapshot;
+    if(lastDialogue!==s.dialogue){lastDialogue=s.dialogue;dialogueGeneration++;dialogueCloseGesture=undefined;}
     if(shutterGesture&&shutterGesture.id!==s.photoPreview?.id)shutterGesture=undefined;
     if(photoCloseGesture&&photoCloseGesture.id!==s.photoPreview?.id)photoCloseGesture=undefined;
     if(mementoGesture&&mementoGesture.id!==s.mementoInspectionId)mementoGesture=undefined;
@@ -102,7 +105,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
   };
   const setView=(view:View,open:boolean,{preserveCard=false}:{preserveCard?:boolean}={})=>{
     if(!runtime||disposed)return;
-    input?.clear();shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;
+    input?.clear();shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;dialogueCloseGesture=undefined;
     if(open&&!tokens[view])tokens[view]=runtime.lifecycle.acquire(owners[view],Symbol(view));
     if(open){runtime.closeDialogue(false);runtime.closePhotoPreview(false);if(!preserveCard)runtime.closePhotoCard();}
     if(!open&&tokens[view]){runtime.lifecycle.release(owners[view],tokens[view]);delete tokens[view];}
@@ -130,7 +133,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     else if(views.journal)setJournal(false);
     else if(!views.title)setMenu(!views.menu);
   };
-  const close=()=>{input?.clear();if(runtime?.snapshot.photoPreview)runtime.closePhotoPreview();else if(runtime?.snapshot.cardOpen)runtime.closePhotoCard();else runtime?.closeDialogue(true,runtime.snapshot.mementoInspectionId);mementoGesture=undefined;update();};
+  const close=()=>{input?.clear();dialogueCloseGesture=undefined;if(runtime?.snapshot.photoPreview)runtime.closePhotoPreview();else if(runtime?.snapshot.cardOpen)runtime.closePhotoCard();else runtime?.closeDialogue(true,runtime.snapshot.mementoInspectionId);mementoGesture=undefined;update();};
   const on=(id:string,callback:()=>void)=>get(id).addEventListener('click',callback,{signal:abort.signal});
   const dispose=async()=>{
     if(disposed)return;
@@ -138,6 +141,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     shutterGesture=undefined;
     photoCloseGesture=undefined;
     mementoGesture=undefined;
+    dialogueCloseGesture=undefined;
     // Reverse acquisition order: frame/rendering, platform listeners, runtime.
     for(const release of cleanup.reverse())await release();
     for(const view of Object.keys(tokens) as View[]){if(runtime&&tokens[view])runtime.lifecycle.release(owners[view],tokens[view]);delete tokens[view];}
@@ -164,13 +168,24 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     root.dataset.inputBindings='1';root.dataset.hostBindings='1';
     const visibility=bindVisibilityPause(runtime.lifecycle,()=>{input?.clear();if(document.visibilityState==='hidden'){runtime?.closeDialogue(false);runtime?.closePhotoPreview(false);runtime?.closePhotoCard();}update();});cleanup.push(visibility);
     const collectButton=get<HTMLButtonElement>('exp-close');
-    collectButton.addEventListener('pointerdown',event=>{const id=runtime?.snapshot.mementoInspectionId;mementoGesture=id?{id,pointerId:event.pointerId,released:false}:undefined;},{signal:abort.signal});
-    collectButton.addEventListener('pointerup',event=>{if(mementoGesture?.pointerId===event.pointerId)mementoGesture.released=true;},{signal:abort.signal});
-    collectButton.addEventListener('pointercancel',()=>{mementoGesture=undefined;},{signal:abort.signal});
-    collectButton.addEventListener('lostpointercapture',event=>{if(mementoGesture?.pointerId===event.pointerId&&!mementoGesture.released)mementoGesture=undefined;},{signal:abort.signal});
+    collectButton.addEventListener('pointerdown',event=>{
+      const s=runtime?.snapshot,id=s?.mementoInspectionId;
+      mementoGesture=id?{id,pointerId:event.pointerId,released:false}:undefined;
+      dialogueCloseGesture=s?.dialogue&&!id?{generation:dialogueGeneration,pointerId:event.pointerId,released:false}:undefined;
+    },{signal:abort.signal});
+    collectButton.addEventListener('pointerup',event=>{
+      if(mementoGesture?.pointerId===event.pointerId)mementoGesture.released=true;
+      if(dialogueCloseGesture?.pointerId===event.pointerId)dialogueCloseGesture.released=true;
+    },{signal:abort.signal});
+    collectButton.addEventListener('pointercancel',()=>{mementoGesture=undefined;dialogueCloseGesture=undefined;},{signal:abort.signal});
+    collectButton.addEventListener('lostpointercapture',event=>{
+      if(mementoGesture?.pointerId===event.pointerId&&!mementoGesture.released)mementoGesture=undefined;
+      if(dialogueCloseGesture?.pointerId===event.pointerId&&!dialogueCloseGesture.released)dialogueCloseGesture=undefined;
+    },{signal:abort.signal});
     collectButton.addEventListener('click',event=>{
       const inspection=runtime?.snapshot.mementoInspectionId;
       if(inspection&&event.detail!==0&&(!mementoGesture?.released||mementoGesture.id!==inspection)){mementoGesture=undefined;return;}
+      if(!inspection&&event.detail!==0&&(!dialogueCloseGesture?.released||dialogueCloseGesture.pointerId!==event.pointerId||dialogueCloseGesture.generation!==dialogueGeneration)){dialogueCloseGesture=undefined;return;}
       close();
     },{signal:abort.signal});
     on('exp-memento-cancel',()=>{input?.clear();mementoGesture=undefined;runtime?.closeDialogue(false);update();});
@@ -223,8 +238,8 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     on('exp-restart',()=>confirm('play'));on('exp-title-restart',()=>confirm('title'));
     on('exp-cancel-restart',cancelRestart);
     on('exp-confirm-restart',()=>{if(storage?.restart())location.reload();else update();});
-    window.addEventListener('resize',()=>{shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;update();},{signal:abort.signal});
-    window.addEventListener('blur',()=>{shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;},{signal:abort.signal});
+    window.addEventListener('resize',()=>{shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;dialogueCloseGesture=undefined;update();},{signal:abort.signal});
+    window.addEventListener('blur',()=>{shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;dialogueCloseGesture=undefined;},{signal:abort.signal});
     root.addEventListener('keydown',event=>{
       if(event.code!=='Tab')return;
       const panel=[get('exp-confirm'),get('exp-instructions-panel'),get('exp-notes'),get('exp-menu'),get('exp-title-screen'),get('exp-photo-card'),get('exp-photo'),get('exp-dialogue')].find(p=>!p.hidden);

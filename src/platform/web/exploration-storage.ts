@@ -1,5 +1,6 @@
-import { validateExplorationSave, migrateExp02ASave, migrateExp02BSave, migrateExp02CSave, migrateExp03BSave, emptyExplorationSave, type ExplorationSave } from '../../core/exploration.ts';
-export const EXP_STORAGE_KEY = 'pokan.exp05a.save.v1';
+import { validateExplorationSave, migrateExp02ASave, migrateExp02BSave, migrateExp02CSave, migrateExp03BSave, migrateExp05ASave, emptyExplorationSave, type ExplorationSave } from '../../core/exploration.ts';
+export const EXP_STORAGE_KEY = 'pokan.exp05b.save.v1';
+export const EXP_05A_STORAGE_KEY = 'pokan.exp05a.save.v1';
 export const EXP_03B_STORAGE_KEY = 'pokan.exp03b.save.v1';
 export const EXP_02C_STORAGE_KEY = 'pokan.exp02c.save.v1';
 export const EXP_02B_STORAGE_KEY = 'pokan.exp02b.save.v1';
@@ -16,6 +17,12 @@ export class ExplorationStorage {
     try {
       const raw = this.port.getItem(EXP_STORAGE_KEY);
       if (raw === null) {
+        const previousDistrict=this.port.getItem(EXP_05A_STORAGE_KEY);
+        if(previousDistrict!==null){
+          const migrated=migrateExp05ASave(JSON.parse(previousDistrict));
+          if(!migrated){this.#blocked=true;this.status='上版楼层街区档案未通过校验，本次未保存；原档保留';return;}
+          this.notice='已沿用街区、照片和纪念物；原档案保留。';this.status='已读取上版街区档案';return migrated;
+        }
         const previousMementos=this.port.getItem(EXP_03B_STORAGE_KEY);
         if(previousMementos!==null){
           const migrated=migrateExp03BSave(JSON.parse(previousMementos));

@@ -1,3 +1,4 @@
+import {runFloorRoute} from './exploration-floor-routes.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ExplorationRuntime, validateExplorationSave, emptyExplorationSave } from '../src/core/exploration.ts';
@@ -15,7 +16,7 @@ function driver(save={...emptyExplorationSave(),safe:'arrival'}) {
 function fullProgress(){const p=new InMemoryRunProgress('exp02a');p.completeGoal(P.accepted);p.completeGoal(P.clue);p.recordCollection(P.item);p.completeGoal(P.unlocked);return p.snapshot;}
 
 test('EXP-02A A1 five bounded maps, three paired doorways and all safe anchors clear foot blockers',()=>{
-  assert.equal(Object.keys(EXP_MAPS).length,10);
+  assert.equal(Object.keys(EXP_MAPS).length,13);
   for(const id of ['upper','lower']){assert.equal(EXP_MAPS[id].width,3300);assert.equal(EXP_MAPS[id].height,1300);assert.ok(EXP_MAPS[id].buildings.length>=7);}
   assert.deepEqual(Object.keys(EXP_LEGACY_SAFE),['arrival','guideDoor','guideRoom','workshopDoor','workshopRoom','teaDoor','teaRoom','eastUpper','eastLower','westUpper','westLower','overlook']);
   for(const [door,room,back] of [['guide-door','guide','guideDoor'],['workshop-door','workshop','workshopDoor'],['tea-door','tea','teaDoor']]){
@@ -30,17 +31,17 @@ test('EXP-02A A1 five bounded maps, three paired doorways and all safe anchors c
 test('EXP-02A A3 cancel discards pending quest, note and pickup; normal close commits once',()=>{
   const d=driver({...emptyExplorationSave(),safe:'entryFromCity'});d.to(1100,850);d.to(1100,800);d.interact('visitor');assert.equal(d.r.snapshot.accepted,false);d.r.closeDialogue(false);assert.equal(d.r.snapshot.accepted,false);
   d.interact('visitor');d.r.closeDialogue();assert.equal(d.r.snapshot.accepted,true);const accepted=d.r.snapshot.progress;d.r.closeDialogue();assert.deepEqual(d.r.snapshot.progress,accepted);
-  d.to(2040,800);d.to(2040,780);d.interact('entry-to-core');d.to(880,690);d.to(880,580);d.interact('guide-door');d.to(340,540);d.to(340,325);d.interact('note');d.r.closeDialogue(false);assert.equal(d.r.snapshot.clue,false);
-  d.interact('note');d.r.closeDialogue();assert.equal(d.r.snapshot.clue,true);d.to(340,540);d.to(540,540);d.interact('guide-exit');
-  d.to(880,650);d.to(2300,650);d.to(2300,580);d.interact('workshop-door');d.to(760,540);d.to(760,430);d.interact('plaque');d.r.closeDialogue(false);assert.equal(d.r.snapshot.item,false);d.interact('plaque');d.r.closeDialogue();assert.equal(d.r.snapshot.item,true);
+  d.to(2040,800);d.to(2040,780);d.interact('entry-to-core');d.to(880,690);d.to(880,580);d.interact('guide-door');runFloorRoute(d,'guideUp');d.interact('note');d.r.closeDialogue(false);assert.equal(d.r.snapshot.clue,false);
+  d.interact('note');d.r.closeDialogue();assert.equal(d.r.snapshot.clue,true);runFloorRoute(d,'guideBack');d.interact('guide-exit');
+  d.to(880,650);d.to(2300,650);d.to(2300,580);d.interact('workshop-door');runFloorRoute(d,'workshopUp');d.interact('plaque');d.r.closeDialogue(false);assert.equal(d.r.snapshot.item,false);d.interact('plaque');d.r.closeDialogue();assert.equal(d.r.snapshot.item,true);
 });
 test('EXP-02A A3 no interaction through the workshop screen or across maps',()=>{
   const d=driver();d.to(2300,690);d.to(2300,580);d.interact('workshop-door');
   d.to(680,540);d.to(680,415);assert.equal(d.r.snapshot.target,undefined);d.r.interact(true);d.r.interact(false);assert.equal(d.r.snapshot.dialogue,'');assert.equal(d.r.snapshot.item,false);
   assert.equal(segmentHitsRect({x:680,y:415},{x:760,y:415},{x:700,y:365,w:12,h:100}),true);
   assert.equal(segmentHitsRect({x:760,y:430},{x:760,y:415},{x:700,y:365,w:12,h:100}),false);
-  d.to(680,540);d.to(760,540);d.to(760,430);d.interact('plaque');d.r.closeDialogue();assert.equal(d.r.snapshot.item,true);assert.equal(d.r.snapshot.clue,false);
-  d.to(760,540);d.to(540,540);d.interact('workshop-exit');assert.notEqual(d.r.snapshot.target?.id,'plaque');
+  d.to(680,540);runFloorRoute(d,'workshopUp');d.interact('plaque');d.r.closeDialogue();assert.equal(d.r.snapshot.item,true);assert.equal(d.r.snapshot.clue,false);
+  runFloorRoute(d,'workshopBack');d.interact('workshop-exit');assert.notEqual(d.r.snapshot.target?.id,'plaque');
   d.to(2300,650);d.to(150,650);d.to(150,850);d.interact('wrong-gate');d.r.closeDialogue();assert.equal(d.r.snapshot.item,true);assert.equal(d.r.snapshot.unlocked,false);
 });
 test('EXP-02A A3 west connection cannot bypass unlock; unlocked paired loop keeps same runtime',()=>{

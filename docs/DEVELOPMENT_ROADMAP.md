@@ -1,6 +1,6 @@
 # 《坡坎之间》开发路线图与执行流程
 
-更新日期：2026-11-20。
+更新日期：2026-11-21。
 
 名称同步：当前项目名称为《坡坎之间》（CONFIRMED），英文名称未确定，宣传语仍 PROPOSED。依据见[当前名称决策](DECISIONS.md#project-name-pokan-20261115)。本轮只更新名称文档与交接草案，保留 H5-01、D12-A3、D13、MLV 等原任务状态、范围及证据；不代表源码、界面或 Windows 产物更名完成。
 
@@ -16,7 +16,7 @@ HISTORICAL：曾有开发窗口依路线图连续推进、完成后自行领取�
 
 ## 当前唯一入口：斜俯视探索设计重构（2026-11-19 后续轮次）
 
-状态：**EXP-05A DONE，Work功能技术复核PASS，待负责人体验**。负责人本轮明确地图骨架与玩法优先、界面美化后置；基线GitHub main／HEAD为 `3d5c088ee6a2eda1cbec3358e7f087de6c31da1b`、开工干净。原独立会话已完成中层／独立江岸、三层连接与严格旧档迁入；Work独立走图／触屏／档案与全量复验通过，按持续授权审查后提交推送。EXP-03C等上一轮证据保留在各自卡内；EXP-05B仅后续候选，不启动下一项。地图／美术满意度、真机及完整首章时长仍未验收。产品依据见[探索重构](DECISIONS.md#topdown-exploration-reboot-20261119)。
+状态：**EXP-05B DONE，Work功能技术复核PASS，待负责人体验**。负责人已确认的两栋3层／2层已由原独立会话实现，基线 `0379c073b31e19554143b37fee330794528f07e2`；[Work审查](#exp-05b-work-review-20261121)核对真实差异、全量238/238、旧档和当前浏览器证据后，按持续授权独立提交推送。界面美化继续后置，下一卡不自动领取；具体楼层／几何／样块仍试制，不冒充最终视觉或完整章时长。
 
 HISTORICAL（设计重构初次同步时点）：当时核对 GitHub main／origin/main／HEAD 为 `b5b69f37385552c5ac085e532f6de965ec4e39ec`，开始工作区干净。Work 已读取两份策划聊天的可读取近期内容、当前源码／定义／进度白名单、报告与截图；没有修改代码、重跑测试或关闭体验服务。新完整分析在[总规划](FULL_GAME_CONTENT_AND_LEVEL_EXPANSION_ARCHITECTURE.md#exploration-reboot-20261119)，当前交付方案在[H5 V3](COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md#topdown-h5-v3-20261119)，唯一新空间主文在[关卡设计](HONGYADONG_LEVEL_DESIGN.md#topdown-first-chapter-20261119)。旧横版空间 V1、旧 READY 提示词和下方历史顺序不能继续作为开发授权。
 
@@ -44,10 +44,87 @@ HISTORICAL（设计重构初次同步时点）：当时核对 GitHub main／orig
 | EXP-03B 可选纪念物与收藏展示 | DONE／Work 功能技术复核 PASS，按授权提交推送，待负责人体验 | 三件实际可收纸质纪念物、已获图案与一次试制称号；旧档保留，零收藏通关；非完整目录、真机或最终美术验收。 |
 | EXP-03C 委托完成页与旅程收尾 | DONE／Work 功能技术复核 PASS，按授权提交推送，待负责人体验 | 用现有拍摄成功纪念卡承载明确的委托完成、已获纪念总结和继续／标题／确认重开入口；不增加地图、任务、奖励或存档语义。 |
 | EXP-05A 三层街区与独立江岸骨架 | DONE／Work功能技术复核PASS，按授权提交推送，待负责人体验 | 三层可往返街区、路线选择、独立D江岸与原拍摄闭环，旧档安全继续；不加新谜题／奖励，不做界面精修。 |
-| EXP-05B 调查／用途节点深化 | PLANNED／不领取 | 在05A实际骨架上深化既有主线的观察、用途推理与世界反馈；先评审具体谜面，不靠增加空路承诺时长。 |
+| EXP-05B 重点建筑多楼层与调查找物空间 | DONE／Work功能技术复核PASS，按授权提交推送，待负责人体验 | 导览2层／木作3层、原调查与导扣迁上层、三对自由楼梯／家具阻挡／严格旧档继承通过；只修已发现普通对话关闭手势，不新增主线／奖励或精修UI。 |
 | EXP-04 H5 候选验收与材料 | PLANNED／不领取 | 新视角下的桌面、真实手机、存档、地图往返／主线与新玩家时长证据，作品材料与运行包。公开托管／投稿另获授权；D13 原卡不改写。 |
 
-EXP-02 是内容阶段父项，不可与子项重复领取；EXP-02A／B／C 和 EXP-03A／B／C 已完成功能技术复核，完整章仍未验收。负责人本轮将优先级转回地图骨架与玩法，只下发 EXP-05A；EXP-05B 调查／用途节点深化仅为后续候选，EXP-04 验收材料与界面美化均不在本项启动。不能继续旧 DEMO-02、H5-03／04、D13、BRAND-01、MLV 或架构任务绕过本次方向关口。
+EXP-02 是内容阶段父项，不可与子项重复领取；EXP-02A／B／C、EXP-03A／B／C及EXP-05A／B已完成功能技术复核，完整章仍未验收。负责人将优先级转回地图骨架与玩法后，先后单项授权05A／05B；本项完成后没有自动授权的下一卡，进一步调查难度／用途内容须另行设计。EXP-04、界面美化、旧DEMO-02、H5-03／04、D13、BRAND-01、MLV或架构任务均不能自行领取。
+
+<a id="exp-05b-building-floors-20261121"></a>
+
+### EXP-05B：重点建筑多楼层与调查找物空间
+
+**实施前楼层对照（2026-11-21，工程试制）**：两旧1F碰撞／门口及25旧锚点原值保持；3张新图均1320×900，合计13图／31点／50目标。下列楼梯均主动交互、无locked／委托／物件条件。
+
+| 建筑／地图与用途 | 主线／观察 | 成对楼梯目标与落点 |
+| --- | --- | --- |
+| 导览1F guide，接待／原书签 | 1F不保留note | guide-up(820,540)→guideStair2；guideStair1=(guide,820,500) |
+| 导览2F guide2，阅览／纹样两区 | 唯一note=(950,350) | guide-down(300,740)→guideStair1；guideStair2=(guide2,300,700) |
+| 木作1F workshop，原工作台／楼层牌 | building-floor-sign=(320,460)，无pending | workshop-up-2(250,540)→workshopStair2Down；workshopStair1=(workshop,250,500) |
+| 木作2F workshop2，工具存放／整理台 | building-tool-pattern=(700,330)，无pending | workshop-down-1(250,740)→workshopStair1；workshop-up-3(1080,740)→workshopStair3；本层落点workshopStair2Down=(250,700)、workshopStair2Up=(1080,700) |
+| 木作3F workshop3，储物／门扣柜 | 唯一plaque=(742,415)；building-wrong-box=(1050,350)，无pending | workshop-down-2(250,740)→workshopStair2Up；workshopStair3=(workshop3,250,700) |
+
+导览2F中央隔断北接墙、南侧绕行，木作2F存放柜与整理台分区、上下楼口分开；木作3F门扣柜前保留(700,365,12,100)屏风几何供隔柜取物验证：左侧(680,415)距目标62px、足部不碰墙但线段被屏风阻断，绕到右下才可取物，并以右侧隔断区分错误箱。原note／plaque仅迁层和必要位置，不改提交身份。新版本exp05b-building-floors-1／pokan.exp05b.save.v1；旧05A独立25点快照，旧03B/C19、B/A12继续封闭。
+
+**状态／授权**：DONE（2026-11-21，开发规定验证完成，Work功能技术复核PASS，待负责人体验；派发时READY记录由本卡保留）。负责人选择“两栋重点建筑：一栋3层、一栋2层”，见[确认](DECISIONS.md#building-interior-floors-20261121)。Work推荐复用木作楼3F／导览楼2F，具体楼层用途／几何仍试制，见[唯一空间预算](HONGYADONG_LEVEL_DESIGN.md#building-floors-exp05b-20261121)。基线GitHub main／HEAD `0379c073b31e19554143b37fee330794528f07e2`、开工干净；派发前152文件哈希 `test-results/exp-05b-work-review/before-dispatch.json` 不得修改或成为正式测试依赖。仅原独立会话 `01a1f37c-9ce0-7fb3-a348-74c776daee5e` 执行，请求GPT-6.1 Sol／High；实际模型设置无法独立回读，不冒充已核实。Work审查后按持续授权提交推送，不自动续项。
+
+**目标**：同一栋楼能实际进入1F、上2F／3F、在不同房间调查／找物并原路返回，不以C街区三层抵数。导览1F接待／书签、2F原纹样导览；木作1F工作台／楼层牌、2F工具与纹样观察、3F门扣柜／原导扣。楼层各有真实地面、家具／隔断和用途，不是三个空矩形或重复对白；3F／2F不是未来技术层数上限。不新增主线节点／奖励／收藏数量，保留自由先探索与原门准入，界面美化后置。
+
+**先读**：AGENTS、DECISIONS新确认及探索重构、PROJECT_BRIEF、关卡主文多楼层预算、QUEST现行主线／选做边界、PLAYER_CONTROL新探索／保存合同、本卡与05A审查；实际core exploration／content／building新增前关系／progress、Web storage／host／input、Phaser exploration、现有全体exploration单测与05A／03B／03C／02C生产路线。使用现有playwright-core＋branded Chrome，不新增依赖或通用楼宇框架。
+
+**实施顺序与范围**：
+
+1. 先在本卡列建筑／楼层／地图／主线目标／楼梯和安全点对照。原guide／workshop保留为各自1F，原入口／返回外街／bounds／walls／19前期与25当前锚点含义均不变，允许两图显示名注明1F。新增guide2F、workshop2F、workshop3F三张实际室内，约1100—1320×800—900，地图ID明确区分建筑与楼层；预期总13图（6室外＋7室内）。只做有限纯数据定义，可按验证调整新几何并报告，不创建BuildingManager／Loader／插件／ECS。
+2. 追加三对主动交互楼梯：guide1↔2、workshop1↔2、workshop2↔3；每侧有自己楼梯口安全点，约6新点、合计31。进入／返回到对应楼梯口，不借门口出生点冒充楼梯，按住输入不连续跳层，只有新的主动操作才再次切层。楼梯不要求新unlocked或收集条件，接游客委托前也可上楼、调查、保存和返回外街；不新增高层外街捷径、不绕过既有江纹栈门／D准入。
+3. 原note唯一目标迁到guide2F，原plaque唯一目标迁到workshop3F，goal.clue／collection.item／原正常完成提交、取消不提交、乱序探索、重复幂等均保留。楼层新增约3个可选观察（木作1F楼层用途、2F工具纹样、3F错误山纹工具箱），只读对白无pending／永久ID；支持用原导览识别水波门扣，不能引入第二独立机关、强制逐个点对象或随机密码。错误观察不扣导扣／次数／进度，正确物件仍必须实际走到所在房间并主动取走。新增目标预算6楼梯＋3观察，原41中仅note／plaque改地图及必要位置，预期约50目标；若确需差异先说明，不自动加任务／奖励。
+4. 2F／3F至少有2个可走功能空间，通过家具／隔断、不同上下楼梯口与视线关系形成找路；木作3F保留有意义的绕柜／不能隔墙取物验证。三件原选做纪念物／位置／称号不动，guide书签仍在1F。Phaser显示跟随真实目标和拾取状态，移走1F假冒旧主线对象的绘制，不在1F仍画“可拿导扣”却必须3F交互。每层显示建筑名／楼层、实际楼梯／阻挡一致；复用原人物和简单程序化样块，不重做UI／角色／美术，不生成新图稿。
+5. schema1六字段与封闭exp03b进度不扩。建议新版本 `exp05b-building-floors-1`／新键 `pokan.exp05b.save.v1`；冻结旧05A版本及25点白名单（如EXP05A_SAFE），旧03B/C仍19、B/A仍12。读取新→05A→03B→C→B→A，旧safe／照片／任务／三收藏称号保持，已有clue/item不强制重做、不补发。新楼层safe在未接委托时合法，旧街区middle/lower/D的unlocked校验不放宽；旧格式伪造任何新楼梯点必须拒绝。坏／未来／矛盾的较新键阻止旧回退与覆盖，明确重开仅写新键空白A、刷新不重迁旧，旧键及其他数据原文保留。无需添加楼层已访问／柜子已检查等永久字段。
+
+**白名单**：新增 `src/core/exploration-building-floors.ts`（三新图、六点、楼梯及观察有限数据）与必要 `src/rendering/phaser/exploration-building-art.ts`；core `exploration-content.ts`（类型／新旧常量／聚合／两目标迁层）、`exploration.ts`（仅新旧严格验证迁入／新无pending观察／必要楼层对白），Web `exploration-storage.ts`（新键与迁入链），Phaser `exploration.ts`（原1F绘制去假主线对象、三新图接入与实际楼梯／状态投影）。新增 `tests/exploration-building-floors.test.mjs`／`tests/exp-05b-browser.mjs`；原 `tests/exploration*.test.mjs`、02C／03B／03C／05A生产脚本只作必要当前版本与新楼层路线适配，保留原断言与旧版夹具。可用一个小型纯测试 `tests/exploration-floor-routes.mjs` 复用显式行走步骤，不做自动寻路／直接改坐标或运行时测试API。README／本卡只补实施事实，其他正式设计由Work维护。
+
+**禁止**：移动／阻挡／固定步／暂停／输入／提交／照片／快门／关闭手势算法，physics、progress及其目录、prologue、district、mementos／photo定义、原素材／city-art／district-art／photo-art／memento-art、Web host exploration.ts／UI／input／visibility／main／index、依赖／构建／Electron／CI／密钥。保持1100×650／zoom1／SPEED175／radius12。不得为增加楼层重写控制、造通用多层3D物理或新增inventory／商店／战斗／主线目标。不把实现直接登记为最终设计／完整章时长。
+
+| 验收 | 实际方式 |
+| --- | --- |
+| B01 真实楼层 | 13图／31点和三对楼梯表；所有落点真实radius／bounds清障、可离开楼梯，单栋从1到3再回原外部门口。两旧1F几何和原25锚点不变，室外6图／旧街区连接全保持，原39未迁目标不变。 |
+| B02 用途与主线 | note只在guide2，plaque只在workshop3，1F附近不能隔层触发。正常完成才记原clue/item，取消／中断不记，重复／乱序不重发；新三观察不改进度且非主线前置，错误箱不罚。3F隔柜和足部阻挡真实验证，不能只有文字。 |
+| B03 自由与回程 | 无委托／无unlocked可上2F3F／保存再继续、原路出楼；原栈门仍要求accepted/clue/item，楼内新阶道不直接通下街或D。三份纪念物在原位置可取，0收藏依然完成原照片奖励。 |
+| B04 档案 | 新各楼层／上下楼口保存刷新；旧05A含未接／已开／已拍／3收藏称号、旧03B/C/B/A原进度与位置完整继承。旧25/19/12各拒新6点，坏较新不回退／不写原文，未来／未知／矛盾拒绝；明确新局空白A后刷新不重迁旧。 |
+| B05 浏览器 | 根标题新局真实键盘经B→导览2→木作1/2/3找扣→原门／三层街区→D拍摄一次奖励；只用正常输入，不传送／预填档冒充。844×390／667×375定向原生摇杆／交互实走楼梯、取物／取消／刷新／回程，另以原生Chrome真实hidden证明新楼层暂停／清输入，先做短探针后长主线。真机缺失NOT RUN。 |
+| B06 回归与证据 | 全量原234项语义不减；新增专项和一次05B完整生产流程＋原05A的 `--gesture-only` 短回归。反复切楼和销毁无对象／自绑监听累计，UI样式及其他保护文件保持；host仅下述Work缺陷补充允许的归属／清理例外。当前source／测试／dist指纹、命令退出码、页面／网络错误／清理与失败历史齐全，4199同源实际内容核对。旧长脚本适配后作syntax检查，未完整跑的明确NOT RUN，不冒充当前PASS，也不无理由重复多套完整A到D。 |
+
+**必须执行**：探索相关Node专项（Windows明确实际文件）；`npm.cmd test`；`npm.cmd run build`；`node tests/exp-05b-browser.mjs --production --browser=chrome`；`node tests/exp-05a-browser.mjs --production --browser=chrome --gesture-only`；所有改过旧浏览器脚本 `node --check`；`git diff --check`。本次长浏览器端到端由05B一次当前版本执行，原05A／03B／03C／02C完整长套件非强制，缺口如实记NOT RUN；若发现超出新楼层的业务变更，停交Work而非自行削减回归。新测试内联／版本化夹具，不依赖忽略的旧报告或Work基线。
+
+**停止／交付**：先对照数据／类型／真实核心可达性与旧档短验证，通过后再完整浏览器。未知CDP关闭先留原始事件／脚本，先短定位，不反复挑PASS；同一问题两轮有效修复仍FAIL、需受保护算法／新业务状态或重大设计变更时停止交Work。交付五楼层实际截图／键盘触屏路径／用途差异、旧档与新局证据、保护边界／实际版本指纹及运行入口，明确未验收真机／美术／完整章时长。原会话完成停下、不Commit／Push／删除／部署、不自动领取下一项；Work监控、审差异／必要复验后展示摘要并按持续授权提交推送。
+
+**Work 缺陷核对与最小白名单补充（2026-11-21）**：首轮 `--probe-only` 报告 `test-results/exp-05b/run-2026-11-20T16-15-45-614Z/report.json` 保持 FAIL，清理 PASS；844×390通过，667×375真实事件为同一pointer在 `exp-interact` 按下、`exp-close` 松开并click，未主动完成对话便提交note。Work核对host第166—174行：既有关闭按钮只对纪念物检查起点／代次，普通调查直接调用close。这是实际操作缺陷，不是允许降低断言或改触控位置的理由。开发正确停止后，Work仅追加 `src/platform/web/exploration.ts` 中普通对话关闭的手势归属／代次及清理为修复白名单；复用原事件与AbortSignal，不改core、input、布局、移动、暂停、照片或存档算法，不新增框架。普通调查的可信触控必须从当前对话关闭按钮主动按下并完成，旧／取消／跨代手势不可提交；键盘E／辅助键盘按钮激活、原纪念物／照片保护保持。先保留短复现先红证据，修复后两尺寸短探针通过才继续本卡主线和原05A照片关闭回归；同一问题两轮有效修复仍失败继续停止。该补充是Work对已发现缺陷的边界裁定，不是新增玩法、启动下一任务或改变正式控制协议。
+
+**开发实施交付（2026-11-21，完成待Work正式审查；正式状态由Work更新）**：新增guide2／workshop2／workshop3及三对无条件楼梯，共13图／31点／50目标；原两1F几何／25锚点／39未迁目标保留。note与plaque分别唯一迁2F／3F，3F目标按Work核对改(742,415)，(680,415)距62且足部清障、真实视线阻挡；三观察无pending／永久字段。新键exp05b严格继承05A25／03B,C19／B,A12，schema1六字段与exp03b目录保持。
+
+- 全量238/238、探索47/47、构建、四份旧浏览器脚本node --check、diff检查PASS；旧05A／03B／03C／02C完整长套件本轮NOT RUN，不冒称当前PASS。
+- 精确五份PASS：普通关闭短 `exp-05b/run-2026-11-20T16-23-35-319Z` 3检查；楼层触屏／hidden `16-25-02-699Z` 4；额外原生触控菜单取消／原生错误采集 `16-27-56-417Z` 4；一次完整根标题新局 `16-29-54-427Z` 3；原05A `exp-05a/run-2026-11-20T16-33-24-265Z` 2。均为各目录report.json，详见[manifest](../test-results/exp-05b/delivery-manifest.json)及README五表。当前完整新局只用真实键盘，短阶段内联楼层存档明确为兼容／定向夹具，不冒充新局；菜单触控取消的追加报告区分了初轮Escape取消。
+- 首份 `exp-05b/run-2026-11-20T16-15-45-614Z/report.json` FAIL、trusted轨迹／截图／脚本／清理保持原文。按Work精确补充只修host普通exp-close本地generation／手势归属／失效；同文取消重开旧release不提交、下一次主动关闭／键盘正常且幂等，原memento／photo保护保留。host为限定例外，不能写完全未变；core／input／布局／照片算法未动。
+- 前两份短PASS的producer随后只增加interaction-only定向分支和原生窗口page/network监听，匹配旧script-source及原指纹保留；当前producer由当前菜单取消与完整主线报告覆盖，19个src/tests实际改动均有当前执行指纹，不只为历史producer差异重跑长流程。旧73保护文件（68源码＋5配置）、10旧图／25点／39未迁目标对照PASS；Work回报13核心方法不变及档案6组、独立楼层实走／667归属检查PASS。正式结论留Work登记。
+- 五楼层实际截图、两尺寸摇杆／主动交互、六新点刷新、取物／取消／回程、十次对象稳定与自绑资源／canvas销毁、原生3F真实hidden及错误采集均在报告；当前管理上下文与补齐监听的原生检查页面／网络错误0。4199原PID5460保留，HTTP与当前dist／引用资源字节一致，未读个人档案。Android／iOS真机及最终美术／文化／负责人体验／完整章时长仍NOT RUN或未验收。
+
+本会话源码／测试已冻结，所有浏览器结束；只交README／本卡／manifest，未Commit／Push／删除／部署／领取下一任务，等待Work正式审查。
+
+<a id="exp-05b-work-review-20261121"></a>
+
+#### Work正式审查（2026-11-21）
+
+结论：本项功能技术范围PASS，状态DONE，待负责人地图／体验评审。Work检查实际diff、源定义、旧档、可信输入／截图、报告与当前构建指纹；不是只采纳开发简报，不将样块、模拟尺寸或脚本通关时间当最终产品／真机／完整章验收。
+
+| 独立复核 | 结果与实际范围 |
+| --- | --- |
+| 全量与类型 | Work重新执行 `npm.cmd test`：238/238，0 fail／skipped，类型与Electron Main编译通过；日志 `test-results/exp-05b-work-review/npm-test.log`。开发另有探索47/47、构建与旧脚本语法通过。 |
+| 地图／算法边界 | 独立AST核对13个核心运动／切图／提交／照片／清理方法原文不变，68其他源码未变；原10图碰撞几何、6室外完整数据、25锚点、39未迁目标保持。三新图／六新点／九新目标与note、plaque迁层符合预算，三对楼梯无locked。证据 `boundary-review.json`／`geometry-comparison.json`。host唯一例外已逐段审查，为普通对话关闭本地generation／pointer归属和失效清理；无core／input／UI布局／照片算法变更。 |
+| 旧档与门槛 | 独立6组PASS，包含实际历史C档及明确标注的版本／称号合成变体；旧05A／03B／C／B／A对所有31点穷举白名单25／19／19／12／12，六新楼梯点只在新版可用。新楼层未接委托可加载／保存，原街区开路限制保持；坏新／坏05A阻断回退与写入，重开仅写新空白A，旧键字节保留。证据 `archive-validation.json`。 |
+| 楼层真实操作 | 独立Chrome157键盘实走3组PASS：导览1→2、按住E不连跳、取消／完成／刷新与原门口返回；木作1→2→3、错误箱不加进度、62px范围内屏风确实阻挡交互与足部、绕柜取物幂等、刷新与两级返回。夹具是明确合成的未接任务室内安全点，不冒充新局整章。截图／版本在 `browser-floors.json`。 |
+| 小屏缺陷复验 | 独立667可信touch3组PASS：原interact-down→close-up/click确实送达但不提交；菜单取消后同文重开、旧release无效；新主动关闭正常、focus+Enter保留。无手写dataset刷新，证据 `dialogue-gesture.json`。 |
+| 当前开发浏览器报告 | 五份PASS合计16组，精确路径见本卡开发交付表及 `test-results/exp-05b-work-review/evidence-review.json`。完整新局实际A→B→两栋楼→原栈门／街区→D、零纪念物一次奖励通过；844／667原生触屏模拟实走、原生Chrome隐藏、原照片关闭短回归通过。页面／网络错误0、自有资源清理PASS。 |
+| 版本与服务 | 五报告应用源码／dist指纹匹配；前两短阶段仅producer脚本在补interaction-only分支前，匹配原script-source保留，当前脚本由最终菜单取消／新局报告覆盖。4199响应的HTML／JS／CSS逐字节等于当前dist；原PID5460服务保留。Work证据位于忽略目录 `test-results/exp-05b-work-review/`，正式测试不依赖该目录。 |
+
+保留首份触控FAIL和开发阻塞阶段manifest，不改写历史。原05A／03B／03C／02C完整长套件本轮只适配／syntax检查，完整执行NOT RUN；真实Android／iOS、负责人美术／地图满意度、文化内容及30—45分钟首次体验仍未验收。楼层数量范围CONFIRMED，具体导览／木作分配与几何／样块仍PROPOSED／TO_VALIDATE。Work展示本项摘要后按持续授权提交推送；不启动下一项。
 
 <a id="exp-05a-spatial-backbone-20261120"></a>
 

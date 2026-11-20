@@ -1,3 +1,4 @@
+import {runBrowserFloorRoute} from './exploration-floor-routes.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
@@ -20,7 +21,7 @@ const report={task:'EXP-05A',scope:args.includes('--gesture-only')?'photo-close-
   limitations:['True Android Chrome and iOS Safari were not available.','The completion card closes the existing Demo route; it does not prove a full 30-45 minute chapter.','Final art, culture review and real-device H5 acceptance remain separate.']};
 const record=(name,details={})=>{report.checks.push({name,status:'PASS',...details});console.log('PASS',name);};
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
-const changedFiles=['tests/exploration-skeleton.test.mjs','tests/exp-02c-browser.mjs','tests/exp-03b-browser.mjs','tests/exp-03c-browser.mjs','src/core/exploration-prologue.ts','src/core/exploration-mementos.ts','src/core/progress.ts','src/rendering/phaser/exploration-city-art.ts','src/core/exploration-district.ts','src/rendering/phaser/exploration-district-art.ts','src/platform/web/exploration.ts','src/platform/web/exploration-ui.ts','src/platform/web/exploration-ui.css','tests/exp-05a-browser.mjs','src/core/exploration.ts','src/core/exploration-content.ts','src/core/exploration-photo.ts','src/platform/web/exploration-storage.ts','src/rendering/phaser/exploration.ts'];
+const changedFiles=['src/core/exploration-building-floors.ts','src/rendering/phaser/exploration-building-art.ts','tests/exploration-floor-routes.mjs','tests/exploration-skeleton.test.mjs','tests/exp-02c-browser.mjs','tests/exp-03b-browser.mjs','tests/exp-03c-browser.mjs','src/core/exploration-prologue.ts','src/core/exploration-mementos.ts','src/core/progress.ts','src/rendering/phaser/exploration-city-art.ts','src/core/exploration-district.ts','src/rendering/phaser/exploration-district-art.ts','src/platform/web/exploration.ts','src/platform/web/exploration-ui.ts','src/platform/web/exploration-ui.css','tests/exp-05a-browser.mjs','src/core/exploration.ts','src/core/exploration-content.ts','src/core/exploration-photo.ts','src/platform/web/exploration-storage.ts','src/rendering/phaser/exploration.ts'];
 for(const file of changedFiles)report.hashes[file]=await sha(file);
 const protectedFiles=['src/core/exploration.ts','src/core/exploration-photo.ts','src/core/exploration-mementos.ts','src/core/exploration-content.ts',
   'src/rendering/phaser/exploration.ts','src/rendering/phaser/exploration-photo-art.ts','src/platform/web/exploration-input.ts',
@@ -115,11 +116,11 @@ async function front(page){
 }
 async function originalCoreRoute(page){
   await walk(page,880,690);await walk(page,880,580);await interact(page,'guide-door');
-  await walk(page,340,540);await walk(page,340,325);await interact(page,'note');await closeDialogue(page);
-  await walk(page,340,540);await walk(page,540,540);await interact(page,'guide-exit');
+  await runBrowserFloorRoute(page,'guideUp',walk,interact);await interact(page,'note');await closeDialogue(page);
+  await runBrowserFloorRoute(page,'guideBack',walk,interact);await interact(page,'guide-exit');
   await walk(page,880,650);await walk(page,1010,650);await walk(page,1010,1160);await walk(page,1660,1160);await interact(page,'tea-door');await walk(page,540,540);await interact(page,'tea-exit');await walk(page,1010,1160);await walk(page,1010,650);await walk(page,2300,650);await walk(page,2300,580);await interact(page,'workshop-door');
-  await walk(page,760,540);await walk(page,760,430);await interact(page,'plaque');await closeDialogue(page);
-  await walk(page,760,540);await walk(page,540,540);await interact(page,'workshop-exit');
+  await runBrowserFloorRoute(page,'workshopUp',walk,interact);await interact(page,'plaque');await closeDialogue(page);
+  await runBrowserFloorRoute(page,'workshopBack',walk,interact);await interact(page,'workshop-exit');
   await walk(page,2300,650);await walk(page,2700,650);await walk(page,2700,750);await interact(page,'gate');await closeDialogue(page);
   await walk(page,3060,750);await interact(page,'east-down');await skeletonMiddle(page);await walk(page,3000,1200);await interact(page,'middle-east-lower');assert.equal((await state(page)).map,'lower');
 }
@@ -150,7 +151,7 @@ async function skeletonMiddle(page){
 async function skeletonTouch(){
  for(const size of [{width:844,height:390},{width:667,height:375}]){
  const page=await newPage({viewport:size,isMobile:true,hasTouch:true,deviceScaleFactor:1});const fixture={...completedFixture(3),contentVersion:'exp05a-district-skeleton-1',safe:'middleEastLower'};
- await page.addInitScript(raw=>{if(!localStorage.getItem('pokan.exp05a.save.v1'))localStorage.setItem('pokan.exp05a.save.v1',raw);},JSON.stringify(fixture));await page.goto(base);await loaded(page);await page.locator('#exp-begin').tap();await touchPort(page);await walk(page,2800,1200);await shot(page,`S05-touch-middle-${size.width}`);await walk(page,3000,1250);await interact(page,'middle-east-lower');await walk(page,1100,650);await walk(page,1100,1120);await walk(page,1700,1120);await interact(page,'riverfront-down');await walk(page,900,650);await walk(page,900,1050);await walk(page,1910,1050);await shot(page,`S05-touch-D-${size.width}`);await page.reload();await loaded(page);await page.locator('#exp-begin').tap();assert.equal((await state(page)).safe,'riverArrival');await walk(page,900,650);await walk(page,900,1050);await walk(page,1950,1050);await interact(page,'view');await page.locator('#exp-photo-close').tap();assert.equal((await state(page)).safe,'riverView');await page.reload();await loaded(page);await page.locator('#exp-begin').tap();assert.equal((await state(page)).safe,'riverView');
+ await page.addInitScript(raw=>{if(!localStorage.getItem('pokan.exp05b.save.v1'))localStorage.setItem('pokan.exp05a.save.v1',raw);},JSON.stringify(fixture));await page.goto(base);await loaded(page);await page.locator('#exp-begin').tap();await touchPort(page);await walk(page,2800,1200);await shot(page,`S05-touch-middle-${size.width}`);await walk(page,3000,1250);await interact(page,'middle-east-lower');await walk(page,1100,650);await walk(page,1100,1120);await walk(page,1700,1120);await interact(page,'riverfront-down');await walk(page,900,650);await walk(page,900,1050);await walk(page,1910,1050);await shot(page,`S05-touch-D-${size.width}`);await page.reload();await loaded(page);await page.locator('#exp-begin').tap();assert.equal((await state(page)).safe,'riverArrival');await walk(page,900,650);await walk(page,900,1050);await walk(page,1950,1050);await interact(page,'view');await page.locator('#exp-photo-close').tap();assert.equal((await state(page)).safe,'riverView');await page.reload();await loaded(page);await page.locator('#exp-begin').tap();assert.equal((await state(page)).safe,'riverView');
  const cdp=await page.context().newCDPSession(page),b=await page.locator('#exp-stick').boundingBox(),x=b.x+b.width/2,y=b.y+b.height/2,pt=(id,x,y)=>({id,x,y,radiusX:5,radiusY:5,force:1}),send=(type,touchPoints)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints});
  await send('touchStart',[pt(1,x,y)]);await send('touchMove',[pt(1,x-32,y)]);const ib=await page.locator('#exp-interact').boundingBox();await send('touchStart',[pt(1,x-32,y),pt(2,ib.x+ib.width/2,ib.y+ib.height/2)]);await send('touchCancel',[]);assert.equal(JSON.parse((await state(page)).input).pointers,0);if((await state(page)).preview)await page.locator('#exp-photo-close').tap();
  await send('touchStart',[pt(3,x,y)]);await send('touchMove',[pt(3,x-32,y)]);await page.setViewportSize({width:390,height:844});await fitCanvas(page);assert.equal(JSON.parse((await state(page)).input).pointers,0);await send('touchCancel',[]);await page.setViewportSize(size);await fitCanvas(page);await shot(page,`S05-touch-rotate-${size.width}`);
@@ -163,7 +164,7 @@ async function photoCloseProbe(){
  for(const size of [{width:844,height:390},{width:667,height:375}]){
  const page=await newPage({viewport:size,isMobile:true,hasTouch:true,deviceScaleFactor:1});
  const fixture={...completedFixture(3),contentVersion:'exp05a-district-skeleton-1',safe:'riverView'};
- await page.addInitScript(raw=>{if(!localStorage.getItem('pokan.exp05a.save.v1'))localStorage.setItem('pokan.exp05a.save.v1',raw);},JSON.stringify(fixture));
+ await page.addInitScript(raw=>{if(!localStorage.getItem('pokan.exp05b.save.v1'))localStorage.setItem('pokan.exp05a.save.v1',raw);},JSON.stringify(fixture));
  await page.goto(base);await loaded(page);await page.locator('#exp-begin').tap();const before=await state(page),cdp=await page.context().newCDPSession(page);
  const start=async(selector,id=55)=>{const b=await page.locator(selector).boundingBox();await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{id,x:b.x+b.width/2,y:b.y+b.height/2,radiusX:5,radiusY:5,force:1}]});};
  const end=async()=>{await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));};
@@ -240,10 +241,10 @@ try{
   record('F02 completed save reloads from title/journal only; reopening does not force the card or reissue a reward');
 
   await page.evaluate(()=>{window.__storageMutations=[];});
-  const beforeConfirmRaw=await page.evaluate(()=>localStorage.getItem('pokan.exp05a.save.v1'));
+  const beforeConfirmRaw=await page.evaluate(()=>localStorage.getItem('pokan.exp05b.save.v1'));
   await page.locator('#exp-card-restart').click();
   assert.equal((await state(page)).view,'confirm');assert.equal((await state(page)).cardOpen,'true');assert.equal((await state(page)).tokens,2);
-  assert.equal(await page.evaluate(()=>localStorage.getItem('pokan.exp05a.save.v1')),beforeConfirmRaw);
+  assert.equal(await page.evaluate(()=>localStorage.getItem('pokan.exp05b.save.v1')),beforeConfirmRaw);
   assert.deepEqual(await page.evaluate(()=>window.__storageMutations),[]);
   await key(page,'KeyE');
   assert.equal((await state(page)).view,'confirm');assert.equal((await state(page)).cardOpen,'true');assert.equal((await state(page)).tokens,2);
@@ -352,7 +353,7 @@ try{
   await page.locator('#exp-card-restart').click();assert.equal((await state(page)).view,'confirm');
   await page.locator('#exp-confirm-restart').click();await loaded(page);
   const fresh=await state(page);assert.equal(fresh.view,'title');assert.equal(fresh.tokens,1);assert.equal(fresh.map,'plaza');assert.equal(fresh.accepted,'false');assert.equal(fresh.photographed,'false');
-  const persistent=await page.evaluate(()=>({pokan:localStorage.getItem('pokan.exp02c.save.v1'),other:localStorage.getItem('other-data'),fresh:JSON.parse(localStorage.getItem('pokan.exp05a.save.v1'))}));
+  const persistent=await page.evaluate(()=>({pokan:localStorage.getItem('pokan.exp02c.save.v1'),other:localStorage.getItem('other-data'),fresh:JSON.parse(localStorage.getItem('pokan.exp05b.save.v1'))}));
   assert.equal(persistent.pokan,historicalBefore.pokan);assert.equal(persistent.other,historicalBefore.other);assert.equal(persistent.fresh.safe,'chapterStart');assert.equal(persistent.fresh.progress.goals.length,0);assert.equal(persistent.fresh.progress.collections.length,0);
   record('F02 confirmed restart reuses the existing storage method, writes blank A and leaves historical/other keys byte-for-byte intact');
 

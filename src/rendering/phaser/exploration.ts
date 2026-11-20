@@ -1,3 +1,4 @@
+import {drawBuildingFloor} from './exploration-building-art';
 import {drawDistrict} from './exploration-district-art';
 import Phaser from 'phaser';
 import type { ExplorationRuntime, ExplorationSnapshot } from '../../core/exploration';
@@ -80,6 +81,8 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
                 drawPrologueCity(scene,map,s.map,()=>actor(scene,0xc88c6a,0xdac5a5));
               }else if(s.map==='middle'||s.map==='riverfront'){
                 drawDistrict(scene,map,s.map);
+              }else if(s.map==='guide2'||s.map==='workshop2'||s.map==='workshop3'){
+                drawBuildingFloor(scene,map,s);
               }else if(definition.outdoor){
                 for(let y=0;y<240;y+=6){const c=Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(0x244353),Phaser.Display.Color.ValueToColor(0x61908d),240,y);rect(bg,0,y,3300,6,Phaser.Display.Color.GetColor(c.r,c.g,c.b));}
                 poly(bg,[0,190,220,100,400,150,650,70,900,170,1200,95,1500,145,1800,80,2100,180,2450,110,2800,145,3100,70,3300,170,3300,240,0,240],0x315361);
@@ -143,15 +146,10 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
                 rect(bg,b.x,b.y-90,b.w,90,0x9e7352);rect(bg,b.x-18,b.y,18,b.h,0x634837);rect(bg,b.x+b.w,b.y,18,b.h,0x4c3c34);
                 for(let x=b.x+20;x<b.x+b.w-60;x+=100){rect(bg,x,b.y-75,65,57,0x4e4b3e);rect(bg,x+5,b.y-70,55,47,0x8cafab);rect(bg,x+30,b.y-72,4,51,0x644933);}
                 definition.walls.forEach((w,i)=>{const g=scene.add.graphics().setDepth(w.y+w.h);map.add(g);rect(g,w.x,w.y-26,w.w,w.h+26,0x684734);rect(g,w.x-5,w.y-30,w.w+10,30,0xc69d68);if(s.map==='tea'){g.fillStyle(0xe0c292);g.fillCircle(w.x+w.w/2,w.y-18,8);}else for(let x=w.x+10;x<w.x+w.w-15;x+=35)rect(g,x,w.y+6,24,Math.max(8,w.h-12),i%2?0x94714b:0x80614a);});
-                if(s.map==='guide'){
-                  const g=scene.add.graphics().setDepth(310);map.add(g);rect(g,309,257,62,31,0xf4dfac);g.lineStyle(3,0x5c7b77);g.strokeTriangle(317,280,329,264,341,280);g.lineBetween(345,268,364,264);g.lineBetween(345,277,364,273);text(340,230,'楼层／纹样导览',18).setDepth(320);
-                  text(550,300,'北檐上层　东栈下行',17).setDepth(400);
-                }else if(s.map==='workshop'){
-                  const g=scene.add.graphics().setDepth(416);map.add(g);
-                  if(!s.item){rect(g,739,366,42,10,0xf3ce80);g.lineStyle(2,0x5a735f);g.lineBetween(746,369,773,367);g.lineBetween(746,373,773,371);}
-                  text(760,444,s.item?'导扣已带走':'可借 · 江纹导扣',16).setDepth(460);
-                  text(522,304,'木纹与门扣',19).setDepth(430);
-                }else{text(545,242,'窗边茶桌',19).setDepth(460);text(810,525,'可选驻足',17).setDepth(610);}
+                if(s.map==='guide'){text(550,280,'1F接待阅览 · 纹样导览在2F',18);}
+                else if(s.map==='workshop'){text(530,280,'1F工作台 · 门扣柜在3F',18);}
+                else{text(545,242,'窗边茶桌',19).setDepth(460);text(810,525,'可选驻足',17).setDepth(610);}
+                if(s.map==='guide'||s.map==='workshop')drawBuildingFloor(scene,map,s);
                 const front=scene.add.graphics().setDepth(615);map.add(front);rect(front,b.x,600,315,14,0x644933);rect(front,585,600,b.x+b.w-585,14,0x644933);poly(front,[495,595,585,595,600,615,480,615],0xc7a675);
                 text(540,590,'返回原门口',16).setDepth(620);text(550,96,definition.name,25).setDepth(630);lantern(bg,b.x+30,b.y-20);lantern(bg,b.x+b.w-30,b.y-20);
               }

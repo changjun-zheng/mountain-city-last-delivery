@@ -1,11 +1,12 @@
+import {BUILDING_FLOOR_MAPS,BUILDING_FLOOR_SAFE,BUILDING_FLOOR_TARGETS} from './exploration-building-floors.ts';
 import {DISTRICT_MAPS,DISTRICT_SAFE,DISTRICT_TARGETS} from './exploration-district.ts';
-export type ExplorationMap = 'upper' | 'lower' | 'middle' | 'riverfront' | 'guide' | 'workshop' | 'tea' | 'plaza' | 'entry' | 'service';
+export type ExplorationMap = 'guide2' | 'workshop2' | 'workshop3' | 'upper' | 'lower' | 'middle' | 'riverfront' | 'guide' | 'workshop' | 'tea' | 'plaza' | 'entry' | 'service';
 export type Rect = Readonly<{ x: number; y: number; w: number; h: number }>;
 export type Point = Readonly<{ x: number; y: number }>;
 export type TargetId = 'visitor' | 'guide-door' | 'workshop-door' | 'tea-door' | 'note' | 'plaque' |
   'guide-exit' | 'workshop-exit' | 'tea-exit' | 'gate' | 'wrong-gate' | 'east-down' | 'east-up' |
   'west-down' | 'west-up' | 'view' | 'tea-observe' | 'window' | 'street-sign' | 'photo-eaves' |
-  'city-monument'|'city-sign'|'service-door'|'service-exit'|'service-guide'|'city-to-entry'|'entry-to-city'|'entry-to-core'|'core-to-entry'|'entry-view'|'memento-bookmark'|'memento-sketch'|'memento-postcard'|'middle-east-upper'|'middle-west-upper'|'middle-east-lower'|'middle-west-lower'|'middle-court'|'middle-outer'|'riverfront-down'|'riverfront-up';
+  'city-monument'|'city-sign'|'service-door'|'service-exit'|'service-guide'|'city-to-entry'|'entry-to-city'|'entry-to-core'|'core-to-entry'|'entry-view'|'memento-bookmark'|'memento-sketch'|'memento-postcard'|'middle-east-upper'|'middle-west-upper'|'middle-east-lower'|'middle-west-lower'|'middle-court'|'middle-outer'|'riverfront-down'|'riverfront-up'|'guide-up'|'guide-down'|'workshop-up-2'|'workshop-down-1'|'workshop-up-3'|'workshop-down-2'|'building-floor-sign'|'building-tool-pattern'|'building-wrong-box';
 import {PHOTO_CONTENT_VERSION} from './exploration-photo.ts';
 import {PROLOGUE_MAPS,PROLOGUE_SAFE,PROLOGUE_TARGETS} from './exploration-prologue.ts';
 import {MEMENTO_TARGETS} from './exploration-mementos.ts';
@@ -13,7 +14,8 @@ export const EXP02A_CONTENT_VERSION = 'exp02a-core-district-1';
 export const EXP02B_CONTENT_VERSION = PHOTO_CONTENT_VERSION;
 export const EXP02C_CONTENT_VERSION = 'exp02c-prologue-1';
 export const EXP03B_CONTENT_VERSION = 'exp03b-city-mementos-1';
-export const EXP_CONTENT_VERSION = 'exp05a-district-skeleton-1';
+export const EXP05A_CONTENT_VERSION = 'exp05a-district-skeleton-1';
+export const EXP_CONTENT_VERSION = 'exp05b-building-floors-1';
 export type Building = Rect & Readonly<{ name: string; kind?: 'guide' | 'workshop' | 'tea' | 'market' | 'city' | 'service' }>;
 export type ExplorationMapDefinition = Readonly<{
   name: string; width: number; height: number; bounds: Rect;
@@ -48,10 +50,10 @@ export const EXP_MAPS: Readonly<Record<ExplorationMap, ExplorationMapDefinition>
     walls:[...upperBuildings,{x:2750,y:240,w:40,h:450},{x:2750,y:810,w:40,h:430}] },
   lower: { name:'洪崖洞主题 · 下层生活街巷',width:3300,height:1300,outdoor:true,
     bounds:{x:60,y:240,w:3180,h:1000},buildings:lowerBuildings,walls:[...lowerBuildings,EXP_RIVER] },
-  guide: { name:'临江导览小店',width:1100,height:650,outdoor:false,
+  guide: { name:'临江导览楼 · 1F 接待阅览',width:1100,height:650,outdoor:false,
     bounds:{x:180,y:220,w:740,h:380},buildings:[],
     walls:[{x:440,y:320,w:200,h:70},{x:300,y:260,w:80,h:35}] },
-  workshop: { name:'木作间',width:1100,height:650,outdoor:false,
+  workshop: { name:'木作楼 · 1F 工作台',width:1100,height:650,outdoor:false,
     bounds:{x:130,y:210,w:840,h:390},buildings:[],
     walls:[{x:400,y:320,w:240,h:90},{x:770,y:250,w:130,h:80},{x:730,y:360,w:60,h:30},
       // Thin tool screen also supplies a real line-of-sight regression case.
@@ -61,6 +63,7 @@ export const EXP_MAPS: Readonly<Record<ExplorationMap, ExplorationMapDefinition>
     walls:[{x:340,y:370,w:90,h:80},{x:630,y:370,w:90,h:80},{x:460,y:260,w:170,h:40}] },
   ...PROLOGUE_MAPS,
   ...DISTRICT_MAPS,
+  ...BUILDING_FLOOR_MAPS,
 });
 export const EXP_LEGACY_SAFE = Object.freeze({
   arrival: { map:'upper',x:230,y:690 },
@@ -77,7 +80,8 @@ export const EXP_LEGACY_SAFE = Object.freeze({
   overlook: { map:'lower',x:1660,y:1120 },
 } as const);
 export const EXP_PRE05_SAFE=Object.freeze({...EXP_LEGACY_SAFE,...PROLOGUE_SAFE});
-export const EXP_SAFE=Object.freeze({...EXP_PRE05_SAFE,...DISTRICT_SAFE});
+export const EXP05A_SAFE=Object.freeze({...EXP_PRE05_SAFE,...DISTRICT_SAFE});
+export const EXP_SAFE=Object.freeze({...EXP05A_SAFE,...BUILDING_FLOOR_SAFE});
 export type SafeId = keyof typeof EXP_SAFE;
 export type ExplorationTarget = Point & Readonly<{id:TargetId;map:ExplorationMap;label:string;destination?:SafeId;locked?:boolean}>;
 export const EXP_TARGETS: readonly ExplorationTarget[] = Object.freeze([
@@ -88,8 +92,8 @@ export const EXP_TARGETS: readonly ExplorationTarget[] = Object.freeze([
   {id:'guide-exit',map:'guide',x:540,y:570,label:'返回导览门口',destination:'guideDoor'},
   {id:'workshop-exit',map:'workshop',x:540,y:570,label:'返回木作间门口',destination:'workshopDoor'},
   {id:'tea-exit',map:'tea',x:540,y:570,label:'返回茶歇门口',destination:'teaDoor'},
-  {id:'note',map:'guide',x:340,y:320,label:'阅读楼层与纹样导览'},
-  {id:'plaque',map:'workshop',x:760,y:415,label:'查看江纹导扣'},
+  {id:'note',map:'guide2',x:950,y:350,label:'阅读楼层与纹样导览'},
+  {id:'plaque',map:'workshop3',x:742,y:415,label:'查看江纹导扣'},
   {id:'tea-observe',map:'tea',x:545,y:325,label:'看看茶桌与竹椅'},
   {id:'gate',map:'upper',x:2710,y:750,label:'核对江纹栈门'},
   {id:'wrong-gate',map:'upper',x:110,y:850,label:'查看山纹杂物门'},
@@ -104,6 +108,7 @@ export const EXP_TARGETS: readonly ExplorationTarget[] = Object.freeze([
   ...PROLOGUE_TARGETS,
   ...MEMENTO_TARGETS,
   ...DISTRICT_TARGETS,
+  ...BUILDING_FLOOR_TARGETS,
 ].map(t=>Object.freeze(t)) as readonly ExplorationTarget[]);
 
 // Closed, data-only connections; no generic map loader or behavior registry.
