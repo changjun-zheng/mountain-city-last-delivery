@@ -19,6 +19,10 @@ export function mountScene(root:HTMLElement,r:PhotoRuntime,keys:Set<string>,upda
    const backSky=this.add.graphics().setDepth(-1000),backRiver=this.add.graphics().setDepth(-900),backTown=this.add.graphics().setDepth(-800),front=this.add.graphics().setDepth(2000);
    const floor=this.add.graphics().setDepth(-500),markers=this.add.graphics().setDepth(-300),overlay=this.add.graphics().setDepth(3000),actor=this.add.graphics(),shadow=this.add.graphics();
    const actorImg=this.textures.exists('photo-charM')?this.add.image(0,0,'photo-charM').setOrigin(.5,1).setVisible(false):undefined;
+   const npcImg=this.textures.exists('photo-charM')?this.add.image(0,0,'photo-charM').setOrigin(.5,1).setTint(0xc8b596).setVisible(false):undefined;
+   const hintText=this.add.text(0,0,'',{fontFamily:'system-ui, "Microsoft YaHei", sans-serif',fontSize:'15px',color:'#ffe6b0',backgroundColor:'#101416cc',padding:{x:10,y:5}}).setOrigin(.5,1).setDepth(4000).setVisible(false);
+   const dialogText=this.add.text(0,0,'',{fontFamily:'system-ui, "Microsoft YaHei", sans-serif',fontSize:'16px',color:'#fff2d8',backgroundColor:'#141a1ee6',padding:{x:14,y:10},wordWrap:{width:Math.min(innerWidth-80,560)},lineSpacing:6}).setOrigin(.5,1).setDepth(4001).setVisible(false);
+   let prevF=false,prevT=false,prevR=false;
    const baked=this.textures.exists('photo-world');
    const ground=baked?undefined:this.textures.exists('photo-ground')?this.add.tileSprite(0,0,1,1,'photo-ground').setOrigin(0).setDepth(-600):undefined;
    // The supplied corridor has large transparent padding. Trim its render frame,
@@ -50,6 +54,16 @@ export function mountScene(root:HTMLElement,r:PhotoRuntime,keys:Set<string>,upda
     const ox=c?.ox??Phaser.Math.Clamp(w/2-r.x*k,w-MAP.width*k,0),oy=c?.oy??Phaser.Math.Clamp(h*.84-r.y*k,h-MAP.height*k,0);
     const offset=(factor:number)=>-sway*70*factor;
     backSky.clear();backRiver.clear();backTown.clear();front.clear();floor.clear();markers.clear();overlay.clear();actor.clear();shadow.clear();
+    if(r.mode==='indoor'){
+     rect(overlay,0,0,w,h,0x2a201a);
+     overlay.fillStyle(0x6b5238,1);overlay.fillPoints([{x:w*.08,y:h},{x:w*.92,y:h},{x:w*.74,y:h*.56},{x:w*.26,y:h*.56}],true);
+     overlay.fillStyle(0x3a2d22,1);overlay.fillRect(0,0,w,h*.56);
+     rect(overlay,w*.37,h*.17,w*.26,h*.28,0xe8b268,.85);overlay.lineStyle(3,0x241a12,1);overlay.strokeRect(w*.37,h*.17,w*.26,h*.28);
+     rect(overlay,w*.41,h*.62,w*.18,h*.05,0x8a6440);rect(overlay,w*.43,h*.67,w*.03,h*.16,0x5b4630);rect(overlay,w*.54,h*.67,w*.03,h*.16,0x5b4630);
+     overlay.fillStyle(0xf2b266,.22);overlay.fillCircle(w*.5,h*.18,70);
+     hintText.setText('F 出门').setPosition(w/2,h-70).setVisible(true);dialogText.setVisible(false);
+     update();return;
+    }
     const box=(x:number,y:number,rw:number,rh:number,color:number,alpha=1)=>rect(floor,ox+x*k,oy+y*k,rw*k,rh*k,color,alpha);
     // 世界高度小于屏幕高度时，上方露出的区域用天空渐变延展，避免看到底色。
     // 只填 oy 以上的空白，不覆盖底图；depth -1000，永远在最底层。
@@ -107,6 +121,29 @@ export function mountScene(root:HTMLElement,r:PhotoRuntime,keys:Set<string>,upda
     }
     rect(overlay,0,0,w,h,0xffcf87,.06);
     if(c){rect(overlay,0,0,w,h,0x000000,.42);const f=c.frame;overlay.lineStyle(2,0xf0c96a);overlay.strokeRect(f.x,f.y,f.w,f.h);overlay.lineStyle(1,0xf0c96a,.35);for(const n of[1,2]){overlay.lineBetween(f.x+f.w*n/3,f.y,f.x+f.w*n/3,f.y+f.h);overlay.lineBetween(f.x,f.y+f.h*n/3,f.x+f.w,f.y+f.h*n/3);}overlay.lineStyle(4,0xffe0a0);for(const[xx,yy,sx,sy]of[[f.x,f.y,1,1],[f.x+f.w,f.y,-1,1],[f.x,f.y+f.h,1,-1],[f.x+f.w,f.y+f.h,-1,-1]]){overlay.lineBetween(xx,yy,xx+12*sx,yy);overlay.lineBetween(xx,yy,xx,yy+12*sy);}const s=c.subject;if(s.x>=f.x&&s.y>=f.y&&s.x+s.w<=f.x+f.w&&s.y+s.h<=f.y+f.h){overlay.lineStyle(2,0xffdfa0,.5);overlay.strokeRect(s.x,s.y,s.w,s.h);}}
+    // ---- 世界交互：茶馆老人、门、收集品、车流、天气 ----
+    const npc={x:700,y:600},door={x:210,y:1090},giftSpots=[[320,930],[1500,1010],[820,610]];
+    if(worldOk){
+     const nx=ox+npc.x*k,ny=oy+npc.y*k;
+     if(npcImg){const nh=150*k;npcImg.setDisplaySize(nh*390/520,nh).setPosition(nx,ny).setDepth(npc.y+1).setVisible(r.mode==='world'&&r.site<0);}
+     const dxp=ox+door.x*k,dyp=oy+door.y*k;
+     front.fillStyle(0x1b1410,1);front.fillRect(dxp-19*k,dyp-60*k,38*k,60*k);
+     front.fillStyle(0x8a5a34,1);front.fillRect(dxp-15*k,dyp-56*k,30*k,56*k);
+     front.fillStyle(0xd8a45a,.9);front.fillCircle(dxp+9*k,dyp-26*k,2.5*k);
+     giftSpots.forEach(([gx,gy],i)=>{if(r.gifts[i])return;const gxp=ox+gx*k,gyp=oy+gy*k;front.fillStyle(0xffe6a0,.26);front.fillCircle(gxp,gyp,12*k);front.fillStyle(0xffd270,1);front.fillCircle(gxp,gyp,4*k);});
+     for(let i=0;i<2;i++){const p=((_t*.0009+i*.5)%1),cw=-200+p*2800,ch=1070+i*46,sx=ox+cw*k,sy=oy+ch*k;front.fillStyle(i?0xd8d8d0:0xf0b62a,1);front.fillRoundedRect(sx-62*k,sy-44*k,124*k,44*k,8*k);front.fillStyle(0x2b2f33,.95);front.fillEllipse(sx-34*k,sy+2*k,26*k,10*k);front.fillEllipse(sx+34*k,sy+2*k,26*k,10*k);front.fillStyle(0xbcd6dd,.75);front.fillRoundedRect(sx-38*k,sy-40*k,40*k,18*k,4*k);front.fillRoundedRect(sx+6*k,sy-40*k,34*k,18*k,4*k);}
+     if(r.rain)for(let i=0;i<48;i++){const rx=((i*173+_t*.35)%(w+60))-30,ry=((i*97+_t*1.05)%(h+80))-40;overlay.lineStyle(1,0xd2e2ec,.34);overlay.lineBetween(rx,ry,rx-5,ry+16);}
+    }
+    if(r.time===1)rect(overlay,0,0,w,h,0x0e2340,.42);else if(r.time===2)rect(overlay,0,0,w,h,0xffd9a0,.16);
+    if(r.rain&&(_t%7000)<130)rect(overlay,0,0,w,h,0xffffff,.3);
+    const fNow=keys.has('KeyF');
+    if(fNow&&!prevF){if(r.dialog)r.dialog=0;else if(Math.hypot(r.x-npc.x,r.y-npc.y)<80)r.dialog=1;else if(Math.hypot(r.x-door.x,r.y-door.y)<64)r.mode='indoor';else{const gi=giftSpots.findIndex((g,i)=>!r.gifts[i]&&Math.hypot(r.x-g[0],r.y-g[1])<50);if(gi>=0)r.gifts[gi]=true;}}
+    prevF=fNow;
+    const tNow=keys.has('KeyT');if(tNow&&!prevT)r.time=(r.time+1)%3;prevT=tNow;
+    const nNow=keys.has('KeyR');if(nNow&&!prevR)r.rain=!r.rain;prevR=nNow;
+    if(r.dialog)dialogText.setText('“后生，洪崖洞的灯要等日头落到对岸楼顶才好看。”\n“站到台子上往下看，江面金了就按快门。”').setPosition(w/2,h-96).setVisible(true);else dialogText.setVisible(false);
+    const hint=r.site>=0?'':r.dialog?'F 结束对话':Math.hypot(r.x-npc.x,r.y-npc.y)<80?'F 与茶馆老人交谈':Math.hypot(r.x-door.x,r.y-door.y)<64?'F 推门进屋':giftSpots.some((g,i)=>!r.gifts[i]&&Math.hypot(r.x-g[0],r.y-g[1])<50)?'F 拾取':'';
+    hintText.setText(hint).setPosition(w/2,h-70).setVisible(!!hint&&!r.dialog);
     const rounded=(n:number)=>Math.round(n*100)/100;
     const fixedLayer={buildings:['houseA','houseB','corridor'].map(key=>{const s=images.get(key);return s?{key,x:rounded(s.x),y:rounded(s.y),w:rounded(s.displayWidth),h:rounded(s.displayHeight)}:null;}),ground:ground?{x:rounded(ground.x),y:rounded(ground.y)}:null,actor:{x:rounded(actor.x),y:rounded(actor.y)},markers:SITES.map(s=>({x:rounded(ox+s.x*k),y:rounded(oy+s.y*k)})),frame:c?.frame??null};
     Object.assign(root.dataset,{l3Positions:JSON.stringify(fixedLayer),sway:String(sway),swayTarget:String(mouseActive?swayTarget:0),l3OffsetX:'0',layerOffsets:JSON.stringify({L0:offset(.05),L1:offset(.28),L2:offset(.58),L3:0,L4:offset(1.18)}),z:String(z),zTarget:String(zTarget),terrainSpeed:String(speed),stair:String(stair),actorState:state,actorRotation:String(pitch),walkFrame:String(frame),stepBounces:String(stepBounces),actorX:String(ox+r.x*k),actorGroundY:String(oy+r.y*k),shadowAlpha:String(.45-z*.08),shadowLength:String(1+z*.3)});
