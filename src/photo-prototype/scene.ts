@@ -83,6 +83,12 @@ export function mountScene(root:HTMLElement,r:PhotoRuntime,keys:Set<string>,upda
      }
     }
     }
+    if(worldOk){
+     // 嘉陵江活水：波光随流缓移，两艘小船顺流漂，天上几只江鸥。
+     for(let i=0;i<7;i++){const ry=oy+(96+i*14)*k,rx=ox+(((_t*.022+i*260)%2400)-200)*k;front.lineStyle(Math.max(1,2*k),0xffe3a8,.24);front.lineBetween(rx,ry,rx+110*k,ry);}
+     for(let i=0;i<2;i++){const p=(_t*.006+i*.5)%1,bx=ox+(-260+p*2700)*k,by=oy+(198+i*26)*k;front.fillStyle(0x3b3029,.92);front.fillEllipse(bx,by,92*k,17*k);front.fillStyle(0x8d6a48,.92);front.fillEllipse(bx-6*k,by-9*k,44*k,13*k);front.fillStyle(0xb8965f,.75);front.fillRect(bx+14*k,by-16*k,3*k,16*k);}
+     for(let i=0;i<5;i++){const p=(_t*.004+i*.38)%1,bx=-60+p*(w+120),by=36+i*9+Math.sin(p*11+i)*16;front.lineStyle(Math.max(1,1.8*k),0x2e3a38,.62);front.lineBetween(bx-9*k,by,bx,by-5*k);front.lineBetween(bx,by-5*k,bx+9*k,by);}
+    }
     for(let i=0;i<SITES.length;i++){const s=SITES[i];markers.lineStyle(2,i===r.nearby?0xffe3a0:0xd8bf87,.8);markers.strokeEllipse(ox+s.x*k,oy+s.y*k,68*k,24*k);rect(markers,ox+(s.x-10)*k,oy+(s.y-10)*k,20*k,13*k,0xf0d89d,.9);}
     // Shadow stays on the ground; z, lean and foot pulse affect only the skeleton.
     if(r.site<0){shadow.setDepth(r.y-1);shadow.fillStyle(0x17272d,.45-z*.08);shadow.fillEllipse(ox+r.x*k,oy+r.y*k+3,64*k*(1+z*.3),12*k);}
