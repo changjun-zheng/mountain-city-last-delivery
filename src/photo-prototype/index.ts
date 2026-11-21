@@ -6,7 +6,7 @@ import './styles.css';
 export function launchPhotoPrototype(){
  const root=document.createElement('main');root.className='photo-prototype';root.id='photo-prototype';document.body.append(root);
  const r=new PhotoRuntime(),keys=new Set<string>(),abort=new AbortController();
- try{const album=JSON.parse(localStorage.getItem(SAVE_KEY)??'null');if(Array.isArray(album)&&album.length===3&&album.every(v=>Number.isInteger(v)&&v>=0&&v<=3))r.album=[...album];}catch{/* Independent slice remains playable when storage is unavailable. */}
+ try{const album=JSON.parse(localStorage.getItem(SAVE_KEY)??'null');if(Array.isArray(album)&&album.length===6&&album.every(v=>Number.isInteger(v)&&v>=0&&v<=3))r.album=[...album];}catch{/* Independent slice remains playable when storage is unavailable. */}
  const putDown=()=>{keys.clear();r.exit();update(r);};
  const update=createUI(root,putDown),syncZoom=()=>{r.zoom=keys.has('ShiftLeft')||keys.has('ShiftRight')?1.8:1;};
  window.addEventListener('keydown',e=>{

@@ -8,6 +8,7 @@ export const ASSETS:Record<string,string>={
  shop:new URL('./assets/scene2/shop.png',import.meta.url).href,
  gate:new URL('./assets/scene2/gate.png',import.meta.url).href,
  npcOld:new URL('./assets/scene2/npc.png',import.meta.url).href,
+ taxi:new URL('./assets/scene2/taxi.png',import.meta.url).href,
  charM:new URL('./assets/char_male.png',import.meta.url).href,
  charF:new URL('./assets/char_female.png',import.meta.url).href,
 };
