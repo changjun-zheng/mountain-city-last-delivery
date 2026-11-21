@@ -1,3 +1,5 @@
+import {C_OLD_SAFE_MAP} from '../src/core/exploration-c-routes.ts';
+const mappedSafe=safe=>C_OLD_SAFE_MAP[safe]??safe;
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {ExplorationRuntime,validateExplorationSave,migrateExp02ASave,emptyExplorationSave} from '../src/core/exploration.ts';
@@ -16,21 +18,15 @@ function oldSave(stage='open',safe='eastLower'){
   if(stage==='found')p.completeGoal(P.completed);
   return {schemaVersion:1,contentVersion:EXP02A_CONTENT_VERSION,safe,progress:p.snapshot};
 }
-function driver(save=migrateExp02ASave(oldSave())){
-  const r=new ExplorationRuntime('photo-test',save);let time=0;r.frame(time);
-  const to=(x,y)=>{for(let i=0;i<3000;i++){const p=r.snapshot.position,dx=x-p.x,dy=y-p.y;if(Math.hypot(dx,dy)<4){r.move(0,0);return;}r.move(Math.abs(dx)<2?0:Math.sign(dx),Math.abs(dy)<2?0:Math.sign(dy));r.frame(time+=20);}assert.fail('Unreachable '+JSON.stringify({x,y,actual:r.snapshot.position}));};
-  const interact=id=>{assert.equal(r.snapshot.target?.id,id);r.interact(true);r.interact(false);};
-  const view=(site)=>{interact(PHOTO_SITES[site].targetId);assert.equal(r.snapshot.photoPreview.siteId,site);return r.snapshot.photoPreview.id;};
-  if(save.safe==='overlook'){interact('riverfront-down');to(900,650);to(900,1050);}
-  return {r,to,interact,view};
-}
+import {coreDriver} from './exploration-floor-routes.mjs';
+function driver(save=migrateExp02ASave(oldSave())){const d=coreDriver(save);const view=site=>{d.interact(PHOTO_SITES[site].targetId);assert.equal(d.r.snapshot.photoPreview.siteId,site);return d.r.snapshot.photoPreview.id;};if(save.safe==='cLowerRiver'){d.use('riverfront-down');d.to(900,650);d.to(900,1050);}return {...d,view};}
 const port=(data=new Map())=>({data,getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)});
 
 test('EXP-02B P01 visible compositions differ, known records only; observation order does not gate valid capture',()=>{
   assert.deepEqual(missingPhotoElements('eaves'),['bridge']);assert.deepEqual(missingPhotoElements('window'),['timber']);assert.deepEqual(missingPhotoElements('river'),[]);
   const pictures=['eaves','window','river'].map(explorationPhotoSvg);assert.equal(new Set(pictures).size,3);assert.ok(pictures.every(s=>!s.includes('http:')||s.includes('xmlns="http://www.w3.org/2000/svg"')));
-  const d=driver();assert.equal(d.r.snapshot.observations.length,0);d.to(2180,650);d.to(2180,680);d.view('eaves');assert.deepEqual(d.r.snapshot.observations.map(o=>o.id),['eaves']);d.r.closePhotoPreview(false);
-  d.to(2180,650);d.to(900,650);d.view('window');d.r.closePhotoPreview(false);assert.deepEqual(d.r.snapshot.observations.map(o=>o.id),['eaves','window']);assert.equal(d.r.snapshot.photographed,false);
+  const d=driver();assert.equal(d.r.snapshot.observations.length,0);d.target('photo-eaves');d.view('eaves');assert.deepEqual(d.r.snapshot.observations.map(o=>o.id),['eaves']);d.r.closePhotoPreview(false);
+  d.use('tea-door');d.target('window');d.view('window');d.r.closePhotoPreview(false);assert.deepEqual(d.r.snapshot.observations.map(o=>o.id),['eaves','window']);assert.equal(d.r.snapshot.photographed,false);
   const direct=driver(migrateExp02ASave(oldSave('open','overlook')));direct.to(1950,1050);const id=direct.view('river');assert.equal(direct.r.takePhoto(id),'captured');assert.deepEqual(direct.r.snapshot.observations.map(o=>o.id),['river']);
 });
 test('EXP-02B P02 core rejects absent, stale, foreign, wrong map/position and extra pause owners without rewards',()=>{
@@ -46,7 +42,7 @@ test('EXP-02B P02 core rejects absent, stale, foreign, wrong map/position and ex
   d.r.dispose();assert.equal(d.r.takePhoto(newId),'rejected');
 });
 test('EXP-02B P02 wrong composition preserves item and formal progress; opening/cancel and held E never photograph',()=>{
-  const d=driver();d.to(2180,650);d.to(2180,680);const id=d.view('eaves'),before=d.r.snapshot.progress;
+  const d=driver();d.target('photo-eaves');const id=d.view('eaves'),before=d.r.snapshot.progress;
   for(let i=0;i<5;i++)d.r.interact(true);assert.equal(d.r.snapshot.photographed,false);assert.equal(d.r.takePhoto(id),'incomplete');assert.match(d.r.snapshot.photoPreview.feedback,/桥面/);assert.deepEqual(d.r.snapshot.progress,before);assert.equal(d.r.snapshot.item,true);assert.equal(d.r.snapshot.progress.counts.rewards,0);d.r.closePhotoPreview(false);assert.equal(d.r.takePhoto(id),'rejected');
   const river=driver(migrateExp02ASave(oldSave('open','overlook')));river.to(1950,1050);river.view('river');river.r.closePhotoPreview();assert.equal(river.r.snapshot.completed,true);assert.equal(river.r.snapshot.photographed,false);assert.equal(river.r.save.photo,null);
 });
@@ -60,8 +56,8 @@ test('EXP-02B P03 explicit capture grants one independent goal/reward, immutable
 });
 test('EXP-02B P04 exactly supported legacy stages import atomically without photographic completion or source mutation',()=>{
   for(const [stage,safe] of [['empty','arrival'],['accepted','arrival'],['clue','guideRoom'],['item','workshopRoom'],['open','eastLower'],['found','overlook']]){
-    const original=oldSave(stage,safe),raw=JSON.stringify(original),p=port(new Map([[EXP_PREVIOUS_STORAGE_KEY,raw],[EXP_LEGACY_STORAGE_KEY,'old courtyard'],['unrelated','keep']])),storage=new ExplorationStorage(p),save=storage.load();assert.ok(save);assert.deepEqual(save.progress,original.progress);assert.equal(save.safe,safe);assert.equal(save.photo,null);assert.deepEqual(save.observedSites,[]);assert.match(storage.notice,/已沿用街区进度/);
-    storage.save(save);assert.equal(p.getItem(EXP_PREVIOUS_STORAGE_KEY),raw);const r=new ExplorationRuntime('migrated-'+stage,new ExplorationStorage(p).load());assert.equal(r.snapshot.photographed,false);assert.equal(r.snapshot.progress.counts.rewards,0);assert.equal(r.snapshot.safe,safe);
+    const original=oldSave(stage,safe),raw=JSON.stringify(original),p=port(new Map([[EXP_PREVIOUS_STORAGE_KEY,raw],[EXP_LEGACY_STORAGE_KEY,'old courtyard'],['unrelated','keep']])),storage=new ExplorationStorage(p),save=storage.load();assert.ok(save);assert.deepEqual(save.progress,original.progress);assert.equal(save.safe,mappedSafe(safe));assert.equal(save.photo,null);assert.deepEqual(save.observedSites,[]);assert.match(storage.notice,/已沿用街区进度/);
+    storage.save(save);assert.equal(p.getItem(EXP_PREVIOUS_STORAGE_KEY),raw);const r=new ExplorationRuntime('migrated-'+stage,new ExplorationStorage(p).load());assert.equal(r.snapshot.photographed,false);assert.equal(r.snapshot.progress.counts.rewards,0);assert.equal(r.snapshot.safe,mappedSafe(safe));
   }
   const invalids=[{...oldSave(),contentVersion:'future'}, {...oldSave('empty','arrival'),safe:'eastLower'}, {...oldSave(),progress:{...oldSave().progress,rewards:['invented']}}];
   for(const invalid of invalids){assert.equal(migrateExp02ASave(invalid),undefined);const raw=JSON.stringify(invalid),p=port(new Map([[EXP_PREVIOUS_STORAGE_KEY,raw]])),s=new ExplorationStorage(p);assert.equal(s.load(),undefined);s.save(emptyExplorationSave());assert.equal(p.getItem(EXP_STORAGE_KEY),null);assert.equal(p.getItem(EXP_PREVIOUS_STORAGE_KEY),raw);}

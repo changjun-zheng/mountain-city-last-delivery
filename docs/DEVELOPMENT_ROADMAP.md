@@ -16,7 +16,7 @@ HISTORICAL：曾有开发窗口依路线图连续推进、完成后自行领取�
 
 ## 当前唯一入口：斜俯视探索设计重构（2026-11-19 后续轮次）
 
-状态：**EXP-06-PRE文档完成，组合方案CONFIRMED；EXP-06A READY／已备交接、尚未启动**。负责人明确选择整套方案并要求下一步准备开发任务，见[决策](DECISIONS.md#c-exploration-rework-confirmed-20261121)与[06A唯一任务卡](#exp-06a-c-district-rework-20261121)。基线main／HEAD `39245692e3e755d9ee192c51f57debd9e92afadf`、本轮开工干净；文档提交后开发须读取实际HEAD，不把旧分析基线当开工提交。EXP-05B技术PASS保留，不代表负责人产品体验通过；界面美化后置，本轮不自动启动开发会话。
+状态：**EXP-06A DONE／Work功能技术复核PASS，待负责人空间与探索体验评审**。由原开发会话实施、Work监控并独立复验，实际开工基线fd8c8c1；详见[正式审查](#exp-06a-work-review-20261121)。审查后按持续授权提交推送，本项通过仅覆盖记录的功能技术范围，早期空间FAIL保留，真机／山城风味／最终美术／30—45分钟首章未验收，不自行进入06B。
 
 HISTORICAL（设计重构初次同步时点）：当时核对 GitHub main／origin/main／HEAD 为 `b5b69f37385552c5ac085e532f6de965ec4e39ec`，开始工作区干净。Work 已读取两份策划聊天的可读取近期内容、当前源码／定义／进度白名单、报告与截图；没有修改代码、重跑测试或关闭体验服务。新完整分析在[总规划](FULL_GAME_CONTENT_AND_LEVEL_EXPANSION_ARCHITECTURE.md#exploration-reboot-20261119)，当前交付方案在[H5 V3](COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md#topdown-h5-v3-20261119)，唯一新空间主文在[关卡设计](HONGYADONG_LEVEL_DESIGN.md#topdown-first-chapter-20261119)。旧横版空间 V1、旧 READY 提示词和下方历史顺序不能继续作为开发授权。
 
@@ -46,11 +46,11 @@ HISTORICAL（设计重构初次同步时点）：当时核对 GitHub main／orig
 | EXP-05A 三层街区与独立江岸骨架 | DONE／Work功能技术复核PASS，按授权提交推送，待负责人体验 | 三层可往返街区、路线选择、独立D江岸与原拍摄闭环，旧档安全继续；不加新谜题／奖励，不做界面精修。 |
 | EXP-05B 重点建筑多楼层与调查找物空间 | DONE／Work功能技术复核PASS，按授权提交推送，待负责人体验 | 导览2层／木作3层、原调查与导扣迁上层、三对自由楼梯／家具阻挡／严格旧档继承通过；只修已发现普通对话关闭手势，不新增主线／奖励或精修UI。 |
 | EXP-06-PRE 整个C区空间与探索重设计 | DONE／文档整理，组合范围已确认 | 唯一关卡主文内确定错层穿楼、上中层自由路线和C五栋可入建筑；细部仍试制，不代表源码／产品完成。 |
-| EXP-06A C区整体重排与穿楼连接 | READY／准备交接，未派发未实施 | 按已确认组合重排整个C及五建筑，保留原调查／找物／开路／收藏业务并处理成对门与旧档；不是新小庭院或美化任务。须负责人交开发窗口或明确要求Work派发后开工。 |
+| EXP-06A C区整体重排与穿楼连接 | DONE／Work功能技术复核PASS，待负责人体验 | C五建筑与跨高度多门、上中街自由、全部下行统一门槛及旧档迁入已验证；基础结构纠正后可辨，山城风味／探索乐趣、真机、最终美术与完整章时长未验收。 |
 | EXP-06B 环境调查与用途反馈 | PLANNED／不实施 | 在获认可的同一C区空间上让线索可观察、找物可判断、开路立即可通行；复用主线／原三纪念物身份，必要新增状态另审。不与06A并行。 |
 | EXP-04 H5 候选验收与材料 | PLANNED／不领取 | 新视角下的桌面、真实手机、存档、地图往返／主线与新玩家时长证据，作品材料与运行包。公开托管／投稿另获授权；D13 原卡不改写。 |
 
-EXP-02 是内容阶段父项，不可与子项重复领取；EXP-02A／B／C、EXP-03A／B／C及EXP-05A／B已完成功能技术复核，完整章仍未验收。06A已按新确认准备好唯一交接卡，当前未派发；06B仍待前项审查后安排。EXP-04、界面美化、旧DEMO-02、H5-03／04、D13、BRAND-01、MLV或架构任务均不能自行领取。
+EXP-02是内容阶段父项，不可与子项重复领取；02A／B／C、03A／B／C、05A／B及06A已完成功能技术复核，完整章仍未验收。06B保持PLANNED，待负责人体验反馈和独立任务下发，不自动启动。EXP-04、界面美化、旧DEMO-02、H5-03／04、D13、BRAND-01、MLV或架构任务均不能自行领取。
 
 <a id="exp-06-pre-c-exploration-20261121"></a>
 
@@ -75,7 +75,7 @@ EXP-02 是内容阶段父项，不可与子项重复领取；EXP-02A／B／C、E
 
 ### EXP-06A：C区整体重排、五建筑与错层穿楼（完整开发交接）
 
-**状态**：READY／已准备未启动。负责人确认[组合范围](DECISIONS.md#c-exploration-rework-confirmed-20261121)并要求准备开发任务；本卡是可直接交开发窗口的完整提示词，聊天副本不另建任务。沿用原独立开发会话，一次只实施本项；Work未在本轮发送开工消息。建议GPT-6.1 Sol／High，原因是地图准入和多版本安全点迁入跨模块；不是模型实测排名，简单静态检查可用DeepSeek，不能据此另开并行实施窗口。
+**状态**：DONE（2026-11-21，Work功能技术复核PASS；负责人空间／探索体验、真机与完整章未验收）。[正式审查](#exp-06a-work-review-20261121)。历史派发事实：负责人先确认组合、要求准备任务，随后明确“你自己指挥开发窗口执行”，据此Work下发原会话 `01a1f37c-9ce0-7fb3-a348-74c776daee5e`，一次只实施本项。本卡是完整提示词，不另建任务。实际HEAD／main `fd8c8c12deeba51d1c889b109c25638ebaedb6a1`、派发前干净；Work只增加AGENTS／本卡派发事实，基线哈希／旧定义在忽略目录 `test-results/exp-06a-work-review/`，不作正式测试依赖。请求GPT-6.1 Sol／High，因地图准入与多版本迁入跨模块；实际模型配置无法独立回读，不冒充已核实，不并行另开实施窗口。
 
 **目标与当前背景**：在同一普通H5入口重排整个C上／中／下街及建筑，交付能实际八向探索、跨层进出、从不同街面回望的山城空间；C有导览2层、木作3层、茶歇、市集、灯笼5栋可入且有用途建筑。现有源码是05B：13图、4栋游戏内可入建筑、31点、新键pokan.exp05b.save.v1、封闭exp03b进度、原调查／导扣／门／照片和三纪念物。不要把7室内地图说成7栋建筑。分析基线3924569；开工先核对最新main／HEAD／工作区，保留Work文档，不回滚到分析提交。
 
@@ -92,7 +92,60 @@ EXP-02 是内容阶段父项，不可与子项重复领取；EXP-02A／B／C、E
 7. 存档建议新内容 `exp06a-c-exploration-1`／新键 `pokan.exp06a.save.v1`，schema1原六字段和exp03b进度目录不扩。冻结旧05B31点及其**旧中街需unlocked**规则，旧05A25／03B,C19／B,A12继续封闭；旧校验不能通过新EXP_SAFE的map／坐标判断历史准入。顺序新→05B→05A→03B→C→B→A，坏高版本阻断回退／覆盖，旧键原文不动。
 8. 新C几何用明确的新safe身份，不让旧同名点静默改楼层／门面。逐行说明31旧点如何映射：A／B／D合法点原值保留；旧C的楼内／楼层身份尽量映射相应新楼层的安全点。若旧未开路玩家停在原可达茶歇等位置，而新版该建筑属于受限H1，保留全部进度、转到明确的合法H2接待／回访点并显示迁入说明，不补unlocked、不丢照片／纪念物。旧格式先按旧白名单与进度严格验证，再做受限新safe映射和当前校验；不得先套新准入让伪造旧档过关。新档可在上／中街及相应楼内无任务保存，下街／D仍要求原开路。明确重开只写新空白A，刷新不重迁旧，其他键字节不变。若此映射需要新增业务状态或无法保证安全，保留最小复现停交Work。
 
-**源码白名单**：core `exploration-content.ts`、`exploration-district.ts`（D仅必要返回连接）、`exploration-building-floors.ts`、`exploration-prologue.ts`（仅B↔C目标连接，A／B几何与旧安全点快照不动）、`exploration-photo.ts`（只调整C内两处候选视点位置，保留site／画面元素与D正确取景）、`exploration-mementos.ts`（只map／位置／必要地点提示，不改3件ID／奖励／图案）。`exploration.ts`只允许版本校验／旧safe映射、数据导入、少量只读观察与必要场景提示；现有主线提交／目标谓词不改。Web仅 `exploration-storage.ts` 新键、迁入链与迁入notice。Phaser `exploration.ts`仅新C地图显示接线、`exploration-building-art.ts`及可新增 `exploration-c-art.ts` 表达新C几何；可选一个有限 `src/core/exploration-c-routes.ts` 数据文件，无框架。新增／修改文件须在报告逐项列用途。
+**实施前拓扑与迁入表（2026-11-21，试制；不升级正式设计）**：当前C几何／门／高度／新safe唯一来源拟为有限 `exploration-c-routes.ts`；三张楼上室内仍由building-floors唯一持有，A／B／D定义保持；content只组装一次。材质用石灰灰 `#82958a`、挡土深灰 `#465657`、木梁褐 `#724838`、江景蓝 `#356b78`、灯暖黄 `#ffd487`，导览青白窄条、木作双水波立柱跨高度复现；保持现字体／UI。上街下缘眺望中街导览下部，中街抬头可见导览2F与木作3F的同色连续立面；背景层被挡土墙封闭，只当前街面可走。
+
+| 地图／高度／用途 | 每门目标 → 对侧safe；本侧safe | 准入／物件 |
+| --- | --- | --- |
+| upper H3，B来路／上街转角／悬挑廊 | core-to-entry→entryFromCore；cArrival；guide-door→cGuide2Door／guide-upper-exit→cGuideH3；workshop-upper-door→cWood3Door／workshop-upper-exit→cWoodH3 | 自由；导览2F与木作3F门齐本街 |
+| middle H2，导览后街／市集街角／用途点 | guide-middle-door→cGuide1Door／guide-exit→cGuideH2；workshop-middle-door→cWood2Door／workshop-middle-exit→cWoodH2 | 自由；唯一gate在中街封道前(1930,990) |
+| upper↔middle，两外阶 | west-down→cMiddleWest／middle-west-upper→cUpperWest；east-down→cMiddleEast／middle-east-upper→cUpperEast | 双向自由，不要求accepted/unlocked |
+| middle↔lower，两下行阶 | middle-west-lower→cLowerWest／west-up→cMiddleDownWest；middle-east-lower→cLowerEast／east-up→cMiddleDownEast | 两侧出口均原unlocked；中街物理封栏同状态 |
+| guide H2 1F 接待／书签；guide2 H3 2F 阅览／纹样 | 1F门safe cGuide1Door(540,540)↔cGuideH2(710,560)；2F门cGuide2Door(1100,700)↔cGuideH3(710,560)；guide-up/down以cGuideStair1/2成对 | 自由；唯一note在2F(950,350)，书签1F原位 |
+| workshop H1 1F 工作台；workshop2 H2 工具；workshop3 H3 门扣柜 | 1F门cWood1Door(540,540)↔cWoodH1(1620,570)；2F门cWood2Door(1100,400)↔cWoodH2(1620,570)；3F门cWood3Door(1080,700)↔cWoodH3(1620,570)；两对楼梯cWoodStair1/2Down/2Up/3 | 楼内全自由，1F出H1只读原unlocked；plaque 3F(742,415)，62px屏风拒绝点保留 |
+| market H2 市集单层，两门绕过街角 | market-west-door→cMarketWestRoom／market-west-exit→cMarketWest；market-east-door→cMarketEastRoom／market-east-exit→cMarketEast | 自由；货架分区，内间通行本身为用途，无永久调查ID |
+| lower H1，生活前后巷／支柱／江岸阶 | workshop-door→cWood1Door；tea-door→cTeaRoom／tea-exit→cTeaH1；lantern-door→cLanternRoom／lantern-exit→cLanternH1 | H1整体原unlocked；茶歇速写原位，灯笼原明信片迁入 |
+| tea H1；lantern H1 | 茶歇窗边视点(800,330)；灯笼陈列与后窗、原明信片(850,400) | 原三件总量不变；错视野／纸面收藏不成为主线前置 |
+| lower H1↔riverfront H0 D | riverfront-down→riverArrival／riverfront-up→cLowerRiver | 原unlocked；D全部几何、正确view与riverView不变 |
+
+新C出口均明确两侧独立落点；正常楼梯落点沿用室内可行走坐标，但safe重新命名。旧数据先用独立快照验证，绝不借新版EXP_SAFE推断旧准入。旧31点映射如下；除注明外不改变进度／照片／收藏／称号，只换安全身份。
+
+| 旧05B safe（历史值冻结） | 新safe／语义 |
+| --- | --- |
+| arrival | cArrival，上街来路 |
+| guideDoor | cGuideH3，旧上街导览门改对新2F上街门 |
+| guideRoom | cGuide1Door，仍导览1F |
+| workshopDoor | cWoodH3，旧上街木作门对应新3F露台门 |
+| workshopRoom | cWood1Door，仍木作1F室内；出H1受限 |
+| teaDoor | 已开cTeaH1；未开cGuideH2（合法H2接待，notice说明） |
+| teaRoom | 已开cTeaRoom；未开cGuide1Door（同为合法接待室内，notice说明） |
+| eastUpper | cUpperEast |
+| eastLower | cLowerEast |
+| westUpper | cUpperWest |
+| westLower | cLowerWest |
+| overlook | cLowerRiver（旧C安全点，不自动迁到D） |
+| chapterStart | chapterStart，A原值 |
+| cityFromEntry | cityFromEntry，A原值 |
+| serviceDoor | serviceDoor，A原值 |
+| serviceRoom | serviceRoom，A室内原值 |
+| entryFromCity | entryFromCity，B原值 |
+| entryFromCore | entryFromCore，B原值 |
+| coreFromEntry | cArrival，B进C落点 |
+| middleEastUpper | cMiddleEast |
+| middleWestUpper | cMiddleWest |
+| middleEastLower | cMiddleDownEast |
+| middleWestLower | cMiddleDownWest |
+| riverArrival | riverArrival，D原值 |
+| riverView | riverView，D原值 |
+| guideStair1 | cGuideStair1，1F楼梯原坐标 |
+| guideStair2 | cGuideStair2，2F楼梯原坐标 |
+| workshopStair1 | cWoodStair1，1F楼梯原坐标 |
+| workshopStair2Down | cWoodStair2Down，2F下楼口原坐标 |
+| workshopStair2Up | cWoodStair2Up，2F上楼口原坐标 |
+| workshopStair3 | cWoodStair3，3F楼梯原坐标 |
+
+旧05B／05A中街、下街、D与eastUpper/westUpper仍需unlocked；旧03B/C19与B/A12原集合封闭。新当前C只使用c前缀safe，A／B／D原身份保留。schema1六字段／exp03b不扩。
+
+**源码白名单**：core `exploration-content.ts`、`exploration-district.ts`（D仅必要返回连接）、`exploration-building-floors.ts`、`exploration-prologue.ts`（仅B↔C目标连接，A／B几何与旧安全点快照不动）、`exploration-photo.ts`（只调整C内eaves／window的map、safe与位置，保留site／画面元素及D正确取景的全部字段）、`exploration-mementos.ts`（只map／位置／必要地点提示，不改3件ID／奖励／图案）。`exploration.ts`只允许版本校验／旧safe映射、数据导入、少量只读观察与必要场景提示；现有主线提交／目标谓词不改。Web仅 `exploration-storage.ts` 新键、迁入链与迁入notice。Phaser `exploration.ts`仅新C地图显示接线、`exploration-building-art.ts`及可新增 `exploration-c-art.ts` 表达新C几何；可选一个有限 `src/core/exploration-c-routes.ts` 数据文件，无框架。新增／修改文件须在报告逐项列用途。
 
 **测试／文档白名单**：新增 `tests/exploration-c-district.test.mjs`、`tests/exp-06a-browser.mjs`；必要修改现有exploration单测、floor-routes及02C／03B／03C／05A／05B浏览器脚本的当前版本／显式路径。原C几何恒定断言因本次批准重排可改为新C合同和A／B／D保持断言，但必须说明替换原因、保留旧档样本和所有取消／幂等／绕门等语义断言，不删测试挑PASS。README与本卡追加实施事实；正式决策／关卡设计由Work维护，不自行改CONFIRMED。
 
@@ -113,7 +166,44 @@ EXP-02 是内容阶段父项，不可与子项重复领取；EXP-02A／B／C、E
 
 **实施门槛与停止条件**：先列拓扑／新旧safe映射并跑核心可达性、门槛、迁入短测试，再构建与短触屏，最后一套完整新局。发现方案内普通Bug自行修；同问题两轮有效修复仍FAIL、未知CDP断开、需受保护算法／新永久状态／多平面物理时，保留报告、脚本快照、最小复现和最后状态交Work，不反复挑PASS。新方案允许重排C坐标，不能为守旧坐标把产品退回长走廊；也不能自行扩大A／B／D或另做展示地图。
 
+**Work配置身份裁定（2026-11-21派发后）**：实际closeDialogue保留的历史 `pending==='completed'` 分支仍赋 `safe='overlook'`。新C使用新safe身份，允许仅将这一赋值换成新版对应的**C下街临江回访安全点**（旧overlook语义），可从有限数据常量读取；在门／映射表中列明实际ID。其余closeDialogue控制、提交、幂等、revision、释放与清理原文保持，其他12保护方法仍原文不变。不删除历史分支、不改成新的完成条件／奖励，不将旧“到观景处”当已拍照片，也不为此把玩家无故送到D。报告明确这是单行位置配置例外，不宣称13方法全部原文不变；新safe有效／已开路可保存、旧完成档与真实拍摄原路径分别验证。该裁定不授权任何移动／暂停／输入或业务算法改动。
+
+**Work早期空间复核（2026-11-21，首版FAIL）**：`test-results/exp-06a/run-2026-11-21T07-22-14-022Z/report.json` 技术短路线PASS保留；Work实际查看其upper／middle对应截图，空间层FAIL：门前仍是顶排矩形立面／平直木带，正常截图未读出邻层落差；中街上方窗条与1F楼体缺少连续结构，仍主要靠文字解释。该报告不能用作负责人山城风味／C06空间PASS。已要求原会话在06A基础结构范围做第1轮修正：连续上下立面／侧墙支柱、可辨挡墙高度和檐廊下支撑、可读外阶去向、少量屋檐／侧面遮挡；不改镜头、UI或增加最终资产／地图／谜题，完成正常可达眺望点的上中下截图后先交Work，不先跑完整新局。本项IN PROGRESS，不把技术测试行名覆盖人工空间结论。另B原门x2040应保留，旧接口回程测试须真实走近，不为64px落地假设移动既有B门。
+
+Work第1轮空间修正复看：实际查看 `run-2026-11-21T07-25-26-688Z` 的上街／中街同楼截图与 `run-2026-11-21T07-26-45-016Z` 下街木作三层截图。已补连续多层立面、侧墙／平台线、上街檐廊下的支撑及斜向外阶；结论仅“基础楼层结构可读性改善、可继续功能验证”。允许进入后续短输入／新局验收，不把程序化样块升为正式美术或重庆魔幻风味／探索乐趣整体PASS；负责人体验、独立新玩家及真机仍未验收。首版空间FAIL保留，不重写原技术报告。
+
 **交付**：列实际HEAD／main／工作区、文件差异、地图／门／高度／准入表、31旧点迁入表、实际入口和截图、键盘触屏路径、测试与报告精确路径／版本、FAIL原因／修复次数、自有资源清理、模型请求与可否回读、已完成与未验收事项。保留4199原体验服务；优先复用同源当前dist，若不可用只建任务自有服务并提供实际地址，不终止用户进程。完成停在本项待Work审查，不自行提交／推送／删除／部署或进入06B。Work审查后展示摘要，再按持续授权逐项提交推送。
+
+**开发实施交付（2026-11-21，完成待Work正式审查；正式状态／审查段由Work更新）**：只本项，基线fd8c8c12保留Work派发文档。实际C五栋／8室内，共15图／43safe／62目标，三张室外2200×1300；有限C-routes是当前C数据唯一来源，楼上3室内继续各自唯一数据。上街前后巷与两侧阶、中街市集角前后绕行、下街茶歇至灯笼环路均实际可走；导览H3↔H2、木作H3/H2/H1与市集两门分别落对门。上街低处立面位于真实挡土墙后，非第二可走平面。原gate在中街未开可达侧，外阶及木作1F出口同一unlocked；note/plaque、原三纪念物及一次照片奖励保持。
+
+- 存档exp06a新键／版本、schema1六字段／exp03b不扩。旧05B31／05A25／03B,C19／B,A12独立封闭；31行映射按上表完成，旧中街无unlocked仍拒绝。旧未开茶歇迁合法H2并notice，不补开路；旧照片／收藏称号不重发、坏高版本不回退、重开只新空白A。A/B/D几何与旧点保持；B门2040已恢复，C侧回门190为本次必要连接。
+- 最终命令：`npm.cmd test`244/244、探索53/53、新C单独6/6、build、新脚本node --check、git diff --check均PASS。日志／命令／退出码／指纹在[manifest](../test-results/exp-06a/delivery-manifest.json)。22个src/tests修改有最终当前版本指纹覆盖；正式测试不依赖Work忽略基线或旧报告。
+- 精确最终Chrome报告：[短输入10组](../test-results/exp-06a/run-2026-11-21T07-31-36-443Z/report.json)、[一次完整新局2组](../test-results/exp-06a/run-2026-11-21T07-35-30-990Z/report.json)。短测分844×390／667×375原生触屏模拟与原生Chrome真实hidden／menu owner，含穿楼、锁门、市集、茶歇／灯笼、普通／纪念物／照片关闭旧手势、取消／正常／刷新／旋转／十次门／销毁。新局真正空白A标题→B→两楼多门与市集→中街gate→木作1F下街→两错视野→D拍摄，真实键盘、零收藏、一份照片奖励；重拍／标题／刷新保持。119239ms是含断言自动操作耗时，不是首次体验时长。页面／网络错误0，自有context/browser/native进程清理PASS。
+- 空间第1轮纠正后上/中街阶段截图在`run-2026-11-21T07-25-26-688Z`（正常站位约710,760／450,300），下街在`07-26-45-016Z`（约1350,300）；截图链接和最终当前五建筑门面／室内截图目录见[README](../README.md#exp-06a-delivery-20261121)。之后仅整理楼体总名与门口层号，不改几何。Work只认可基础楼层结构可继续功能验证，C06山城风味／探索感／负责人产品体验待评，不写整体PASS。
+- 历史`07-22-14-022Z`技术PASS与Work空间FAIL同时保留；初版平面块／悬浮窗带，经一次基础空间修正补连续楼体、侧墙／平台／外阶纵深和支撑。`07-26-45-016Z`scope误标fresh主线，真实命令spatial-lower-only／2项下街夹具，不作完整新局证据，原JSON保留。typecheck-01、core-01—04、exploration-01中间FAIL原日志与原因在manifest；未改应用移动／输入算法来绕过断言。无未知CDP断开或新的受保护host缺陷。
+- `boundary-final.json`独立对照HEAD：65其他受保护源码／5配置不变、12核心方法原文不变；closeDialogue仅获Work配置裁定的overlook→cLowerRiver常量，原completed不冒充photographed。当前SHA与HEAD不变证明分开。Work另回报244/244、独立Chrome4组、档案／边界PASS，由Work登记正式结论。
+- 原4199 PID5460保留，普通入口与index-HOuvirTF.js／index-BqzETvdL.css实际HTTP字节匹配dist；未读个人存储。旧02C／03B／03C／05A／05B完整长路线保留历史、未适配新C且NOT RUN，不当当前验收；当前06A脚本覆盖规定路线与原关闭边界。Android/iOS真机、首次时长、最终美术／文化／山城风味仍未验收。模型请求GPT-6.1 Sol／High，无实际配置独立回读。
+
+本会话应用／测试冻结，所有浏览器结束；交付README／本卡实施事实／manifest后移交文档写入权，停止等待Work审查。未Commit／Push／删除／部署，不进入06B。
+
+<a id="exp-06a-work-review-20261121"></a>
+
+### EXP-06A Work审查（2026-11-21）
+
+结论：本任务功能技术范围PASS，登记DONE，按负责人持续授权展示摘要后单项提交推送。C06产品体验单列待负责人审查；不以本次技术通过覆盖早期空间FAIL，也不启动06B。
+
+| 独立核查 | 结果与实际范围 |
+| --- | --- |
+| 当前源码与历史基线 | 对照开工fd8c8c1的167文件基线，65个其他受保护源码、12核心方法及segmentHitsRect原文一致；closeDialogue仅经裁定的completed分支safe赋值由overlook改为cLowerRiver。没有修改host／输入／暂停／碰撞算法或依赖配置，未新增物件／奖励身份。 |
+| 空间／业务数据 | 15图（6室外＋9室内）、43点、62目标；C五栋而非9栋。A广场／B入口／A服务店／D江岸几何、8个稳定A/B/D点与D正确取景全部字段保持；旧31／25／19／12点快照原值保持。新C未开路数据图可达上中街／两重点楼／市集，不能到下街／茶歇／灯笼／D；实际移动另验，数据可达不冒充实走。 |
+| Work全量复跑 | 独立执行npm.cmd test，244/244 PASS、0失败／跳过；日志test-results/exp-06a-work-review/full-test.log。开发的探索53/53、新C6/6、全量244/244和构建／语法检查另有命令与退出码，未冒充Work重跑构建。 |
+| Work真实键盘四组 | 独立隔离Chrome157：导览2F→1F→中街、木作1F未开出口拒绝→3F回上街；外阶／市集两门与未接任务gate；旧未开茶歇迁入说明及刷新；明确标注的旧已开进度进入茶歇／灯笼、取消后收原明信片，再到D原拍摄单次奖励。均PASS，清理PASS；不是空白A→D，也不是真机。 |
+| Work档案六组 | 穷举旧05B31／05A25／03B,C19／B,A12白名单与31行迁入；旧中街仍需unlocked，新中街自由；旧照片／三收藏／称号保留、旧到景不当拍照、未开茶歇安全迁入不补开；坏高键阻回退／写入、优先级与重开只写新空白A，旧键／无关键原字节保留。历史C实际样本与明确合成版本／位置分开登记，无用户存档写入。 |
+| 开发生产Chrome报告复核 | 当前10组短输入与2组空白新局报告均PASS、页面／网络错误0、清理PASS；两份各99个文件指纹及dist资产与当前字节匹配。短夹具分844×390／667×375触屏模拟、真实native hidden／owner隔离、关闭归属／刷新／旋转／十门／销毁；新局真正从普通A标题出发，零收藏到D，仅原照片奖励。自动操作119239ms不代表新玩家时长。旧长套件NOT RUN，不借历史PASS。 |
+| 空间人工复看与局限 | 首版技术路线PASS但Work空间FAIL；一次纠正后复看上中街对应立面、下街三层与支撑及最终真实门前截图，连续楼体／外阶／支柱基本可辨。仍是粗程序样块，文字标签多、地域风味与探索回报未定型；只收功能技术，不收最终视觉、山城魔幻感或探索乐趣。历史下街短报告scope误标主线的事实保留，不算整局。 |
+| 当前入口 | http://127.0.0.1:4199/，原PID5460未关闭；首页与当前dist一致。Android/iOS真机、负责人地图试玩、独立新玩家时长、最终美术／文化与完整30—45分钟章仍NOT RUN／未验收。 |
+
+Work证据：test-results/exp-06a-work-review/中的boundary-review.json、data-comparison.json、archive-validation.json、browser-review.json及full-test.log；开发交付manifest作为开发移交时点原件保留，不改写其“待Work审查”历史。后续体验反馈须针对本次普通入口，不把旧横版截图或局部自动化当当前产品结论。
 
 <a id="exp-05b-building-floors-20261121"></a>
 

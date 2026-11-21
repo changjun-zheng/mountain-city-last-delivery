@@ -1,5 +1,6 @@
-import { validateExplorationSave, migrateExp02ASave, migrateExp02BSave, migrateExp02CSave, migrateExp03BSave, migrateExp05ASave, emptyExplorationSave, type ExplorationSave } from '../../core/exploration.ts';
-export const EXP_STORAGE_KEY = 'pokan.exp05b.save.v1';
+import { validateExplorationSave, migrateExp02ASave, migrateExp02BSave, migrateExp02CSave, migrateExp03BSave, migrateExp05ASave, migrateExp05BSave, emptyExplorationSave, type ExplorationSave } from '../../core/exploration.ts';
+export const EXP_STORAGE_KEY = 'pokan.exp06a.save.v1';
+export const EXP_05B_STORAGE_KEY = 'pokan.exp05b.save.v1';
 export const EXP_05A_STORAGE_KEY = 'pokan.exp05a.save.v1';
 export const EXP_03B_STORAGE_KEY = 'pokan.exp03b.save.v1';
 export const EXP_02C_STORAGE_KEY = 'pokan.exp02c.save.v1';
@@ -17,35 +18,19 @@ export class ExplorationStorage {
     try {
       const raw = this.port.getItem(EXP_STORAGE_KEY);
       if (raw === null) {
-        const previousDistrict=this.port.getItem(EXP_05A_STORAGE_KEY);
-        if(previousDistrict!==null){
-          const migrated=migrateExp05ASave(JSON.parse(previousDistrict));
-          if(!migrated){this.#blocked=true;this.status='上版楼层街区档案未通过校验，本次未保存；原档保留';return;}
-          this.notice='已沿用街区、照片和纪念物；原档案保留。';this.status='已读取上版街区档案';return migrated;
-        }
-        const previousMementos=this.port.getItem(EXP_03B_STORAGE_KEY);
-        if(previousMementos!==null){
-          const migrated=migrateExp03BSave(JSON.parse(previousMementos));
-          if(!migrated){this.#blocked=true;this.status='上版纪念档案未通过校验，本次未保存；原档保留';return;}
-          this.notice='已沿用旅程、纪念物与称号；原档案保留。';this.status='已读取上版纪念档案';return migrated;
-        }
-        const previousCity=this.port.getItem(EXP_02C_STORAGE_KEY);
-        if(previousCity!==null){
-          const migrated=migrateExp02CSave(JSON.parse(previousCity));
-          if(!migrated){this.#blocked=true;this.status='上版旅程档案未通过校验，本次未保存；原档保留';return;}
-          this.notice='已沿用旅程进度与原有纪念卡；新增纪念物尚未收集，旧档案保留。';this.status='已读取上版旅程';return migrated;
-        }
-        const lastVersion=this.port.getItem(EXP_02B_STORAGE_KEY);
-        if(lastVersion!==null){
-          const migrated=migrateExp02BSave(JSON.parse(lastVersion));
-          if(!migrated){this.#blocked=true;this.status='上版街区档案未通过校验，本次未保存；原档保留';return;}
-          this.notice='已沿用街区进度与原有纪念卡状态；旧档案保留。';this.status='已读取上版街区进度';return migrated;
-        }
-        const previous=this.port.getItem(EXP_PREVIOUS_STORAGE_KEY);
-        if(previous!==null){
-          const migrated=migrateExp02ASave(JSON.parse(previous));
-          if(!migrated){this.#blocked=true;this.status='旧街区档案未通过校验，本次未保存；原档保留';return;}
-          this.notice='已沿用街区进度，拍摄尚未完成；旧档案保留。';this.status='已读取旧街区进度';return migrated;
+        // Ordered finite migration chain. A present invalid newer record blocks
+        // fallback; no old key is ever rewritten or removed.
+        for(const [key,convert] of [
+          [EXP_05B_STORAGE_KEY,migrateExp05BSave],[EXP_05A_STORAGE_KEY,migrateExp05ASave],
+          [EXP_03B_STORAGE_KEY,migrateExp03BSave],[EXP_02C_STORAGE_KEY,migrateExp02CSave],
+          [EXP_02B_STORAGE_KEY,migrateExp02BSave],[EXP_PREVIOUS_STORAGE_KEY,migrateExp02ASave],
+        ] as const){
+          const previous=this.port.getItem(key);if(previous===null)continue;
+          const original=JSON.parse(previous),migrated=convert(original);
+          if(!migrated){this.#blocked=true;this.status='上版档案未通过校验，本次未保存；原档保留';return;}
+          this.notice='已沿用街区进度、照片与纪念物；原档案保留，位置已对应新版街面。';
+          if((original.safe==='teaDoor'||original.safe==='teaRoom')&&migrated.safe!==original.safe&&['cGuideH2','cGuide1Door'].includes(migrated.safe))this.notice+=' 原茶歇现位于尚未开放的下街，已移至中街导览接待处，未补开通路。';
+          this.status='已读取上版旅程档案';return migrated;
         }
         if(this.port.getItem(EXP_LEGACY_STORAGE_KEY)!==null)this.notice='已开始新街区；旧庭院小样档案保留，不自动继承通关。';
         return;

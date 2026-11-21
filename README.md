@@ -4,7 +4,9 @@
 
 现行产品设计（2026-11-19 后续重构）：《坡坎之间》转为以重庆山城为灵感的 2D 斜俯视、非战斗探索冒险，支持八向走动、可进入建筑、调查／物品用途、地域收藏与轻量本地存档；手绘卡通与 H5 电脑／手机目标保留。正式范围见[探索重构决策](docs/DECISIONS.md#topdown-exploration-reboot-20261119)、[H5 V3](docs/COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md#topdown-h5-v3-20261119)和路线图页首。
 
-当前实现（2026-11-21 EXP-05B）：在三层街区与独立江岸骨架上补导览楼2层、木作楼3层；可实际上下楼、调查取物并返回原门口。共13图／31安全点，旧进度／照片／收藏保留，新局经楼层仍可完成原开路与D拍摄。Work功能技术复核PASS，按负责人授权提交推送。界面美化后置，真机／最终美术／完整章时长未验收；[审查与证据](docs/DEVELOPMENT_ROADMAP.md#exp-05b-work-review-20261121)。
+当前实现（2026-11-21 EXP-06A，Work功能技术复核PASS，待负责人体验）：C区重排为上街屋檐廊／中街穿楼院落／下街生活檐廊，导览2层、木作3层、茶歇、市集、灯笼共5栋可入；市集两门穿行，导览与木作按各层门口跨街。15图／43安全点／62目标，新上中街可提前探索，下街与D仍只用原unlocked。原夜景委托、三纪念物与奖励保持，旧档先按历史准入校验再映射。基础结构可继续验证，不等于负责人认可山城风味／探索感。详见[本轮交付](#exp-06a-delivery-20261121)。
+
+HISTORICAL 实现状态（2026-11-21 EXP-05B）：在三层街区与独立江岸骨架上补导览楼2层、木作楼3层；可实际上下楼、调查取物并返回原门口。共13图／31安全点，旧进度／照片／收藏保留，新局经楼层仍可完成原开路与D拍摄。Work功能技术复核PASS，按负责人授权提交推送。界面美化后置，真机／最终美术／完整章时长未验收；[审查与证据](docs/DEVELOPMENT_ROADMAP.md#exp-05b-work-review-20261121)。
 
 HISTORICAL 实现状态（2026-11-20 EXP-03C）：既有夜景拍摄成功卡现在明确显示“本次委托已完成”、《把山城夜景寄给远方》、原纪念卡、只读的已收纪念物数与已获称号，并提供继续探索／返回标题／确认重新开始三条路径。DONE（Work 功能技术复核 PASS，待负责人体验）。基线 `b6d4fe0`；本项未新增业务状态、奖励、存档版本或地图，真机、最终美术和完整章仍未验收，不自动续项。
 
@@ -17,6 +19,49 @@ Mountain City: Last Delivery／山城有路：最后一单为历史名称。下�
 旧横版调试首关操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；在 B 区沧白路入口靠近游客后按 E 主动对话，只有对话完成才自动接取委托。根据 B 区唯一线索，在 C 区两个吊臂中按 E 试错；右侧错误操作可重试，左侧正确操作启动升降平台并开放通往下层 D 的真实碰撞路线。沿 C1、C2、C3 连续楼梯与木廊逐层向下，乘平台下降至嘉陵江岸后，按住 D 走到指定范围并按 E 拍摄、分享；只有已接委托、机关完成、路线开放且主动交互全部满足时才完成。按 R 或「重置灰盒」回到出生点并保留上述永久进度。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
 
 调试灰盒操作：调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过并从上方落地；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。D 由 D08 原型直接登记一次测试收藏；目标 E 的按 E 只创建 Pending Event，真实命令接收和跨 Tick 事务完成后才登记目标／奖励／永久效果并开门。检查点与恢复原型、诊断区域和两条移动平台保留在「调试入口」；这些能力不等于正式存档或首关检查点。
+
+<a id="exp-06a-delivery-20261121"></a>
+
+## EXP-06A C区重排、五建筑与错层穿楼（2026-11-21）
+
+DONE（[Work功能技术复核PASS](docs/DEVELOPMENT_ROADMAP.md#exp-06a-work-review-20261121)，负责人空间／探索体验、真机与完整章未验收）。Work独立244/244、Chrome四组实走、档案六组与数据／边界／报告指纹核对通过，按持续授权审查后提交推送；下方开发移交时点记录保留。实际基线 `fd8c8c12deeba51d1c889b109c25638ebaedb6a1`；开工仅Work派发文档，全部保留。仅实施[EXP-06A](docs/DEVELOPMENT_ROADMAP.md#exp-06a-c-district-rework-20261121)，未进入06B。
+
+[普通H5入口](http://127.0.0.1:4199/)仍为原PID5460，入口与引用的 `index-HOuvirTF.js`／`index-BqzETvdL.css` 字节和当前dist匹配；完整SHA、实际命令／退出码／清理见[交付manifest](test-results/exp-06a/delivery-manifest.json)。
+
+C区共5栋、8张实际室内图，连同A／B／D共6室外＋9室内、15图／43点／62目标。三张C街面各2200×1300，速度175／足部12／1100×650／zoom1未动。上街有房侧后巷、前檐木廊、边缘眺望与两端外阶；中街围绕市集街角形成北侧街面、两侧绕行和南院路线；下街在茶歇／木作前檐与灯笼铺后巷间形成回访环路。上街眺望边后的低层立面在真实挡土墙阻挡区内，不能走入背景道路。
+
+导览2F临上街、1F出中街；木作3F经短连廊回上街、2F出中街、1F门在下街；每门成对落点。市集西廊进、东院出可绕过街角，灯笼铺承载原明信片；导览书签与茶歇速写保留。唯一note仍在导览2F，唯一plaque仍在木作3F，屏风62px范围内拒绝、绕行才取物。唯一gate在未开路也可到的中街侧，外阶和木作1F下街门共享原unlocked；普通关闭／纪念物／照片手势与所有UI未改。
+
+新键 `pokan.exp06a.save.v1`／内容 `exp06a-c-exploration-1`，仍schema1六字段与exp03b封闭进度。新→05B→05A→03B→C→B→A迁入，旧31／25／19／12点及旧“middle需unlocked”独立冻结，不依赖新版地图推断旧准入；31行映射见本卡。旧未开路茶歇门／室内迁到合法H2导览接待并说明原因，不补开路、不丢进度／照片／收藏称号；坏较新档阻止回退，重开只写新空白A，旧键原文字节保留。
+
+| 本轮证据 | 实际范围／结果 |
+| --- | --- |
+| `test-results/exp-06a/full-test-final.log` | 全量244/244 PASS；原238测试语义保留，新增6组C合同。 |
+| `test-results/exp-06a/exploration-02.log`、`core-final.log` | 探索53/53、单独新C6/6 PASS；实际核心运动逐门验证、全部旧点矩阵、旧照片称号与重开。 |
+| `test-results/exp-06a/build-final.log`、`syntax-final.log`、`diff-check-final.log` | 构建／新浏览器脚本语法／差异检查PASS。 |
+| [最终短输入报告](test-results/exp-06a/run-2026-11-21T07-31-36-443Z/report.json) | 10检查PASS：844×390／667×375原生触屏模拟、导览／木作穿楼、全部相关出口、未开1F门拒绝、市集双门、茶歇／灯笼、三类关闭手势、取消／正常、刷新／旋转／十次跨门、资源销毁与独立原生Chrome真实hidden／menu owner。短场景使用明确标注的当前safe／开路夹具，不是全手机主线。 |
+| [一次完整新局](test-results/exp-06a/run-2026-11-21T07-35-30-990Z/report.json) | 2检查PASS：普通根标题空白A→B→导览H3/H2→市集双门→木作H2/H3出上街→中街原gate→木作1F下街→两错视野→D主动拍摄；真实键盘、零选做、仅原一次照片奖励，重拍／标题／刷新保持。含检查自动耗时119239ms，不是新玩家首次时长。 |
+
+两份最终浏览器报告均页面／网络错误0、独立context／browser清理PASS，自有native Chrome关闭，原4199服务保留。22个src/tests实际变更都有最终当前版本指纹；指纹不等于每条代码分支已执行。旧02C／03B／03C／05A／05B完整浏览器长脚本保留历史路径，本轮未适配新C也未重跑，均NOT RUN；本轮入口与三类关闭手势由06A新脚本覆盖，不拿旧PASS当当前验证。
+
+空间第1轮修正的正常镜头截图：[上街眺望，约(710,760)](test-results/exp-06a/run-2026-11-21T07-25-26-688Z/spatial-upper-guide-two-storeys.png)、[中街回望，约(450,300)](test-results/exp-06a/run-2026-11-21T07-25-26-688Z/spatial-middle-same-guide-and-upper-storey.png)、[下街木作／支柱，约(1350,300)](test-results/exp-06a/run-2026-11-21T07-26-45-016Z/spatial-lower-wood-continuous-storeys-and-piers.png)。这些是阶段版本：之后仅将楼体总名与实际门口楼层文字分开；最终当前版本五建筑门面／室内与穿楼截图在两份最终报告内。Work判断基础楼层结构可继续验证；山城风味、探索乐趣、负责人体验仍未验收，C06产品层不记PASS。
+
+历史 `run-2026-11-21T07-22-14-022Z` 技术路线PASS但Work空间审查FAIL：初版平铺立面／悬浮窗带不够可读。保留原JSON／脚本／截图，随后一轮基础结构修正补连续两／三层楼体、侧墙、平台、斜向外阶和檐下支撑。历史 `07-26-45-016Z` 的scope误标为fresh-A-to-D，实际命令为 `--spatial-lower-only`，只有2项下街开路夹具检查；不改原JSON、不作完整新局证据。中间typecheck／core-01—04／exploration-01失败日志全部保留，原因和有效修正见manifest；临时移动B门被Work纠正后已恢复2040，A／B／D几何与旧安全点不改。
+
+本轮边界证明见 `boundary-final.json`：65其他受保护源码＋5配置与HEAD git blob一致，12核心方法原文一致；只有获Work裁定的closeDialogue历史completed分支安全点从overlook替换为cLowerRiver，提交／幂等／revision／owner逻辑不动。它仍是旧“找到视野”语义，不当photographed；新旧档拍摄奖励分别验证。Work另回报独立244/244、Chrome4组、档案／边界PASS，正式审查由Work登记。
+
+| 实际源码／测试文件 | 用途 |
+| --- | --- |
+| `src/core/exploration-c-routes.ts`（新增） | C街面／5栋基础室内、每门新safe／准入／阻挡和旧点显式映射的有限数据。 |
+| `src/core/exploration-content.ts`、`exploration-building-floors.ts`、`exploration-district.ts`、`exploration-prologue.ts` | 唯一组装、冻结05B31点、楼梯新身份、D必要回边与B↔C连接；B门2040与A/B/D几何保留。 |
+| `src/core/exploration.ts`、`src/platform/web/exploration-storage.ts` | 新版／旧版独立校验、迁入和notice、已批准safe常量与少量只读场景说明；无新业务进度。 |
+| `src/core/exploration-photo.ts`、`exploration-mementos.ts` | C两候选map/safe/位置、原明信片迁灯笼铺；river全字段和三件ID／奖励／图案不动。 |
+| `src/rendering/phaser/exploration-c-art.ts`（新增）、`exploration.ts`、`exploration-building-art.ts` | 按真实数据画基础空间、楼体／门洞／封栏／陈列；接线并避免将外街门画成楼梯。 |
+| `tests/exploration-c-district.test.mjs`（新增）、`exp-06a-browser.mjs`（新增） | 6组C合同及当前生产Chrome实际路线／输入／清理报告。正式测试不依赖忽略旧报告或Work派发基线。 |
+| `tests/exploration-floor-routes.mjs` | 保留显式楼层路径；补单测专用独立网格选路驱动，仅调用真实move/frame/interact，不写运行时坐标或进度；浏览器仍显式真实输入。 |
+| `tests/exploration.test.mjs`、`exploration-district.test.mjs`、`exploration-prologue.test.mjs`、`exploration-skeleton.test.mjs`、`exploration-building-floors.test.mjs`、`exploration-photo.test.mjs`、`exploration-mementos.test.mjs` | 旧C几何／门路改为获准新合同，保留取消／乱序／幂等／阻挡／封闭档案／照片与收藏语义。 |
+
+Android／iOS真机、新玩家首次时长、正式美术／文化、山城风味／探索感仍NOT RUN或未验收。模型请求GPT-6.1 Sol／High，实际配置无法独立回读。应用／测试冻结、全部浏览器结束，未Commit／Push／删除／部署；交Work审查后停止，不自动进入06B。
 
 <a id="exp-05b-delivery-20261121"></a>
 

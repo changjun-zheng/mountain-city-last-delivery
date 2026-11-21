@@ -22,7 +22,7 @@ export function drawBuildingFloor(scene:Phaser.Scene,layer:Phaser.GameObjects.La
       label(clasp.x,470,s.item?'导扣已带走':'可借 · 江纹导扣',16);g.lineStyle(3,0x5c7b77);g.strokeTriangle(1028,278,1050,255,1072,278);
     }
   }
-  for(const target of EXP_TARGETS.filter(t=>t.map===s.map&&(t.id.startsWith('guide-')||t.id.startsWith('workshop-'))&&t.destination&&t.id!=='guide-exit'&&t.id!=='workshop-exit')){
+  for(const target of EXP_TARGETS.filter(t=>t.map===s.map&&['guide-up','guide-down','workshop-up-2','workshop-down-1','workshop-up-3','workshop-down-2'].includes(t.id)&&t.destination&&t.id!=='guide-exit'&&t.id!=='workshop-exit')){
     const stairs=scene.add.graphics().setDepth(target.y-1);layer.add(stairs);for(let n=0;n<7;n++){stairs.fillStyle(n%2?0x79684e:0xb29a6e);stairs.fillRect(target.x-48,target.y-35+n*9,96,7);}label(target.x,target.y-65,target.label,16);
   }
   if(s.map==='workshop'){label(320,435,'1F工作台／2F工具／3F门扣',16);}

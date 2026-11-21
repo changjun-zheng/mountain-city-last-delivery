@@ -1,3 +1,4 @@
+import {drawCExploration} from './exploration-c-art';
 import {drawBuildingFloor} from './exploration-building-art';
 import {drawDistrict} from './exploration-district-art';
 import Phaser from 'phaser';
@@ -77,7 +78,9 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
               const bg=scene.add.graphics().setDepth(-100);map.add(bg);
               rect(bg,0,0,definition.width,definition.height,0x356b78);
               const b=definition.bounds;
-              if(s.map==='plaza'||s.map==='entry'||s.map==='service'){
+              if(['upper','middle','lower','guide','guide2','workshop','workshop2','workshop3','tea','market','lantern'].includes(s.map)){
+                drawCExploration(scene,map,s);
+              }else if(s.map==='plaza'||s.map==='entry'||s.map==='service'){
                 drawPrologueCity(scene,map,s.map,()=>actor(scene,0xc88c6a,0xdac5a5));
               }else if(s.map==='middle'||s.map==='riverfront'){
                 drawDistrict(scene,map,s.map);

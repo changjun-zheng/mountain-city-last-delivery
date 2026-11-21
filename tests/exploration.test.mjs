@@ -7,31 +7,8 @@ import { InMemoryRunProgress, EXP02A_PROGRESS_CONTENT as P, PROTOTYPE_PROGRESS_C
 import { ExplorationInputSources } from '../src/platform/web/exploration-input.ts';
 import { ExplorationStorage, EXP_STORAGE_KEY } from '../src/platform/web/exploration-storage.ts';
 
-// Explicit historical C fixture: fresh A gameplay is covered by the prologue suite.
-function driver(save={...emptyExplorationSave(),safe:'arrival'}) {
-  const r=new ExplorationRuntime('test-runtime',save);let time=0;r.frame(time);
-  const step=(n=1)=>{for(let i=0;i<n;i++)r.frame(time+=20);};
-  const move=(x,y,n)=>{r.move(x,y);step(n);r.move(0,0);};
-  const to=(x,y)=>{
-    for(let i=0;i<2000;i++){
-      const p=r.snapshot.position,dx=x-p.x,dy=y-p.y;
-      if(Math.hypot(dx,dy)<4){r.move(0,0);return;}
-      r.move(Math.abs(dx)<2?0:Math.sign(dx),Math.abs(dy)<2?0:Math.sign(dy));step();
-    }
-    assert.fail(`Unreachable ${x},${y} from ${JSON.stringify(r.snapshot.position)}`);
-  };
-  const interact=(target)=>{assert.equal(r.snapshot.target?.id,target);r.interact(true);r.interact(false);};
-  const close=()=>{r.closeDialogue();step();};
-  return {r,step,move,to,interact,close,jump:ms=>{time+=ms;r.frame(time);}};
-}
-function takeItem(d) {
-  d.to(880,690);d.to(880,580);d.interact('guide-door');assert.equal(d.r.snapshot.map,'guide');
-  runFloorRoute(d,'guideUp');d.interact('note');d.close();
-  runFloorRoute(d,'guideBack');d.interact('guide-exit');
-  d.to(880,630);d.to(2300,630);d.to(2300,580);d.interact('workshop-door');
-  runFloorRoute(d,'workshopUp');d.interact('plaque');d.close();
-  runFloorRoute(d,'workshopBack');d.interact('workshop-exit');
-}
+import {coreDriver as driver} from './exploration-floor-routes.mjs';
+function takeItem(d){d.use('guide-door');d.use('note');d.close();d.use('guide-down');d.use('guide-exit');d.use('workshop-middle-door');d.use('workshop-up-3');d.use('plaque');d.close();d.use('workshop-down-2');d.use('workshop-middle-exit');}
 
 // EXP-01 movement, persistence, idempotence and source coverage is retained;
 // coordinates/IDs now reference the authorized EXP-02A map/content version.
@@ -40,27 +17,25 @@ test('EXP E01 eight directions stay equal speed; expanded building, corner, gate
     const d=driver(),p=d.r.snapshot.position;d.move(x,y,5);const q=d.r.snapshot.position;
     assert.ok(Math.abs(Math.hypot(q.x-p.x,q.y-p.y)-17.5)<.001);
   }
-  const d=driver();d.to(880,630);d.move(0,-1,100);assert.ok(d.r.snapshot.position.y>=542);
-  d.move(1,-1,40);assert.ok(d.r.snapshot.position.x>940);
-  d.to(1120,630);d.to(2700,630);d.to(2700,750);d.r.move(1,0);d.jump(1_000_000);assert.ok(d.r.snapshot.position.x<=2738);
-  d.move(1,0,200);assert.ok(d.r.snapshot.position.x<=2738);d.move(0,-1,200);assert.ok(d.r.snapshot.position.y>=252);
+  const d=driver();d.to(710,600);d.move(0,-1,100);assert.ok(d.r.snapshot.position.y>=532);
+  d.move(1,-1,40);assert.ok(d.r.snapshot.position.x>710);
+  const gate=driver({...emptyExplorationSave(),safe:'cMiddleDownEast'});gate.r.move(0,1);gate.jump(1_000_000);assert.ok(gate.r.snapshot.position.y<=1068);gate.move(0,1,200);assert.ok(gate.r.snapshot.position.y<=1068);gate.move(1,0,200);assert.ok(gate.r.snapshot.position.x<=2128);
 });
 test('EXP E02 real multi-room navigation, missing conditions, held interaction and three round trips',()=>{
-  const d=driver();d.to(880,690);d.to(880,580);d.interact('guide-door');const id=d.r.id;
-  for(let i=0;i<3;i++){d.interact('guide-exit');assert.deepEqual(d.r.snapshot.position,{x:880,y:580});d.interact('guide-door');assert.equal(d.r.id,id);}
-  d.interact('guide-exit');takeItem(d);assert.equal(d.r.snapshot.item,true);assert.equal(d.r.snapshot.accepted,false);
-  d.to(2300,650);d.to(2700,650);d.to(2700,750);d.interact('gate');d.close();assert.equal(d.r.snapshot.unlocked,false);assert.equal(d.r.snapshot.item,true);
-  d.to(2700,650);d.to(175,650);d.to(175,690);d.interact('core-to-entry');d.to(1140,780);d.to(1140,800);d.interact('visitor');assert.equal(d.r.snapshot.accepted,false);
+  const d=driver(),id=d.r.id;d.use('guide-door');
+  for(let i=0;i<3;i++){d.use('guide-upper-exit');assert.equal(d.r.save.safe,'cGuideH3');d.use('guide-door');assert.equal(d.r.id,id);}
+  d.use('guide-upper-exit');takeItem(d);assert.equal(d.r.snapshot.item,true);assert.equal(d.r.snapshot.accepted,false);
+  d.use('gate');d.close();assert.equal(d.r.snapshot.unlocked,false);assert.equal(d.r.snapshot.item,true);
+  d.use('middle-west-upper');d.use('core-to-entry');d.use('visitor');assert.equal(d.r.snapshot.accepted,false);
   const revision=d.r.snapshot.revision;d.r.interact(true);d.step(20);assert.equal(d.r.snapshot.revision,revision);d.close();d.r.interact(false);assert.equal(d.r.snapshot.accepted,true);
-  d.to(2040,800);d.to(2040,780);d.interact('entry-to-core');d.to(230,650);d.to(2700,650);d.to(2700,750);d.interact('gate');assert.equal(d.r.snapshot.unlocked,false);d.close();assert.equal(d.r.snapshot.unlocked,true);
-  const before=d.r.snapshot.progress;d.interact('gate');d.close();assert.deepEqual(d.r.snapshot.progress,before);
-  d.to(3060,750);d.interact('east-down');assert.equal(d.r.snapshot.map,'middle');d.to(3000,1200);d.interact('middle-east-lower');assert.equal(d.r.snapshot.map,'lower');assert.equal(d.r.id,id);
-  d.to(2100,650);d.to(1780,650);d.to(1780,1120);d.to(1700,1120);d.interact('riverfront-down');d.to(900,650);d.to(900,1050);d.to(1950,1050);d.interact('view');d.r.closePhotoPreview();assert.equal(d.r.snapshot.completed,true);assert.equal(d.r.snapshot.photographed,false,'Old found-view goal is not a photograph');
+  d.use('entry-to-core');d.use('east-down');d.use('gate');assert.equal(d.r.snapshot.unlocked,false);d.close();assert.equal(d.r.snapshot.unlocked,true);
+  const before=d.r.snapshot.progress;d.use('gate');d.close();assert.deepEqual(d.r.snapshot.progress,before);
+  d.use('middle-east-lower');assert.equal(d.r.snapshot.map,'lower');assert.equal(d.r.id,id);d.use('riverfront-down');d.use('view');d.r.closePhotoPreview();assert.equal(d.r.snapshot.completed,true);assert.equal(d.r.snapshot.photographed,false,'Old found-view goal is not a photograph');
   const restored=new ExplorationRuntime('new-runtime',d.r.save);assert.equal(restored.snapshot.completed,true);assert.equal(restored.snapshot.map,'riverfront');assert.deepEqual(restored.snapshot.position,{x:1910,y:1050});assert.equal(restored.snapshot.pauseCount,0);
 });
 test('EXP E03 closed records, immutable targets, atomic validation and every unlocked safe anchor',()=>{
-  const isolated=driver();assert.deepEqual(isolated.r.snapshot.position,{x:230,y:690});isolated.to(880,690);isolated.to(880,580);
-  assert.throws(()=>{isolated.r.snapshot.target.x=999;},TypeError);assert.equal(isolated.r.snapshot.target.x,880);
+  const isolated=driver();assert.deepEqual(isolated.r.snapshot.position,{x:230,y:690});isolated.target('guide-door');
+  assert.throws(()=>{isolated.r.snapshot.target.x=999;},TypeError);assert.equal(isolated.r.snapshot.target.x,710);
   const legacy=new InMemoryRunProgress();assert.equal(legacy.completeGoal(P.unlocked).status,'rejected');assert.equal(legacy.recordCollection(P.item).status,'rejected');
   const progress=new InMemoryRunProgress('exp02a');assert.equal(progress.completeGoal(PROTOTYPE_PROGRESS_CONTENT.goal.businessId).status,'rejected');progress.completeGoal(P.accepted);const baseline=progress.snapshot;
   assert.equal(progress.restore({...baseline,goals:[P.accepted,'goal.exp02a.unknown']}),false);assert.deepEqual(progress.snapshot,baseline);

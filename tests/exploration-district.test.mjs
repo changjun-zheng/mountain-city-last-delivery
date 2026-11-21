@@ -6,49 +6,28 @@ import { EXP_MAPS, EXP_TARGETS, EXP_SAFE, EXP_LEGACY_SAFE, EXP_CONTENT_VERSION, 
 import { InMemoryRunProgress, EXP01_PROGRESS_CONTENT, EXP02A_PROGRESS_CONTENT as P } from '../src/core/progress.ts';
 import { ExplorationStorage, EXP_STORAGE_KEY, EXP_LEGACY_STORAGE_KEY } from '../src/platform/web/exploration-storage.ts';
 
-// Explicit historical C fixture: fresh A gameplay is covered by the prologue suite.
-function driver(save={...emptyExplorationSave(),safe:'arrival'}) {
-  const r=new ExplorationRuntime('district-test',save);let time=0;r.frame(time);
-  const to=(x,y)=>{for(let i=0;i<3000;i++){const p=r.snapshot.position,dx=x-p.x,dy=y-p.y;if(Math.hypot(dx,dy)<4){r.move(0,0);return;}r.move(Math.abs(dx)<2?0:Math.sign(dx),Math.abs(dy)<2?0:Math.sign(dy));r.frame(time+=20);}assert.fail('Unreachable '+JSON.stringify({x,y,actual:r.snapshot.position}));};
-  const interact=id=>{assert.equal(r.snapshot.target?.id,id);r.interact(true);r.interact(false);};
-  return {r,to,interact};
-}
+import {coreDriver as driver} from './exploration-floor-routes.mjs';
 function fullProgress(){const p=new InMemoryRunProgress('exp02a');p.completeGoal(P.accepted);p.completeGoal(P.clue);p.recordCollection(P.item);p.completeGoal(P.unlocked);return p.snapshot;}
 
-test('EXP-02A A1 five bounded maps, three paired doorways and all safe anchors clear foot blockers',()=>{
-  assert.equal(Object.keys(EXP_MAPS).length,13);
-  for(const id of ['upper','lower']){assert.equal(EXP_MAPS[id].width,3300);assert.equal(EXP_MAPS[id].height,1300);assert.ok(EXP_MAPS[id].buildings.length>=7);}
-  assert.deepEqual(Object.keys(EXP_LEGACY_SAFE),['arrival','guideDoor','guideRoom','workshopDoor','workshopRoom','teaDoor','teaRoom','eastUpper','eastLower','westUpper','westLower','overlook']);
-  for(const [door,room,back] of [['guide-door','guide','guideDoor'],['workshop-door','workshop','workshopDoor'],['tea-door','tea','teaDoor']]){
-    const t=EXP_TARGETS.find(t=>t.id===door);assert.equal(EXP_SAFE[t.destination].map,room);
-    const exit=EXP_TARGETS.find(t=>t.map===room&&t.destination);assert.equal(exit.destination,back);assert.equal(EXP_SAFE[back].map,'upper');
-  }
-  for(const point of Object.values(EXP_SAFE)){
-    const b=EXP_MAPS[point.map].bounds;assert.ok(point.x>=b.x+12&&point.x<=b.x+b.w-12&&point.y>=b.y+12&&point.y<=b.y+b.h-12);
-    assert.ok(!explorationWalls(point.map,true).some(w=>point.x+12>w.x&&point.x-12<w.x+w.w&&point.y+12>w.y&&point.y-12<w.y+w.h));
-  }
+// EXP-06A explicitly replaces old C geometry/door expectations. Historical
+// safe values remain frozen; cancellation, items and route ownership are kept.
+test('EXP-02A A1 current bounded C and five useful paired building doorways, all foot anchors clear',()=>{
+ assert.equal(Object.keys(EXP_MAPS).length,15);assert.equal(Object.keys(EXP_LEGACY_SAFE).length,12);
+ for(const id of ['upper','middle','lower']){assert.equal(EXP_MAPS[id].width,2200);assert.ok(EXP_MAPS[id].buildings.length>=3);}
+ for(const [safe,door,room,back] of [['cGuideH3','guide-door','guide2','guide-upper-exit'],['cWoodH3','workshop-upper-door','workshop3','workshop-upper-exit'],['cTeaH1','tea-door','tea','tea-exit'],['cLanternH1','lantern-door','lantern','lantern-exit'],['cMarketWest','market-west-door','market','market-west-exit']]){const d=driver({...emptyExplorationSave(),safe,progress:fullProgress()});d.use(door);assert.equal(d.r.snapshot.map,room);d.use(back);assert.equal(d.r.save.safe,safe);}
+ for(const point of Object.values(EXP_SAFE)){const b=EXP_MAPS[point.map].bounds;assert.ok(point.x>=b.x+12&&point.x<=b.x+b.w-12&&point.y>=b.y+12&&point.y<=b.y+b.h-12);assert.ok(!explorationWalls(point.map,true).some(w=>point.x+12>w.x&&point.x-12<w.x+w.w&&point.y+12>w.y&&point.y-12<w.y+w.h));}
 });
 test('EXP-02A A3 cancel discards pending quest, note and pickup; normal close commits once',()=>{
-  const d=driver({...emptyExplorationSave(),safe:'entryFromCity'});d.to(1100,850);d.to(1100,800);d.interact('visitor');assert.equal(d.r.snapshot.accepted,false);d.r.closeDialogue(false);assert.equal(d.r.snapshot.accepted,false);
-  d.interact('visitor');d.r.closeDialogue();assert.equal(d.r.snapshot.accepted,true);const accepted=d.r.snapshot.progress;d.r.closeDialogue();assert.deepEqual(d.r.snapshot.progress,accepted);
-  d.to(2040,800);d.to(2040,780);d.interact('entry-to-core');d.to(880,690);d.to(880,580);d.interact('guide-door');runFloorRoute(d,'guideUp');d.interact('note');d.r.closeDialogue(false);assert.equal(d.r.snapshot.clue,false);
-  d.interact('note');d.r.closeDialogue();assert.equal(d.r.snapshot.clue,true);runFloorRoute(d,'guideBack');d.interact('guide-exit');
-  d.to(880,650);d.to(2300,650);d.to(2300,580);d.interact('workshop-door');runFloorRoute(d,'workshopUp');d.interact('plaque');d.r.closeDialogue(false);assert.equal(d.r.snapshot.item,false);d.interact('plaque');d.r.closeDialogue();assert.equal(d.r.snapshot.item,true);
+ const d=driver({...emptyExplorationSave(),safe:'entryFromCity'});d.use('visitor');d.r.closeDialogue(false);assert.equal(d.r.snapshot.accepted,false);d.use('visitor');d.r.closeDialogue();assert.equal(d.r.snapshot.accepted,true);const before=d.r.snapshot.progress;d.r.closeDialogue();assert.deepEqual(d.r.snapshot.progress,before);d.use('entry-to-core');d.use('guide-door');d.use('note');d.r.closeDialogue(false);assert.equal(d.r.snapshot.clue,false);d.use('note');d.r.closeDialogue();assert.equal(d.r.snapshot.clue,true);d.use('guide-upper-exit');d.use('workshop-upper-door');d.use('plaque');d.r.closeDialogue(false);assert.equal(d.r.snapshot.item,false);d.use('plaque');d.r.closeDialogue();assert.equal(d.r.snapshot.item,true);
 });
-test('EXP-02A A3 no interaction through the workshop screen or across maps',()=>{
-  const d=driver();d.to(2300,690);d.to(2300,580);d.interact('workshop-door');
-  d.to(680,540);d.to(680,415);assert.equal(d.r.snapshot.target,undefined);d.r.interact(true);d.r.interact(false);assert.equal(d.r.snapshot.dialogue,'');assert.equal(d.r.snapshot.item,false);
-  assert.equal(segmentHitsRect({x:680,y:415},{x:760,y:415},{x:700,y:365,w:12,h:100}),true);
-  assert.equal(segmentHitsRect({x:760,y:430},{x:760,y:415},{x:700,y:365,w:12,h:100}),false);
-  d.to(680,540);runFloorRoute(d,'workshopUp');d.interact('plaque');d.r.closeDialogue();assert.equal(d.r.snapshot.item,true);assert.equal(d.r.snapshot.clue,false);
-  runFloorRoute(d,'workshopBack');d.interact('workshop-exit');assert.notEqual(d.r.snapshot.target?.id,'plaque');
-  d.to(2300,650);d.to(150,650);d.to(150,850);d.interact('wrong-gate');d.r.closeDialogue();assert.equal(d.r.snapshot.item,true);assert.equal(d.r.snapshot.unlocked,false);
+test('EXP-02A A3 no interaction through the workshop screen or across maps; wrong gate preserves item',()=>{
+ const d=driver({...emptyExplorationSave(),safe:'cWood1Door'});d.to(680,415);assert.equal(d.r.snapshot.target,undefined);d.r.interact(true);d.r.interact(false);assert.equal(d.r.snapshot.dialogue,'');assert.equal(d.r.snapshot.item,false);assert.ok(segmentHitsRect({x:680,y:415},{x:760,y:415},{x:700,y:365,w:12,h:100}));
+ d.use('workshop-up-2');d.use('workshop-up-3');d.use('plaque');d.r.closeDialogue();assert.equal(d.r.snapshot.item,true);assert.equal(d.r.snapshot.clue,false);d.use('workshop-upper-exit');assert.notEqual(d.r.snapshot.target?.id,'plaque');d.use('wrong-gate');d.r.closeDialogue();assert.equal(d.r.snapshot.item,true);assert.equal(d.r.snapshot.unlocked,false);
 });
-test('EXP-02A A3 west connection cannot bypass unlock; unlocked paired loop keeps same runtime',()=>{
-  const d=driver();d.to(540,690);d.to(540,1150);d.interact('west-down');d.r.closeDialogue();assert.equal(d.r.snapshot.map,'upper');
-  const save={...d.r.save,safe:'westUpper',progress:fullProgress()},loop=driver(save),id=loop.r.id;
-  loop.interact('west-down');assert.equal(loop.r.snapshot.map,'middle');loop.to(400,1200);loop.interact('middle-west-lower');assert.equal(loop.r.snapshot.map,'lower');assert.equal(loop.r.id,id);assert.deepEqual(loop.r.snapshot.position,{x:430,y:1030});
-  loop.interact('west-up');assert.equal(loop.r.snapshot.map,'middle');loop.to(400,450);loop.interact('middle-west-upper');assert.equal(loop.r.snapshot.map,'upper');assert.equal(loop.r.id,id);assert.deepEqual(loop.r.snapshot.position,{x:540,y:1150});
+test('EXP-02A A3 free upper/middle loop cannot bypass lower unlock; open paired loop keeps same runtime',()=>{
+ const d=driver();d.use('west-down');assert.equal(d.r.snapshot.map,'middle');d.use('middle-west-lower');d.r.closeDialogue();assert.equal(d.r.snapshot.map,'middle');
+ const loop=driver({...emptyExplorationSave(),safe:'cUpperWest',progress:fullProgress()}),id=loop.r.id;
+ for(const target of ['west-down','middle-west-lower','west-up','middle-west-upper'])loop.use(target);assert.equal(loop.r.save.safe,'cUpperWest');assert.equal(loop.r.id,id);
 });
 test('EXP-02A A4 independent content IDs, future/old version protection and unchanged old storage key',()=>{
   const old=new InMemoryRunProgress('exp01');old.completeGoal(EXP01_PROGRESS_CONTENT.accepted);old.completeGoal(EXP01_PROGRESS_CONTENT.clue);old.recordCollection(EXP01_PROGRESS_CONTENT.item);old.completeGoal(EXP01_PROGRESS_CONTENT.unlocked);old.completeGoal(EXP01_PROGRESS_CONTENT.completed);

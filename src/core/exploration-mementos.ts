@@ -6,7 +6,7 @@ export const MEMENTOS=Object.freeze([
     text:'书签上，木楼沿坡展开，细细的支柱托起廊边。把这次对建筑层次的观察，夹在旅程里。'}),
   Object.freeze({id:'sketch',targetId:'memento-sketch',collectionId:'collection.exp03b.bamboo-sketch',map:'tea',x:300,y:520,name:'竹椅茶歇速写',
     text:'纸上留着游戏茶桌和竹椅的几笔线条。走累时歇一会儿，灯下的片刻也值得记下。'}),
-  Object.freeze({id:'postcard',targetId:'memento-postcard',collectionId:'collection.exp03b.river-postcard',map:'lower',x:470,y:900,name:'江桥夜色明信片',
+  Object.freeze({id:'postcard',targetId:'memento-postcard',collectionId:'collection.exp03b.river-postcard',map:'lantern',x:850,y:400,name:'江桥夜色明信片',
     text:'原创纸面图案画着江面、桥影与灯光。这是街边发现的小纪念，不是替游客拍下的那张夜景卡。'}),
 ] as const);
 export type MementoId=typeof MEMENTOS[number]['id'];

@@ -1,39 +1,50 @@
+import {C_OLD_SAFE_MAP} from './exploration-c-routes.ts';
 import { FixedStepSimulation } from './simulation.ts';
 import { RuntimeLifecycleController, type PauseToken } from './lifecycle.ts';
 import { InMemoryRunProgress, EXP02A_PROGRESS_CONTENT as P, EXP02B_PROGRESS_CONTENT as Q, type RunProgressSnapshot } from './progress.ts';
-import { EXP_MAPS, EXP_SAFE, EXP_LEGACY_SAFE, EXP_TARGETS, EXP_CONTENT_VERSION, EXP02A_CONTENT_VERSION, EXP02B_CONTENT_VERSION, EXP02C_CONTENT_VERSION, EXP03B_CONTENT_VERSION, EXP05A_CONTENT_VERSION, EXP05A_SAFE, EXP_PRE05_SAFE, explorationWalls, segmentHitsRect, type ExplorationMap, type SafeId, type Point, type Rect } from './exploration-content.ts';
+import { EXP_MAPS, EXP_SAFE, EXP_LEGACY_SAFE, EXP_TARGETS, EXP_CONTENT_VERSION, EXP02A_CONTENT_VERSION, EXP02B_CONTENT_VERSION, EXP02C_CONTENT_VERSION, EXP03B_CONTENT_VERSION, EXP05A_CONTENT_VERSION, EXP05B_CONTENT_VERSION, EXP05B_SAFE, EXP05A_SAFE, EXP_PRE05_SAFE, explorationWalls, segmentHitsRect, type ExplorationMap, type SafeId, type Point, type Rect } from './exploration-content.ts';
 import { PHOTO_SITES, PHOTO_SITE_IDS, PHOTO_METADATA, missingPhotoElements, type PhotoSiteId, type PhotoMetadata } from './exploration-photo.ts';
 import {MEMENTOS,MEMENTO_COLLECTION_IDS,MEMENTO_COMPLETION,type MementoId,type MementoTargetId} from './exploration-mementos.ts';
 
 export type LegacyExplorationSave = Readonly<{schemaVersion:1;contentVersion:string;safe:SafeId;progress:RunProgressSnapshot}>;
 export type ExplorationSave = LegacyExplorationSave & Readonly<{observedSites:readonly PhotoSiteId[];photo:PhotoMetadata|null}>;
-function validateBaseSave(value:unknown,content:'exp02a'|'exp02b'|'exp02c'|'exp03b'|'exp05a'|'exp05b'):LegacyExplorationSave|undefined {
-  if (!value || typeof value !== 'object') return;
-  const s = value as LegacyExplorationSave;
-  const expected=content==='exp02a'?EXP02A_CONTENT_VERSION:content==='exp02b'?EXP02B_CONTENT_VERSION:content==='exp02c'?EXP02C_CONTENT_VERSION:content==='exp03b'?EXP03B_CONTENT_VERSION:content==='exp05a'?EXP05A_CONTENT_VERSION:EXP_CONTENT_VERSION;
-  if (s.schemaVersion !== 1 || s.contentVersion !== expected ||
-      typeof s.safe !== 'string' || !Object.hasOwn(content==='exp05b'?EXP_SAFE:content==='exp05a'?EXP05A_SAFE:content==='exp02c'||content==='exp03b'?EXP_PRE05_SAFE:EXP_LEGACY_SAFE, s.safe)) return;
-  const progress = new InMemoryRunProgress(content==='exp02a'?'exp02a':(content==='exp03b'||content==='exp05a'||content==='exp05b')?'exp03b':'exp02b');
-  if (!progress.restore(s.progress)) return;
-  const has = (id: string) => progress.verifyGoal(id);
-  const item = progress.snapshot.collections.includes(P.item);
-  if ((has(P.unlocked) && (!has(P.accepted) || !has(P.clue) || !item)) ||
-      (has(P.completed) && !has(P.unlocked)) ||
-      ((['lower','middle','riverfront'].includes(EXP_SAFE[s.safe].map)||s.safe==='eastUpper'||s.safe==='westUpper')&&!has(P.unlocked))) return;
-  if((content==='exp03b'||content==='exp05a'||content==='exp05b')&&has(MEMENTO_COMPLETION.goal)!==MEMENTO_COLLECTION_IDS.every(id=>progress.snapshot.collections.includes(id)))return;
-  return Object.freeze({ schemaVersion: 1, contentVersion: EXP_CONTENT_VERSION, safe: s.safe, progress: progress.snapshot });
+type SaveProfile='exp02a'|'exp02b'|'exp02c'|'exp03b'|'exp05a'|'exp05b'|'exp06a';
+function validateBaseSave(value:unknown,content:SaveProfile):LegacyExplorationSave|undefined {
+  if(!value||typeof value!=='object')return;
+  const s=value as LegacyExplorationSave;
+  const versions={exp02a:EXP02A_CONTENT_VERSION,exp02b:EXP02B_CONTENT_VERSION,exp02c:EXP02C_CONTENT_VERSION,exp03b:EXP03B_CONTENT_VERSION,exp05a:EXP05A_CONTENT_VERSION,exp05b:EXP05B_CONTENT_VERSION,exp06a:EXP_CONTENT_VERSION};
+  const safes:Readonly<Record<string,Readonly<{map:string;x:number;y:number}>>>=content==='exp06a'?EXP_SAFE:content==='exp05b'?EXP05B_SAFE:content==='exp05a'?EXP05A_SAFE:content==='exp03b'||content==='exp02c'?EXP_PRE05_SAFE:EXP_LEGACY_SAFE;
+  if(s.schemaVersion!==1||s.contentVersion!==versions[content]||typeof s.safe!=='string'||!Object.hasOwn(safes,s.safe))return;
+  const modern=content==='exp03b'||content==='exp05a'||content==='exp05b'||content==='exp06a';
+  const progress=new InMemoryRunProgress(content==='exp02a'?'exp02a':modern?'exp03b':'exp02b');
+  if(!progress.restore(s.progress))return;
+  const has=(id:string)=>progress.verifyGoal(id),item=progress.snapshot.collections.includes(P.item),map=safes[s.safe].map;
+  // Historical admission uses ONLY that version's independent snapshot, never
+  // the reshaped current map or a mapped safe. The new middle is free only now.
+  const needsOpen=content==='exp06a'?['lower','tea','lantern','riverfront'].includes(map):['lower','middle','riverfront'].includes(map)||String(s.safe)==='eastUpper'||String(s.safe)==='westUpper';
+  if((has(P.unlocked)&&(!has(P.accepted)||!has(P.clue)||!item))||(has(P.completed)&&!has(P.unlocked))||(needsOpen&&!has(P.unlocked)))return;
+  if(modern&&has(MEMENTO_COMPLETION.goal)!==MEMENTO_COLLECTION_IDS.every(id=>progress.snapshot.collections.includes(id)))return;
+  let safe=s.safe;
+  if(content!=='exp06a'){
+    const oldSafe=String(s.safe);
+    safe=(oldSafe==='teaDoor'&&!has(P.unlocked)?'cGuideH2':oldSafe==='teaRoom'&&!has(P.unlocked)?'cGuide1Door':C_OLD_SAFE_MAP[oldSafe as keyof typeof C_OLD_SAFE_MAP]??oldSafe) as SafeId;
+  }
+  if(!Object.hasOwn(EXP_SAFE,safe))return;
+  const currentMap=EXP_SAFE[safe].map;
+  if(['lower','tea','lantern','riverfront'].includes(currentMap)&&!has(P.unlocked))return;
+  return Object.freeze({schemaVersion:1,contentVersion:EXP_CONTENT_VERSION,safe,progress:progress.snapshot});
 }
 export function migrateExp02ASave(value:unknown):ExplorationSave|undefined {
   if(!value||typeof value!=='object'||Object.keys(value).sort().join(',')!=='contentVersion,progress,safe,schemaVersion')return;
   const base=validateBaseSave(value,'exp02a');
   return base?Object.freeze({...base,observedSites:Object.freeze([]),photo:null}):undefined;
 }
-function validatePhotoSave(value:unknown,content:'exp02b'|'exp02c'|'exp03b'|'exp05a'|'exp05b'):ExplorationSave|undefined {
+function validatePhotoSave(value:unknown,content:Exclude<SaveProfile,'exp02a'>):ExplorationSave|undefined {
   if(!value||typeof value!=='object'||Object.keys(value).sort().join(',')!=='contentVersion,observedSites,photo,progress,safe,schemaVersion')return;
   const base=validateBaseSave(value,content);if(!base)return;
   const s=value as ExplorationSave;
   if(!Array.isArray(s.observedSites)||s.observedSites.some(id=>!PHOTO_SITE_IDS.includes(id))||new Set(s.observedSites).size!==s.observedSites.length)return;
-  const p=new InMemoryRunProgress((content==='exp03b'||content==='exp05a'||content==='exp05b')?'exp03b':'exp02b');p.restore(base.progress);
+  const p=new InMemoryRunProgress((content==='exp03b'||content==='exp05a'||content==='exp05b'||content==='exp06a')?'exp03b':'exp02b');p.restore(base.progress);
   const photographed=p.verifyGoal(Q.photographed);
   if(s.observedSites.length&&!p.verifyGoal(P.unlocked))return;
   if(photographed){
@@ -42,11 +53,12 @@ function validatePhotoSave(value:unknown,content:'exp02b'|'exp02c'|'exp03b'|'exp
   }else if(s.photo!==null)return;
   return Object.freeze({...base,observedSites:Object.freeze([...s.observedSites]),photo:photographed?PHOTO_METADATA:null});
 }
-export function validateExplorationSave(value:unknown):ExplorationSave|undefined {return validatePhotoSave(value,'exp05b');}
-export function migrateExp05ASave(value:unknown):ExplorationSave|undefined {return validatePhotoSave(value,'exp05a');}
-export function migrateExp03BSave(value:unknown):ExplorationSave|undefined {return validatePhotoSave(value,'exp03b');}
-export function migrateExp02CSave(value:unknown):ExplorationSave|undefined {return validatePhotoSave(value,'exp02c');}
-export function migrateExp02BSave(value:unknown):ExplorationSave|undefined {return validatePhotoSave(value,'exp02b');}
+export function validateExplorationSave(value:unknown):ExplorationSave|undefined{return validatePhotoSave(value,'exp06a');}
+export function migrateExp05BSave(value:unknown):ExplorationSave|undefined{return validatePhotoSave(value,'exp05b');}
+export function migrateExp05ASave(value:unknown):ExplorationSave|undefined{return validatePhotoSave(value,'exp05a');}
+export function migrateExp03BSave(value:unknown):ExplorationSave|undefined{return validatePhotoSave(value,'exp03b');}
+export function migrateExp02CSave(value:unknown):ExplorationSave|undefined{return validatePhotoSave(value,'exp02c');}
+export function migrateExp02BSave(value:unknown):ExplorationSave|undefined{return validatePhotoSave(value,'exp02b');}
 export function emptyExplorationSave():ExplorationSave {
   return Object.freeze({schemaVersion:1,contentVersion:EXP_CONTENT_VERSION,safe:'chapterStart',progress:new InMemoryRunProgress('exp03b').snapshot,observedSites:Object.freeze([]),photo:null});
 }
@@ -90,7 +102,7 @@ export class ExplorationRuntime {
   constructor(id: string, save?: unknown) {
     this.id = id;
     const validated = save === undefined ? undefined : validateExplorationSave(save);
-    if (save !== undefined && !validated) throw new Error('Invalid EXP-05B save.');
+    if (save !== undefined && !validated) throw new Error('Invalid EXP-06A save.');
     if (validated) {
       this.#progress.restore(validated.progress);
       this.#safe = validated.safe;
@@ -130,9 +142,9 @@ export class ExplorationRuntime {
       case 'city-sign':this.#say('方向牌：沿东侧过渡街巷前往沧白路高处入口；回望西侧是解放碑广场。街面是游戏化改编，不是现实精确步行导航。');break;
       case 'service-guide':this.#say('先在街面自由行走，靠近门口或导览牌，再主动交互。松开后可再次操作。\n沿商业步行街向东，经街巷到沧白路入口，那里能俯看木楼群。小店调查可跳过，不需要购买或收集。');break;
       case 'entry-view':this.#say('栏杆下是层叠的木楼，江桥在更远处。东侧门廊连到上层街区，西侧街巷可回解放碑。先听听身旁游客想找什么。');break;
-      case 'middle-court':this.#say('内院木楼挡在中央。北侧内廊通向东西木阶，沿院墙两侧能绕到南侧外廊；回望可见上层来路。');break;
-      case 'middle-outer':this.#say('外廊沿院落南缘展开，东西两端都有下层木阶。绕回北侧可返回上层；这里的观察不影响通路。');break;
-      case 'building-floor-sign':this.#say('木作楼：1F工作台，2F存放与整理工具，3F是储物和门扣柜。西侧楼梯可自由上楼，出楼仍回原街门。');break;
+      case 'middle-court':this.#say('青白窄条从导览1F门旁延到上方2F窗边。刚才的上街就在屋檐后；市集两道门分别通西廊和东院。');break;
+      case 'middle-outer':this.#say('支柱托着上方木作檐廊，栏杆后能看见下街门面。江纹封道松开后，两端外阶和木作1F门会一起通行。');break;
+      case 'building-floor-sign':this.#say('木作楼：1F工作台，2F存放与整理工具，3F是储物和门扣柜。西侧楼梯可自由上楼。1F门在下街，2F临中街，3F露台接上街；下街门受江纹封道控制。');break;
       case 'building-tool-pattern':this.#say('整理台上摆着山尖纹与水波纹的工具。用途和纹样各不相同，可以绕过存放柜到另一侧楼梯；这里不需要拿走任何东西。');break;
       case 'building-wrong-box':this.#say('箱盖刻着三角山纹，里面是收好的工具。这不是水波门扣，不会取走或消耗你已有的物件。');break;
       case 'visitor':
@@ -144,7 +156,7 @@ export class ExplorationRuntime {
       case 'wrong-gate':
         this.#say('杂物门刻着三角山纹，与水波导扣不同。这不是通往低处江景的路，导扣仍保留。'); break;
       case 'street-sign':
-        this.#say('岔口路牌：北檐串着导览小店与木作间，南檐绕过旧窗铺可到茶歇；东栈是下层入口，西回廊供开路后回访。'); break;
+        this.#say('岔口路牌：上街临导览2F与木作3F；两端外阶和导览楼都能到中街。中街市集可穿行，下街仍有江纹封道。'); break;
       case 'tea-observe':
         this.#say('竹椅沿窗摆着，桌面留着茶壶的水印。这里适合歇脚，但屋檐挡住了桥面。\n这只是街区生活陈设，不影响寻找取景点。'); break;
       case 'window':
@@ -210,7 +222,7 @@ export class ExplorationRuntime {
         if(MEMENTO_COLLECTION_IDS.every(id=>this.#progress.snapshot.collections.includes(id)))this.#progress.completeGoal(MEMENTO_COMPLETION.goal);
       }else if(this.#pending==='item')this.#progress.recordCollection(P.item);
       else this.#progress.completeGoal(P[this.#pending as keyof typeof P]);
-      if(this.#pending==='completed')this.#safe='overlook';
+      if(this.#pending==='completed')this.#safe='cLowerRiver';
       this.#revision++;
     }
     this.#pending=undefined;

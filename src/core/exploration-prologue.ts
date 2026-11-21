@@ -42,7 +42,7 @@ export const PROLOGUE_TARGETS:readonly ExplorationTarget[]=Object.freeze([
   {id:'service-guide',map:'service',x:280,y:330,label:'看看导览与操作提示'},
   {id:'city-to-entry',map:'plaza',x:3120,y:900,label:'沿街巷前往沧白路',destination:'entryFromCity'},
   {id:'entry-to-city',map:'entry',x:140,y:850,label:'返回解放碑步行街',destination:'cityFromEntry'},
-  {id:'entry-to-core',map:'entry',x:2040,y:780,label:'进入洪崖洞上层街区',destination:'coreFromEntry'},
-  {id:'core-to-entry',map:'upper',x:130,y:690,label:'沿西口返回沧白路入口',destination:'entryFromCore'},
+  {id:'entry-to-core',map:'entry',x:2040,y:780,label:'进入洪崖洞上层街区',destination:'cArrival'},
+  {id:'core-to-entry',map:'upper',x:190,y:690,label:'沿西口返回沧白路入口',destination:'entryFromCore'},
   {id:'entry-view',map:'entry',x:1180,y:920,label:'看看栏杆下的街区'},
 ].map(t=>Object.freeze(t)) as readonly ExplorationTarget[]);
