@@ -1,5 +1,7 @@
 # 《坡坎之间》比赛版 H5 探索冒险重构与交付方案 V3
 
+现行进展补记（2026-11-21）：代码基线 `3924569` 已有05B多楼层／原主线与存档兼容技术证据，原V3初稿时点的“未实现”不用于描述当前源码。负责人不接受当前山城空间与探索表现，已确认[整个C区纠偏组合](DECISIONS.md#c-exploration-rework-confirmed-20261121)：多门穿楼／早期中街／五栋用途室内，下街与D仍按原条件开路。具体坐标／美术与文化内容仍PROPOSED／TO_VALIDATE，空间唯一见[关卡主文](HONGYADONG_LEVEL_DESIGN.md#c-exploration-rework-20261121)。本轮仅准备[EXP-06A交接卡](DEVELOPMENT_ROADMAP.md#exp-06a-c-district-rework-20261121)，未启动代码；H5电脑／手机、非战斗、故事和技术方向保持，不把文档或既有238项技术测试当正式比赛版、真机或30—45分钟体验通过。
+
 <a id="topdown-h5-v3-20261119"></a>
 
 更新日期：2026-11-19（后续设计重构与实施轮次，Asia/Shanghai）。状态：**产品方向与主线叙事 CONFIRMED，具体完整章内容／排期 PROPOSED／TO_VALIDATE；EXP-02B 受限街区与拍摄委托已实现并经 Work 功能技术复核**。下方初次重构的“尚未实现／本轮仅文档”保留其时点含义，当前实现／测试归属以[路线图审查](DEVELOPMENT_ROADMAP.md#exp-02b-work-review-20261119)为准；真机、最终美术及完整比赛版未验收。不新建平行任务队列，下方 V2／V1 完整保留历史。
