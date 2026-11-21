@@ -1,20 +1,24 @@
 import {EXP_MAPS} from '../core/exploration-content';
 export type Rect={x:number;y:number;w:number;h:number};
-// 新烘焙底图 bg_world2.jpg（2200x1300）的可走区域：主街、矮台阶与观景台前沿。
-// 旧 C 区墙体表与本图无关，置空以免产生看不见的碰撞。
-export const MAP={...EXP_MAPS.upper,bounds:{x:120,y:560,w:1960,h:660}};
-export const WALLS:Rect[]=[];
-// 视觉包围盒与 tools/bake_scene.py 的 PLACEMENTS 对应；
-// 但可拍主体只取「能完整进框」的一段（整栋楼被画幅裁掉两侧）。
+// Rebuilt plate is 2200x1300: Yuzhong skyline + Jialing river (0..620),
+// walkable stone street (620..1300). Bounds keep the visitor on the street.
+export const MAP={...EXP_MAPS.upper,width:2200,height:1300,bounds:{x:110,y:640,w:1980,h:620}};
+// Footprints of the three buildings block walking through their frontage.
+export const WALLS:Rect[]=[
+ {x:120,y:470,w:280,h:560},
+ {x:1780,y:670,w:240,h:420},
+ {x:820,y:520,w:320,h:180},
+];
+// Photographable subject rects follow the same table as the buildings.
 const VISUAL:Record<string,Rect>={
- guide:{x:210,y:655,w:350,h:495},
- workshop:{x:1720,y:625,w:300,h:480},
- corridor:{x:610,y:300,w:260,h:225},
+ guide:{x:280,y:530,w:280,h:460},
+ workshop:{x:1780,y:670,w:240,h:420},
+ corridor:{x:810,y:500,w:340,h:280},
 };
 export const SITES=[
- {name:'左楼正面',x:560,y:1080,subject:VISUAL.guide,focalRatio:.235},
- {name:'右楼近景',x:1560,y:1080,subject:VISUAL.workshop,focalRatio:.235},
- {name:'观景台窗廊',x:740,y:640,subject:VISUAL.corridor,focalRatio:.235},
+ {name:'茶馆正面',x:620,y:1110,subject:VISUAL.guide,focalRatio:.235},
+ {name:'木作近景',x:1700,y:1140,subject:VISUAL.workshop,focalRatio:.235},
+ {name:'牌坊与江景',x:1150,y:880,subject:VISUAL.corridor,focalRatio:.235},
 ];
 export const SAVE_KEY='pokan.photo-proto-2.album.v1';
 export const RANKS=['未拍摄','铜','银','金'];

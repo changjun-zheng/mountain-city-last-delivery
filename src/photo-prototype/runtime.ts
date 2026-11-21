@@ -2,8 +2,8 @@ import {SITES,MAP,WALLS,type Rect} from './content';
 export function score(view:Rect,subject:Rect){
  const t=6,inside=subject.x>=view.x-t&&subject.y>=view.y-t&&subject.x+subject.w<=view.x+view.w+t&&subject.y+subject.h<=view.y+view.h+t;
  const coverage=subject.w*subject.h/(view.w*view.h);
- const rank=!inside?0:coverage>=.44?3:coverage>=.25?2:coverage>=.10?1:0;
- return {rank,coverage,inside,reason:!inside?'主体偏出画面，退后半步':coverage<.10?'主体太小，按 Shift 换焦段':''};
+ const rank=!inside?0:coverage>=.38?3:coverage>=.22?2:coverage>=.08?1:0;
+ return {rank,coverage,inside,reason:!inside?'主体偏出画面，退后半步':coverage<.08?'主体太小，按 Shift 换焦段':''};
 }
 export class PhotoRuntime{
  x=1120;y=1180;site=-1;zoom=1;gender=0;mode:'world'|'indoor'='world';dialog=0;gifts=[false,false,false];rain=false;time=0;album=[0,0,0];result='';reason='';rank=0;shots=0;flash=0;coverage=0;

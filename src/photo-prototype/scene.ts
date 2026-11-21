@@ -1,152 +1,145 @@
 import Phaser from 'phaser';
 import {MAP,SITES,WALLS} from './content';
-import {ASSETS,PHOTO_STAIR,preloadPhotoAssets,preparePhotoAssets} from './assets';
+import {preloadPhotoAssets,preparePhotoAssets} from './assets';
 import type {PhotoRuntime} from './runtime';
 
-// 烘焙底图的纵向微调，范围 ±60；只影响视觉，不参与任何判定
-const SCENE_OFFSET_Y=0;
+// Shared ratio table (1 unit = 1 px on the 2200x1300 plate, 1 m = 66 units).
+// Visitor 130u (game-scaled from 1.70m), slab 26x24u, stair riser 12u.
+const CH=130;
+const GROUND_FROM=620;
+const GROUND_TO=1300;
+const SLAB_PERIOD_W=416;
+const SLAB_PERIOD_H=341;
 
 export function mountScene(root:HTMLElement,r:PhotoRuntime,keys:Set<string>,update:()=>void){
  const abort=new AbortController();let mouseActive=false,swayTarget=0,sway=0;
- // Explicit visual-only acceptance probe. Never passed to runtime/composition.
  const forcedSway=new URLSearchParams(location.search).get('photo-sway')==='1'?1:undefined;
  window.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;mouseActive=true;swayTarget=Phaser.Math.Clamp((e.clientX-innerWidth/2)/(innerWidth*.35),-1,1);},{signal:abort.signal});
  window.addEventListener('pointerout',e=>{if(!e.relatedTarget){mouseActive=false;swayTarget=0;}},{signal:abort.signal});
  window.addEventListener('blur',()=>{mouseActive=false;swayTarget=0;},{signal:abort.signal});
- const game=new Phaser.Game({parent:root,type:Phaser.CANVAS,width:innerWidth,height:innerHeight,backgroundColor:'#667873',banner:false,audio:{noAudio:true},input:{keyboard:false,mouse:false,touch:false},scene:{
+ const game=new Phaser.Game({parent:root,type:Phaser.CANVAS,width:innerWidth,height:innerHeight,backgroundColor:'#6d7f80',banner:false,audio:{noAudio:true},input:{keyboard:false,mouse:false,touch:false},scene:{
   preload(this:Phaser.Scene){preloadPhotoAssets(this);},
   create(this:Phaser.Scene){
-   const backSky=this.add.graphics().setDepth(-1000),backRiver=this.add.graphics().setDepth(-900),backTown=this.add.graphics().setDepth(-800),front=this.add.graphics().setDepth(2000);
-   const floor=this.add.graphics().setDepth(-500),markers=this.add.graphics().setDepth(-300),overlay=this.add.graphics().setDepth(3000),actor=this.add.graphics(),shadow=this.add.graphics();
+   preparePhotoAssets(this);
+   const life=this.add.graphics().setDepth(-850);
+   const floor=this.add.graphics().setDepth(-500);
+   const markers=this.add.graphics().setDepth(-200);
+   const front=this.add.graphics().setDepth(2000);
+   const overlay=this.add.graphics().setDepth(3000);
+   const shadow=this.add.graphics();
+   const actor=this.add.graphics();
    const actorImg=this.textures.exists('photo-charM')?this.add.image(0,0,'photo-charM').setOrigin(.5,1).setVisible(false):undefined;
-   const npcImg=this.textures.exists('photo-charM')?this.add.image(0,0,'photo-charM').setOrigin(.5,1).setTint(0xc8b596).setVisible(false):undefined;
+   const npcImg=this.textures.exists('photo-npcOld')?this.add.image(0,0,'photo-npcOld').setOrigin(.5,1).setVisible(false):undefined;
+   const far=this.textures.exists('photo-farCity')?this.add.image(0,0,'photo-farCity').setOrigin(0).setDepth(-900):undefined;
+   const slab=this.textures.exists('photo-slab')?this.add.tileSprite(0,0,1,1,'photo-slab').setOrigin(0).setDepth(-600):undefined;
+   const blds=[
+    {wx:260,wy:1030,w:280,h:560,key:'photo-tea'},
+    {wx:1900,wy:1090,w:240,h:420,key:'photo-shop'},
+    {wx:980,wy:700,w:260,h:190,key:'photo-gate'},
+   ].map(b=>({...b,img:this.textures.exists(b.key)?this.add.image(0,0,b.key).setOrigin(.5,1):undefined}));
    const hintText=this.add.text(0,0,'',{fontFamily:'system-ui, "Microsoft YaHei", sans-serif',fontSize:'15px',color:'#ffe6b0',backgroundColor:'#101416cc',padding:{x:10,y:5}}).setOrigin(.5,1).setDepth(4000).setVisible(false);
    const dialogText=this.add.text(0,0,'',{fontFamily:'system-ui, "Microsoft YaHei", sans-serif',fontSize:'16px',color:'#fff2d8',backgroundColor:'#141a1ee6',padding:{x:14,y:10},wordWrap:{width:Math.min(innerWidth-80,560)},lineSpacing:6}).setOrigin(.5,1).setDepth(4001).setVisible(false);
-   let prevF=false,prevT=false,prevR=false;
-   const baked=this.textures.exists('photo-world');
-   const ground=baked?undefined:this.textures.exists('photo-ground')?this.add.tileSprite(0,0,1,1,'photo-ground').setOrigin(0).setDepth(-600):undefined;
-   // The supplied corridor has large transparent padding. Trim its render frame,
-   // without altering the original PNG, so its visible foot meets y=440.
-   preparePhotoAssets(this);
-   const images=new Map<string,Phaser.GameObjects.Image>();
-   const image=(id:string,key:string,x:number,y:number,w:number,h:number,ax:number,ay:number,depth:number,alpha=1)=>{
-    if(!this.textures.exists('photo-'+key))return false;
-    let sprite=images.get(id);if(!sprite){const texture=key==='river'&&this.textures.exists('photo-river-soft')?'photo-river-soft':'photo-'+key;sprite=this.add.image(x,y,texture,key==='corridor'?'visible':undefined);images.set(id,sprite);}
-    sprite.setOrigin(ax,ay).setPosition(x,y).setDisplaySize(w,h).setDepth(depth).setAlpha(alpha);return true;
-   };
-   const rect=(g:Phaser.GameObjects.Graphics,x:number,y:number,w:number,h:number,color:number,alpha=1)=>{g.fillStyle(color,alpha);g.fillRect(x,y,w,h);};
-   let z=0,speed=1,pitch=0,clock=0,idle=0,facing=1,stepDistance=0,stepRemaining=0,stepBounces=0,previous={x:r.x,y:r.y};
-   const anchors={sky:{x:0,y:-600},river:{x:0,y:200},houseA:{x:710,y:520},houseB:{x:1620,y:540},corridor:{x:1105,y:440},tree:{x:140,y:900},stair:{x:PHOTO_STAIR.x+PHOTO_STAIR.w/2,y:PHOTO_STAIR.y+PHOTO_STAIR.h}};
-   root.dataset.assetAnchors=JSON.stringify(anchors);root.dataset.assetsReady='true';root.dataset.loadedAssets=JSON.stringify(Object.keys(ASSETS).filter(k=>this.textures.exists('photo-'+k)));
+   let prevF=false,prevT=false,prevR=false,clock=0,idle=0,facing=1,previous={x:r.x,y:r.y};
+   root.dataset.assetsReady='true';
    this.events.on('update',(_t:number,delta:number)=>{
     const dt=Math.min(delta,50),any=(...k:string[])=>k.some(v=>keys.has(v)),mx=Number(any('KeyD','ArrowRight'))-Number(any('KeyA','ArrowLeft')),my=Number(any('KeyS','ArrowDown'))-Number(any('KeyW','ArrowUp'));
-    const inTerrace=r.x>=420&&r.x<=1940,zTarget=inTerrace?(r.y<540?2:r.y<780?1:0):0;
-    const stair=r.x>=PHOTO_STAIR.x&&r.x<=PHOTO_STAIR.x+PHOTO_STAIR.w&&r.y>=PHOTO_STAIR.y&&r.y<=PHOTO_STAIR.y+PHOTO_STAIR.h;
-    z+=(zTarget-z)*.18;speed+=((stair?.55:1-zTarget*.12)-speed)*.18;pitch+=((stair?-.14:0)-pitch)*.18;
-    // Approved terrain pace multiplier; collision algorithm and world positions
-    // remain owned by the unchanged runtime. All judgments see only those positions.
-    r.zoom=any('ShiftLeft','ShiftRight')?1.8:1;r.move(mx,my,dt/1000*speed);r.flash=Math.max(0,r.flash-delta);
+    r.zoom=any('ShiftLeft','ShiftRight')?1.8:1;r.move(mx,my,dt/1000);r.flash=Math.max(0,r.flash-delta);
     const distance=Math.hypot(r.x-previous.x,r.y-previous.y),moving=distance>.01;
-    previous={x:r.x,y:r.y};idle=moving?0:idle+dt;clock+=moving?dt*speed:0;if(mx)facing=mx<0?-1:1;
-    stepRemaining=Math.max(0,stepRemaining-dt);if(stair&&moving){stepDistance+=distance;if(stepDistance>=40){stepDistance%=40;stepRemaining=60;stepBounces++;}}else if(!stair)stepDistance=0;
+    previous={x:r.x,y:r.y};idle=moving?0:idle+dt;clock+=moving?dt:0;if(mx)facing=mx<0?-1:1;
     sway=forcedSway??(sway+((mouseActive?swayTarget:0)-sway)*.12);
-    const w=this.scale.width,h=this.scale.height,c=r.site>=0?r.composition(w,h):null,k=c?.k??Math.max(w/MAP.width,h/MAP.height)*1.1;
+    const w=this.scale.width,h=this.scale.height,c=r.site>=0?r.composition(w,h):null,k=c?.k??Math.max(w/MAP.width,h/MAP.height)*1.35;
     const ox=c?.ox??Phaser.Math.Clamp(w/2-r.x*k,w-MAP.width*k,0),oy=c?.oy??Phaser.Math.Clamp(h*.84-r.y*k,h-MAP.height*k,0);
-    const offset=(factor:number)=>-sway*70*factor;
-    backSky.clear();backRiver.clear();backTown.clear();front.clear();floor.clear();markers.clear();overlay.clear();actor.clear();shadow.clear();
+    const sx=(u:number)=>ox+u*k,sy=(u:number)=>oy+u*k;
+    life.clear();floor.clear();markers.clear();front.clear();overlay.clear();actor.clear();shadow.clear();
     if(r.mode==='indoor'){
-     rect(overlay,0,0,w,h,0x2a201a);
+     overlay.fillStyle(0x2a201a,1);overlay.fillRect(0,0,w,h);
      overlay.fillStyle(0x6b5238,1);overlay.fillPoints([{x:w*.08,y:h},{x:w*.92,y:h},{x:w*.74,y:h*.56},{x:w*.26,y:h*.56}],true);
      overlay.fillStyle(0x3a2d22,1);overlay.fillRect(0,0,w,h*.56);
-     rect(overlay,w*.37,h*.17,w*.26,h*.28,0xe8b268,.85);overlay.lineStyle(3,0x241a12,1);overlay.strokeRect(w*.37,h*.17,w*.26,h*.28);
-     rect(overlay,w*.41,h*.62,w*.18,h*.05,0x8a6440);rect(overlay,w*.43,h*.67,w*.03,h*.16,0x5b4630);rect(overlay,w*.54,h*.67,w*.03,h*.16,0x5b4630);
+     overlay.fillStyle(0xe8b268,.85);overlay.fillRect(w*.37,h*.17,w*.26,h*.28);
+     overlay.lineStyle(3,0x241a12,1);overlay.strokeRect(w*.37,h*.17,w*.26,h*.28);
+     overlay.fillStyle(0x8a6440,1);overlay.fillRect(w*.41,h*.62,w*.18,h*.05);overlay.fillRect(w*.43,h*.67,w*.03,h*.16);overlay.fillRect(w*.54,h*.67,w*.03,h*.16);
      overlay.fillStyle(0xf2b266,.22);overlay.fillCircle(w*.5,h*.18,70);
      hintText.setText('F 出门').setPosition(w/2,h-70).setVisible(true);dialogText.setVisible(false);
      update();return;
     }
-    const box=(x:number,y:number,rw:number,rh:number,color:number,alpha=1)=>rect(floor,ox+x*k,oy+y*k,rw*k,rh*k,color,alpha);
-    // 世界高度小于屏幕高度时，上方露出的区域用天空渐变延展，避免看到底色。
-    // 只填 oy 以上的空白，不覆盖底图；depth -1000，永远在最底层。
-    if(oy>0&&!c){for(let y=0;y<oy;y+=5){const t=y/Math.max(oy,1);rect(backSky,0,y,w,5,Phaser.Display.Color.GetColor(188+Math.round(58*t),106+Math.round(64*t),92+Math.round(6*t)));}}
-    // 烘焙底图优先：一张不透明整图，内部已含建筑、地面、树、灯笼。sway 恒为 0。
-    const worldOk=image('world','world',ox,oy+SCENE_OFFSET_Y*k,2200*k,1300*k,0,0,-600);
-    if(!worldOk){
-    // Background camera origins scroll slowly. Mouse sway has only x offsets;
-    // asset world anchors remain fixed and L3 has exactly zero sway displacement.
-    if(!image('sky','sky',ox*.05+offset(.05),oy*.05-600*k,2600*k,1000*k,0,0,-1000)){
-     for(let y=0;y<1000*k;y+=4){const t=y/(1000*k);rect(backSky,ox*.05+offset(.05),oy*.05-600*k+y,2600*k,4,Phaser.Display.Color.GetColor(110+Math.round(120*t),115+Math.round(75*t),128+Math.round(15*t)));}
+    // Far plate: Yuzhong skyline + Jialing river, 2200x620 covering world 0..620.
+    if(far)far.setPosition(ox,oy).setDisplaySize(MAP.width*k,620*k);
+    else{for(let y=0;y<620*k;y+=6)rect(overlay,0,y,w,6,Phaser.Display.Color.GetColor(196,168,140));}
+    // Ground: seamless slab tile, no seams, ratios guaranteed by the table.
+    if(slab){slab.setPosition(ox,oy+GROUND_FROM*k).setSize(MAP.width*k,(GROUND_TO-GROUND_FROM)*k).setTileScale(SLAB_PERIOD_W*k/1024,SLAB_PERIOD_H*k/1024);}
+    else{floor.fillStyle(0x8f8d7c,1);floor.fillRect(ox,oy+GROUND_FROM*k,MAP.width*k,(GROUND_TO-GROUND_FROM)*k);}
+    // Shoreline stone railing: posts every 90u, two rails.
+    for(let x=0;x<=MAP.width;x+=90){floor.fillStyle(0x9d9789,1);floor.fillRect(sx(x)-5*k,sy(GROUND_FROM-26),10*k,26*k);}
+    floor.lineStyle(6*k,0xaba595,1);floor.lineBetween(ox,sy(GROUND_FROM-24),ox+MAP.width*k,sy(GROUND_FROM-24));
+    floor.lineStyle(3*k,0x7d786c,1);floor.lineBetween(ox,sy(GROUND_FROM-12),ox+MAP.width*k,sy(GROUND_FROM-12));
+    // Four-step stair, 12u riser / 20u tread, stepped inward to read as terraces.
+    for(let n=0;n<4;n++){const y0=GROUND_FROM+40+n*20,inset=n*10;
+     rect(floor,sx(1390+inset),sy(y0),(220-inset*2)*k,18*k,n%2?0xb0ab98:0xbcb7a2);
+     rect(floor,sx(1390+inset),sy(y0)+14*k,(220-inset*2)*k,6*k,0x4f4e48);
+     rect(floor,sx(1390+inset),sy(y0),(220-inset*2)*k,2*k,0xd2ceb8,.65);}
+    // Buildings: stone plinth so each block sits on the street, then the plate.
+    for(const b of blds){if(!b.img)continue;
+     floor.fillStyle(0x8a8578,1);floor.fillRect(sx(b.wx-b.w*.42),sy(b.wy)+9*k,b.w*.84*k,10*k);
+     floor.fillStyle(0x1c2426,.16);floor.fillEllipse(sx(b.wx),sy(b.wy)+12,b.w*.65*k,14*k);
+     b.img.setPosition(sx(b.wx),sy(b.wy)+18*k).setDisplaySize(b.w*k,b.h*k).setDepth(b.wy);
     }
-    if(!image('river','river',ox*.28+offset(.28),oy*.28+200*k,2600*k,527*k,0,0,-900))rect(backRiver,ox*.28+offset(.28),oy*.28+200*k,2600*k,527*k,0x819b99);
-    for(let n=0;n<16;n++){const ratio=.35+(n%4)*.05,key=n%2?'houseA':'houseB',x=60+n*145,shore=oy*.28+(200+527*.58+(n%3)*9)*k;if(!image('town'+n,key,ox*.58+x*k+offset(.58),shore,480*ratio*k,560*ratio*k,.5,1,-800+n*.001,.25+(n%4)*.05))rect(backTown,ox*.58+(x-240*ratio)*k+offset(.58),shore-560*ratio*k,480*ratio*k,560*ratio*k,0x805c3e,.3);}
-    const b=MAP.bounds;
-    if(ground){ground.setPosition(ox+b.x*k,oy+b.y*k).setSize(b.w*k,b.h*k).setTileScale(k,k);}else{
-     box(b.x,b.y,b.w,b.h,0x9c9b80);for(let y=b.y;y<b.y+b.h;y+=45)for(let x=b.x;x<b.x+b.w;x+=83){box(x+2,y+2,79,41,0xaaa489);}
+    // Life on the river and in the air: boats drift slowly, egrets fly with visible wings.
+    for(let i=0;i<2;i++){const p=((_t/1000)/210+i*.5)%1,bx=-300+p*2900,by=545+i*38;
+     life.fillStyle(0x2f3536,.9);life.fillEllipse(sx(bx),sy(by),92*k,18*k);
+     life.fillStyle(0x7d5f42,.95);life.fillEllipse(sx(bx-8),sy(by-10),44*k,13*k);
+     life.lineStyle(2.5*k,0x9c8a63,.9);life.lineBetween(sx(bx+16),sy(by-22),sx(bx+16),sy(by-4));
     }
-    for(const wall of WALLS.filter(a=>!MAP.buildings.includes(a as never))){box(wall.x,wall.y,wall.w,wall.h,0x5b685e);box(wall.x,wall.y-8,wall.w,9,0xbbaa7d);for(let y=wall.y;y<wall.y+wall.h;y+=35){floor.lineStyle(k,0x3e5149,.6);floor.lineBetween(ox+wall.x*k,oy+y*k,ox+(wall.x+wall.w)*k,oy+y*k);}}
-    image('stair','stair',ox+anchors.stair.x*k,oy+anchors.stair.y*k,PHOTO_STAIR.w*k,PHOTO_STAIR.h*k,.5,1,300);
-    if(!this.textures.exists('photo-stair'))for(let n=0;n<5;n++)box(PHOTO_STAIR.x,PHOTO_STAIR.y+n*30,PHOTO_STAIR.w,26,0xc9b890);
-    for(const house of MAP.buildings){const key=house.kind==='guide'?'houseA':house.kind==='workshop'?'houseB':'corridor',cx=house.x+house.w/2,by=house.y+house.h;
-     const width=key==='houseA'?480:key==='houseB'?460:300,height=key==='houseA'?560:key==='houseB'?540:131;
-     if(!image(key,key,ox+cx*k,oy+by*k,width*k,height*k,.5,1,by)){
-      box(cx-width/2,by-height,width,height,0x805c3e);box(cx-width/2-12,by-height-20,width+24,24,0x454f48);for(let x=cx-width/2+20;x<cx+width/2-30;x+=64)box(x,by-height+45,32,44,0xf0c786);
-     }
-     // Decorative foreground lanterns, with the same eaves anchor in world space.
-     const lanternX=cx+width*.37,lanternY=by-height+70;
-     if(!image('lantern-'+key,'lantern',ox+lanternX*k+offset(1.18),oy+lanternY*k,60*k,184*k,.5,0,2001)){
-      front.fillStyle(0xf2b266,.6);front.fillEllipse(ox+lanternX*k+offset(1.18),oy+(lanternY+92)*k,60*k,184*k);
-     }
+    for(let i=0;i<4;i++){const span=2700,period=88+i*11,p=(((_t/1000)/period)+i*.27)%1,bx=-140+p*span,by=505+i*24+Math.sin(p*6+i)*8;
+     const s=24*k,flap=Math.sin(_t/1000*4.6+i*1.7)*.6,lev=.55+flap*.45;
+     life.fillStyle(0x2c3a3c,.55);life.fillEllipse(sx(bx),sy(by)+1.5*k,s*1.05,s*.42);
+     life.fillTriangle(sx(bx),sy(by),sx(bx)-s*1.2,sy(by)+s*lev*.8,sx(bx)-s*.32,sy(by)-s*.6);
+     life.fillTriangle(sx(bx),sy(by),sx(bx)+s*1.2,sy(by)+s*lev*.8,sx(bx)+s*.32,sy(by)-s*.6);
+     life.fillStyle(0xf7f5ee,.98);life.fillEllipse(sx(bx),sy(by),s*.85,s*.3);
+     life.fillTriangle(sx(bx),sy(by),sx(bx)-s*1.1,sy(by)+s*lev*.7,sx(bx)-s*.3,sy(by)-s*.5);
+     life.fillTriangle(sx(bx),sy(by),sx(bx)+s*1.1,sy(by)+s*lev*.7,sx(bx)+s*.3,sy(by)-s*.5);
     }
-    }
-    if(worldOk){
-     // 嘉陵江活水：波光随流缓移，两艘小船顺流漂，天上几只江鸥。
-     for(let i=0;i<7;i++){const ry=oy+(96+i*14)*k,rx=ox+(((_t*.022+i*260)%2400)-200)*k;front.lineStyle(Math.max(1,2*k),0xffe3a8,.24);front.lineBetween(rx,ry,rx+110*k,ry);}
-     for(let i=0;i<2;i++){const p=(_t*.006+i*.5)%1,bx=ox+(-260+p*2700)*k,by=oy+(198+i*26)*k;front.fillStyle(0x3b3029,.92);front.fillEllipse(bx,by,92*k,17*k);front.fillStyle(0x8d6a48,.92);front.fillEllipse(bx-6*k,by-9*k,44*k,13*k);front.fillStyle(0xb8965f,.75);front.fillRect(bx+14*k,by-16*k,3*k,16*k);}
-     for(let i=0;i<5;i++){const p=(_t*.004+i*.38)%1,bx=-60+p*(w+120),by=36+i*9+Math.sin(p*11+i)*16;front.lineStyle(Math.max(1,1.8*k),0x2e3a38,.62);front.lineBetween(bx-9*k,by,bx,by-5*k);front.lineBetween(bx,by-5*k,bx+9*k,by);}
-    }
-    for(let i=0;i<SITES.length;i++){const s=SITES[i];markers.lineStyle(2,i===r.nearby?0xffe3a0:0xd8bf87,.8);markers.strokeEllipse(ox+s.x*k,oy+s.y*k,68*k,24*k);rect(markers,ox+(s.x-10)*k,oy+(s.y-10)*k,20*k,13*k,0xf0d89d,.9);}
-    // Shadow stays on the ground; z, lean and foot pulse affect only the skeleton.
-    if(r.site<0){shadow.setDepth(r.y-1);shadow.fillStyle(0x17272d,.45-z*.08);shadow.fillEllipse(ox+r.x*k,oy+r.y*k+3,64*k*(1+z*.3),12*k);}
-    const state=r.site>=0?'shutter':stair&&moving?'climb':moving?'walk':'idle',frame=Math.floor(clock/125)%4,phase=frame*Math.PI/2,leg=state==='walk'||state==='climb'?Math.sin(phase)*(state==='climb'?4:8):0,breath=state==='idle'&&idle>400?(Math.floor(_t/650)%2?2:-2):0;
-    const bob=(state==='walk'||state==='climb')?Math.abs(Math.sin(clock/110))*3*k:0;
-    if(actorImg){
-     const key=r.gender?'photo-charF':'photo-charM';
-     if(actorImg.texture.key!==key)actorImg.setTexture(key);
-     const chH=190*k;
-     actorImg.setDisplaySize(chH*390/520,chH).setPosition(ox+r.x*k,oy+r.y*k-z*8-bob).setFlipX(facing<0).setRotation(stair?-.05:0).setDepth(r.y+1).setVisible(r.site<0);
-    }else if(r.site<0){actor.setPosition(ox+r.x*k,oy+r.y*k-z*8+3*stepRemaining/60).setScale(facing*k*2.6,k*2.6).setRotation(pitch).setDepth(r.y+1);
-    actor.lineStyle(5,0x253b3d);actor.lineBetween(-6,-19,-7+leg,-2);actor.lineBetween(6,-19,7-leg,-2);actor.fillStyle(0x3c7775);actor.fillRoundedRect(-12,-40+breath,24,25,4);actor.fillStyle(0xf0c99a);actor.fillCircle(0,-50+breath,10);actor.fillStyle(0x263d3c);actor.fillEllipse(-1,-57+breath,22,9);actor.lineStyle(3,0xe5ba73);actor.lineBetween(-9,-38+breath,10,-18+breath);
-    actor.lineStyle(5,0xf0c99a);actor.lineBetween(-13,-36+breath,-16-leg*.5,-21+breath);actor.lineBetween(13,-36+breath,16+leg*.5,-21+breath);}
-    if(!worldOk&&!image('tree','tree',ox+140*k+offset(1.18),oy+900*k,620*k,780*k,.5,1,2000)){
-     rect(front,ox+130*k+offset(1.18),oy+500*k,20*k,400*k,0x5b4534);front.fillStyle(0x3f5842,.9);front.fillEllipse(ox+140*k+offset(1.18),oy+330*k,620*k,420*k);
-    }
-    rect(overlay,0,0,w,h,0xffcf87,.06);
-    if(c){rect(overlay,0,0,w,h,0x000000,.42);const f=c.frame;overlay.lineStyle(2,0xf0c96a);overlay.strokeRect(f.x,f.y,f.w,f.h);overlay.lineStyle(1,0xf0c96a,.35);for(const n of[1,2]){overlay.lineBetween(f.x+f.w*n/3,f.y,f.x+f.w*n/3,f.y+f.h);overlay.lineBetween(f.x,f.y+f.h*n/3,f.x+f.w,f.y+f.h*n/3);}overlay.lineStyle(4,0xffe0a0);for(const[xx,yy,sx,sy]of[[f.x,f.y,1,1],[f.x+f.w,f.y,-1,1],[f.x,f.y+f.h,1,-1],[f.x+f.w,f.y+f.h,-1,-1]]){overlay.lineBetween(xx,yy,xx+12*sx,yy);overlay.lineBetween(xx,yy,xx,yy+12*sy);}const s=c.subject;if(s.x>=f.x&&s.y>=f.y&&s.x+s.w<=f.x+f.w&&s.y+s.h<=f.y+f.h){overlay.lineStyle(2,0xffdfa0,.5);overlay.strokeRect(s.x,s.y,s.w,s.h);}}
-    // ---- 世界交互：茶馆老人、门、收集品、车流、天气 ----
-    const npc={x:700,y:600},door={x:210,y:1090},giftSpots=[[320,930],[1500,1010],[820,610]];
-    if(worldOk){
-     const nx=ox+npc.x*k,ny=oy+npc.y*k;
-     if(npcImg){const nh=150*k;npcImg.setDisplaySize(nh*390/520,nh).setPosition(nx,ny).setDepth(npc.y+1).setVisible(r.mode==='world'&&r.site<0);}
-     const dxp=ox+door.x*k,dyp=oy+door.y*k;
-     front.fillStyle(0x1b1410,1);front.fillRect(dxp-19*k,dyp-60*k,38*k,60*k);
-     front.fillStyle(0x8a5a34,1);front.fillRect(dxp-15*k,dyp-56*k,30*k,56*k);
-     front.fillStyle(0xd8a45a,.9);front.fillCircle(dxp+9*k,dyp-26*k,2.5*k);
-     giftSpots.forEach(([gx,gy],i)=>{if(r.gifts[i])return;const gxp=ox+gx*k,gyp=oy+gy*k;front.fillStyle(0xffe6a0,.26);front.fillCircle(gxp,gyp,12*k);front.fillStyle(0xffd270,1);front.fillCircle(gxp,gyp,4*k);});
-     for(let i=0;i<2;i++){const p=((_t*.0009+i*.5)%1),cw=-200+p*2800,ch=1070+i*46,sx=ox+cw*k,sy=oy+ch*k;front.fillStyle(i?0xd8d8d0:0xf0b62a,1);front.fillRoundedRect(sx-62*k,sy-44*k,124*k,44*k,8*k);front.fillStyle(0x2b2f33,.95);front.fillEllipse(sx-34*k,sy+2*k,26*k,10*k);front.fillEllipse(sx+34*k,sy+2*k,26*k,10*k);front.fillStyle(0xbcd6dd,.75);front.fillRoundedRect(sx-38*k,sy-40*k,40*k,18*k,4*k);front.fillRoundedRect(sx+6*k,sy-40*k,34*k,18*k,4*k);}
-     if(r.rain)for(let i=0;i<48;i++){const rx=((i*173+_t*.35)%(w+60))-30,ry=((i*97+_t*1.05)%(h+80))-40;overlay.lineStyle(1,0xd2e2ec,.34);overlay.lineBetween(rx,ry,rx-5,ry+16);}
-    }
-    if(r.time===1)rect(overlay,0,0,w,h,0x0e2340,.42);else if(r.time===2)rect(overlay,0,0,w,h,0xffd9a0,.16);
-    if(r.rain&&(_t%7000)<130)rect(overlay,0,0,w,h,0xffffff,.3);
+    // Camera sites.
+    for(let i=0;i<SITES.length;i++){const s=SITES[i],nx=sx(s.x),ny=sy(s.y);
+     markers.lineStyle(2,i===r.nearby?0xffe3a0:0xd8bf87,.85);markers.strokeEllipse(nx,ny,56*k,20*k);
+     markers.fillStyle(0xf0d89d,.85);markers.fillTriangle(nx,ny-16*k,nx-5*k,ny-26*k,nx+5*k,ny-26*k);}
+    // Player + shadow, height 130u from the ratio table.
+    if(r.site<0){
+     shadow.fillStyle(0x17272d,.4);shadow.fillEllipse(sx(r.x),sy(r.y)+2,46*k,12*k);
+     if(actorImg){
+      const key=r.gender?'photo-charF':'photo-charM';
+      if(actorImg.texture.key!==key)actorImg.setTexture(key);
+      const bob=moving?Math.abs(Math.sin(clock/110))*2.4*k:0;
+      actorImg.setDisplaySize(CH*390/520*k,CH*k).setPosition(sx(r.x),sy(r.y)-bob).setFlipX(facing<0).setDepth(r.y+1).setVisible(true);
+     }else{actor.setPosition(sx(r.x),sy(r.y)).setDepth(r.y+1);actor.fillStyle(0x3c7775);actor.fillRect(-9*k,-44*k,18*k,30*k);actor.fillStyle(0xf0c99a);actor.fillCircle(0,-52*k,9*k);}
+    }else actorImg?.setVisible(false);
+    // ---- Interaction: old teahouse NPC, teahouse door, three souvenirs, weather ----
+    const npc={x:760,y:980},door={x:300,y:1030},giftSpots=[[420,1180],[1600,1200],[1000,760]];
+    if(npcImg){npcImg.setDisplaySize(CH*k*251/620,CH*k).setPosition(sx(npc.x),sy(npc.y)).setDepth(npc.y+1).setVisible(r.mode==='world'&&r.site<0);}
+    // Door on the teahouse frontage: dark opening + two panel leaves.
+    const dx=sx(door.x),dy=sy(door.y),dw=44*k,dh=88*k;
+    front.fillStyle(0x241a12,1);front.fillRect(dx-dw/2,dy-dh,dw,dh);
+    front.fillStyle(0x8a5a34,1);front.fillRect(dx-dw/2+3*k,dy-dh+3*k,dw/2-4*k,dh-3*k);front.fillRect(dx+1*k,dy-dh+3*k,dw/2-4*k,dh-3*k);
+    front.fillStyle(0xd8a45a,.95);front.fillCircle(dx+7*k,dy-dh*.55,2.2*k);
+    giftSpots.forEach(([gx,gy],i)=>{if(r.gifts[i])return;front.fillStyle(0xffe6a0,.24);front.fillCircle(sx(gx),sy(gy),10*k);front.fillStyle(0xffd270,1);front.fillCircle(sx(gx),sy(gy),3.4*k);});
+    if(r.rain)for(let i=0;i<48;i++){const rx=((i*173+_t*.35)%(w+60))-30,ry=((i*97+_t*1.05)%(h+80))-40;overlay.lineStyle(1,0xd2e2ec,.34);overlay.lineBetween(rx,ry,rx-5,ry+16);}
+    // Viewfinder: dim the plate, gold frame, thirds, corner ticks, subject outline.
+    if(c){rect(overlay,0,0,w,h,0x000000,.42);const f=c.frame;
+     overlay.lineStyle(2,0xf0c96a);overlay.strokeRect(f.x,f.y,f.w,f.h);
+     overlay.lineStyle(1,0xf0c96a,.35);
+     for(const n of[1,2]){overlay.lineBetween(f.x+f.w*n/3,f.y,f.x+f.w*n/3,f.y+f.h);overlay.lineBetween(f.x,f.y+f.h*n/3,f.x+f.w,f.y+f.h*n/3);}
+     overlay.lineStyle(4,0xffe0a0);
+     for(const[xx,yy,sxx,syy]of[[f.x,f.y,1,1],[f.x+f.w,f.y,-1,1],[f.x,f.y+f.h,1,-1],[f.x+f.w,f.y+f.h,-1,-1]]){overlay.lineBetween(xx,yy,xx+12*sxx,yy);overlay.lineBetween(xx,yy,xx,yy+12*syy);}
+     const sub=c.subject;if(sub.x>=f.x&&sub.y>=f.y&&sub.x+sub.w<=f.x+f.w&&sub.y+sub.h<=f.y+f.h){overlay.lineStyle(2,0xffdfa0,.5);overlay.strokeRect(sub.x,sub.y,sub.w,sub.h);}}
+    if(r.time===1)rect(overlay,0,0,w,h,0x0e2340,.42);else if(r.time===2)rect(overlay,0,0,w,h,0xffd9a0,.16);    if(r.rain&&(_t%7000)<130)rect(overlay,0,0,w,h,0xffffff,.3);
     const fNow=keys.has('KeyF');
-    if(fNow&&!prevF){if(r.dialog)r.dialog=0;else if(Math.hypot(r.x-npc.x,r.y-npc.y)<80)r.dialog=1;else if(Math.hypot(r.x-door.x,r.y-door.y)<64)r.mode='indoor';else{const gi=giftSpots.findIndex((g,i)=>!r.gifts[i]&&Math.hypot(r.x-g[0],r.y-g[1])<50);if(gi>=0)r.gifts[gi]=true;}}
+    if(fNow&&!prevF){if(r.dialog)r.dialog=0;else if(Math.hypot(r.x-npc.x,r.y-npc.y)<72)r.dialog=1;else if(Math.hypot(r.x-door.x,r.y-door.y)<60)r.mode='indoor';else{const gi=giftSpots.findIndex((g,i)=>!r.gifts[i]&&Math.hypot(r.x-g[0],r.y-g[1])<46);if(gi>=0)r.gifts[gi]=true;}}
     prevF=fNow;
     const tNow=keys.has('KeyT');if(tNow&&!prevT)r.time=(r.time+1)%3;prevT=tNow;
     const nNow=keys.has('KeyR');if(nNow&&!prevR)r.rain=!r.rain;prevR=nNow;
-    if(r.dialog)dialogText.setText('“后生，洪崖洞的灯要等日头落到对岸楼顶才好看。”\n“站到台子上往下看，江面金了就按快门。”').setPosition(w/2,h-96).setVisible(true);else dialogText.setVisible(false);
-    const hint=r.site>=0?'':r.dialog?'F 结束对话':Math.hypot(r.x-npc.x,r.y-npc.y)<80?'F 与茶馆老人交谈':Math.hypot(r.x-door.x,r.y-door.y)<64?'F 推门进屋':giftSpots.some((g,i)=>!r.gifts[i]&&Math.hypot(r.x-g[0],r.y-g[1])<50)?'F 拾取':'';
+    if(r.dialog)dialogText.setText('“后生，坐一下嘛。这壶茶要等江风转凉才出味。”\n“台子边上拍，灯亮起来的时候最好看。”').setPosition(w/2,h-96).setVisible(true);else dialogText.setVisible(false);
+    const hint=r.site>=0?'':r.dialog?'F 结束对话':Math.hypot(r.x-npc.x,r.y-npc.y)<72?'F 与茶馆老人交谈':Math.hypot(r.x-door.x,r.y-door.y)<60?'F 推门进屋':giftSpots.some((g,i)=>!r.gifts[i]&&Math.hypot(r.x-g[0],r.y-g[1])<46)?'F 拾取':'';
     hintText.setText(hint).setPosition(w/2,h-70).setVisible(!!hint&&!r.dialog);
-    const rounded=(n:number)=>Math.round(n*100)/100;
-    const fixedLayer={buildings:['houseA','houseB','corridor'].map(key=>{const s=images.get(key);return s?{key,x:rounded(s.x),y:rounded(s.y),w:rounded(s.displayWidth),h:rounded(s.displayHeight)}:null;}),ground:ground?{x:rounded(ground.x),y:rounded(ground.y)}:null,actor:{x:rounded(actor.x),y:rounded(actor.y)},markers:SITES.map(s=>({x:rounded(ox+s.x*k),y:rounded(oy+s.y*k)})),frame:c?.frame??null};
-    Object.assign(root.dataset,{l3Positions:JSON.stringify(fixedLayer),sway:String(sway),swayTarget:String(mouseActive?swayTarget:0),l3OffsetX:'0',layerOffsets:JSON.stringify({L0:offset(.05),L1:offset(.28),L2:offset(.58),L3:0,L4:offset(1.18)}),z:String(z),zTarget:String(zTarget),terrainSpeed:String(speed),stair:String(stair),actorState:state,actorRotation:String(pitch),walkFrame:String(frame),stepBounces:String(stepBounces),actorX:String(ox+r.x*k),actorGroundY:String(oy+r.y*k),shadowAlpha:String(.45-z*.08),shadowLength:String(1+z*.3)});
+    Object.assign(root.dataset,{actorX:String(sx(r.x)),actorGroundY:String(sy(r.y)),actorHeight:String(CH),slabTileScale:String(SLAB_PERIOD_W*k/1024),k:String(k),sway:String(sway)});
     update();
    });
   }
@@ -154,3 +147,4 @@ export function mountScene(root:HTMLElement,r:PhotoRuntime,keys:Set<string>,upda
  const resize=()=>game.scale.resize(innerWidth,innerHeight);window.addEventListener('resize',resize,{signal:abort.signal});
  return()=>{abort.abort();game.destroy(true);};
 }
+function rect(g:Phaser.GameObjects.Graphics,x:number,y:number,w:number,h:number,color:number,alpha=1){g.fillStyle(color,alpha);g.fillRect(x,y,w,h);}
