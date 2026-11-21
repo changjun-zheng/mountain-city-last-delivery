@@ -13,6 +13,6 @@ export function createUI(root:HTMLElement,putDown:()=>void){
   panel.querySelector('.photo-complete')!.textContent=r.album.every(v=>v>0)?'上街三景，已收入相册。还想再拍一张吗？':'';
   panel.querySelector<HTMLElement>('.photo-flash')!.style.opacity=String(r.flash/100*.85);
   const composition=r.site>=0?r.composition(innerWidth,innerHeight):null,judgment=composition?score(composition.frame,composition.subject):null;
-  Object.assign(root.dataset,{x:String(r.x),y:String(r.y),site:String(r.site),nearby:String(r.nearby),album:JSON.stringify(r.album),shots:String(r.shots),result:r.result,reason:r.reason,zoom:String(r.zoom),flash:String(r.flash),frame:JSON.stringify(composition?.frame??null),subject:JSON.stringify(composition?.subject??null),distance:String(composition?.d??0),coverage:String(judgment?.coverage??0),centered:String(judgment?.centered??false),inFrame:String(judgment?.inside??false)});
+  Object.assign(root.dataset,{x:String(r.x),y:String(r.y),site:String(r.site),nearby:String(r.nearby),album:JSON.stringify(r.album),shots:String(r.shots),result:r.result,reason:r.reason,zoom:String(r.zoom),flash:String(r.flash),frame:JSON.stringify(composition?.frame??null),subject:JSON.stringify(composition?.subject??null),distance:String(composition?.d??0),coverage:String(judgment?.coverage??0),inFrame:String(judgment?.inside??false)});
  };
 }
