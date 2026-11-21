@@ -20,7 +20,9 @@ import './style.css';
 import { launchExploration } from './exploration';
 
 const requestedScene = new URLSearchParams(window.location.search).get('scene');
-if (!['first-level','graybox','diagnostic'].includes(requestedScene ?? '')) {
+if (requestedScene === 'photo-prototype') {
+  void import('../../photo-prototype/index').then(m=>m.launchPhotoPrototype()).catch(console.error);
+} else if (!['first-level','graybox','diagnostic'].includes(requestedScene ?? '')) {
   void launchExploration({showTitle:requestedScene!=='exploration-prototype'}).catch(cause => console.error('Exploration startup failed', cause));
 } else {
 
