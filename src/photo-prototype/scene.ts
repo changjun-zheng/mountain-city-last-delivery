@@ -5,7 +5,9 @@ import type {PhotoRuntime} from './runtime';
 
 // Whole-plate scenes: the illustration carries ground, buildings and lighting;
 // only the visitor, the old teahouse keeper and the cabs stay movable.
-const CH=130;
+// Character height from the plate's own scale: the doorways read about 2 m and
+// measure ~135 units, so a 1.7 m visitor lands near 112-118 units.
+const CH=116;
 const TAXI_L=270;
 const TAXI_H=104;
 
@@ -59,16 +61,17 @@ export function mountScene(root:HTMLElement,r:PhotoRuntime,keys:Set<string>,upda
      front.lineStyle(near?2:1,near?0xffe3a0:0xd8bf87,near?.9:.28);front.strokeEllipse(nx,ny,near?52*k:40*k,near?18*k:14*k);
      if(near){front.fillStyle(0xf0d89d,.9);front.fillTriangle(nx,ny-14*k,nx-4*k,ny-23*k,nx+4*k,ny-23*k);}}
     if(r.site<0){
-     shadow.fillStyle(0x17272d,.38);shadow.fillEllipse(sx(r.x),sy(r.y)+2,46*k,12*k);
+     shadow.fillStyle(0x17272d,.3);shadow.fillEllipse(sx(r.x),sy(r.y)+1,32*k,9*k);
      if(actorImg){
       const key=r.gender?'photo-charF':'photo-charM';
       if(actorImg.texture.key!==key)actorImg.setTexture(key);
-      const bob=moving?Math.abs(Math.sin(clock/110))*2.4*k:0;
-      actorImg.setDisplaySize(CH*390/520*k,CH*k).setPosition(sx(r.x),sy(r.y)-bob).setFlipX(facing<0).setTint(0xfff1df).setDepth(r.y+1).setVisible(true);
+      const ts=actorImg.texture.getSourceImage() as {width:number;height:number};
+      const bob=moving?Math.abs(Math.sin(clock/110))*2*k:0;
+      actorImg.setDisplaySize(CH*k*ts.width/ts.height,CH*k).setPosition(sx(r.x),sy(r.y)-bob).setFlipX(facing<0).setTint(0xfff1df).setDepth(r.y+1).setVisible(true);
      }else{actor.setPosition(sx(r.x),sy(r.y)).setDepth(r.y+1);actor.fillStyle(0x3c7775);actor.fillRect(-9*k,-44*k,18*k,30*k);actor.fillStyle(0xf0c99a);actor.fillCircle(0,-52*k,9*k);}
     }else actorImg?.setVisible(false);
     // ---- Keeper / door / souvenirs / exit ----
-    if(npcImg){if(A.npc){npcImg.setDisplaySize(CH*k*251/620,CH*k).setPosition(sx(A.npc.x),sy(A.npc.y)).setTint(0xffe8d2).setDepth(A.npc.y+1).setVisible(r.mode==='world'&&r.site<0);}else npcImg.setVisible(false);}
+    if(npcImg){if(A.npc){const nt=npcImg.texture.getSourceImage() as {width:number;height:number};npcImg.setDisplaySize(CH*k*nt.width/nt.height,CH*k).setPosition(sx(A.npc.x),sy(A.npc.y)).setTint(0xffe8d2).setDepth(A.npc.y+1).setVisible(r.mode==='world'&&r.site<0);}else npcImg.setVisible(false);}
     if(A.door&&Math.hypot(r.x-A.door.x,r.y-A.door.y)<96){const dx=sx(A.door.x),dy=sy(A.door.y),dw=40*k,dh=62*k;
      front.fillStyle(0x1d140f,.55);front.fillRect(dx-dw/2,dy-dh,dw,dh);
      front.lineStyle(1,0xe8c07a,.55);front.strokeRect(dx-dw/2,dy-dh,dw,dh);}
