@@ -39,7 +39,7 @@
 #exp-root .exp-instructions-panel dd { margin:4px 0 0; font-size:15px; }
 #exp-root #exp-instructions-close { width:100%; margin:0; }
 
-#exp-root .exp-title-screen { position:absolute; inset:0; z-index:5; display:grid; grid-template-columns:minmax(400px,46%) 1fr; background:linear-gradient(90deg,#153b48 0%,#173f4be8 36%,#173f4b20 70%); box-sizing:border-box; }
+#exp-root .exp-title-screen { position:absolute; inset:0; z-index:5; display:grid; grid-template-columns:minmax(400px,46%) 1fr; background:linear-gradient(90deg,#12303bf2 0%,#12303bd8 34%,#12303b45 62%,#12303b12 100%),url('./assets/title-hongyadong.jpg') center/cover no-repeat,#153b48; box-sizing:border-box; }
 #exp-root .exp-title-copy { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; padding:28px clamp(28px,5vw,84px); box-sizing:border-box; max-height:100dvh; overflow:auto; }
 #exp-root .exp-title-intro { color:#cedacc; font-size:15px; }
 #exp-root #exp-title-name { margin:14px 0 18px; font:700 clamp(76px,8.5vw,126px)/1.02 'KaiTi','STKaiti',serif; letter-spacing:.04em; color:#fff0cc; text-shadow:2px 3px #173743; }
@@ -165,7 +165,7 @@
   #exp-root #exp-title-name { font-size:58px; }
 }
 @media(orientation:portrait) {
-  #exp-root .exp-title-screen { grid-template-columns:1fr; background:linear-gradient(90deg,#153b48f5,#173f4be0); }
+  #exp-root .exp-title-screen { grid-template-columns:1fr; background:linear-gradient(#12303be8,#12303bd2),url('./assets/title-hongyadong.jpg') center/cover no-repeat,#153b48; }
   #exp-root .exp-title-copy { padding:38px 32px; }
   #exp-root #exp-title-name { font-size:96px; }
   #exp-root .exp-title-window { display:none; }

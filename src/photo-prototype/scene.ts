@@ -23,7 +23,7 @@ export function mountScene(root:HTMLElement,r:PhotoRuntime,keys:Set<string>,upda
   create(this:Phaser.Scene){
    preparePhotoAssets(this);
    const front=this.add.graphics().setDepth(2000),overlay=this.add.graphics().setDepth(3000),shadow=this.add.graphics(),actor=this.add.graphics();
-   const plates=['photo-plate0','photo-plate1'].map(key=>this.textures.exists(key)?this.add.image(0,0,key).setOrigin(0).setDepth(-900):undefined);
+   const plates=['photo-plate0','photo-plate1','photo-roomTea','photo-roomShop'].map(key=>this.textures.exists(key)?this.add.image(0,0,key).setOrigin(0).setDepth(-900):undefined);
    const actorImg=this.textures.exists('photo-charM')?this.add.image(0,0,'photo-charM').setOrigin(.5,1).setVisible(false):undefined;
    const npcImg=this.textures.exists('photo-npcOld')?this.add.image(0,0,'photo-npcOld').setOrigin(.5,1).setVisible(false):undefined;
    const taxiImgs=[0,1,2,3].map(()=>this.textures.exists('photo-taxi')?this.add.image(0,0,'photo-taxi').setOrigin(.5,1).setVisible(false):undefined);
@@ -41,16 +41,24 @@ export function mountScene(root:HTMLElement,r:PhotoRuntime,keys:Set<string>,upda
     const ox=c?.ox??Phaser.Math.Clamp(w/2-r.x*k,w-MAP.width*k,0),oy=c?.oy??Phaser.Math.Clamp(h*.80-r.y*k,h-MAP.height*k,0);
     const sx=(u:number)=>ox+u*k,sy=(u:number)=>oy+u*k;
     front.clear();overlay.clear();actor.clear();shadow.clear();
-    if(r.mode==='indoor'){
-     overlay.fillStyle(0x2a201a,1);overlay.fillRect(0,0,w,h);
-     overlay.fillStyle(0x6b5238,1);overlay.fillPoints([{x:w*.08,y:h},{x:w*.92,y:h},{x:w*.74,y:h*.56},{x:w*.26,y:h*.56}],true);
-     overlay.fillStyle(0x3a2d22,1);overlay.fillRect(0,0,w,h*.56);
-     overlay.fillStyle(0xe8b268,.85);overlay.fillRect(w*.37,h*.17,w*.26,h*.28);
-     overlay.lineStyle(3,0x241a12,1);overlay.strokeRect(w*.37,h*.17,w*.26,h*.28);
-     overlay.fillStyle(0x8a6440,1);overlay.fillRect(w*.41,h*.62,w*.18,h*.05);overlay.fillRect(w*.43,h*.67,w*.03,h*.16);overlay.fillRect(w*.54,h*.67,w*.03,h*.16);
-     overlay.fillStyle(0xf2b266,.22);overlay.fillCircle(w*.5,h*.18,70);
-     hintText.setText('F 出门').setPosition(w/2,h-70).setVisible(true);dialogText.setVisible(false);
-     plates.forEach((p,i)=>p?.setVisible(i===r.area));
+    if(r.mode==='indoor'&&A.indoor){
+     const ind=A.indoor,ki=Math.max(w/MAP.width,h/MAP.height)*1.4;
+     const oxi=Phaser.Math.Clamp(w/2-r.x*ki,w-MAP.width*ki,0),oyi=Phaser.Math.Clamp(h*.76-r.y*ki,h-MAP.height*ki,0);
+     const ixi=(u:number)=>oxi+u*ki,iyi=(u:number)=>oyi+u*ki,pi=2+r.area;
+     plates.forEach((p,i)=>p?.setVisible(i===pi));
+     const room=plates[pi];if(room)room.setPosition(oxi,oyi).setDisplaySize(MAP.width*ki,MAP.height*ki);
+     const bhi=CH*ind.scale*ki;
+     shadow.fillStyle(0x17272d,.32);shadow.fillEllipse(ixi(r.x),iyi(r.y)+1,bhi*.28,bhi*.08);
+     if(actorImg){const key=r.gender?'photo-charF':'photo-charM';if(actorImg.texture.key!==key)actorImg.setTexture(key);const ts=actorImg.texture.getSourceImage() as {width:number;height:number};const bob=moving?Math.abs(Math.sin(clock/110))*2.2*ki:0;actorImg.setDisplaySize(bhi*ts.width/ts.height,bhi).setPosition(ixi(r.x),iyi(r.y)-bob).setFlipX(facing<0).setTint(0xfff1df).setDepth(r.y+1).setVisible(true);}
+     npcImg?.setVisible(false);
+     const fx=ixi(ind.focus.x),fy=iyi(ind.focus.y),near=Math.hypot(r.x-ind.focus.x,r.y-ind.focus.y)<62;
+     front.lineStyle(near?2:1,0xffe3a0,near?.9:.3);front.strokeEllipse(fx,fy,near?46*ki:36*ki,near?16*ki:12*ki);
+     hintText.setText(near?'F '+ind.focus.label:'F 出门　·　屋里随便看看').setPosition(w/2,h-70).setVisible(true);
+     dialogText.setVisible(false);
+     const fNow=keys.has('KeyF');
+     if(fNow&&!prevF){if(near){r.reason=ind.focus.label;r.flash=260;}else{r.mode='world';if(A.door){r.x=A.door.x+14;r.y=A.door.y+46;}}}
+     prevF=fNow;
+     Object.assign(root.dataset,{actorX:String(ixi(r.x)),actorGroundY:String(iyi(r.y)),k:String(ki),area:String(r.area),sway:String(sway)});
      update();return;
     }
     // ---- Whole plate ----
@@ -114,14 +122,14 @@ export function mountScene(root:HTMLElement,r:PhotoRuntime,keys:Set<string>,upda
      if(Math.hypot(r.x-ex.x,r.y-ex.y)<64){r.area=ex.to;r.x=ex.spawnX;r.y=ex.spawnY;r.site=-1;r.dialog=0;previous={x:r.x,y:r.y};}
      else if(r.dialog)r.dialog=0;
      else if(A.npc&&Math.hypot(r.x-A.npc.x,r.y-A.npc.y)<72)r.dialog=1;
-     else if(A.door&&Math.hypot(r.x-A.door.x,r.y-A.door.y)<60)r.mode='indoor';
+     else if(A.door&&A.indoor&&Math.hypot(r.x-A.door.x,r.y-A.door.y)<70){r.mode='indoor';r.x=A.indoor.spawnX;r.y=A.indoor.spawnY;r.site=-1;}
      else{const gi=giftSpots.findIndex((g,i)=>!r.gifts[i]&&Math.hypot(r.x-g[0],r.y-g[1])<46);if(gi>=0)r.gifts[gi]=true;}
     }
     prevF=fNow;
     const tNow=keys.has('KeyT');if(tNow&&!prevT)r.time=(r.time+1)%3;prevT=tNow;
     const nNow=keys.has('KeyR');if(nNow&&!prevR)r.rain=!r.rain;prevR=nNow;
     if(r.dialog)dialogText.setText(r.area===0?'“后生，坐一下嘛。这壶茶要等江风转凉才出味。”\n“台子边上拍，灯亮起来的时候最好看。”':'“沧白路车多，过街看灯。黄壳壳车顶灯亮着的，是空车。”').setPosition(w/2,h-96).setVisible(true);else dialogText.setVisible(false);
-    const hint=r.site>=0?'':r.dialog?'F 结束对话':Math.hypot(r.x-ex.x,r.y-ex.y)<64?'F '+ex.label:A.npc&&Math.hypot(r.x-A.npc.x,r.y-A.npc.y)<72?'F 与茶馆老人交谈':A.door&&Math.hypot(r.x-A.door.x,r.y-A.door.y)<60?'F 推门进屋':giftSpots.some((g,i)=>!r.gifts[i]&&Math.hypot(r.x-g[0],r.y-g[1])<46)?'F 拾取':'';
+    const hint=r.site>=0?'':r.dialog?'F 结束对话':Math.hypot(r.x-ex.x,r.y-ex.y)<64?'F '+ex.label:A.npc&&Math.hypot(r.x-A.npc.x,r.y-A.npc.y)<72?'F 与茶馆老人交谈':A.door&&Math.hypot(r.x-A.door.x,r.y-A.door.y)<70?'F 推门进屋':giftSpots.some((g,i)=>!r.gifts[i]&&Math.hypot(r.x-g[0],r.y-g[1])<46)?'F 拾取':'';
     hintText.setText(hint).setPosition(w/2,h-70).setVisible(!!hint&&!r.dialog);
     if(lastArea!==r.area){lastArea=r.area;root.dataset.area=String(r.area);}
     Object.assign(root.dataset,{actorX:String(sx(r.x)),actorGroundY:String(sy(r.y)),actorHeight:String(CH),k:String(k),area:String(r.area),sway:String(sway)});

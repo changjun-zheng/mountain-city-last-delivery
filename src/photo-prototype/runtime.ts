@@ -13,8 +13,8 @@ export class PhotoRuntime{
  enter(){if(this.site<0){if(this.nearby<0)return;this.site=this.nearby;}this.result='';this.reason='';}
  exit(){this.site=-1;this.result='';this.reason='';this.zoom=1;}
  move(x:number,y:number,dt:number){
-  const a=this.areaDef,n=Math.max(1,Math.hypot(x,y)),steps=Math.max(1,Math.ceil(175*dt/6)),b=a.bounds;
-  const valid=(px:number,py:number)=>px>=b.x+12&&px<=b.x+b.w-12&&py>=b.y+12&&py<=b.y+b.h-12&&!a.walls.some(w=>px+12>w.x&&px-12<w.x+w.w&&py+12>w.y&&py-12<w.y+w.h);
+  const a=this.areaDef,indoor=this.mode==='indoor'&&a.indoor,bt=indoor?a.indoor!.bounds:a.bounds,wa=indoor?[]:a.walls,n=Math.max(1,Math.hypot(x,y)),steps=Math.max(1,Math.ceil(175*dt/6));
+  const valid=(px:number,py:number)=>px>=bt.x+12&&px<=bt.x+bt.w-12&&py>=bt.y+12&&py<=bt.y+bt.h-12&&!wa.some(w=>px+12>w.x&&px-12<w.x+w.w&&py+12>w.y&&py-12<w.y+w.h);
   for(let i=0;i<steps;i++){const nx=this.x+x/n*175*dt/steps;if(valid(nx,this.y))this.x=nx;const ny=this.y+y/n*175*dt/steps;if(valid(this.x,ny))this.y=ny;}
  }
  composition(w:number,h:number){
