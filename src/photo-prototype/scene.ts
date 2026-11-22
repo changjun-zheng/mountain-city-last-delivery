@@ -37,7 +37,7 @@ export function mountScene(root:HTMLElement,r:PhotoRuntime,keys:Set<string>,upda
     const distance=Math.hypot(r.x-previous.x,r.y-previous.y),moving=distance>.01;
     previous={x:r.x,y:r.y};idle=moving?0:idle+dt;clock+=moving?dt:0;if(mx)facing=mx<0?-1:1;
     sway=forcedSway??(sway+((mouseActive?swayTarget:0)-sway)*.12);
-    const w=this.scale.width,h=this.scale.height,c=r.site>=0?r.composition(w,h):null,k=c?.k??Math.max(w/MAP.width,h/MAP.height)*1.12;
+    const w=this.scale.width,h=this.scale.height,c=r.site>=0?r.composition(w,h):null,k=c?.k??Math.max(w/MAP.width,h/MAP.height)*.98;
     const ox=c?.ox??Phaser.Math.Clamp(w/2-r.x*k,w-MAP.width*k,0),oy=c?.oy??Phaser.Math.Clamp(h*.80-r.y*k,h-MAP.height*k,0);
     const sx=(u:number)=>ox+u*k,sy=(u:number)=>oy+u*k;
     front.clear();overlay.clear();actor.clear();shadow.clear();
