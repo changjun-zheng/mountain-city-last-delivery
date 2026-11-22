@@ -5,7 +5,6 @@ export const ASSETS:Record<string,string>={
  plate0:new URL('./assets/scene2/plate_terrace.jpg',import.meta.url).href,
  plate1:new URL('./assets/scene2/plate_street.jpg',import.meta.url).href,
  npcOld:new URL('./assets/scene2/npc_old.png',import.meta.url).href,
- taxi:new URL('./assets/scene2/taxi.png',import.meta.url).href,
  charM:new URL('./assets/scene2/char_m.png',import.meta.url).href,
  charF:new URL('./assets/scene2/char_f.png',import.meta.url).href,
 };

@@ -4,6 +4,9 @@ export type AreaExit={x:number;y:number;to:number;label:string;spawnX:number;spa
 export type Area={
  bounds:Rect;walls:Rect[];sites:Site[];plate:string;
  exit:AreaExit;hasCars:boolean;npc:{x:number;y:number}|null;door:{x:number;y:number}|null;
+ // Per-plate factor: each illustration was painted at its own depth compression,
+ // so the visitor's world height is matched to that plate's doorway scale.
+ charScale:number;
 };
 // One whole-plate illustration per area (1998x1180). Lighting and scale are baked in the image,
 // so the scene no longer assembles ground, buildings and props separately.
@@ -18,21 +21,23 @@ const TERRACE:Area={
   {name:'木作近景',x:1560,y:1010,subject:{x:1480,y:430,w:440,h:380},focalRatio:.235},
   {name:'江景栏杆',x:1010,y:880,subject:{x:620,y:430,w:520,h:260},focalRatio:.235},
  ],
- exit:{x:1350,y:1100,to:1,label:'→ 沧白路街道',spawnX:200,spawnY:960},
- hasCars:false,npc:{x:800,y:860},door:{x:228,y:686},
+ exit:{x:1350,y:1100,to:1,label:'→ 沧白路街道',spawnX:240,spawnY:1000},
+ hasCars:false,npc:{x:800,y:860},door:{x:228,y:686},charScale:1,
 };
 
+// Street plate: cabs are painted into the illustration, so the two parked spots
+// are solid obstacles rather than moving sprites.
 const STREET:Area={
- bounds:{x:100,y:900,w:1800,h:240},
- walls:[{x:0,y:640,w:1998,h:260}],
+ bounds:{x:220,y:610,w:1620,h:510},
+ walls:[{x:1050,y:750,w:360,h:130},{x:1620,y:640,w:270,h:90}],
  plate:'photo-plate1',
  sites:[
-  {name:'沿街铺面',x:680,y:960,subject:{x:120,y:420,w:500,h:340},focalRatio:.235},
-  {name:'车流街口',x:1200,y:960,subject:{x:700,y:440,w:560,h:320},focalRatio:.235},
-  {name:'街尾牌坊',x:1720,y:960,subject:{x:1600,y:400,w:380,h:380},focalRatio:.235},
+  {name:'沿街铺面',x:780,y:660,subject:{x:700,y:200,w:480,h:430},focalRatio:.235},
+  {name:'车流街口',x:1350,y:680,subject:{x:1000,y:630,w:520,h:250},focalRatio:.235},
+  {name:'街尾牌坊',x:1800,y:690,subject:{x:1790,y:330,w:200,h:330},focalRatio:.235},
  ],
- exit:{x:120,y:960,to:0,label:'← 回观景台',spawnX:1300,spawnY:1060},
- hasCars:true,npc:null,door:null,
+ exit:{x:240,y:660,to:0,label:'← 回观景台',spawnX:1300,spawnY:1060},
+ hasCars:false,npc:null,door:null,charScale:1,
 };
 export const AREAS=[TERRACE,STREET];
 export const SAVE_KEY='pokan.photo-proto-2.album.v2';
