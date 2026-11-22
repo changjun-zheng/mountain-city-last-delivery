@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { plaster, tileRoof } from './exploration-paint';
 
 // Tilted top-down projection primitives.
 //
@@ -73,6 +74,16 @@ export function drawTopDownBuilding(g: Phaser.GameObjects.Graphics, b: Box, st: 
   const dw = Math.min(72, Math.max(48, b.w * 0.19));
   const dh = Math.min(76, Math.max(52, fh * 0.56));
 
+  // contact shadow so the block sits on the paving instead of floating on it;
+  // the fade runs about 45px out, which is what lets the lamp pools read against it
+  for (let i = 0; i < 4; i++) {
+    const t = 1 - i / 4;
+    g.fillStyle(0x16282a, 0.14 * t * t);
+    g.fillRect(b.x + 4 + i * 7, bottom + 2 + i * 8, b.w - 8 - i * 12, 9);
+  }
+  g.fillStyle(0x1a2a2c, 0.12);
+  g.fillRect(b.x + b.w, wallTop + 10, 10, fh - 8);
+
   // footprint, slightly darker than the facade so the wall base reads on the ground
   g.fillStyle(mix(facade, 0x000000, 0.35));
   g.fillRect(b.x, b.y, b.w, b.h);
@@ -86,16 +97,18 @@ export function drawTopDownBuilding(g: Phaser.GameObjects.Graphics, b: Box, st: 
     { x: b.x + b.w, y: bottom },
   ], true);
 
-  // front wall
-  g.fillStyle(facade);
-  g.fillRect(b.x, wallTop, b.w, fh);
-  // plinth and horizontal board lines so the wall has height
-  g.fillStyle(facadeLine, 0.5);
-  g.fillRect(b.x, bottom - 7, b.w, 7);
-  g.lineStyle(1, facadeLine, 0.42);
-  for (let y = wallTop + fh * 0.42; y < bottom - 10; y += 24) g.lineBetween(b.x + 4, y, b.x + b.w - 4, y);
+  // front wall: painted plaster, joints, grime at the base
+  plaster(g, b.x, wallTop, b.w, fh, facade, mix(facade, 0xffffff, 0.26), mix(facade, 0x000000, 0.32));
+  // plinth: the last stretch of wall above the paving goes dark, so the base
+  // grips the ground instead of ending in a straight cut
+  g.fillStyle(mix(facade, 0x2c2a22, 0.55), 0.5);
+  g.fillRect(b.x, bottom - 13, b.w, 13);
+  g.fillStyle(mix(facade, 0xffffff, 0.2), 0.32);
+  g.fillRect(b.x, bottom - 15, b.w, 2);
+  g.lineStyle(1, facadeLine, 0.26);
+  for (let y = wallTop + fh * 0.44; y < bottom - 14; y += 26) g.lineBetween(b.x + 4, y, b.x + b.w - 4, y);
   // wall corners
-  g.lineStyle(2, facadeLine, 0.55);
+  g.lineStyle(2, facadeLine, 0.5);
   g.lineBetween(b.x, wallTop, b.x, bottom);
   g.lineBetween(b.x + b.w, wallTop, b.x + b.w, bottom);
 
@@ -103,22 +116,17 @@ export function drawTopDownBuilding(g: Phaser.GameObjects.Graphics, b: Box, st: 
   g.fillStyle(mix(st.eave, facade, 0.2));
   g.fillRect(b.x - 5, wallTop - 8, b.w + 10, 9);
 
-  // roof plane, same width as the wall, shifted right by the side thickness
-  const roofTop = wallTop - rd;
-  g.fillStyle(st.roof);
-  g.fillRect(b.x + sw, roofTop, b.w, rd);
-  // two slopes split by the ridge, so the plane reads as pitched seen from above
-  g.fillStyle(mix(st.roof, 0xffffff, 0.14));
-  g.fillRect(b.x + sw, roofTop, b.w, Math.max(6, rd * 0.42));
-  g.fillStyle(mix(st.roof, 0x000000, 0.4));
-  g.fillRect(b.x + sw, roofTop + rd * 0.42, b.w, Math.max(3, rd * 0.07));
-  if (st.tile !== false) {
-    g.fillStyle(st.ridge, 0.8);
-    const step = Math.max(9, Math.round(rd / 9));
-    for (let y = roofTop + step; y < wallTop - 3; y += step) g.fillRect(b.x + sw + 4, y, b.w - 8, 2);
+  // eave shadow: the wall darkens just under the overhang, which is what gives
+  // the block its height without falling back on perspective
+  for (let i = 0; i < 6; i++) {
+    g.fillStyle(mix(st.roof, 0x000000, 0.6), 0.18 * (1 - i / 6));
+    g.fillRect(b.x, wallTop + 1 + i * 4, b.w, 4);
   }
-  // pick out the roof edges so the block separates from the ground
-  g.lineStyle(2, mix(st.roof, 0x000000, 0.55), 0.7);
+
+  // roof plane: tile rows, lit ridge, shaded right edge
+  const roofTop = wallTop - rd;
+  tileRoof(g, b.x + sw, roofTop, b.w, rd, st.roof, mix(st.roof, 0x000000, 0.5), mix(st.roof, 0xffffff, 0.18));
+  g.lineStyle(2, mix(st.roof, 0x000000, 0.5), 0.55);
   g.strokeRect(b.x + sw, roofTop, b.w, rd);
   // roof shadow onto the wall, keeps the roof from looking pasted on
   g.fillStyle(mix(st.roof, 0x000000, 0.35), 0.35);
@@ -128,8 +136,13 @@ export function drawTopDownBuilding(g: Phaser.GameObjects.Graphics, b: Box, st: 
   const dx = b.x + b.w / 2 - dw / 2;
   g.fillStyle(mix(st.roof, 0x000000, 0.55));
   g.fillRect(dx, bottom - dh, dw, dh);
-  g.fillStyle(mix(st.door, 0x000000, 0.28));
+  g.fillStyle(mix(st.door, 0x000000, 0.12));
   g.fillRect(dx + 4, bottom - dh + 4, dw - 8, dh - 6);
+  // lit interior: a warm strip on the threshold and a thinner one under the lintel
+  g.fillStyle(0xffc97c, 0.42);
+  g.fillRect(dx + 4, bottom - 9, dw - 8, 5);
+  g.fillStyle(0xffe4b0, 0.28);
+  g.fillRect(dx + 4, bottom - dh + 5, dw - 8, 3);
   g.lineStyle(2, st.eave);
   g.lineBetween(dx, bottom - dh, dx, bottom);
   g.lineBetween(dx + dw, bottom - dh, dx + dw, bottom);
@@ -144,10 +157,21 @@ export function drawTopDownBuilding(g: Phaser.GameObjects.Graphics, b: Box, st: 
   const glass = mix(facade, 0x24444e, 0.6);
   const frame = mix(st.roof, 0x000000, 0.45);
   const pane = (wx: number) => {
+    // Some windows are lit, some are not; that mix is what stops a row of shops
+    // from looking like one repeated decal.
+    const lit = Math.floor((wx + b.y) * 0.7) % 10 < 6;
+    if (lit) {
+      g.fillStyle(0xffcf86, 0.1);
+      g.fillRect(wx - 7, wy - 6, winW + 14, winH + 18);
+    }
     g.fillStyle(frame);
     g.fillRect(wx - 2, wy - 2, winW + 4, winH + 4);
-    g.fillStyle(glass);
+    g.fillStyle(lit ? mix(0xf0bd6c, glass, 0.2) : glass);
     g.fillRect(wx, wy, winW, winH);
+    if (lit) {
+      g.fillStyle(0xffdc94, 0.42);
+      g.fillRect(wx + 2, wy + 2, winW - 4, winH - 4);
+    }
     g.lineStyle(1, mix(st.eave, facade, 0.3), 0.8);
     g.lineBetween(wx + winW / 2, wy, wx + winW / 2, wy + winH);
     g.lineBetween(wx, wy + winH / 2, wx + winW, wy + winH / 2);

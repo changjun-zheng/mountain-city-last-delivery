@@ -81,7 +81,7 @@ export function drawCExploration(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
       });
       // Storey count stays readable without a facade: a flat corner tag on the roof.
       if(storeys>1)label(b.x+b.w-24,b.y+b.h-18,`${storeys}F`,14,b.y+b.h+2);
-      label(b.x+b.w/2,b.y+b.h/2,b.name,18,b.y+b.h+2);
+      label(b.x+b.w/2,b.y+b.h*0.63,b.name,18,b.y+b.h+2);
     }
     // Non-house walls and live closure rails share the actual blocker rectangles.
     for(const w of explorationWalls(s.map,s.unlocked).filter(w=>!m.buildings.includes(w as never))){

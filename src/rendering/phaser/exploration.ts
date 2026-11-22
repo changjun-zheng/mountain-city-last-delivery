@@ -176,7 +176,7 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
               if (moving) player.setScale(1.01,1.01); else player.setScale(1,1);
               previous=s.position;
               const camera=scene.cameras.main;
-              camera.setScroll(Math.max(0,Math.min(s.worldWidth-1100,s.position.x-550)),Math.max(0,Math.min(s.worldHeight-650,s.position.y-325)));
+              camera.setScroll(Math.max(0,Math.min(s.worldWidth-1100,s.position.x-550)),Math.max(0,Math.min(s.worldHeight-650,s.position.y-448)));
               Object.assign(parent.dataset,{cameraX:String(camera.scrollX),cameraY:String(camera.scrollY),zoom:String(camera.zoom),worldWidth:String(s.worldWidth),worldHeight:String(s.worldHeight)});
               ring.setVisible(!!s.target);hint.setVisible(!!s.target);
               if(s.target){ring.setPosition(s.target.x,s.target.y);hint.setPosition(s.target.x,s.target.y-32);}
