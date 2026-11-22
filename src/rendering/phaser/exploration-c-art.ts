@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import {EXP_MAPS,EXP_TARGETS,explorationWalls} from '../../core/exploration-content';
 import type {ExplorationSnapshot} from '../../core/exploration';
 import {drawBuildingFloor} from './exploration-building-art';
+import {drawTopDownBuilding, drawTopDownRoom, drawTopDownRoofPlane} from './exploration-topdown-art';
 
 // Basic playable spatial blockout. Floors, retaining masses and entry markers
 // follow the finite C collision/connection data, not a second decorative map.
@@ -15,10 +16,20 @@ export function drawCExploration(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
   const floorMaps=['guide2','workshop2','workshop3'];
   if(floorMaps.includes(s.map))drawBuildingFloor(scene,layer,s);
   else if(!m.outdoor){
-    box(base,m.bounds.x-18,m.bounds.y-75,m.bounds.w+36,75,0x6e5140);
-    for(let x=m.bounds.x+20;x<m.bounds.x+m.bounds.w-80;x+=150){box(base,x,m.bounds.y-60,80,45,0x315361);box(base,x+37,m.bounds.y-60,6,45,0xc3ad81);}
-    slab(m.bounds.x,m.bounds.y,m.bounds.w,m.bounds.h,0xa17d54);
-    for(const w of m.walls){const g=scene.add.graphics().setDepth(w.y+w.h);layer.add(g);box(g,w.x,w.y-24,w.w,w.h+24,0x684734);box(g,w.x-3,w.y-24,w.w+6,24,0xc69d68);}
+    // Interior as a plan view: one floor plane, a wall band with real thickness,
+    // a doorway notch on the lower side, props keeping their own footprints.
+    drawTopDownRoom(base,m.bounds,m.walls,{
+      floor:0xb99a70,floorLine:0x947650,wall:0x38403a,wallTop:0x5b6660,
+      outside:0xa89070,doorway:0xffe4ad,
+      propTop:0x8a6a4a,propEdge:0x5a4436,propLine:0x3f3228,
+    });
+    // Interior stairs were only drawn by dead code before; give them a ground plane here.
+    for(const t of EXP_TARGETS.filter(t=>t.map===s.map&&t.destination&&['guide-up','guide-down','workshop-up-2','workshop-down-1','workshop-up-3','workshop-down-2'].includes(t.id))){
+      const g=scene.add.graphics().setDepth(t.y+150);layer.add(g);
+      for(let n=0;n<5;n++)box(g,t.x-32,t.y-26+n*10,64,8,n%2?0x6a563c:0xe8d2a8);
+      g.lineStyle(3,0x322d26);g.lineBetween(t.x-36,t.y-30,t.x-36,t.y+26);g.lineBetween(t.x+36,t.y-30,t.x+36,t.y+26);
+      g.strokeRect(t.x-32,t.y-26,64,48);
+    }
     label(m.width/2,115,m.name,23,1000);
     if(s.map==='market'){label(300,260,'西廊货架');label(900,235,'东院杂货');label(670,580,'穿行内间',18);}
     if(s.map==='lantern'){label(480,255,'灯笼陈列');label(850,230,'后窗纸品架');for(const x of [330,660,1080]){base.lineStyle(3,0x624638);base.lineBetween(x,200,x,260);base.fillStyle(0xffd487);base.fillEllipse(x,280,38,48);}label(850,370,'纸上江桥',16);}
@@ -27,25 +38,28 @@ export function drawCExploration(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     if(s.map==='tea'){label(545,240,'竹椅茶桌');label(800,280,'桥在后窗，木楼在窗外',16);}
   }else{
     // Stone back lane and wooden eaves/front lane have real depth and corners.
-    slab(80,225,2040,45,0x89978b);slab(160,580,1880,170,0x9a7652);
+    slab(80,225,2040,45,0x89978b);slab(160,580,1880,170,0x8c7a60);
     if(s.map==='upper'){
-      slab(150,700,260,330,0xa78961);slab(1945,700,180,330,0xa78961);
+      // Steps stay on the ground plane: flat treads, no skewed risers.
+      box(base,150,700,260,240,0x8e9084);
+      for(let y=706;y<936;y+=14){base.lineStyle(2,0x6f7168,.8);base.lineBetween(154,y,406,y);}
+      box(base,1945,700,180,240,0x8e9084);
+      for(let y=706;y<936;y+=14){base.lineStyle(2,0x6f7168,.8);base.lineBetween(1949,y,2121,y);}
+      // Retaining mass: a wall top with visible thickness, blocker unchanged.
       const retaining=scene.add.graphics().setDepth(799);layer.add(retaining);box(retaining,420,800,1520,240,0x465657);
-      for(let x=440;x<1940;x+=80){retaining.lineStyle(2,0x6a7972);retaining.strokeRect(x,805,74,32);}
-      // The cliff's exposed storey is UNDER the active projecting deck, not a
-      // second house on that deck. No roof or accessible doorway is drawn here.
+      retaining.lineStyle(1,0x6a7972,.85);
+      for(let y=808;y<1032;y+=52)for(let x=432;x<1936;x+=64)retaining.strokeRect(x,y,58,44);
+      retaining.lineStyle(5,0xb99b6d);retaining.lineBetween(420,803,1940,803);
+      retaining.lineStyle(2,0x39504f);retaining.lineBetween(420,1039,1940,1039);
+      // The storey below the cliff is a roof plane you can see and cannot enter.
       for(const b of m.buildings.filter(b=>b.kind==='guide'||b.kind==='workshop')){
-        const mark=b.kind==='guide'?0xb1d0c4:0xd6ab69,g=scene.add.graphics().setDepth(1040);layer.add(g);
-        box(g,b.x,815,b.w,225,0x715441);poly(g,[b.x+b.w,815,b.x+b.w+35,790,b.x+b.w+35,1015,b.x+b.w,1040],0x443c35);
-        for(let x=b.x+12;x<b.x+b.w;x+=90){box(g,x,812,12,228,mark);box(g,x+23,850,40,50,0xdaa868);g.lineStyle(5,0x574435);g.lineBetween(x,1010,x+75,925);}
-        box(g,b.x-16,798,b.w+32,18,0xc4aa7a);box(g,b.x,910,b.w,12,0x433d34);
-        box(g,b.x+b.w/2-25,953,50,87,0x263c3d);box(g,b.x+b.w/2-20,958,40,77,0xa28f6b);
-        g.lineStyle(5,mark);g.lineBetween(b.x+12,520,b.x+12,800);g.lineBetween(b.x+b.w-12,520,b.x+b.w-12,800);
+        const g=scene.add.graphics().setDepth(1040);layer.add(g);
+        drawTopDownRoofPlane(g,{x:b.x,y:815,w:b.w,h:225},0x5f6b5f,0x44524d,0xb99b6d);
       }
-      label(1080,790,'悬挑廊边',16,1100);
+      label(150,566,'西口回沧白路入口',17,1260);
     }else if(s.map==='middle'){
       slab(670,750,140,300,0xa78961);slab(1290,750,120,300,0xa78961);slab(160,930,1880,120,0xa78961);
-      label(710,600,'导览1F后街',16);label(1620,600,'木作2F街门',16);
+      label(710,646,'导览1F后街',15);label(1620,650,'木作2F街门',15);
     }else{
       slab(180,990,1900,130,0xa78961);slab(350,650,140,400,0xa78961);slab(1380,650,140,400,0xa78961);
       // Upper floor sits on continuous piers, visible from the life street.
@@ -54,24 +68,20 @@ export function drawCExploration(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     }
     for(const b of m.buildings){
       const g=scene.add.graphics().setDepth(b.y+b.h);layer.add(g);
-      const guide=b.kind==='guide',wood=b.kind==='workshop',mark=guide?0xb1d0c4:wood?0xd6ab69:0x8e6850;
-      box(g,b.x,b.y,b.w,b.h,0x8b6349);poly(g,[b.x+b.w,b.y,b.x+b.w+35,b.y-25,b.x+b.w+35,b.y+b.h-25,b.x+b.w,b.y+b.h],0x4c443a);
-      poly(g,[b.x-20,b.y,b.x+18,b.y-45,b.x+b.w+22,b.y-45,b.x+b.w+55,b.y-5,b.x+b.w+5,b.y+10],0x344d55);
-      g.lineStyle(2,0x69817d);for(let x=b.x;x<b.x+b.w;x+=24)g.lineBetween(x,b.y-2,x+35,b.y-41);
+      const guide=b.kind==='guide',wood=b.kind==='workshop';
       const storeys=(guide||wood)?(s.map==='middle'?2:s.map==='lower'&&wood?3:1):1;
-      for(let level=0;level<storeys;level++){
-        const y=b.y+level*b.h/storeys;
-        for(let x=b.x+35;x<b.x+b.w-40;x+=85){box(g,x,y+28,45,55,0x393d35);box(g,x+4,y+33,37,44,0xffd487);box(g,x+21,y+30,4,51,0x594638);box(g,x+2,y+53,41,4,0x594638);}
-        if(level){box(g,b.x-15,y-6,b.w+30,14,0xc6a879);box(g,b.x,y+8,b.w,10,0x453d33);for(let x=b.x+20;x<b.x+b.w;x+=48){box(g,x,y-28,5,24,mark);g.lineStyle(2,mark);g.lineBetween(x,y-28,x+42,y-28);}}
-      }
-      for(const x of [b.x+12,b.x+b.w-24])box(g,x,b.y,12,b.h,mark);
-      box(g,b.x,b.y+b.h-12,b.w,12,0x4c3b33);
-      if(guide||wood){
-        // Same stripe/wave facade across levels, including the adjacent storey.
-        g.lineStyle(3,mark);for(let y=b.y+100;y<b.y+b.h-20;y+=65){g.lineBetween(b.x+28,y,b.x+b.w-28,y);if(wood){g.lineBetween(b.x+40,y+13,b.x+65,y+6);g.lineBetween(b.x+40,y+21,b.x+65,y+14);}}
-      }
-      // Whole-building sign; the actual door separately names its own floor.
-      label(b.x+b.w/2,b.y+110,b.name,18,b.y+b.h+2);
+      // Roof plane only: footprint == blocker, doorway notch cut into the lower edge.
+      drawTopDownBuilding(g,b,{
+        roof:0x64756d,
+        ridge:0x44524d,
+        wall:0x3b352c,
+        eave:0xc2a683,
+        ground:0x82958a,
+        door:0xf0cd96,
+      });
+      // Storey count stays readable without a facade: a flat corner tag on the roof.
+      if(storeys>1)label(b.x+b.w-24,b.y+b.h-18,`${storeys}F`,14,b.y+b.h+2);
+      label(b.x+b.w/2,b.y+b.h/2,b.name,18,b.y+b.h+2);
     }
     // Non-house walls and live closure rails share the actual blocker rectangles.
     for(const w of explorationWalls(s.map,s.unlocked).filter(w=>!m.buildings.includes(w as never))){
@@ -82,12 +92,20 @@ export function drawCExploration(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
   const stairIds=new Set(['east-down','east-up','west-down','west-up','middle-east-upper','middle-west-upper','middle-east-lower','middle-west-lower','riverfront-down']);
   for(const t of EXP_TARGETS.filter(t=>t.map===s.map&&t.destination)){
     const g=scene.add.graphics().setDepth(t.y-1);layer.add(g);
-    if(stairIds.has(t.id)){for(let n=0;n<7;n++){const y=t.y-38+n*10,x=t.x-40+n*3;poly(g,[x,y,x+75,y,x+91,y+7,x+16,y+7],n%2?0x77634a:0xc2aa7d);}g.lineStyle(5,0x4c4438);g.lineBetween(t.x-47,t.y-50,t.x-26,t.y+22);g.lineBetween(t.x+42,t.y-50,t.x+63,t.y+22);}
+    if(stairIds.has(t.id)){
+      // Treads as flat bands on the ground, with two straight side rails.
+      for(let n=0;n<5;n++){box(g,t.x-30,t.y-24+n*10,60,8,n%2?0x6a563c:0xe8d2a8);}
+      g.lineStyle(3,0x322d26);g.lineBetween(t.x-34,t.y-30,t.x-34,t.y+28);g.lineBetween(t.x+34,t.y-30,t.x+34,t.y+28);
+      g.strokeRect(t.x-30,t.y-24,60,48);
+    }
     else if(!['guide-up','guide-down','workshop-up-2','workshop-down-1','workshop-up-3','workshop-down-2'].includes(t.id)){
-      box(g,t.x-30,t.y-60,60,58,0x293c3c);box(g,t.x-24,t.y-55,48,49,t.locked&&!s.unlocked?0x624c3e:0xc0ab7f);box(g,t.x-39,t.y,78,8,0xc2aa7d);
-      if(t.locked&&!s.unlocked){g.lineStyle(4,0xd9b676);g.lineBetween(t.x-24,t.y-45,t.x+24,t.y-12);g.lineBetween(t.x-24,t.y-12,t.x+24,t.y-45);}
+      // Doorway is a notch on the ground line, not a panel painted on a facade.
+      box(g,t.x-32,t.y-6,64,14,0x293c3c);
+      box(g,t.x-26,t.y-3,52,9,t.locked&&!s.unlocked?0x624c3e:0xf0cd96);
+      box(g,t.x-40,t.y+8,80,4,0xc2aa7d);
+      if(t.locked&&!s.unlocked){g.lineStyle(4,0xd9b676);g.lineBetween(t.x-22,t.y-4,t.x+22,t.y+2);g.lineBetween(t.x-22,t.y+2,t.x+22,t.y-4);}
     }else continue;
-    label(t.x,t.y-82,t.label,16,t.y+30);
+    label(t.x,t.y+40,t.label,15,t.y+30);
   }
   if(s.map==='middle'){
     const g=scene.add.graphics().setDepth(1040);layer.add(g);g.lineStyle(4,0xffd487);for(const y of [966,976]){g.lineBetween(1912,y,1923,y-6);g.lineBetween(1923,y-6,1935,y);g.lineBetween(1935,y,1947,y-6);}label(1930,935,s.unlocked?'江纹封道已通':'江纹封道',18,1040);

@@ -161,7 +161,7 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
               scene.cameras.main.setBounds(0,0,definition.width,definition.height);
             }
             const player = actor(scene,0x408b88,0xffe3b2);
-            const ring = scene.add.ellipse(0,0,40,15).setStrokeStyle(2,0xffde92).setDepth(20000);
+            const ring = scene.add.ellipse(0,0,24,24).setStrokeStyle(2,0xffde92).setDepth(20000);
             const hint = scene.add.text(0,0,'◇',{fontSize:'22px',color:'#ffe3a0'}).setOrigin(.5).setDepth(20001);
             const update = () => {
               if(disposed)return;
@@ -171,14 +171,15 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
               if(lastMap!==s.map || lastOpen!==s.unlocked || lastItem!==s.item||lastMementos!==mementoSignature){draw(s);lastMap=s.map;lastOpen=s.unlocked;lastItem=s.item;lastMementos=mementoSignature;}
               const moving=s.position.x!==previous.x || s.position.y!==previous.y;
               player.setPosition(s.position.x,s.position.y).setDepth(s.position.y);
-              player.setScale(s.facing.x<0?-.95:.95,.95);
-              player.setAngle(moving?Math.sin(s.tick*.8)*2:0);
+              setActorFacing(player,s.facing.x,s.facing.y);
+              player.setAngle(0);
+              if (moving) player.setScale(1.01,1.01); else player.setScale(1,1);
               previous=s.position;
               const camera=scene.cameras.main;
               camera.setScroll(Math.max(0,Math.min(s.worldWidth-1100,s.position.x-550)),Math.max(0,Math.min(s.worldHeight-650,s.position.y-325)));
               Object.assign(parent.dataset,{cameraX:String(camera.scrollX),cameraY:String(camera.scrollY),zoom:String(camera.zoom),worldWidth:String(s.worldWidth),worldHeight:String(s.worldHeight)});
               ring.setVisible(!!s.target);hint.setVisible(!!s.target);
-              if(s.target){ring.setPosition(s.target.x,s.target.y);hint.setPosition(s.target.x,s.target.y-58);}
+              if(s.target){ring.setPosition(s.target.x,s.target.y);hint.setPosition(s.target.x,s.target.y-32);}
               parent.dataset.mapObjects=String(mapObjects);
               sampled();
             };
@@ -213,13 +214,76 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
 }
 
 function actor(scene: Phaser.Scene, coat: number, skin: number): Phaser.GameObjects.Container {
-  const shadow=scene.add.ellipse(0,0,29,11,0x182f36,.35);
-  const g=scene.add.graphics();
-  g.fillStyle(0x273e49);g.fillRoundedRect(-10,-14,8,15,3);g.fillRoundedRect(3,-14,8,15,3);
-  g.fillStyle(coat);g.fillRoundedRect(-14,-35,28,26,7);
-  g.fillStyle(skin);g.fillCircle(0,-42,13);g.fillRoundedRect(12,-30,5,14,2);
-  g.fillStyle(0x3c3e3c);g.fillEllipse(-2,-51,25,10);g.fillRect(-13,-50,6,13);
-  g.fillStyle(0x263f43);g.fillCircle(7,-42,1.8);
-  g.lineStyle(4,0xe8c078);g.lineBetween(-7,-33,9,-14);
-  return scene.add.container(0,0,[shadow,g]);
+  const shadow = scene.add.ellipse(0, 1, 24, 10, 0x182f36, 0.32);
+  const limb = 0x273e49;
+  const hair = 0x3c3e3c;
+  const eye = 0x263f43;
+  const build = (dir: 'up' | 'down' | 'left' | 'right') => {
+    const g = scene.add.graphics();
+    const side = dir === 'left' || dir === 'right';
+    const flip = dir === 'left' ? -1 : 1;
+    // legs, short, both contacts on the ground
+    g.fillStyle(limb);
+    if (side) g.fillRect(flip * 3 - 3, -13, 7, 13);
+    else { g.fillRect(-8, -13, 7, 13); g.fillRect(1, -13, 7, 13); }
+    // torso as a tapered block so the figure has a front and a back
+    g.fillStyle(coat);
+    if (side) {
+      g.fillPoints([{ x: flip * 3 - 7, y: -12 }, { x: flip * 3 + 8, y: -12 }, { x: flip * 3 + 9, y: -34 }, { x: flip * 3 - 8, y: -34 }], true);
+      g.fillStyle(0xffffff, 0.18);
+      g.fillRect(flip * 3 + (flip > 0 ? 4 : -8), -33, 4, 19);
+    } else {
+      g.fillPoints([{ x: -10, y: -12 }, { x: 10, y: -12 }, { x: 12, y: -34 }, { x: -12, y: -34 }], true);
+      if (dir === 'down') {
+        g.fillStyle(0xffffff, 0.22);
+        g.fillRect(-8, -32, 16, 3);
+        g.fillStyle(0x1d3238, 0.55);
+        g.fillRect(-1, -31, 2, 17);
+      }
+    }
+    // arms at the sides
+    g.fillStyle(coat);
+    if (side) g.fillEllipse(flip * 2, -22, 7, 16);
+    else { g.fillEllipse(-12, -22, 7, 16); g.fillEllipse(12, -22, 7, 16); }
+    // head, one circle read as face or back of the head depending on direction
+    const hx = side ? flip * 4 : 0;
+    if (dir === 'down') {
+      g.fillStyle(hair); g.fillCircle(hx, -44, 12);
+      g.fillStyle(skin); g.fillCircle(hx, -43, 11);
+      g.fillStyle(hair); g.fillEllipse(hx, -52, 22, 9);
+      g.fillStyle(hair, 0.9); g.fillRect(hx - 11, -46, 3, 9); g.fillRect(hx + 8, -46, 3, 9);
+      g.fillStyle(eye); g.fillCircle(hx - 4, -44, 1.8); g.fillCircle(hx + 4, -44, 1.8);
+      g.fillStyle(0xc98f7c); g.fillRect(hx - 2, -38, 4, 1.5);
+    } else if (dir === 'up') {
+      g.fillStyle(hair); g.fillCircle(hx, -44, 12);
+      g.fillStyle(skin); g.fillRect(hx - 9, -34, 18, 6);
+      g.fillStyle(hair); g.fillEllipse(hx, -35, 20, 7);
+      g.fillStyle(0x8d7a56); g.fillRect(hx - 7, -33, 14, 9);
+      g.fillStyle(0x6f5f44); g.fillRect(hx - 7, -33, 14, 2);
+    } else {
+      g.fillStyle(hair); g.fillCircle(hx, -44, 12);
+      g.fillStyle(skin); g.fillCircle(hx + flip * 3, -43, 10);
+      g.fillStyle(hair); g.fillEllipse(hx - flip * 2, -46, 15, 14);
+      g.fillStyle(skin); g.fillEllipse(hx + flip * 8, -42, 7, 8);
+      g.fillStyle(eye); g.fillCircle(hx + flip * 7, -43, 1.7);
+      g.fillStyle(hair, 0.85); g.fillRect(hx - flip * 4, -52, 4, 10);
+    }
+    g.setVisible(dir === 'down');
+    return g;
+  };
+  const parts = { up: build('up'), down: build('down'), left: build('left'), right: build('right') };
+  const body = scene.add.container(0, 0, [shadow, parts.up, parts.down, parts.left, parts.right]);
+  body.setData('parts', parts);
+  return body;
+}
+
+/** Pick one of four top-down drawings; diagonals reuse the dominant axis. */
+function setActorFacing(body: Phaser.GameObjects.Container, fx: number, fy: number): void {
+  const parts = body.getData('parts') as Record<'up' | 'down' | 'left' | 'right', Phaser.GameObjects.Graphics> | undefined;
+  if (!parts) return;
+  const dir = Math.abs(fy) >= Math.abs(fx) ? (fy < 0 ? 'up' : 'down') : (fx < 0 ? 'left' : 'right');
+  parts.up.setVisible(dir === 'up');
+  parts.down.setVisible(dir === 'down');
+  parts.left.setVisible(dir === 'left');
+  parts.right.setVisible(dir === 'right');
 }
