@@ -6,7 +6,7 @@ export function score(view:Rect,subject:Rect){
  return {rank,coverage,inside,reason:!inside?'主体偏出画面，退后半步':coverage<.08?'主体太小，按 Shift 换焦段':''};
 }
 export class PhotoRuntime{
- x=1120;y=1180;area=0;site=-1;zoom=1;gender=0;mode:'world'|'indoor'='world';dialog=0;gifts=[false,false,false];rain=false;time=0;album=[0,0,0,0,0,0];result='';reason='';rank=0;shots=0;flash=0;coverage=0;
+ x=900;y=1000;area=0;site=-1;zoom=1;gender=0;mode:'world'|'indoor'='world';dialog=0;gifts=[false,false,false];rain=false;time=0;album=[0,0,0,0,0,0];result='';reason='';rank=0;shots=0;flash=0;coverage=0;
  get areaDef(){return AREAS[this.area];}
  get sites(){return this.areaDef.sites;}
  get nearby(){return this.sites.findIndex(s=>Math.hypot(s.x-this.x,s.y-this.y)<=64);}

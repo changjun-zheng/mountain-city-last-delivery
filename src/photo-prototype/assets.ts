@@ -1,12 +1,9 @@
 import type Phaser from 'phaser';
 
-// Rebuilt scene assets. Old plates stay on disk for history but are no longer loaded.
+// Whole-plate illustrations plus a small set of movable sprites.
 export const ASSETS:Record<string,string>={
- farCity:new URL('./assets/scene2/far_city.jpg',import.meta.url).href,
- slab:new URL('./assets/scene2/slab.jpg',import.meta.url).href,
- tea:new URL('./assets/scene2/tea.png',import.meta.url).href,
- shop:new URL('./assets/scene2/shop.png',import.meta.url).href,
- gate:new URL('./assets/scene2/gate.png',import.meta.url).href,
+ plate0:new URL('./assets/scene2/plate_terrace.jpg',import.meta.url).href,
+ plate1:new URL('./assets/scene2/plate_street.jpg',import.meta.url).href,
  npcOld:new URL('./assets/scene2/npc.png',import.meta.url).href,
  taxi:new URL('./assets/scene2/taxi.png',import.meta.url).href,
  charM:new URL('./assets/char_male.png',import.meta.url).href,
@@ -18,5 +15,5 @@ export function preloadPhotoAssets(scene:Phaser.Scene){
  for(const[key,url]of Object.entries(ASSETS))scene.load.image(`photo-${key}`,url);
 }
 export function preparePhotoAssets(_scene:Phaser.Scene){
- // Generated plates already carry alpha; nothing to patch at runtime.
+ // Plates already carry unified lighting; nothing to patch at runtime.
 }
