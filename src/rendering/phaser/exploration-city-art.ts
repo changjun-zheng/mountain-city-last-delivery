@@ -4,6 +4,7 @@ import {PROLOGUE_MONUMENT} from '../../core/exploration-prologue';
 import {drawTopDownBuilding, drawTopDownRoom} from './exploration-topdown-art';
 import {stoneTiles, lightPool} from './exploration-paint';
 import {ambient, glowLayer, pool, halo, doorSpill} from './exploration-lighting';
+import {bookshopFront} from './exploration-shopfront';
 import {hangingBoard, lantern, stall, parkedCar, passerby, streetTree, utilityPole, wire, lampPost, bench, kiosk} from './exploration-street-deco';
 
 // Original modular trial art, informed only by the archived A-01 silhouette and
@@ -16,6 +17,7 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
   const modern=(b:Building)=>{
     const g=scene.add.graphics().setDepth(b.y+b.h);layer.add(g);
     lightPool(g,b.x+b.w/2,b.y+b.h+12,92,24);
+    const fh=Math.min(140,Math.max(76,b.h*0.55)),wallTop=b.y+b.h-fh;
     // Plan view only: footprint equals the blocker, roof plane on top, doorway notch below.
     drawTopDownBuilding(g,b,{
       roof:b.kind==='service'?0x8a9a92:0x5a6760,
@@ -28,7 +30,12 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
       facade:0xd8c7a8,
       facadeLine:0x8a7f66,
     });
-    label(b.x+b.w/2,b.y+b.h*0.63,b.name,18,'#fff0c5',b.y+b.h+1);
+    if(b.name==='城市书店'){
+      bookshopFront(g,b,wallTop,fh);
+      label(b.x+b.w/2,wallTop+24,b.name,16,'#f4e8c6',b.y+b.h+1);
+    }else{
+      label(b.x+b.w/2,b.y+b.h*0.63,b.name,18,'#fff0c5',b.y+b.h+1);
+    }
   };
   const link=(x:number,y:number,name:string)=>{const g=scene.add.graphics().setDepth(y-1);layer.add(g);rect(g,x-48,y-17,96,34,0xb7bda7);g.lineStyle(3,0x5e7475);g.strokeRect(x-48,y-17,96,34);g.lineBetween(x-30,y,x+28,y);g.lineBetween(x+28,y,x+17,y-9);label(x,y-42,name,17,'#f1ddb0',1600);};
   if(id==='service'){
