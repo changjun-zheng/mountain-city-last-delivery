@@ -28,6 +28,8 @@ export type BuildingStyle = {
   fhCap?: number;
   /** Optional wall/footprint ratio, default 0.55. Raising it squeezes the roof. */
   fhRatio?: number;
+  /** Set when a shopfront draws its own display windows instead of the generic pair. */
+  skipWindows?: boolean;
 };
 
 export type RoomStyle = {
@@ -103,14 +105,22 @@ export function drawTopDownBuilding(g: Phaser.GameObjects.Graphics, b: Box, st: 
 
   // front wall: painted plaster, joints, grime at the base
   plaster(g, b.x, wallTop, b.w, fh, facade, mix(facade, 0xffffff, 0.26), mix(facade, 0x000000, 0.32));
+  // low western sun: the left edge of every wall catches a warm rim, which is
+  // what gives a flat elevation a direction of light
+  g.fillStyle(0xffd49a, 0.17);
+  g.fillRect(b.x, wallTop, 9, fh);
+  g.fillStyle(0xffe6c0, 0.1);
+  g.fillRect(b.x + 9, wallTop, 6, fh);
   // plinth: the last stretch of wall above the paving goes dark, so the base
   // grips the ground instead of ending in a straight cut
   g.fillStyle(mix(facade, 0x2c2a22, 0.55), 0.5);
   g.fillRect(b.x, bottom - 13, b.w, 13);
   g.fillStyle(mix(facade, 0xffffff, 0.2), 0.32);
   g.fillRect(b.x, bottom - 15, b.w, 2);
-  g.lineStyle(1, facadeLine, 0.26);
-  for (let y = wallTop + fh * 0.44; y < bottom - 14; y += 26) g.lineBetween(b.x + 4, y, b.x + b.w - 4, y);
+  // Faint piers instead of course lines: a long wall should read as bays, not
+  // as a shutter with slats.
+  g.lineStyle(1, facadeLine, 0.13);
+  for (let x = b.x + 110; x < b.x + b.w - 40; x += 110) g.lineBetween(x, wallTop + 9, x, bottom - 15);
   // wall corners
   g.lineStyle(2, facadeLine, 0.5);
   g.lineBetween(b.x, wallTop, b.x, bottom);
@@ -129,7 +139,7 @@ export function drawTopDownBuilding(g: Phaser.GameObjects.Graphics, b: Box, st: 
 
   // roof plane: tile rows, lit ridge, shaded right edge
   const roofTop = wallTop - rd;
-  tileRoof(g, b.x + sw, roofTop, b.w, rd, st.roof, mix(st.roof, 0x000000, 0.5), mix(st.roof, 0xffffff, 0.18));
+  tileRoof(g, b.x + sw, roofTop, b.w, rd, st.roof, mix(st.roof, 0x000000, 0.62), mix(st.roof, 0xffffff, 0.32));
   g.lineStyle(2, mix(st.roof, 0x000000, 0.5), 0.55);
   g.strokeRect(b.x + sw, roofTop, b.w, rd);
   // roof shadow onto the wall, keeps the roof from looking pasted on
@@ -154,7 +164,9 @@ export function drawTopDownBuilding(g: Phaser.GameObjects.Graphics, b: Box, st: 
   g.fillStyle(st.eave, 0.8);
   g.fillRect(dx - 8, bottom, dw + 16, 5);
 
-  // windows on the front wall, one each side of the doorway where there is room
+  // windows on the front wall, one each side of the doorway where there is room.
+  // Shopfronts draw their own display windows, so they skip this pass entirely.
+  if (!st.skipWindows) {
   const winW = Math.min(46, Math.max(26, dw * 0.8));
   const winH = Math.min(30, fh * 0.22);
   const wy = wallTop + fh * 0.16;
@@ -188,6 +200,7 @@ export function drawTopDownBuilding(g: Phaser.GameObjects.Graphics, b: Box, st: 
     pane(b.x + b.w / 2 + gapSide);
   } else if (b.w - dw > winW + 26) {
     pane(dx + dw + 14);
+  }
   }
 }
 

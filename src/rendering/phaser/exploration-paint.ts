@@ -51,24 +51,24 @@ export function tileRoof(
 ): void {
   g.fillStyle(base);
   g.fillRect(x, y, w, h);
-  const rowH = Math.max(9, Math.floor(h / 10));
+  const rowH = Math.max(13, Math.floor(h / 6));
   const r = rng(x * 31 + y * 97 + w * 7);
   for (let yy = y; yy < y + h - 1; yy += rowH) {
     const t = r();
-    g.fillStyle(t > 0.5 ? light : dark, t > 0.5 ? 0.1 : 0.14);
+    g.fillStyle(t > 0.5 ? light : dark, t > 0.5 ? 0.16 : 0.2);
     g.fillRect(x, yy, w, rowH - 1);
-    g.fillStyle(dark, 0.34);
+    g.fillStyle(dark, 0.3);
     g.fillRect(x, yy, w, 1);
-    const off = Math.floor((yy - y) / rowH) % 2 ? 5 : 0;
-    g.fillStyle(dark, 0.22);
-    for (let xx = x + 6 + off; xx < x + w - 4; xx += 12) g.fillRect(xx, yy + 1, 1, rowH - 2);
+    const off = Math.floor((yy - y) / rowH) % 2 ? 6 : 0;
+    g.fillStyle(dark, 0.18);
+    for (let xx = x + 8 + off; xx < x + w - 4; xx += 22) g.fillRect(xx, yy + 1, 1, rowH - 2);
   }
   // Ridge: one lit line a third of the way down, with the roof falling away from
   // it on both sides. Without this a big roof reads as a flat grey slab.
   const ridgeY = y + Math.floor(h * 0.34);
   g.fillStyle(dark, 0.17);
   g.fillRect(x, y, w, ridgeY - y);
-  g.fillStyle(light, 0.38);
+  g.fillStyle(light, 0.52);
   g.fillRect(x, ridgeY, w, 3);
   g.fillStyle(0x000000, 0.15);
   g.fillRect(x, ridgeY + 3, w, y + h - ridgeY - 3);

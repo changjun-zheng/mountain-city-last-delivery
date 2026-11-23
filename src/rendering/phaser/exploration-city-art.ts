@@ -4,7 +4,7 @@ import {PROLOGUE_MONUMENT} from '../../core/exploration-prologue';
 import {drawTopDownBuilding, drawTopDownRoom} from './exploration-topdown-art';
 import {stoneTiles, lightPool} from './exploration-paint';
 import {ambient, glowLayer, pool, halo, doorSpill} from './exploration-lighting';
-import {bookshopFront} from './exploration-shopfront';
+import {shopFront,type ShopKind} from './exploration-shopfront';
 import {hangingBoard, lantern, stall, parkedCar, passerby, streetTree, utilityPole, wire, lampPost, bench, kiosk} from './exploration-street-deco';
 
 // Original modular trial art, informed only by the archived A-01 silhouette and
@@ -14,30 +14,41 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
   const rect=(g:Phaser.GameObjects.Graphics,x:number,y:number,w:number,h:number,c:number)=>{g.fillStyle(c);g.fillRect(x,y,w,h);};
   const poly=(g:Phaser.GameObjects.Graphics,p:number[],c:number)=>{g.fillStyle(c);g.fillPoints(p.reduce<Phaser.Math.Vector2[]>((a,_,i)=>{if(i%2===0)a.push(new Phaser.Math.Vector2(p[i],p[i+1]));return a;},[]),true);};
   const label=(x:number,y:number,t:string,size=19,color='#ffe4ad',depth=1600)=>{const o=scene.add.text(x,y,t,{fontFamily:'KaiTi, STKaiti, Microsoft YaHei, serif',fontSize:`${size}px`,color,align:'center'}).setOrigin(.5).setDepth(depth);layer.add(o);return o;};
+  // Which shopfront each building wears. Anything not listed keeps the plain box.
+  const shopKindOf=(name:string):ShopKind|null=>{
+    if(name==='城市书店')return 'books';
+    if(name==='游客服务')return 'service';
+    if(name==='城市商廊')return 'arcade';
+    if(name==='步行街商店')return 'grocer';
+    if(name==='巷口商铺')return 'snack';
+    return null;
+  };
   const modern=(b:Building)=>{
     const g=scene.add.graphics().setDepth(b.y+b.h);layer.add(g);
     lightPool(g,b.x+b.w/2,b.y+b.h+12,92,24);
     // The bookshop reads taller than its neighbours: roof down to two thirds of the
     // wall, which stops a single-storey shop from looking like it wears a hat.
-    const fhCap=b.name==='城市书店'?180:140;
+    const fhCap=b.name==='城市书店'?180:170;
     const fhRatio=b.name==='城市书店'?0.63:0.55;
     const fh=Math.min(fhCap,Math.max(76,b.h*fhRatio)),wallTop=b.y+b.h-fh;
+    const kind=shopKindOf(b.name);
     // Plan view only: footprint equals the blocker, roof plane on top, doorway notch below.
     drawTopDownBuilding(g,b,{
-      roof:b.kind==='service'?0x8a9a92:0x5a6760,
-      ridge:0x38433f,
+      roof:b.kind==='service'?0x7c8a86:0x556063,
+      ridge:0x323d40,
       wall:0x323d45,
-      eave:0xdccfb4,
+      eave:0xd9cfb4,
       ground:0x98a49e,
       door:b.kind==='service'?0xffe2a0:0xf2dcb0,
       doorInset:b.kind==='service'?72:58,
-      facade:0xd8c7a8,
+      facade:0xdccaa6,
       facadeLine:0x8a7f66,
       fhCap,fhRatio,
+      skipWindows:kind!==null,
     });
-    if(b.name==='城市书店'){
-      bookshopFront(g,b,wallTop,fh);
-      label(b.x+b.w/2,wallTop+15,b.name,15,'#f4e8c6',b.y+b.h+1);
+    if(kind){
+      shopFront(g,b,wallTop,fh,kind);
+      label(b.x+b.w/2,wallTop+10,b.name,15,'#f4e8c6',b.y+b.h+1);
     }else{
       label(b.x+b.w/2,b.y+b.h*0.63,b.name,18,'#fff0c5',b.y+b.h+1);
     }
@@ -63,9 +74,9 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
   rect(base,0,0,m.width,m.height,0x294a60);
   if(id==='plaza'){
     // Far blocks read as distant roofs, not as a row of facades on the horizon.
-    for(let x=-20;x<3320;x+=130){const d=62+(x%5)*16;rect(base,x,180-d,108,d,0x35505f);rect(base,x,180-d,108,7,0x4b6a78);base.lineStyle(1,0x2c4552,.7);for(let y=180-d+11;y<178;y+=9)base.lineBetween(x+4,y,x+104,y);}
-    const b=m.bounds;rect(base,b.x,b.y,b.w,b.h,0x94917f);
-    stoneTiles(base,b.x,b.y,b.w,b.h,0x94917f,0xaaa694,0x6f6c5e,64,32);
+    for(let x=-20;x<3320;x+=130){const d=62+(x%5)*16;rect(base,x,180-d,108,d,0x3d5468);rect(base,x,180-d,108,7,0x53708a);base.lineStyle(1,0x2c4552,.7);for(let y=180-d+11;y<178;y+=9)base.lineBetween(x+4,y,x+104,y);}
+    const b=m.bounds;rect(base,b.x,b.y,b.w,b.h,0x9ba1a1);
+    stoneTiles(base,b.x,b.y,b.w,b.h,0x9ba1a1,0xb1b7b6,0x757b7c,110,55);
     // Paving broken into big slabs: joints every 320px read as a laid square rather
     // than one poured surface, and they give the walk scale.
     for(let x=b.x+300;x<b.x+b.w;x+=320){base.fillStyle(0x7d7868,0.4);base.fillRect(x,b.y,3,b.h);base.fillStyle(0xc9c3b2,0.26);base.fillRect(x+3,b.y,1,b.h);}
