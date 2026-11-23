@@ -241,22 +241,28 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     g.fillStyle(0xc2c3b3);g.fillRect(r.x+24,r.y+16,r.w-48,r.h-32);
     g.fillStyle(0x8a8d80,0.5);g.fillRect(r.x+24,r.y+16,r.w-48,3);
     g.lineStyle(1,0x8a8d80,0.55);g.strokeRect(r.x+24,r.y+16,r.w-48,r.h-32);
-    const bw=58,bh=150,footY=cy-2;
-    g.fillStyle(0xcac6b4);g.fillRect(cx-bw/2,footY-bh,bw,bh);
-    g.fillStyle(0xada791,0.8);g.fillRect(cx-bw/2,footY-bh,5,bh);
-    g.fillStyle(0x000000,0.22);g.fillRect(cx+bw/2-6,footY-bh,6,bh);
-    g.lineStyle(1,0x96907b,0.4);for(let y=footY-bh+34;y<footY-10;y+=24)g.lineBetween(cx-bw/2+3,y,cx+bw/2-3,y);
+    const bw=84,bh=112,thk=10,footY=cy-2,topY=footY-bh;
+    // Shaft: front face with courses, a dark right thickness, and a lit cap plane
+    // so the marker reads as a standing block instead of a flat panel.
+    g.fillStyle(0xc6c1ac);g.fillRect(cx-bw/2,topY,bw,bh);
+    g.fillStyle(0xa39d88);g.fillRect(cx+bw/2,topY,thk,bh);
+    g.fillStyle(0x000000,0.24);g.fillRect(cx+bw/2+thk-3,topY,3,bh);
+    g.fillStyle(0xd9d4c1);g.fillRect(cx-bw/2,topY,bw+thk,12);
+    g.fillStyle(0x8d8875,0.55);g.fillRect(cx-bw/2,topY+12,bw+thk,2);
+    g.lineStyle(1,0x9a947e,0.32);for(let y=topY+40;y<footY-14;y+=22)g.lineBetween(cx-bw/2+3,y,cx+bw/2-3,y);
     // a single inscription cartouche near the top; the rest stays bare stone
-    g.fillStyle(0x8e8a76,0.55);g.fillRect(cx-18,footY-bh+16,36,26);
-    g.fillStyle(0xe2ddc8,0.8);for(let i=0;i<3;i++)g.fillRect(cx-11+i*9,footY-bh+24,5,10);
-    g.fillStyle(0x59615a);g.fillRect(cx-bw/2-6,footY-bh-14,bw+12,16);
-    g.fillStyle(0x3f4741);g.fillRect(cx-bw/2-6,footY-bh-14,bw+12,4);
-    g.fillStyle(0xb8b7a6);g.fillRect(cx-26,footY-bh-54,52,42);
-    g.fillStyle(0x9a9a8a,0.6);g.fillRect(cx-26,footY-bh-54,4,42);
-    g.fillStyle(0xefe6c8);g.fillCircle(cx,footY-bh-52,13);
-    g.lineStyle(2,0x8d856a);g.strokeCircle(cx,footY-bh-52,13);
-    g.fillStyle(0x6b7a7a);g.fillCircle(cx,footY-bh-52,2);
-    g.lineStyle(2,0x5a6a6a);g.lineBetween(cx,footY-bh-52,cx+8,footY-bh-58);g.lineBetween(cx,footY-bh-52,cx-5,footY-bh-57);
+    g.fillStyle(0xb0ab96,0.7);g.fillRect(cx-26,topY+26,52,52);
+    g.lineStyle(1,0x8b866f,0.6);g.strokeRect(cx-26,topY+26,52,52);
+    g.fillStyle(0xf0ead2,0.85);for(let i=0;i<3;i++)g.fillRect(cx-19+i*15,topY+40,9,22);
+    // clock turret above the shaft, kept small so the silhouette stays a spire
+    const ct=topY-50;
+    g.fillStyle(0xb5b09b);g.fillRect(cx-28,ct,56,50);
+    g.fillStyle(0x8f8a75);g.fillRect(cx+24,ct,4,50);
+    g.fillStyle(0x6f6a58);g.fillRect(cx-28,ct,56,5);
+    g.fillStyle(0xf0e7c9);g.fillCircle(cx,ct+26,14);
+    g.lineStyle(2,0x8d856a);g.strokeCircle(cx,ct+26,14);
+    g.fillStyle(0x5d6a6b);g.fillCircle(cx,ct+26,2);
+    g.lineStyle(2,0x5a6a6a);g.lineBetween(cx,ct+26,cx+8,ct+19);g.lineBetween(cx,ct+26,cx-5,ct+20);
     label(cx,cy+r.h/2+24,'解\n放\n碑',15,'#596c6d',961);
     for(const [lx,ly] of [[570,990],[920,990],[570,790],[930,790],[1180,620],[1510,620],[2200,620],[2820,760]]){const l=scene.add.graphics().setDepth(ly);layer.add(l);l.fillStyle(0x4c5b5b);l.fillRect(lx-6,ly-6,12,11);l.fillStyle(0x8b9a95);l.fillRect(lx-6,ly-6,12,2);l.fillStyle(0xffd58b);l.fillCircle(lx,ly-1,3);}
     label(660,1225,'解放碑广场',15,'#e2cfa6',950).setAlpha(.62);label(2130,739,'商业步行街',14,'#e2cfa6',950).setAlpha(.62);label(2970,976,'街巷向东 · 沧白路入口',12,'#e2cfa6',950).setAlpha(.55);link(3120,900,'前往沧白路');
