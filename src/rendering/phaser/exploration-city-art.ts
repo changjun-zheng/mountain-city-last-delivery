@@ -238,17 +238,17 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     g.fillStyle(0x000000,0.16);g.fillRect(r.x,r.y+r.h-5,r.w,5);
     g.fillStyle(0xadb0a0);g.fillRect(r.x+10,r.y+7,r.w-20,r.h-14);
     g.fillStyle(0x000000,0.14);g.fillRect(r.x+10,r.y+r.h-18,r.w-20,4);
-    g.fillStyle(0xc2c3b3);g.fillRect(r.x+24,r.y+16,r.w-48,r.h-32);
-    g.fillStyle(0x8a8d80,0.5);g.fillRect(r.x+24,r.y+16,r.w-48,3);
-    g.lineStyle(1,0x8a8d80,0.55);g.strokeRect(r.x+24,r.y+16,r.w-48,r.h-32);
-    const bw=84,bh=112,thk=10,footY=cy-2,topY=footY-bh;
+    g.fillStyle(0xc2c3b3);g.fillRect(r.x+22,r.y+15,r.w-44,r.h-30);
+    g.fillStyle(0x8a8d80,0.4);g.fillRect(r.x+22,r.y+15,r.w-44,3);
+    g.lineStyle(1,0x8a8d80,0.45);g.strokeRect(r.x+22,r.y+15,r.w-44,r.h-30);
+    const bw=76,bh=112,thk=8,footY=cy-2,topY=footY-bh;
     // Shaft: front face with courses, a dark right thickness, and a lit cap plane
     // so the marker reads as a standing block instead of a flat panel.
-    g.fillStyle(0xc6c1ac);g.fillRect(cx-bw/2,topY,bw,bh);
-    g.fillStyle(0xa39d88);g.fillRect(cx+bw/2,topY,thk,bh);
-    g.fillStyle(0x000000,0.24);g.fillRect(cx+bw/2+thk-3,topY,3,bh);
-    g.fillStyle(0xd9d4c1);g.fillRect(cx-bw/2,topY,bw+thk,12);
-    g.fillStyle(0x8d8875,0.55);g.fillRect(cx-bw/2,topY+12,bw+thk,2);
+    g.fillStyle(0xc6c1ac);g.fillRect(cx-bw/2,topY,bw-thk,bh);
+    g.fillStyle(0xa39d88);g.fillRect(cx+bw/2-thk,topY,thk,bh);
+    g.fillStyle(0x000000,0.24);g.fillRect(cx+bw/2-2,topY,2,bh);
+    g.fillStyle(0xd9d4c1);g.fillRect(cx-bw/2,topY,bw,11);
+    g.fillStyle(0x8d8875,0.55);g.fillRect(cx-bw/2,topY+11,bw,2);
     g.lineStyle(1,0x9a947e,0.32);for(let y=topY+40;y<footY-14;y+=22)g.lineBetween(cx-bw/2+3,y,cx+bw/2-3,y);
     // a single inscription cartouche near the top; the rest stays bare stone
     g.fillStyle(0xb0ab96,0.7);g.fillRect(cx-26,topY+26,52,52);
