@@ -65,5 +65,10 @@ await walk(page, 700, 800);
 await page.waitForTimeout(300);
 await shot(page, 'td-square-walk');
 
+// the far edge of the map, where the skyline sits (gap between the shops)
+await walk(page, 1210, 230);
+await page.waitForTimeout(300);
+await shot(page, 'td-skyline');
+
 await browser.close();
 console.log('done');

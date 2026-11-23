@@ -77,7 +77,33 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
   rect(base,0,0,m.width,m.height,0x294a60);
   if(id==='plaza'){
     // Far blocks read as distant roofs, not as a row of facades on the horizon.
-    for(let x=-20;x<3320;x+=130){const d=62+(x%5)*16;rect(base,x,180-d,108,d,0x3d5468);rect(base,x,180-d,108,7,0x53708a);base.lineStyle(1,0x2c4552,.7);for(let y=180-d+11;y<178;y+=9)base.lineBetween(x+4,y,x+104,y);}
+    // Skyline in three receding bands: pale far towers, a mid band, then the near
+    // roofline. One flat row of grey blocks was killing the depth of every shot.
+    const sky=(y0:number,col:number,hMin:number,hMax:number,step:number,w:number,off:number)=>{
+      for(let x=-40+off;x<3400;x+=step){
+        const t=Math.abs(Math.sin(x*0.073+off));
+        const h=hMin+t*(hMax-hMin);
+        base.fillStyle(col);base.fillRect(x,y0-h,w,h);
+        base.fillStyle(0xa8bcc6,0.4);base.fillRect(x,y0-h,w,3);
+        base.fillStyle(0x000000,0.12);base.fillRect(x,y0-h,w,Math.round(w*0.06));
+        if(h>70){
+          base.fillStyle(0xe8d3a8,0.16);
+          for(let wy=y0-h+14;wy<y0-12;wy+=18)for(let wx=x+8;wx<x+w-8;wx+=16)if(((wx+wy)%9)<2)base.fillRect(wx,wy,4,5);
+        }
+      }
+    };
+    sky(180,0x7b8ea0,38,86,152,112,0);
+    sky(180,0x5d7285,56,120,120,104,44);
+    sky(180,0x475d70,78,170,94,86,68);
+    // Haze over the far edge so the skyline sits behind the square instead of on it.
+    base.fillStyle(0x2a4b5c,0.07);base.fillRect(60,0,3180,180);
+    // A low tree belt along the foot of the skyline: the far city meets the square
+    // through greenery rather than a straight seam.
+    for(let x=-20;x<3400;x+=26){
+      const t=Math.abs(Math.sin(x*0.19));
+      base.fillStyle(0x30524a,0.8);
+      base.fillEllipse(x,181-t*6,44,24+t*16);
+    }
     const b=m.bounds;rect(base,b.x,b.y,b.w,b.h,0x9ba1a1);
     stoneTiles(base,b.x,b.y,b.w,b.h,0x9ba1a1,0xb1b7b6,0x757b7c,110,55);
     // Paving broken into big slabs: joints every 320px read as a laid square rather
