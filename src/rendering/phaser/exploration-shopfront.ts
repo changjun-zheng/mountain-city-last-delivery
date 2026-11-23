@@ -37,7 +37,7 @@ export function bookshopFront(
   g.fillRect(b.x + 6, bottom - 11, 11, 7);
 
   // --- painted sign board, the text is laid over it by the caller
-  const sw = b.w * 0.6, sx = cx - sw / 2, sh = 30, sy = wallTop + 9;
+  const sw = b.w * 0.6, sx = cx - sw / 2, sh = 24, sy = wallTop + 3;
   g.fillStyle(0x22201c, 0.22);
   g.fillRect(sx - 2, sy + 2, sw + 4, sh + 4);
   g.fillStyle(0x2f4a4c);

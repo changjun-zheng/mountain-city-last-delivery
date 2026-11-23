@@ -24,6 +24,10 @@ export type BuildingStyle = {
   facade?: number;
   facadeLine?: number;
   side?: number;
+  /** Optional cap on front-wall height, for the odd block that should read taller. */
+  fhCap?: number;
+  /** Optional wall/footprint ratio, default 0.55. Raising it squeezes the roof. */
+  fhRatio?: number;
 };
 
 export type RoomStyle = {
@@ -51,7 +55,7 @@ function mix(a: number, b: number, t: number): number {
 
 /** Front wall height, roof height and side thickness for a footprint. */
 export function tiltedProportions(b: Box, style: BuildingStyle) {
-  const fh = Math.min(140, Math.max(76, b.h * 0.55));
+  const fh = Math.min(style.fhCap ?? 140, Math.max(76, b.h * (style.fhRatio ?? 0.55)));
   // roof runs from the wall top up to the footprint's back edge, so the block
   // fills its footprint instead of leaving a dark strip above the roof
   const rd = Math.max(fh * 0.6, Math.min(b.h - fh, fh * 1.15));

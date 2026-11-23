@@ -17,7 +17,11 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
   const modern=(b:Building)=>{
     const g=scene.add.graphics().setDepth(b.y+b.h);layer.add(g);
     lightPool(g,b.x+b.w/2,b.y+b.h+12,92,24);
-    const fh=Math.min(140,Math.max(76,b.h*0.55)),wallTop=b.y+b.h-fh;
+    // The bookshop reads taller than its neighbours: roof down to two thirds of the
+    // wall, which stops a single-storey shop from looking like it wears a hat.
+    const fhCap=b.name==='城市书店'?180:140;
+    const fhRatio=b.name==='城市书店'?0.63:0.55;
+    const fh=Math.min(fhCap,Math.max(76,b.h*fhRatio)),wallTop=b.y+b.h-fh;
     // Plan view only: footprint equals the blocker, roof plane on top, doorway notch below.
     drawTopDownBuilding(g,b,{
       roof:b.kind==='service'?0x8a9a92:0x5a6760,
@@ -29,10 +33,11 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
       doorInset:b.kind==='service'?72:58,
       facade:0xd8c7a8,
       facadeLine:0x8a7f66,
+      fhCap,fhRatio,
     });
     if(b.name==='城市书店'){
       bookshopFront(g,b,wallTop,fh);
-      label(b.x+b.w/2,wallTop+24,b.name,16,'#f4e8c6',b.y+b.h+1);
+      label(b.x+b.w/2,wallTop+15,b.name,15,'#f4e8c6',b.y+b.h+1);
     }else{
       label(b.x+b.w/2,b.y+b.h*0.63,b.name,18,'#fff0c5',b.y+b.h+1);
     }
