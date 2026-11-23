@@ -175,9 +175,11 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
       }
       else {
         // Stone planter full of shrubs, the sort that edges a public square.
-        rect(g,w.x,w.y,w.w,w.h,0x9fabb0);
-        rect(g,w.x,w.y,w.w,9,0xb8c3c6);
-        g.lineStyle(2,0x6f8079,0.9);g.strokeRect(w.x,w.y,w.w,w.h);
+        g.fillStyle(0x000000,0.14);g.fillRect(w.x+4,w.y+5,w.w,w.h);
+        rect(g,w.x,w.y,w.w,w.h,0x8e8c7c);
+        rect(g,w.x,w.y,w.w,8,0xada895);
+        g.fillStyle(0x000000,0.16);g.fillRect(w.x,w.y+w.h-8,w.w,8);
+        g.lineStyle(1,0x6f6a5c,0.7);g.strokeRect(w.x,w.y,w.w,w.h);
         let k=0;
         for(let x=w.x+15;x<w.x+w.w-6;x+=21){
           const rr=11+(k%3)*4;k++;
@@ -193,22 +195,25 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     // Three-step plinth sized to the blocker, then the monument standing on it:
     // front wall with stone courses, a dark cap, and the clock above that.
     for(let i=0;i<4;i++){g.fillStyle(0x16282a,0.15*(1-i/4)*(1-i/4));g.fillRect(r.x+10+i*8,r.y+r.h+2+i*8,r.w-12-i*14,9);}
-    g.fillStyle(0x8c948c);g.fillRect(r.x,r.y,r.w,r.h);
-    g.fillStyle(0x000000,0.13);g.fillRect(r.x,r.y+r.h-5,r.w,5);
-    g.fillStyle(0xd9cfb2);g.fillRect(r.x+10,r.y+7,r.w-20,r.h-14);
+    g.fillStyle(0x969c92);g.fillRect(r.x,r.y,r.w,r.h);
+    g.fillStyle(0x000000,0.16);g.fillRect(r.x,r.y+r.h-5,r.w,5);
+    g.fillStyle(0xadb0a0);g.fillRect(r.x+10,r.y+7,r.w-20,r.h-14);
     g.fillStyle(0x000000,0.14);g.fillRect(r.x+10,r.y+r.h-18,r.w-20,4);
-    g.fillStyle(0xefe5c8);g.fillRect(r.x+24,r.y+16,r.w-48,r.h-32);
-    g.lineStyle(1,0xa9a184,0.6);g.strokeRect(r.x+24,r.y+16,r.w-48,r.h-32);
-    const bw=58,bh=96,footY=cy+12;
-    g.fillStyle(0xded3b6);g.fillRect(cx-bw/2,footY-bh,bw,bh);
-    g.fillStyle(0xc2b795,0.75);g.fillRect(cx-bw/2,footY-bh,5,bh);
-    g.fillStyle(0x000000,0.18);g.fillRect(cx+bw/2-6,footY-bh,6,bh);
-    g.lineStyle(1,0xa79b7c,0.55);for(let y=footY-bh+10;y<footY-10;y+=14)g.lineBetween(cx-bw/2+3,y,cx+bw/2-3,y);
-    g.fillStyle(0x6b5f45,0.8);for(let i=0;i<3;i++)g.fillRect(cx-7,footY-bh+16+i*22,14,14);
-    g.fillStyle(0x3f4c48);g.fillRect(cx-bw/2-6,footY-bh-14,bw+12,16);
-    g.fillStyle(0x2b3733);g.fillRect(cx-bw/2-6,footY-bh-14,bw+12,4);
-    g.fillStyle(0xcec4a6);g.fillRect(cx-26,footY-bh-54,52,42);
-    g.fillStyle(0xb8ad90,0.55);g.fillRect(cx-26,footY-bh-54,4,42);
+    g.fillStyle(0xc2c3b3);g.fillRect(r.x+24,r.y+16,r.w-48,r.h-32);
+    g.fillStyle(0x8a8d80,0.5);g.fillRect(r.x+24,r.y+16,r.w-48,3);
+    g.lineStyle(1,0x8a8d80,0.55);g.strokeRect(r.x+24,r.y+16,r.w-48,r.h-32);
+    const bw=58,bh=150,footY=cy-2;
+    g.fillStyle(0xcac6b4);g.fillRect(cx-bw/2,footY-bh,bw,bh);
+    g.fillStyle(0xada791,0.8);g.fillRect(cx-bw/2,footY-bh,5,bh);
+    g.fillStyle(0x000000,0.22);g.fillRect(cx+bw/2-6,footY-bh,6,bh);
+    g.lineStyle(1,0x96907b,0.4);for(let y=footY-bh+34;y<footY-10;y+=24)g.lineBetween(cx-bw/2+3,y,cx+bw/2-3,y);
+    // a single inscription cartouche near the top; the rest stays bare stone
+    g.fillStyle(0x8e8a76,0.55);g.fillRect(cx-18,footY-bh+16,36,26);
+    g.fillStyle(0xe2ddc8,0.8);for(let i=0;i<3;i++)g.fillRect(cx-11+i*9,footY-bh+24,5,10);
+    g.fillStyle(0x59615a);g.fillRect(cx-bw/2-6,footY-bh-14,bw+12,16);
+    g.fillStyle(0x3f4741);g.fillRect(cx-bw/2-6,footY-bh-14,bw+12,4);
+    g.fillStyle(0xb8b7a6);g.fillRect(cx-26,footY-bh-54,52,42);
+    g.fillStyle(0x9a9a8a,0.6);g.fillRect(cx-26,footY-bh-54,4,42);
     g.fillStyle(0xefe6c8);g.fillCircle(cx,footY-bh-52,13);
     g.lineStyle(2,0x8d856a);g.strokeCircle(cx,footY-bh-52,13);
     g.fillStyle(0x6b7a7a);g.fillCircle(cx,footY-bh-52,2);

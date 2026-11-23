@@ -56,5 +56,14 @@ await walk(page, 470, 700);
 await page.waitForTimeout(300);
 await shot(page, 'td-shop-wide');
 
+// the monument and the walk in from the spawn point
+await walk(page, 740, 1010);
+await page.waitForTimeout(300);
+await shot(page, 'td-monument');
+
+await walk(page, 700, 800);
+await page.waitForTimeout(300);
+await shot(page, 'td-square-walk');
+
 await browser.close();
 console.log('done');
