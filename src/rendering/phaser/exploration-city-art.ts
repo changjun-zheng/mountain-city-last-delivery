@@ -257,9 +257,9 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     g.lineStyle(2,0x8d856a);g.strokeCircle(cx,footY-bh-52,13);
     g.fillStyle(0x6b7a7a);g.fillCircle(cx,footY-bh-52,2);
     g.lineStyle(2,0x5a6a6a);g.lineBetween(cx,footY-bh-52,cx+8,footY-bh-58);g.lineBetween(cx,footY-bh-52,cx-5,footY-bh-57);
-    label(cx,cy+r.h/2+24,'解\n放\n碑',17,'#596c6d',961);
+    label(cx,cy+r.h/2+24,'解\n放\n碑',15,'#596c6d',961);
     for(const [lx,ly] of [[570,990],[920,990],[570,790],[930,790],[1180,620],[1510,620],[2200,620],[2820,760]]){const l=scene.add.graphics().setDepth(ly);layer.add(l);l.fillStyle(0x4c5b5b);l.fillRect(lx-6,ly-6,12,11);l.fillStyle(0x8b9a95);l.fillRect(lx-6,ly-6,12,2);l.fillStyle(0xffd58b);l.fillCircle(lx,ly-1,3);}
-    label(660,1225,'解放碑广场',21,'#f1ddb0');label(2130,739,'商业步行街',20);label(2970,976,'街巷向东 · 沧白路入口',18);link(3120,900,'前往沧白路');
+    label(660,1225,'解放碑广场',15,'#e2cfa6',950).setAlpha(.62);label(2130,739,'商业步行街',14,'#e2cfa6',950).setAlpha(.62);label(2970,976,'街巷向东 · 沧白路入口',12,'#e2cfa6',950).setAlpha(.55);link(3120,900,'前往沧白路');
     // Lighting pass: cool wash across the whole map, then every lamp as a warm
     // additive pool. Offsets are measured from the lamp's foot, not its head.
     ambient(scene,layer,m.width,m.height);
