@@ -132,11 +132,52 @@ export function bookshopFront(
   g.fillRect(abx + 5, bottom - 13, 12, 3);
   g.fillRect(abx + 5, bottom - 8, 9, 2);
 
+  // --- the doorway itself: stone frame, two leaves, a transom over them
+  const dy0 = bottom - dh;
+  g.fillStyle(0xd2c8ac, 0.95);
+  g.fillRect(dx - 6, dy0 - 7, 6, dh + 7);
+  g.fillRect(dx + dw, dy0 - 7, 6, dh + 7);
+  g.fillRect(dx - 6, dy0 - 9, dw + 12, 9);
+  g.fillStyle(0xa89c80, 0.7);
+  g.fillRect(dx - 6, dy0 - 9, dw + 12, 2);
+  g.fillStyle(0x000000, 0.14);
+  g.fillRect(dx - 6, dy0 - 7, 2, dh + 7);
+  g.fillRect(dx + dw + 4, dy0 - 7, 2, dh + 7);
+
+  const lw = (dw - 4) / 2;
+  // leaves, set a little inside the opening so the frame reads as thick stone
+  g.fillStyle(0x6a5236);
+  g.fillRect(dx + 2, dy0 + 4, lw, dh - 9);
+  g.fillRect(dx + 4 + lw, dy0 + 4, lw, dh - 9);
+  // glazing across the upper half of each leaf, lit from inside the shop
+  g.fillStyle(0xe4bd74, 0.9);
+  g.fillRect(dx + 5, dy0 + 8, lw - 5, 22);
+  g.fillRect(dx + 7 + lw, dy0 + 8, lw - 5, 22);
+  g.fillStyle(0xfff0cc, 0.18);
+  g.fillRect(dx + 5, dy0 + 8, lw - 5, 3);
+  g.fillRect(dx + 7 + lw, dy0 + 8, lw - 5, 3);
+  // plank joints on the lower half
+  g.fillStyle(0x000000, 0.18);
+  for (let i = 1; i < 3; i++) {
+    g.fillRect(dx + 3, dy0 + 34 + i * 8, lw - 1, 1);
+    g.fillRect(dx + 5 + lw, dy0 + 34 + i * 8, lw - 1, 1);
+  }
+  // handles either side of the centre seam
+  g.fillStyle(0xc9a24a);
+  g.fillRect(dx + lw - 1, dy0 + 40, 2, 11);
+  g.fillRect(dx + 5 + lw, dy0 + 40, 2, 11);
+  // transom light above the leaves
+  g.fillStyle(0xffdc94, 0.5);
+  g.fillRect(dx + 3, dy0 + 2, dw - 6, 4);
+  // threshold stone
+  g.fillStyle(0x5a5340);
+  g.fillRect(dx + 1, bottom - 3, dw - 2, 4);
+
   // --- a lamp over the door, so the threshold reads as the way in
   g.fillStyle(0x2f3a3a);
-  g.fillRect(cx - 4, bottom - dh - 16, 8, 9);
+  g.fillRect(cx - 4, bottom - dh - 26, 8, 9);
   g.fillStyle(0xffd48a, 0.95);
-  g.fillRect(cx - 2, bottom - dh - 13, 4, 5);
+  g.fillRect(cx - 2, bottom - dh - 23, 4, 5);
   g.fillStyle(0xffe9b8, 0.8);
-  g.fillRect(cx - 1, bottom - dh - 12, 2, 3);
+  g.fillRect(cx - 1, bottom - dh - 22, 2, 3);
 }
