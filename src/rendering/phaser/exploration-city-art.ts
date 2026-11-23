@@ -131,6 +131,19 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     deco(800,g=>{passerby(g,700,800,0x3f5f6a);});
     deco(986,g=>{passerby(g,846,986,0x6a4a3a);});
     deco(704,g=>{passerby(g,986,704,0x7a4a52);});
+    // A paler band of paving runs from the spawn point across the square to the
+    // street mouth, so the first minute has a route to follow rather than a field.
+    base.fillStyle(0xc6bfa9, 0.42);
+    base.fillRect(392, 698, 704, 116);
+    base.fillStyle(0xe0d9c4, 0.22);
+    base.fillRect(392, 698, 704, 6);
+    base.fillStyle(0x6f6a5c, 0.3);
+    base.fillRect(392, 808, 704, 7);
+    base.lineStyle(1, 0x8e8878, 0.22);
+    for (let x = 430; x < 1090; x += 76) base.lineBetween(x, 704, x, 808);
+    // the square's north edge: a line of bollards and two lamps
+    deco(756,g=>{lampPost(g,606,756);lampPost(g,946,756);});
+    deco(724,g=>{planter(g,738,672,148,44);});
     // Gaps between the blocks read as empty plots. Planters, crates and washing
     // strung between them close the row without adding walkable geometry.
     deco(604,g=>{
