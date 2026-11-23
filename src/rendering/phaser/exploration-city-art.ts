@@ -5,7 +5,7 @@ import {drawTopDownBuilding, drawTopDownRoom} from './exploration-topdown-art';
 import {stoneTiles, lightPool} from './exploration-paint';
 import {ambient, glowLayer, pool, halo, doorSpill} from './exploration-lighting';
 import {shopFront,type ShopKind} from './exploration-shopfront';
-import {hangingBoard, lantern, stall, parkedCar, passerby, streetTree, utilityPole, wire, lampPost, bench, kiosk} from './exploration-street-deco';
+import {hangingBoard, lantern, stall, parkedCar, passerby, streetTree, utilityPole, wire, lampPost, bench, kiosk, planter, crateStack, stoneStool, bicycle, laundryPole} from './exploration-street-deco';
 
 // Original modular trial art, informed only by the archived A-01 silhouette and
 // warm night palette. The PNG is neither altered nor loaded as a map texture.
@@ -91,7 +91,26 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     base.lineStyle(6,0x7d7868,0.4);base.strokeEllipse(740,905,406,406);
     stoneTiles(base,1050,595,2180,120,0xb8b39b,0xc9c4ab,0x8d9184,80,40);base.lineStyle(2,0x8d9184,0.8);base.strokeRect(1050,595,2180,120);
     for(let x=1090;x<3200;x+=160){base.lineStyle(1,0x9a9d8e,.45);base.lineBetween(x,600,x,712);}
+    // The ground behind the frontage is a back court, not more pavement: sink it
+    // so the gaps between blocks read as alleys rather than grey holes.
+    base.fillStyle(0x77807f, 0.3);
+    base.fillRect(60, 180, 3180, 402);
+    base.fillStyle(0x77807f, 0.24);
+    base.fillRect(60, 978, 3180, 282);
     rect(base,2830,595,380,700,0xa4a795);
+    // Low back-row houses filling the gaps between the frontage shops. They sit
+    // behind the front line (shallower depth) so the row reads continuous from
+    // the street without putting an invisible blocker where people walk.
+    const infill=(x:number,w:number,y:number,h:number)=>{
+      const g=scene.add.graphics().setDepth(y+h);layer.add(g);
+      drawTopDownBuilding(g,{x,y,w,h},{
+        roof:0x556063,ridge:0x323d40,wall:0x323d45,eave:0xc9c0a8,ground:0x98a49e,
+        door:0xe8d0a4,facade:0xcbba98,facadeLine:0x8a7f66,fhCap:92,fhRatio:0.5,
+      });
+    };
+    infill(2126,194,400,160);
+    infill(2816,94,420,140);
+    infill(1466,234,380,180);
     m.buildings.forEach(modern);
     const deco=(y:number,fn:(gg:Phaser.GameObjects.Graphics)=>void)=>{const gg=scene.add.graphics().setDepth(y);layer.add(gg);fn(gg);};
     deco(560,g=>{hangingBoard(g,1660,470,26,86,0x2f4a4c);hangingBoard(g,2280,470,26,86,0x5a3630);hangingBoard(g,2870,440,24,78,0x3c4a36);});
@@ -112,6 +131,32 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     deco(800,g=>{passerby(g,700,800,0x3f5f6a);});
     deco(986,g=>{passerby(g,846,986,0x6a4a3a);});
     deco(704,g=>{passerby(g,986,704,0x7a4a52);});
+    // Gaps between the blocks read as empty plots. Planters, crates and washing
+    // strung between them close the row without adding walkable geometry.
+    deco(604,g=>{
+      planter(g,2150,586,124,44);
+      crateStack(g,2284,606,46);
+      laundryPole(g,2138,564,188);
+      crateStack(g,2832,606,42);
+      stoneStool(g,2894,614,8);
+    });
+    deco(1312,g=>{
+      planter(g,2086,1294,142,44);
+      crateStack(g,2244,1314,46);
+      bicycle(g,2722,1318);
+      stoneStool(g,2800,1302,9);
+    });
+    // South of the promenade was a bare field; give it something to walk past.
+    deco(862,g=>{
+      planter(g,1416,850,132,42);
+      stall(g,1244,898,132,80,0x8a5a36);
+      bicycle(g,1562,944);
+      stoneStool(g,1636,930,8);
+      stoneStool(g,1668,952,7);
+      bench(g,1706,962,66);
+      streetTree(g,1850,930,0.95);
+      crateStack(g,1996,884,42);
+    });
     for(const [i,w] of m.walls.slice(m.buildings.length+1).entries()){
       const g=scene.add.graphics().setDepth(w.y+w.h);layer.add(g);
       if(i===2){

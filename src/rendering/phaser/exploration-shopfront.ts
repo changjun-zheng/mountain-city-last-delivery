@@ -41,6 +41,17 @@ export function shopFront(
   const winL = cx - dw / 2 - 14 - winW;
   const winR = cx + dw / 2 + 14;
 
+  // --- a stone apron along the foot: without it a block is dropped onto the
+  // street rather than standing on it, and neighbouring shops never join up
+  g.fillStyle(0xb2ab98, 0.92);
+  g.fillRect(b.x - 6, bottom, b.w + 12, 15);
+  g.fillStyle(0xd2cbb8, 0.55);
+  g.fillRect(b.x - 6, bottom, b.w + 12, 4);
+  g.fillStyle(0x6f6a5c, 0.4);
+  g.fillRect(b.x - 6, bottom + 12, b.w + 12, 3);
+  g.lineStyle(1, 0x8e8878, 0.35);
+  for (let x = b.x + 40; x < b.x + b.w - 20; x += 78) g.lineBetween(x, bottom + 1, x, bottom + 12);
+
   // --- panelled timber dado along the base: the stretch of wall below the sills
   // should read as shopfront joinery, not as leftover plaster
   const dadoH = Math.min(58, fh * 0.34);

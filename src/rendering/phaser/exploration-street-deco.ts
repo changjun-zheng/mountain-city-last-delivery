@@ -245,3 +245,95 @@ export function lampPost(g: Phaser.GameObjects.Graphics, x: number, y: number): 
   g.fillStyle(0xfff0c8);
   g.fillRect(x - 3, y - 58, 6, 8);
 }
+
+/** A low stone planter: the cheapest way to close a gap between two blocks. */
+export function planter(g: Phaser.GameObjects.Graphics, x: number, y: number, w = 90, h = 46): void {
+  g.fillStyle(0x000000, 0.14);
+  g.fillEllipse(x + w / 2, y + h - 2, w + 8, 14);
+  g.fillStyle(0xb9b2a0);
+  g.fillRect(x, y, w, h);
+  g.fillStyle(0xd2cbb6);
+  g.fillRect(x, y, w, 6);
+  g.fillStyle(0x8e8878, 0.5);
+  g.fillRect(x, y + h - 7, w, 7);
+  let k = 0;
+  for (let i = 0; i < Math.max(2, Math.floor(w / 26)); i++) {
+    const rr = 13 + (k % 3) * 4;
+    g.fillStyle(k % 2 ? 0x3f6244 : 0x4d7350, 0.95);
+    g.fillCircle(x + 15 + i * 26, y + h * 0.45, rr);
+    g.fillStyle(0x000000, 0.1);
+    g.fillCircle(x + 15 + i * 26, y + h * 0.45 + rr * 0.5, rr * 0.7);
+    if (k % 3 === 0) {
+      g.fillStyle(0xd07a4a, 0.8);
+      g.fillCircle(x + 20 + i * 26, y + h * 0.3, 3);
+    }
+    k++;
+  }
+}
+
+/** A stack of crates and a barrel, the debris that always collects in a gap. */
+export function crateStack(g: Phaser.GameObjects.Graphics, x: number, y: number, w = 44): void {
+  g.fillStyle(0x000000, 0.14);
+  g.fillRect(x + 3, y + 4, w, 10);
+  const shades = [0x9a7a4a, 0x87673c, 0xa88a58];
+  for (let i = 0; i < 3; i++) {
+    const cw = w - i * 6, cx = x + i * 3, cy = y - i * 11;
+    g.fillStyle(shades[i % 3]);
+    g.fillRect(cx, cy, cw, 12);
+    g.fillStyle(0x5c4426, 0.75);
+    g.fillRect(cx, cy, cw, 2);
+    g.fillRect(cx + cw / 2 - 1, cy, 2, 12);
+  }
+  g.fillStyle(0x7d5738);
+  g.fillRect(x + w + 6, y - 18, 20, 20);
+  g.fillStyle(0xa07850);
+  g.fillEllipse(x + w + 16, y - 18, 20, 7);
+}
+
+/** A short stone bollard. */
+export function stoneStool(g: Phaser.GameObjects.Graphics, x: number, y: number, r = 9): void {
+  g.fillStyle(0x000000, 0.15);
+  g.fillEllipse(x, y + 2, r * 2.4, r);
+  g.fillStyle(0xa9a291);
+  g.fillRect(x - r, y - r * 3, r * 2, r * 3);
+  g.fillStyle(0xc6bfae);
+  g.fillEllipse(x, y - r * 3, r * 2, r * 1.1);
+  g.fillStyle(0x6f6a5c, 0.6);
+  g.fillRect(x + r * 0.3, y - r * 3, r * 0.7, r * 3);
+}
+
+/** A bicycle leaned against a wall. */
+export function bicycle(g: Phaser.GameObjects.Graphics, x: number, y: number): void {
+  g.fillStyle(0x000000, 0.13);
+  g.fillEllipse(x + 20, y + 2, 44, 10);
+  g.lineStyle(2, 0x37474a, 0.95);
+  g.strokeCircle(x + 9, y - 9, 9);
+  g.strokeCircle(x + 37, y - 9, 9);
+  g.lineBetween(x + 9, y - 9, x + 20, y - 19);
+  g.lineBetween(x + 20, y - 19, x + 37, y - 9);
+  g.lineBetween(x + 20, y - 19, x + 24, y - 24);
+  g.lineBetween(x + 17, y - 24, x + 27, y - 24);
+  g.fillStyle(0x6a4a3a);
+  g.fillRect(x + 17, y - 26, 10, 3);
+}
+
+/** Two posts and a line of washing strung between them. */
+export function laundryPole(g: Phaser.GameObjects.Graphics, x: number, y: number, w = 140): void {
+  g.fillStyle(0x000000, 0.12);
+  g.fillRect(x - 2, y + 2, 5, 8);
+  g.fillRect(x + w - 3, y + 2, 5, 8);
+  g.fillStyle(0x5a4a3a);
+  g.fillRect(x, y - 56, 3, 58);
+  g.fillRect(x + w - 3, y - 50, 3, 52);
+  g.lineStyle(1, 0xd8cbb0, 0.6);
+  g.lineBetween(x + 1, y - 54, x + w - 2, y - 48);
+  const cloth = [0xb6c4c0, 0xd0b48a, 0x9aa8a0, 0xc48a7a];
+  for (let i = 0; i < 4; i++) {
+    const cx = x + 18 + i * (w - 30) / 4;
+    const cy = y - 53 + (i * (w - 30) / 4) * 0.04;
+    g.fillStyle(cloth[i % 4], 0.95);
+    g.fillRect(cx, cy, 12, 20 + (i % 2) * 8);
+    g.fillStyle(0x000000, 0.12);
+    g.fillRect(cx, cy + 16 + (i % 2) * 8, 12, 4);
+  }
+}
