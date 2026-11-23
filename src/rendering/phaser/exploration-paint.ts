@@ -51,17 +51,22 @@ export function tileRoof(
 ): void {
   g.fillStyle(base);
   g.fillRect(x, y, w, h);
-  const rowH = Math.max(13, Math.floor(h / 6));
+  // Pantiles run down the slope, so in plan view they read as vertical courses
+  // (a horizontal hatch reads as a venetian blind instead of a roof).
+  const colW = Math.max(14, Math.floor(w / 24));
   const r = rng(x * 31 + y * 97 + w * 7);
-  for (let yy = y; yy < y + h - 1; yy += rowH) {
+  for (let xx = x; xx < x + w - 1; xx += colW) {
     const t = r();
-    g.fillStyle(t > 0.5 ? light : dark, t > 0.5 ? 0.16 : 0.2);
-    g.fillRect(x, yy, w, rowH - 1);
+    g.fillStyle(t > 0.5 ? light : dark, 0.1);
+    g.fillRect(xx, y, colW - 1, h);
     g.fillStyle(dark, 0.3);
-    g.fillRect(x, yy, w, 1);
-    const off = Math.floor((yy - y) / rowH) % 2 ? 6 : 0;
-    g.fillStyle(dark, 0.18);
-    for (let xx = x + 8 + off; xx < x + w - 4; xx += 22) g.fillRect(xx, yy + 1, 1, rowH - 2);
+    g.fillRect(xx, y, 1, h);
+    g.fillStyle(light, 0.18);
+    g.fillRect(xx + 1, y, 1, h);
+    // a tile end every few rows, staggered across neighbouring courses
+    const off = Math.floor((xx - x) / colW) % 2 ? 12 : 0;
+    g.fillStyle(dark, 0.16);
+    for (let yy = y + 10 + off; yy < y + h - 6; yy += 26) g.fillRect(xx + 1, yy, colW - 2, 1);
   }
   // Ridge: one lit line a third of the way down, with the roof falling away from
   // it on both sides. Without this a big roof reads as a flat grey slab.
@@ -72,7 +77,7 @@ export function tileRoof(
   g.fillRect(x, ridgeY, w, 3);
   g.fillStyle(0x000000, 0.15);
   g.fillRect(x, ridgeY + 3, w, y + h - ridgeY - 3);
-  g.fillStyle(light, 0.26);
+  g.fillStyle(light, 0.18);
   g.fillRect(x, y, w, 3);
   g.fillStyle(0x000000, 0.16);
   g.fillRect(x + w - 7, y, 7, h);

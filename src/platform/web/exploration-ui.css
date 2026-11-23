@@ -10,14 +10,14 @@
 #exp-root button:focus-visible { outline:3px solid var(--exp-lamp); outline-offset:3px; }
 #exp-root .exp-primary { background:var(--exp-lamp); border-color:var(--exp-lamp); color:var(--exp-ink); font-weight:700; }
 #exp-root .exp-primary:hover { background:#f5dba5; }
-#exp-root .exp-hud { top:max(14px,env(safe-area-inset-top)); left:max(18px,env(safe-area-inset-left)); right:max(18px,env(safe-area-inset-right)); gap:22px; padding:10px 14px; background:#193c46e8; border:0; border-left:3px solid var(--exp-lamp); border-radius:4px; align-items:center; z-index:2; }
-#exp-root .exp-location { min-width:180px; }
-#exp-root .exp-location span { color:#d2dbce; font-size:12px; }
-#exp-root .exp-location strong { display:block; font:600 18px/1.4 'Microsoft YaHei',sans-serif; letter-spacing:0; white-space:normal; }
-#exp-root #exp-objective { font-size:16px; line-height:1.5; margin-right:auto; }
+#exp-root .exp-hud { top:max(10px,env(safe-area-inset-top)); left:max(18px,env(safe-area-inset-left)); right:max(18px,env(safe-area-inset-right)); gap:16px; padding:7px 12px; background:#193c46b8; border:0; border-left:3px solid var(--exp-lamp); border-radius:4px; align-items:center; z-index:2; }
+#exp-root .exp-location { min-width:160px; }
+#exp-root .exp-location span { color:#d2dbce; font-size:11px; }
+#exp-root .exp-location strong { display:block; font:600 16px/1.35 'Microsoft YaHei',sans-serif; letter-spacing:0; white-space:normal; }
+#exp-root #exp-objective { font-size:14px; line-height:1.4; margin-right:auto; }
 #exp-root .exp-hud nav { display:flex; gap:8px; flex-shrink:0; }
-#exp-root .exp-hud button { padding:10px 14px; background:#244c55; }
-#exp-root .exp-save { position:absolute; left:max(20px,env(safe-area-inset-left)); top:102px; padding:3px 9px; background:#193c46db; color:#edf2e5; font-size:14px; border-radius:3px; z-index:1; max-width:calc(100vw - 40px); }
+#exp-root .exp-hud button { padding:7px 12px; background:#244c55; }
+#exp-root .exp-save { position:absolute; left:max(20px,env(safe-area-inset-left)); top:84px; padding:3px 9px; background:#193c46db; color:#edf2e5; font-size:14px; border-radius:3px; z-index:1; max-width:calc(100vw - 40px); }
 #exp-root #exp-help { bottom:max(14px,env(safe-area-inset-bottom)); padding:4px 10px; font-size:14px; background:#193c46db; }
 #exp-root #exp-prompt { max-width:calc(100vw - 300px); white-space:normal; text-align:center; bottom:64px; font-size:15px; padding:7px 14px; }
 #exp-root #exp-orientation { font-size:14px; bottom:146px; left:16px; right:16px; z-index:1; }

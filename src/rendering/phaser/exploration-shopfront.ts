@@ -9,7 +9,7 @@ const WOOD = 0x6b4b31;
 const WOOD_LIGHT = 0x8d6744;
 const PAPER = 0xe6d8b6;
 
-export type ShopKind = 'books' | 'service' | 'arcade' | 'grocer' | 'snack';
+export type ShopKind = 'books' | 'service' | 'arcade' | 'grocer' | 'snack' | 'window' | 'tea';
 
 const SIGN_COLOR: Record<ShopKind, number> = {
   books: 0x2f4a4c,
@@ -17,6 +17,8 @@ const SIGN_COLOR: Record<ShopKind, number> = {
   arcade: 0x7a3e32,
   grocer: 0x33503a,
   snack: 0x8a4034,
+  window: 0x2e3a52,
+  tea: 0x4a5a38,
 };
 
 /**
@@ -155,6 +157,30 @@ export function shopFront(
         g.fillStyle(0xfff6e0, 0.35);
         g.fillCircle(sx2, wy + winH * 0.42, 5);
       }
+    } else if (kind === 'tea') {
+      // a pot on a brazier and a row of cups, bamboo blind behind
+      g.fillStyle(0xd8c79a, 0.35);
+      for (let i = 0; i < 5; i++) g.fillRect(wx + 4 + i * (winW - 8) / 5, wy + 4, 2, winH - 10);
+      g.fillStyle(0x8a9a6a, 0.9);
+      g.fillEllipse(wx + winW * 0.4, wy + winH * 0.62, 20, 12);
+      g.fillStyle(0x5f7a4a, 0.9);
+      g.fillRect(wx + winW * 0.4 - 4, wy + winH * 0.4, 8, 6);
+      g.fillStyle(0xf0e4c0, 0.85);
+      for (let i = 0; i < 3; i++) g.fillCircle(wx + winW * 0.72 + i * 7, wy + winH * 0.7, 3);
+    } else if (kind === 'window') {
+      // a dressed mannequin under a spotlight, the point of a display window
+      g.fillStyle(0xfff0cc, 0.34);
+      g.fillEllipse(wx + winW * 0.5, wy + winH * 0.2, winW * 0.7, 10);
+      g.fillStyle(0x4a5a76, 0.9);
+      g.fillRect(wx + winW * 0.42, wy + winH * 0.34, 10, winH * 0.4);
+      g.fillStyle(0xd8b89a, 0.9);
+      g.fillCircle(wx + winW * 0.47, wy + winH * 0.26, 4);
+      g.fillStyle(0x9a7a5a, 0.8);
+      g.fillRect(wx + winW * 0.62, wy + winH * 0.42, 8, winH * 0.3);
+      g.fillStyle(0xc8a06a, 0.6);
+      g.fillRect(wx + winW * 0.18, wy + winH * 0.5, 6, winH * 0.22);
+      g.fillStyle(0xffffff, 0.5);
+      g.fillCircle(wx + winW * 0.5, wy + winH * 0.16, 3);
     } else {
       // service desk: a notice board and a row of forms
       g.fillStyle(0xf0e4c4, 0.92);
@@ -361,6 +387,57 @@ export function shopFront(
     g.fillRect(dx + dw + 26, bottom - 12, 18, 4);
     g.fillRect(dx + dw + 28, bottom - 9, 3, 9);
     g.fillRect(dx + dw + 41, bottom - 9, 3, 9);
+  }
+
+  if (kind === 'window') {
+    // a standing poster board and a bucket of flowers, the kind of clutter that
+    // spills out of a display shop rather than a grocer
+    const px2 = dx - 54;
+    g.fillStyle(0x000000, 0.14);
+    g.fillRect(px2 + 3, bottom + 6, 22, 6);
+    g.fillStyle(SIGN_COLOR.window);
+    g.fillRect(px2, bottom - 26, 26, 28);
+    g.fillStyle(0xe8dcc4, 0.92);
+    g.fillRect(px2 + 3, bottom - 23, 20, 18);
+    g.fillStyle(SIGN_COLOR.window, 0.75);
+    g.fillRect(px2 + 5, bottom - 19, 14, 3);
+    g.fillRect(px2 + 5, bottom - 13, 10, 2);
+    g.fillStyle(0x6a4a3a);
+    g.fillRect(px2, bottom - 2, 26, 4);
+
+    const fx = dx + dw + 32;
+    g.fillStyle(0x000000, 0.13);
+    g.fillRect(fx + 1, bottom + 2, 18, 6);
+    g.fillStyle(0x7d5738);
+    g.fillRect(fx, bottom - 15, 16, 17);
+    g.fillStyle(0x2f6b3a, 0.92);
+    for (let i = 0; i < 5; i++) g.fillCircle(fx + 3 + i * 3, bottom - 19 - (i % 2) * 3, 4);
+    g.fillStyle(0xc86060, 0.7);
+    g.fillCircle(fx + 5, bottom - 22, 2);
+    g.fillCircle(fx + 12, bottom - 21, 2);
+  }
+
+  if (kind === 'tea') {
+    // a low bamboo table and two stools out on the pavement
+    const tx = dx + dw + 26;
+    g.fillStyle(0x000000, 0.14);
+    g.fillRect(tx + 3, bottom + 4, 36, 6);
+    g.fillStyle(0xb0985e);
+    g.fillRect(tx, bottom - 18, 34, 4);
+    g.fillStyle(0x8a7446);
+    g.fillRect(tx + 2, bottom - 14, 3, 15);
+    g.fillRect(tx + 29, bottom - 14, 3, 15);
+    g.fillStyle(0x87a06a, 0.9);
+    for (let i = 0; i < 2; i++) {
+      const sx4 = tx + 3 + i * 17;
+      g.fillRect(sx4, bottom - 8, 9, 3);
+      g.fillRect(sx4 + 1, bottom - 5, 2, 6);
+      g.fillRect(sx4 + 6, bottom - 5, 2, 6);
+    }
+    g.fillStyle(0xf2e6c4, 0.95);
+    g.fillCircle(tx + 9, bottom - 20, 3);
+    g.fillCircle(tx + 18, bottom - 21, 3);
+    g.fillCircle(tx + 26, bottom - 19, 2);
   }
 
   if (kind === 'service' && fh > 150) {

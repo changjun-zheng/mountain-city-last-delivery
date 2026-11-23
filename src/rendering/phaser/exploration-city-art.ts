@@ -21,6 +21,9 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     if(name==='城市商廊')return 'arcade';
     if(name==='步行街商店')return 'grocer';
     if(name==='巷口商铺')return 'snack';
+    if(name==='街角橱窗')return 'window';
+    if(name==='沿街小店')return 'grocer';
+    if(name==='过渡街巷')return 'tea';
     return null;
   };
   const modern=(b:Building)=>{
@@ -37,7 +40,7 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
       roof:b.kind==='service'?0x7c8a86:0x556063,
       ridge:0x323d40,
       wall:0x323d45,
-      eave:0xd9cfb4,
+      eave:0xc9c0a8,
       ground:0x98a49e,
       door:b.kind==='service'?0xffe2a0:0xf2dcb0,
       doorInset:b.kind==='service'?72:58,

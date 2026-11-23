@@ -59,5 +59,19 @@ await walk(page, 2500, 760);
 await page.waitForTimeout(300);
 await shot(page, 'td-street-far');
 
+// south side: the row behind the promenade
+await walk(page, 1900, 1180);
+await walk(page, 1850, 1320);
+await page.waitForTimeout(300);
+await shot(page, 'td-south-corner');
+
+await walk(page, 2500, 1310);
+await page.waitForTimeout(300);
+await shot(page, 'td-south-shops');
+
+await walk(page, 3010, 1330);
+await page.waitForTimeout(300);
+await shot(page, 'td-south-alley');
+
 await browser.close();
 console.log('done');

@@ -76,7 +76,7 @@ export function drawTopDownBuilding(g: Phaser.GameObjects.Graphics, b: Box, st: 
   const wallTop = bottom - fh;
   const facade = st.facade ?? mix(mix(st.eave, st.roof, 0.3), 0xdccbaa, 0.45);
   const facadeLine = st.facadeLine ?? mix(st.roof, 0x000000, 0.2);
-  const side = mix(facade, st.roof, 0.45);
+  const side = mix(facade, st.roof, 0.72);
   const dw = Math.min(72, Math.max(48, b.w * 0.19));
   const dh = Math.min(76, Math.max(52, fh * 0.56));
 
@@ -139,9 +139,9 @@ export function drawTopDownBuilding(g: Phaser.GameObjects.Graphics, b: Box, st: 
 
   // roof plane: tile rows, lit ridge, shaded right edge
   const roofTop = wallTop - rd;
-  tileRoof(g, b.x + sw, roofTop, b.w, rd, st.roof, mix(st.roof, 0x000000, 0.62), mix(st.roof, 0xffffff, 0.32));
+  tileRoof(g, b.x, roofTop, b.w, rd, st.roof, mix(st.roof, 0x000000, 0.62), mix(st.roof, 0xffffff, 0.32));
   g.lineStyle(2, mix(st.roof, 0x000000, 0.5), 0.55);
-  g.strokeRect(b.x + sw, roofTop, b.w, rd);
+  g.strokeRect(b.x, roofTop, b.w, rd);
   // roof shadow onto the wall, keeps the roof from looking pasted on
   g.fillStyle(mix(st.roof, 0x000000, 0.35), 0.35);
   g.fillRect(b.x, wallTop, b.w, 4);
