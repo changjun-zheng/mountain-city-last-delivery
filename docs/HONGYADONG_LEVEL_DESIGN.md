@@ -1,5 +1,7 @@
 # Hongyadong Level Design
 
+2026-11-24 适用性补记：产品世界改按[虚构大地图混合重庆特色](DECISIONS.md#fictional-world-and-quality-20261124)表达。本文 A—D 的真实地名与路线保留为当前 Demo／历史设计，不再规定全游戏的地理组成；未来分区、命名与叙事适配按路线图逐项设计，当前没有据此重建地图。现有引导、遮挡／穿模与美术负责人反馈 FAIL，新照片和风格候选见[美术主文](ART_DIRECTION_AND_SCENE_PROTOTYPE.md#research-and-options-20261124)。
+
 <a id="topdown-first-chapter-20261119"></a>
 
 ## 现行首章：2D 斜俯视山城探索（2026-11-19 后续重构）
@@ -7,6 +9,8 @@
 本节为新首章唯一详细空间／节点设计。产品方向与主线叙事已 [CONFIRMED](DECISIONS.md#topdown-exploration-reboot-20261119)，两栋楼层数及本轮C区组合的明确确认范围另见对应记录；其余具体内部几何、房间／NPC／道具细节、未确认数量与时长分配仍 **PROPOSED／TO_VALIDATE**。文档设计不是已完成地图。下方横版 A—D、C 区 V2 和旧升降规则保留为 HISTORICAL；旧横版空间原型不再是新地图坐标依据。
 
 现行设计与实现入口（2026-11-21）：负责人不满意旧山城空间与建筑可入性，已确认下方[整个C核心街区组合](#c-exploration-rework-20261121)，依据见[决策](DECISIONS.md#c-exploration-rework-confirmed-20261121)。EXP-06A已实施并通过Work功能技术复核：C五栋可入、不同高度成对门穿楼、上中街自由、下街与D仍按原条件开路。具体几何／陈设仍试制；早期空间FAIL保留，修正仅使基本楼层结构可辨，不代表负责人已认可山城风味、探索乐趣或最终美术。审查与证据见[唯一路线图](DEVELOPMENT_ROADMAP.md#exp-06a-work-review-20261121)。
+
+上街地形实施补记（2026-11-24）。栏下江面贯通全景，两端外阶沿同一岸下到较低高度，台阶旁是悬边小平台和挡墙。西外阶以原接缝双向步行，东外阶沿用现有互动。西侧杂物门仍从台阶顶端平台到达。现有中街、下街和独立江岸保持原地图连接。阶段验证见[上街修订](DEVELOPMENT_ROADMAP.md#upper-street-life-01)。
 
 <a id="c-exploration-rework-20261121"></a>
 

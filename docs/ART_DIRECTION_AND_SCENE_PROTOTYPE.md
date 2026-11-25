@@ -1,5 +1,74 @@
 # 首关美术风格规范与场景原型
 
+## 2026-11-24：《风来之国》实机参考与上街修订
+
+Pixpil 与 Chucklefish 的官方资料介绍了矿工约翰与珊离开地下社区、乘铁路旅行、逐站认识居民的故事。原作把城镇生活与双角色环境谜题、地城战斗和烹饪结合。官方实机图中的街道可见立面、屋顶和墙体，台阶口与上下层地面有清楚的高差，人物经常停留在店面或生活场景附近。相关例图为[街道与入口](https://eastwardgame.com/wp-content/uploads/2023/10/f1-travel-the-world.jpg)及[小镇日常](https://eastwardgame.com/wp-content/uploads/2023/10/f4-small-town-life.jpg)。[官方玩法与故事](https://eastwardgame.com/) · [官方媒体资料](https://eastwardgame.com/media/)。
+
+《坡坎之间》应用三点。用挡墙、同岸台阶与栏边说明垂直路线。给居民设置可看见的生活场所与停留理由。把地点、任务和存档状态集中在边缘，给街景留出空间。继续采用当前黄昏赛璐璐和非战斗观察冒险。所看原作画面属于参考，项目运行素材为原创。实际变更见[上街修订](DEVELOPMENT_ROADMAP.md#upper-street-life-01)。
+
+新增下载在 `D:\Workspace\github_repos`。Apache-2.0 的 [awesome-gamedev-agent-skills](https://github.com/gamedev-skills/awesome-gamedev-agent-skills)提供 `game-ui-ux` 与 `level-design` 参考。CC0 的 [open-source-games](https://github.com/bobeff/open-source-games)是后续项目索引，各条目需分别核对代码与美术许可。[固定版本和筛选记录](../reference/research-20261124/github-research.json)。
+
+<a id="research-and-options-20261124"></a>
+
+## 2026-11-24：真实参考、开源参考与三种风格候选
+
+最新产品依据为[虚构大地图与体验纠偏](DECISIONS.md#fictional-world-and-quality-20261124)。负责人明确否定当前引导、遮挡／穿模及美术体验；不能继续把程序化占位形状或旧拼贴样板当作合格画面推广。研究阶段完成参考准备与概念比较；负责人随后选 C，STORYBOOK-C-01 已接入新生成的成套运行素材。照片、GitHub组件和风格原图本身未作为可走场景直接导入。
+
+### 世界表达与画面目标
+
+虚构城市应包含有差异的日常街区，重庆特色分布在部分建筑、地形、交通、物件和居民活动中。设计建议是让普通住宅、小店、车站、绿地、作坊与滨水空间形成主体，在合适位置设置索道、桥、错层穿楼等记忆点；具体分区与比例尚未冻结，不能直接据此扩图。
+
+《风来之国》可借鉴的是有组织的细节、清晰角色轮廓、前中后景、建筑体积与光照焦点。当前问题包括相邻地图人物／材质不统一、实心建筑与碰撞不对应、首个行动目标不明确；仅替换字体、加滤镜或统一像素大小不足以解决。
+
+### 重庆照片与文化来源
+
+9 张真实照片已下载至 [reference/chongqing/2026-11-24](../reference/chongqing/2026-11-24/README.md)。[来源清单](../reference/chongqing/2026-11-24/source-manifest.json)记录页面、下载地址、作者、许可、尺寸、字节数和 SHA-256。7 张 Commons 图片有 CC BY／CC BY-SA 许可，2 张七一网照片仅作内部参考；它们不是已获准投入成品的统一游戏美术包。
+
+| 观察主题 | 已有参考 | 可能转化的游戏体验（PROPOSED） |
+| --- | --- | --- |
+| 坡地生活与错层 | 山城巷、十八梯、戴家巷 | 从近处看到高处门口，走台阶／穿楼后回望原位置，让高差成为路线发现。 |
+| 地标与远景 | 洪崖洞、东水门桥、长江索道 | 少量可辨轮廓帮助记路，在不同街区看见同一远景；不让每屏都成为景点合影。 |
+| 街屋与日常室内 | 磁器口、交通茶馆 | 小店陈设、桌椅、植物、晾晒与居民活动支持观察和对话。茶馆照片不能当作露天坝坝茶的事实证明。 |
+| 节庆与工艺 | 铜梁龙舞、荣昌夏布 | 研究制作材料、作坊与节庆准备过程，再设计可互动的物件；不把各区县文化都塞进同一条街。 |
+| 江岸劳动记忆 | 川江号子 | 通过居民故事、船具或经过授权的声景呈现协作传统，录音尚未取得。 |
+
+文化依据：[铜梁龙舞](https://www.ihchina.cn/project_details/12832.html)、[川江号子](https://www.ihchina.cn/project_details/12450/)、[荣昌夏布工艺](https://www.ihchina.cn/rej_news_detail/18704.html)。城市生活与坡地环境可对照[七一网渝中报道](https://m.12371.gov.cn/content/2025-01/04/content_481319.html)。洪崖洞等当代旅游空间只用于观察空间／材质，不冒充完整保留的古城或真实地理复原依据。普通居民楼、铁路社区与社区菜市场资料仍偏少，后续按具体场景需要补，不继续堆积景点照。
+
+### GitHub 筛选与实际下载
+
+下载根目录按负责人要求使用 `D:\Workspace\github_repos`，固定提交、代码／资产许可与适配限制详见 [github-research.json](../reference/research-20261124/github-research.json)。未安装依赖或运行这些项目；现有 Phaser 3／DOM UI 保留。
+
+| 项目 | 已下载目录 | 可采用的部分与边界 |
+| --- | --- | --- |
+| [phaser-ui-components](https://github.com/bicarbon8/phaser-ui-components) | `D:\Workspace\github_repos\phaser-ui-components` | MIT；参考任务／收藏卡、弹性布局、按钮状态。不能用其按下即执行覆盖现有触屏取消与关闭保护；不整套迁移现有 DOM UI。 |
+| [phaser3-ninepatch-plugin](https://github.com/koreezgames/phaser3-ninepatch-plugin) | `D:\Workspace\github_repos\phaser3-ninepatch-plugin` | MIT，已归档；仅参考九宫格边框原理，DOM 面板优先用 CSS，当前引擎已有内置 NineSlice，不安装旧插件。 |
+| [phaser-3-tilemap-blog-posts](https://github.com/mikewesthad/phaser-3-tilemap-blog-posts) | `D:\Workspace\github_repos\phaser-3-tilemap-blog-posts` | 稀疏检出两个 MIT 示例，参考地面／主体／前景和脚底碰撞体。混合许可贴图未检出，不是完整可运行素材包，也不代表必须迁移 Tiled／物理方案。 |
+| [game-icons/icons](https://github.com/game-icons/icons) | `D:\Workspace\github_repos\game-icons-reference-20261124` | 8 枚 Delapouite SVG，CC BY 3.0；任务、手账、路牌、门、楼梯等图标候选，使用时署名并统一视觉尺寸。 |
+
+排除依据：Rex 当前 `master` 已转 Phaser 4；PixUI 当前要求 Phaser 4，且其演示 Minifantasy 美术不能作为 MIT 资源包再分发。这些参考解决工程与界面组成问题，没有找到可直接替换全游戏、同时符合目标审美的成套美术。OpenPixelProject 的聚焦补查也未确认适配城镇／室内素材及许可，未下载。
+
+### A／B／C 风格比较与 C 确认
+
+三张均为本轮生成、已保存的原创方向概念图。负责人随后明确“选择 C”，C 风格 CONFIRMED；A／B保留候选历史，具体运行品质仍 TO_VALIDATE。[确认依据](DECISIONS.md#storybook-c-confirmed-20261124)。它们共享同一街角题材和角色配色，便于比较材质与气氛；不是相同地图／镜头下的严格对照，不是引擎截图或可玩地图。此处 A／B／C 与历史「视觉方向 B」「路线方案 A」没有继承关系。
+
+| 候选与原图 | 主要感受 | 制作时需要控制 |
+| --- | --- | --- |
+| [A 精细像素感](assets/art-direction/style-options-2026-11-24/style-a-pixel.png) | 像素颗粒、暖窗与冷色夜景对照，接近经典精致像素冒险的气氛。 | 本图不是严格统一像素网格的生产素材；真做像素方向需统一像素密度、人物动画和建筑尺度。 |
+| [B 动画手绘](assets/art-direction/style-options-2026-11-24/style-b-painted.png) | 材质细腻、夕照温暖、电影背景般的空间气氛。 | 暗处人物识别、多方向角色与跨场景笔触一致性；细节密度会提高制作成本。 |
+| [C 明亮绘本](assets/art-direction/style-options-2026-11-24/style-c-storybook.png) | 更明亮、轮廓柔和、角色亲切，适合日常探索和生活故事。 | 避免全图甜化或过密装饰；移动端要减少底纹噪点，保留山城高差和真实生活细节。 |
+
+负责人已采用 C 温暖绘本方向：奶油灰墙、赭木、暖石路、蓝灰阴影和生活细节。当前进入 [STORYBOOK-C-01](DEVELOPMENT_ROADMAP.md#storybook-c-01)，以同一主角、上街与导览2F实际进出和绕行为验证对象；素材来源与精确提示词见 [运行素材清单](../reference/generated/storybook-c-v1/generation-manifest.json)。先验证样段，不直接推广全图。
+
+全部 1672×941 PNG，生成模式、原始输出路径、摘要提示、SHA-256 见 [generation-manifest.json](assets/art-direction/style-options-2026-11-24/generation-manifest.json)。提示记录为生成简报重建，不冒充原始工具请求逐字转录；原始图片原样保留。三图中的透视构图仅供气氛与材质比较，实际制作必须重新对齐已确认的斜俯视地面平面、建筑分层、脚底碰撞与角色方向，不能整图铺入关卡。图中的茶铺角落也不代表整张虚构城市都采用同一种传统街区。
+
+### 可玩样段的验收方式
+
+路线图 [PLAYABILITY-02](DEVELOPMENT_ROADMAP.md#playability-02) 已完成首段教学、三栋民居实体和服务室出口的限定修正，单测与隔离浏览器检查 PASS；全图遮挡与负责人体验仍未收口。下一步根据选定画风制作受限样段。每轮对比必须使用同一主角、相邻室外／室内、相同实际门口与可走路线，验证移动、被遮挡、进出门、返回、任务卡和触摸操作。看静态图认可风格，与认可可玩样段是两次不同判断；只有后者通过才能扩散到其他地图。
+
+界面建议为一个明确短目标、靠近对象时才出现的交互提示、统一的纸页／木色面板、克制图标和清晰按钮状态。在物件旁教学“移动→靠近→交互→确认”及跳过／回看已在 PLAYABILITY-02 实施；全套UI与角色／场景美术统一仍未实施。
+
+资料阶段解码／哈希／版本检查 PASS；随后C样段已有运行实施，实际证据见路线图STORYBOOK-C-01。外部组件兼容运行、首次玩家与真机仍 NOT RUN。当前产品负面反馈与历史样板 FAIL 均保留。后续实施只从[路线图](DEVELOPMENT_ROADMAP.md#reference-art-01)进入。
+
 <a id="topdown-art-20261119"></a>
 
 ## 现行视觉重构：斜俯视地面与真实可进入建筑（2026-11-19）

@@ -1,10 +1,28 @@
-# 《坡坎之间》
+# 《坎坡之间》
+
+当前 H5 支持电脑浏览器及手机横屏操作。手机方向不符时，转回横屏即可继续。
+
+新局从「灯亮之前」交代第一个去处，再由玩家确认出发。西外阶使用同岸岩坡和落脚台，江面留在观景侧。[本轮方案与验收](docs/DEVELOPMENT_ROADMAP.md#foothill-opening-01)。
+
+打开「旅程记录」可以跟踪主线或一项旅行纪念。地面灯点给出当前能走的路，点击「顺路前往」会走到下一处互动点；手动操作可立即接管。拍完夜景后，从江岸东侧坐渡船到照水岭，沿石阶爬到古树台，也可以坐船回城。暂停菜单可以切换夕照和小雨。键盘按住 Shift 慢行，触屏通过摇杆推移幅度控制步速。[渡口与探索路线](docs/DEVELOPMENT_ROADMAP.md#river-journey-01)。
 
 开发窗口从 [开发路线图与执行流程](docs/DEVELOPMENT_ROADMAP.md) 领取和记录任务。当前按路线图单项实施，完成实现、测试、自审和进度记录后等待 Work 审查；正式决策变更、真实设计冲突和红线操作仍需暂停报告。
 
-现行产品设计（2026-11-19 后续重构）：《坡坎之间》转为以重庆山城为灵感的 2D 斜俯视、非战斗探索冒险，支持八向走动、可进入建筑、调查／物品用途、地域收藏与轻量本地存档；手绘卡通与 H5 电脑／手机目标保留。正式范围见[探索重构决策](docs/DECISIONS.md#topdown-exploration-reboot-20261119)、[H5 V3](docs/COMPETITION_H5_MVP_SCOPE_AND_DELIVERY_PLAN.md#topdown-h5-v3-20261119)和路线图页首。
+现行产品设计（2026-11-24）：《坎坡之间》以虚构城市大地图为主体，在部分街区融入重庆建筑与生活文化。保留 2D 斜俯视、非战斗八向探索、可进入建筑、调查／物品用途、收藏与轻量本地存档，当前优先 H5 电脑／手机。负责人最新选定[黄昏赛璐璐](docs/DECISIONS.md#cel-shaded-dusk-confirmed-20261124)作为当前样段方向。大地图的具体规模待设计。
 
-当前实现（2026-11-21 EXP-06A，Work功能技术复核PASS，待负责人体验）：C区重排为上街屋檐廊／中街穿楼院落／下街生活檐廊，导览2层、木作3层、茶歇、市集、灯笼共5栋可入；市集两门穿行，导览与木作按各层门口跨街。15图／43安全点／62目标，新上中街可提前探索，下街与D仍只用原unlocked。原夜景委托、三纪念物与奖励保持，旧档先按历史准入校验再映射。基础结构可继续验证，不等于负责人认可山城风味／探索感。详见[本轮交付](#exp-06a-delivery-20261121)。
+当前[独立试游](http://127.0.0.1:4199/?sample=storybook)从上街导览楼门前开始。往左下走可沿同岸西外阶步行到中街，同一条阶梯可走回。走到栏杆旁能看见连续的江面与对岸。街上可看到结伴逛街的成人和孩子、栏边驻足的老人，以及整理木料的店员。[本轮实施与验证](docs/DEVELOPMENT_ROADMAP.md#upper-street-life-01)。
+
+赛璐璐样段包含上街、导览楼二楼和西外阶两端。以 84 高主角为参照，街面石板尺寸约 26–54×22 画面单位，台阶与挡墙使用各自规格。角色有四个朝向，慢行与快走使用不同姿态。试玩进度存在页面内存中，刷新后回到样段起点。[普通入口](http://127.0.0.1:4199/)沿用本地自动保存。[赛璐璐素材来源、位置和帧范围](reference/generated/cel-v1/generation.json)。
+
+此前 PLAYABILITY-02 已修开场两步教学、三栋民居实体与服务室出口。此前281单测、主线、22项UI／41项独立专项证据保留；首目标在镜头外时会提示方向。全图其他装饰穿模／前景遮挡与最终美术仍待逐项处理。
+
+设计参考包括[9 张真实照片与文化来源](reference/chongqing/2026-11-24/README.md)、[GitHub 项目与技能](reference/research-20261124/github-research.json)及[《风来之国》官方资料和画面](docs/ART_DIRECTION_AND_SCENE_PROTOTYPE.md)。初版温暖绘本概念与素材保留在[历史美术记录](docs/ART_DIRECTION_AND_SCENE_PROTOTYPE.md#research-and-options-20261124)。
+
+此前 PLAYCHECK-01 的开发主线复走与临街楼层角标修正保留，技术通过不等于负责人体验认可。真实首次玩家盲测、真机与最终美术未通过。内部交付目标12月10日前；不是已核实的赛事截止，旧通知12月6日的冲突仍待核对。
+
+已实施美术样板（2026-11-23 SUNSET-SAMPLE-01）：仅改造 `upper` 上街与 `guide2` 导览楼2F的材质、人物和夕照光影；负责人美术评审 FAIL，暂停零碎修补与全图推广。保留原素材和技术证据，不把功能通过当作观感认可。详见[样板说明](#sunset-sample-01)。
+
+基础玩法实现（2026-11-21 EXP-06A，Work功能技术复核PASS，待负责人体验）：C区重排为上街屋檐廊／中街穿楼院落／下街生活檐廊，导览2层、木作3层、茶歇、市集、灯笼共5栋可入；市集两门穿行，导览与木作按各层门口跨街。15图／43安全点／62目标，新上中街可提前探索，下街与D仍只用原unlocked。原夜景委托、三纪念物与奖励保持，旧档先按历史准入校验再映射。基础结构可继续验证，不等于负责人认可山城风味／探索感。详见[本轮交付](#exp-06a-delivery-20261121)。
 
 HISTORICAL 实现状态（2026-11-21 EXP-05B）：在三层街区与独立江岸骨架上补导览楼2层、木作楼3层；可实际上下楼、调查取物并返回原门口。共13图／31安全点，旧进度／照片／收藏保留，新局经楼层仍可完成原开路与D拍摄。Work功能技术复核PASS，按负责人授权提交推送。界面美化后置，真机／最终美术／完整章时长未验收；[审查与证据](docs/DEVELOPMENT_ROADMAP.md#exp-05b-work-review-20261121)。
 
@@ -19,6 +37,92 @@ Mountain City: Last Delivery／山城有路：最后一单为历史名称。下�
 旧横版调试首关操作：A/D 或 ←/→ 移动，Space 跳跃，短按低跳、长按高跳；在 B 区沧白路入口靠近游客后按 E 主动对话，只有对话完成才自动接取委托。根据 B 区唯一线索，在 C 区两个吊臂中按 E 试错；右侧错误操作可重试，左侧正确操作启动升降平台并开放通往下层 D 的真实碰撞路线。沿 C1、C2、C3 连续楼梯与木廊逐层向下，乘平台下降至嘉陵江岸后，按住 D 走到指定范围并按 E 拍摄、分享；只有已接委托、机关完成、路线开放且主动交互全部满足时才完成。按 R 或「重置灰盒」回到出生点并保留上述永久进度。窗口失焦会清理输入，恢复后先松开 Space／E 再按，持续按住不会自动起跳、重复交互或重复发奖。
 
 调试灰盒操作：调查 A／B、拾取 C、测试收藏 D 或测试目标 E 后按 E，调查面板使用 Escape 或「关闭」按钮结束。黄色方块为角色，脚底绿框表示已验证支撑，红框表示无支撑。蓝色平台为上下均阻挡的实体平台；紫色“单向平台”可从下方跳过并从上方落地；橙色平台水平往返，青色平台垂直升降，站在平台上会随平台运动。D 由 D08 原型直接登记一次测试收藏；目标 E 的按 E 只创建 Pending Event，真实命令接收和跨 Tick 事务完成后才登记目标／奖励／永久效果并开门。检查点与恢复原型、诊断区域和两条移动平台保留在「调试入口」；这些能力不等于正式存档或首关检查点。
+
+## PLAYCHECK-01 短版主线与错层探索复核（2026-11-24）
+
+从当前工作区重新构建，在隔离Chrome空白档案用真实键盘完成A→D主线、两个不完整视野与江岸拍照，页面／资源错误0。该次报告 `test-results/exp-06a/run-2026-11-24T02-37-48-422Z/report.json` 在角标修正前生成，保留原版本指纹。
+
+截图确认中街导览楼门牌为1F而角标为2F，容易误导当前入口层。修正仅改C区建筑角标显示为实际临街楼层：中街导览1F、木作2F，下街木作1F。修后278项单测、类型检查、构建PASS；隔离合法档案的桌面／手机尺寸截图及真实键盘导览2F→1F→中街复查PASS，证据在 `test-results/experience-review-20261124/visual-after.json`。4199服务入口与引用JS／CSS已核实匹配修后dist，旧存档未操作。
+
+开发检查不能代替首次玩家体验。首次试玩请用无痕窗口打开 [本机试玩](http://127.0.0.1:4199/)，记录卡住的位置、穿楼后能否辨认街面、是否愿意探索及结尾是否清楚；不使用代码路线或口头指路。人物／材质切换差异和建筑错层辨识仍需后续样段处理，前轮美术FAIL保留。具体观察问题与后续关口只维护在路线图当前项。
+
+## KEYBOARD-UI-01 弹窗焦点与窄屏键盘提示（2026-11-23）
+
+普通调查／纪念物打开后，键盘焦点进入原确认按钮；取景预览默认聚焦「返回探索」，不默认选快门。正常关闭时恢复可见可用的原焦点，不能恢复则落在游戏容器。只在面板切换时更新，不逐帧抢焦点，不替换原E／空格／Tab、触摸手势或确认／取消保护。
+
+`pointer:fine` 的窄桌面窗口仍显示键盘操作说明，近物提示与说明错开；对话／预览／菜单中不重复显示。触屏摇杆和既有布局保持。实现只改宿主与CSS两文件，扩展现有 `tools/check_short_demo.py --keyboard-ui`；211文件开工基线中其余208文件逐字节不变，见 `test-results/keyboard-ui-01/boundary.json`。
+
+本轮构建与278项单测PASS；增强短版专项22检查PASS，包含原三尺寸流程、焦点／Tab循环／原生Enter、Space持键不误提交、纪念物取消收取、取景不误拍及四种桌面尺寸提示。报告 `test-results/keyboard-ui-01/ui-20261123T154517Z/report.json`。修前焦点FAIL、内置浏览器操作与工具超时限制保留在 `review.json`；详细回归状态见路线图。
+
+最终生产空白A→D主线及原输入回归PASS，报告分别为 `test-results/exp-06a/run-2026-11-23T15-45-56-506Z/report.json`（2大组）与 `run-2026-11-23T15-48-11-308Z/report.json`（10检查），包含触摸关闭／取消／代次及真实Chrome隐藏多owner。页面／网络错误0，两个报告的167文件指纹与当前一致；汇总见 `test-results/keyboard-ui-01/delivery-manifest.json`。
+
+内置浏览器已从独立无档案的 `http://localhost:4199/` 实走A→B接单→上街→导览2F，原 `127.0.0.1:4199` 档案未操作。该部分行走由DOM键盘事件驱动，并非原生硬件输入；独立Chrome专项另用真实键盘／CDP触摸。两地址同一最新构建，服务保留，不公开部署。真实手机、负责人观感／乐趣和独立Work仍NOT RUN，前轮美术FAIL不升级。
+
+```bash
+python tools/check_short_demo.py --keyboard-ui --base http://127.0.0.1:4199/
+```
+
+<a id="short-demo-01"></a>
+
+## ENV-FEEDBACK-01 环境调查与开路反馈（2026-11-23）
+
+本轮仅增强导览楼、木作楼及中街原开门路径。门口牌示给出现有楼层去向，楼梯用上下箭头，封闭门带锁图形和文字；不添加地图、建筑、谜题或永久进度。导览、门扣柜与江纹栈门的原调查面板内增加原创SVG纹样图示：无导扣不画成已携带，先拿物件但没读导览不显示未获用途。
+
+开门仍由原核心条件与确认手势提交。成功后门闩转动、中街两处真实封道位置的门叶退开，短提示标明两端外阶与木作1F已通；核心即时开通，不等动画、不额外锁操作。900ms演出由原50Hz模拟tick驱动，暂停冻结，减少动态偏好直接显示已开；读档／返回地图／重复调查不重播。两声低音量扣响仅由本次成功手势启动原生WebAudio，结束关闭资源；不可用时无声降级，隐藏／销毁时取消，没有新音频系统或设置存档。
+
+限定自验：`npm test` 278/278 PASS（新增28），类型检查与构建PASS；桌面1280×760、触屏模拟844×390专项15检查PASS，报告 `test-results/environment-feedback-01/ui-20261123T152405Z/report.json`。核验实际通路、取消／重复／刷新无重播、暂停、对象稳定、原生音频资源释放与无声降级；门牌遮挡位置修正后复查截图通过。核心／地图／存档／输入均未改；211文件基线仅7处表现接线变化，其余204文件保持字节一致。真机、主观音色、负责人乐趣／美术与独立Work均NOT RUN，原样板美术FAIL保留。
+
+专项命令：`python tools/check_environment_feedback.py --base http://127.0.0.1:4199/`，使用隔离合法档案夹具与真实键盘／CDP触摸，不修改用户浏览器存档。原4199服务保留，最终产物逐字节核验见 `test-results/environment-feedback-01/served-build.json`；首次构建／视觉问题及修正记录见 `review.json`。
+
+最终生产回归：空白A→D `test-results/exp-06a/run-2026-11-23T15-24-05-047Z/report.json`（2大组PASS），原触摸／关闭手势／原生隐藏 `run-2026-11-23T15-26-14-006Z/report.json`（10检查PASS），均页面／网络错误0、实际产物一致、独立浏览器清理PASS。首轮并行回归目录同毫秒冲突，不充当两份独立报告；最后串行重跑分开留证。总证据见 `test-results/environment-feedback-01/delivery-manifest.json`。只交付本项，未提交／推送／部署。
+
+## SHORT-DEMO-01 主线指引与交互反馈（2026-11-23）
+
+已实现限定体验修正，入口仍为 [本机试玩](http://127.0.0.1:4199/)。本轮不是美术重做或新系统：任务栏随当前地点与已获进度说明去向，旅程手账保留已听到的楼层／门口信息；确认按钮分别显示「接受委托」「记下导览」「带上导扣」「转动导扣，开门」，重复调查仍为「收起」。拍照预览说明E／空格只返回，必须点「拍摄这一刻」；拍摄成功后明确无需折返交付。
+
+只读提示与既有对话文案改变，不改变任务门槛、地图／碰撞、输入、确认／取消协议、照片奖励或存档格式。手账缓存签名包含当前方向，换地图但进度不变时也刷新；未观察视野与未取得物件不新增占位答案。先拿导扣再调查仍可进行，Esc取消未确认操作不推进。
+
+- 全量 `npm test` 250/250 PASS（原244＋新增6组目标／按钮／只读投影），`npm run build` 含类型检查 PASS；日志在 `test-results/short-demo-01/tests.log` 与 `build.log`。保留既有npm镜像配置和包体警告。
+- 修正后完整空白A→D：`test-results/exp-06a/run-2026-11-23T14-39-53-003Z/report.json`，生产Chrome真实键盘通行、两错误视野、零收藏拍摄完成、幂等／标题／刷新 PASS，页面／网络错误0。与修正前 `run-2026-11-23T14-31-33-617Z/` 分开，不把脚本耗时当新玩家时长。
+- 新指引专项：`test-results/short-demo-01/ui-20261123T144005Z/report.json`，16检查 PASS；1280×760键盘、844×390触摸模拟，覆盖新标签、取消、乱序、手账切图刷新、快门与重载。局部场景用隔离合法safe夹具，不是手机全新局。对应截图已检查文字可读、按钮可达与取景图仍可见。
+- 边界指纹：`test-results/short-demo-01/verification.json`。本轮仅4源码＋1既有单测改变，其余173个受保护文件与18个先前样板文件未变；15个核心方法只归一CRLF/LF后原文一致，包括移动、切图、提交／取消、照片和保存。4199入口及引用JS／CSS与dist逐字节匹配。
+
+- 原输入回归：`test-results/exp-06a/run-2026-11-23T14-40-05-130Z/report.json`，10检查 PASS；844×390／667×375摇杆、穿楼、锁门、纪念物、普通对话及照片关闭的代次／取消隔离、旋转／刷新与原生Chrome真实hidden多owner通过，页面／网络错误0。汇总与指纹见 `test-results/short-demo-01/delivery-manifest.json`。
+
+本轮限定实施与开发技术自验 PASS，不代表新玩家乐趣、负责人观感、真实Android／iOS或完整30—45分钟首章通过；美术仍按上一轮负责人FAIL保留，独立Work与负责人本轮产品验收 NOT RUN。未提交、推送、删除、公开部署，不改用户浏览器存档，原4199继续运行。唯一任务状态见路线图页首。
+
+```bash
+npm test
+npm run build
+node --experimental-strip-types tests/exp-06a-browser.mjs --production --browser=chrome
+node --experimental-strip-types tests/exp-06a-browser.mjs --production --browser=chrome --probe-only
+python tools/check_short_demo.py --base http://127.0.0.1:4199/
+```
+
+<a id="sunset-sample-01"></a>
+
+## SUNSET-SAMPLE-01 上街与导览2F美术样板（2026-11-23）
+
+限定样板已接入，开发功能技术自验 PASS；负责人美术评审 FAIL（2026-11-23：“截图还是很丑”）。独立Work审查与真机 NOT RUN。既有素材加工未获观感认可，暂停零碎修补及全图推广，先完成 SHORT-DEMO-01；历史技术报告保留。
+
+[本机普通入口](http://127.0.0.1:4199/)使用本轮重新构建的dist；仍按原起点／存档继续，沿既有路线进入「上街 · 屋檐与悬挑廊」，在临江导览楼门口按E或触屏「交互」进入2F。菜单、任务栏、其他地图（含导览1F）、路线、碰撞和存档不改，不设置展示专用传送或覆盖真实档案。未公开部署。
+
+- 美术：灰瓦／旧木／石板、雾中城市远景、暖夕照与冷阴影、2F窗光及四向人物；房屋和家具仍按现有碰撞占地分层绘制，不用一张概念图替代可探索地图。
+- 实现：`src/rendering/phaser/exploration-sunset-art.ts`；资产在 `src/rendering/phaser/assets/sunset-sample-v1/`。`asset-manifest.json` 记录原图／来源／输出SHA256，12张运行WebP共393,378字节；另留一张加工中间输出与用户参考图，均未作为运行背景加载。原 `reference/generated/` 不覆盖。
+- 素材事实：图像生成HTTP403、无生成文件；负责人明确批准后才改造旧素材。`tools/prepare_sunset_assets.py` 只使用本地Pillow裁切、校正与绘制，不联网；复现需保留原候选素材及归档参考图。第三方素材商用权未独立核验。
+- 验证：构建／类型检查 PASS，全量244/244 PASS；最终4199生产Chrome10项检查 PASS，页面与网络错误0。检查原门往返、原楼梯与导览、墙体阻挡、重复进入、暂停、刷新、两尺寸触摸模拟。使用隔离cGuideH3夹具，不是完整新局或真机测试。初版误含挂钩／木梁的纹理已修正，早期截图保留；技术通过不代表用户认可美术。
+
+实机截图：[上街门口](test-results/sunset-sample/after-production/upper-door-desktop.png)、[导览2F](test-results/sunset-sample/after-production/guide2-reading-desktop.png)、[横屏触控](test-results/sunset-sample/after-production/upper-844x390.png)。[最终浏览器报告](test-results/sunset-sample/after-production/report.json)、[构建日志](test-results/sunset-sample/build-final.log)、[测试日志](test-results/sunset-sample/tests.log)保存在忽略的本地test-results中，不是仓库自带报告。
+
+```bash
+python tools/prepare_sunset_assets.py
+npm run build
+npm test
+# 确保已有本地服务指向当前dist；脚本只使用自己的隔离浏览器档案。
+python tools/check_sunset_sample.py --base http://127.0.0.1:4199/ --phase after-production
+```
+
+本轮仍保留npm镜像配置与大包warning，未为此改配置。未提交／推送／删除／公开部署。
 
 <a id="exp-06a-delivery-20261121"></a>
 
@@ -136,7 +240,7 @@ DONE（[Work 功能技术复核 PASS](docs/DEVELOPMENT_ROADMAP.md#exp-03c-work-r
 | F01 | PASS：根标题新局，真实键盘走完 A→B→C→江岸，比较三处取景；檐下与花窗错误取景不完成，江边明确拍摄后才出现零纪念物完成卡。继续后重复快门不能增加第二个照片奖励。 |
 | F02 | PASS：同一 Runtime 继续／标题往返；刷新从标题与手账重看不自动弹卡。确认前无 storage 写入；点击与 Escape 取消回卡；确认后空白 A，历史键与其他键字节保持。 |
 | F03 | PASS：card／confirm／title／原生 hidden owner 计数与 Tick 冻结分层验证。确认状态中按 E 不释放隐藏卡片；hidden 后回焦，Escape 与按钮取消均恢复原卡、owner、焦点及进度。pagehide 重复销毁通过。 |
-| F04 | PASS：0 件来自真实新局，1／3 件使用显式内联兼容夹具；1280×720、1920×1080、844×390、667×375、390×844 截图与真实按钮检查，正文至少 14 CSS px、按钮至少 48 CSS px、图片盒保持比例。Android Chrome／iOS Safari 真机 NOT RUN。 |
+| F04 | PASS：0 件来自真实新局，1／3 件使用显式内联兼容夹具；1280×720、1920×1080、844×390、667×375 截图与真实按钮检查，正文至少 14 CSS px、按钮至少 48 CSS px、图片盒保持比例。Android Chrome／iOS Safari 真机 NOT RUN。 |
 | F05 | PASS：230/230 原全量、构建、EXP-03C 13 组、EXP-03A 11 组、EXP-03B 8 组、EXP-02C 14 组与格式检查通过。EXP-03C 页面／网络错误为 0，自有 context／普通 Chrome／原生 Chrome／服务边界已记录；旧报告不追改。 |
 
 实际必跑命令最终均退出 0：
@@ -155,7 +259,7 @@ git diff --check
 
 实际构建入口为 `dist/index.html`，只引用 `dist/assets/index-CeYOfMCr.js`／`dist/assets/index-BqzETvdL.css`。Chrome `157.0.8103.79`。本任务在确认 4199 原本空闲后启动自有隐藏 Vite preview，PID `5460`、命令 `node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4199 --strictPort`；HTTP 200，保留服务供 Work 复验，不停止其他服务、不读取个人浏览器档案。
 
-实机图：[零纪念物真实完成](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/04-zero-mementos-completion.png)、[1280×720](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/05-completion-1280x720.png)、[1920×1080](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/05-completion-1920x1080.png)、[844×390](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/05-completion-844x390.png)、[667×375](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/05-completion-667x375.png)、[390×844](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/05-completion-390x844.png)、[1 件纪念物](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/06-fixture-1-mementos.png)、[3 件纪念物与称号](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/06-fixture-3-mementos.png)、[844 触屏完成卡](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/07-touch-completion-844x390.png)、[触屏返回标题](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/08-touch-card-to-title.png)、[667 触屏](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/09-touch-completion-667x375.png)、[390 竖屏](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/10-touch-completion-390x844.png)。
+实机图：[零纪念物真实完成](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/04-zero-mementos-completion.png)、[1280×720](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/05-completion-1280x720.png)、[1920×1080](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/05-completion-1920x1080.png)、[844×390](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/05-completion-844x390.png)、[667×375](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/05-completion-667x375.png)、[1 件纪念物](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/06-fixture-1-mementos.png)、[3 件纪念物与称号](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/06-fixture-3-mementos.png)、[844 触屏完成卡](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/07-touch-completion-844x390.png)、[触屏返回标题](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/08-touch-card-to-title.png)、[667 触屏](test-results/exp-03c/run-2026-11-20T07-29-07-360Z/09-touch-completion-667x375.png)。
 
 失败历史原样保留：`run-2026-11-20T07-20-35-113Z` 首次在 844×390 发现图片元素被压成约 3.28:1；`run-2026-11-20T07-22-47-654Z` 第一次 CSS 修正仍受 `38dvh` 覆盖，约 2.96:1。随后用短完成档探针读取 computed style，确认图片元素盒的 `max-height` 被覆盖，去掉该覆盖并保持 `object-fit:contain`，没有放宽比例断言。`run-2026-11-20T07-24-54-721Z` 为原生 Chrome 夹具在后台页尝试点击；`run-2026-11-20T07-27-13-210Z` 为 hidden Tick 断言误用较早基准。后两项只调整测试前台顺序与每次后台前基准，应用源码未再改；最终 13 组 PASS。
 
@@ -173,14 +277,14 @@ DONE（[Work 功能技术复核 PASS](docs/DEVELOPMENT_ROADMAP.md#exp-03b-work-r
 
 新键 `pokan.exp03b.save.v1`／`exp03b-city-mementos-1`，schema 1、六个存档字段保持受限形状，收藏／称号只进入原 progress 类别。读取新→C→B→A，旧 C 仍用封闭 exp02b 目录与 19 原锚点，旧 B／A 各限 12 原锚点，不因新 exp03b 目录接受新 ID。合法旧 safe／进度／照片／观察保留，新收藏与称号为空；坏／未知／重复／矛盾／未来版本、称号与三件不一致均整档拒绝，不回退更旧键、不写原文或修补发奖。明确重开写新键空白 A，刷新不重迁旧档；旧键／其他数据字节保留。
 
-图案为三份原创可编辑 SVG，世界用对应微型纸面图形；调查／手账读同一组 SVG。名称、坐标、图案和称号均为 PROPOSED／TO_VALIDATE 试制，不是实物商品／正式文化目录，不复制来源图片、不引入年代／层数／抗震／独有工艺等结论。有限参考语境及限制见 `src/rendering/phaser/assets/exp-03b/ASSET_SOURCES.md`。手账支持真实触屏纵向滚动，固定关闭按钮保持可见，主要按钮至少 48px，正文至少约 14px，竖屏仍可操作。
+图案为三份原创可编辑 SVG，世界用对应微型纸面图形；调查／手账读同一组 SVG。名称、坐标、图案和称号均为 PROPOSED／TO_VALIDATE 试制，不是实物商品／正式文化目录，不复制来源图片、不引入年代／层数／抗震／独有工艺等结论。有限参考语境及限制见 `src/rendering/phaser/assets/exp-03b/ASSET_SOURCES.md`。手账支持真实触屏纵向滚动，固定关闭按钮保持可见，主要按钮至少 48px，正文至少约 14px。
 
 | 验收 | 开发实际结果与边界 |
 | --- | --- |
 | M01 | PASS：三件实际行走、查看未得、明确完成才得；放回／菜单／标题／原生 hidden／重复／旧代次／旧鼠标释放不误收。原输入／运动／照片算法不改。 |
 | M02 | PASS：0/1/2/3 件的投影与保存，三件才一称号；未获不列名称／地点，主线物件不计入；称号与照片两类奖励独立，刷新不重发。 |
 | M03 | PASS：当前各阶段恢复，旧 C 未接／开路／照片三阶段浏览器迁入，B／A 及旧目录严格性专项；坏／伪造／矛盾／不可写保护、新局防重迁与原文保护。兼容夹具内联，来源与哈希明确，不冒充空白通关。 |
-| M04 | PASS：根标题真实键盘主线并收三件；原生双指触屏走到茶歇收取、三档触屏滚动／关闭；1280×720／1920×1080／844×390／667×375／390×844 实机图、字体与按钮检查。Android／iOS 真机 NOT RUN。 |
+| M04 | PASS：根标题真实键盘主线并收三件；原生双指触屏走到茶歇收取、三档触屏滚动／关闭；1280×720／1920×1080／844×390／667×375 实机图、字体与按钮检查。Android／iOS 真机 NOT RUN。 |
 | M05 | PASS：8 图／19 锚点／30 旧目标数据全量哈希保持，移动／阻挡与通用 progress 方法保持；旧 UI／hidden／快门／销毁回归保留。02C 桌面与触屏空白完整链在卡片后明确断言零纪念物、一份原奖励。 |
 | M06 | PASS：探索专项 39/39（新增 9）、全量 230/230、构建、收藏 8 组、UI 11 组、原流程 14 组及格式检查。页面／网络与自有清理按各报告分层，最终汇总覆盖当前全部文件。 |
 
@@ -198,7 +302,7 @@ git diff --check
 
 实际报告：[收藏 8 组](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/report.json)，SHA-256 `36357a722e9c1effbb0477272186ccb0b8787bddb3c721223ea9ac17d047da8a`；[UI 11 组](test-results/exp-03a/run-2026-11-20T05-31-22-710Z/report.json)，SHA-256 `5dff3abdbaed47834869497ddc48885963280932acbda9192d384fbe45c965cf`；[零收藏主线 14 组](test-results/exp-02c/run-2026-11-20T05-31-51-482Z/report.json)，SHA-256 `bc65daac8aab2c46f8a384460b13aacd2930b28662791289eaf3d3382b2a3f08`。实际构建只引用 `index-0tcpjqxl.js`／`index-BSwlCNKm.css`，所有新源码／SVG／测试／当前产物与来源指纹在报告和 `test-results/exp-03b/delivery-manifest.json`；03B 报告中的一个辅助 UI 测试脚本后来仅调整输入准备路线，其当前版本由后续 03A 报告独立覆盖，旧报告不追改。Chrome 157.0.8103.79，自有原生 Chrome／临时 HTTP／上下文清理 PASS；Phaser 内部监听整页回收另列。
 
-实机图：[书签调查](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/02-bookmark-inspection.png)、[速写调查](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/05-sketch-inspection.png)、[明信片调查](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/08-postcard-inspection.png)、[三件与称号](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/collection-1280x720.png)、[拍摄奖励独立](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/10-photo-independent.png)、[双指查看](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/touch-two-finger-inspection.png)、[667 触屏滚动](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/touch-collection-667x375.png)、[竖屏手账](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/touch-collection-390x844.png)。0/1/2/3 阶段及其他尺寸在同目录，允许滚动阅读，不以单张截图代替全流程。
+实机图：[书签调查](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/02-bookmark-inspection.png)、[速写调查](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/05-sketch-inspection.png)、[明信片调查](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/08-postcard-inspection.png)、[三件与称号](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/collection-1280x720.png)、[拍摄奖励独立](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/10-photo-independent.png)、[双指查看](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/touch-two-finger-inspection.png)、[667 触屏滚动](test-results/exp-03b/run-2026-11-20T02-03-45-939Z/touch-collection-667x375.png)。0/1/2/3 阶段及其他尺寸在同目录，允许滚动阅读，不以单张截图代替全流程。
 
 失败原样保留：`run-2026-11-20T02-00-37-138Z` 为浏览器路线准备错误，读 note 后 helper 先横移而撞原柜台，补先退到 `(340,540)` 的真实路线后通过；该首轮控制台残留 EXP-03A 字样，JSON task 为 EXP-03B，不改旧报。03A `run-2026-11-20T02-07-40-239Z` 在双指调查失败，末态持续右移至边界、交互 held；失败脚本已按原报告 SHA 精确归档，不能拿后来编辑后的向下版本解释旧现场。原报告未采第二指当刻世界坐标，不把边界末态当精确根因证明。经最小真实输入探针验证朝目标准备路线后，修正当前测试为从上方接近并向目标持续移动，完整 11 组通过；输入／距离／地图未改。首个探针还因缺 notebook helper 失败，补齐后探针 PASS 仅是诊断，不冒充验收。所有日志、可信 Pointer 事件、报告哈希和归因限制保留在 manifest／`touch-failure-version.json`。
 
@@ -216,14 +320,14 @@ DONE（[Work 功能技术复核 PASS](docs/DEVELOPMENT_ROADMAP.md#exp-03a-work-r
 
 游戏中 WASD／方向键走，E／Space 交互，Esc 暂停；触屏摇杆＋交互。点击“旅程记录”查已接委托、已获得线索／物件、已开放的路、实际调查的取景与纪念卡；新局不提前列未发现答案或地点。手账为 runtime.snapshot 的只读投影，不另存业务真相。标题／菜单／手账／说明／重开确认各有独立 UI owner，打开先清理本适配器输入与旧快门手势；原 hidden owner、对话提交、快门资格与一次卡片业务不变。原手势保护和完整探索核心共用，没有第二套游戏。
 
-轻 HUD 只保留地点、单条目标、必要交互与保存反馈；纸页手账集中记录，标题用同一个暂停中的真实街景，无外部图片／字体／无效音乐开关。江水青蓝、暖灯金、系统中文字体与布局均为本轮 PROPOSED UI 试制，不是最终美术／设计冻结。按钮主要触控目标实测至少 48 CSS px，正文主要为 14—16px；焦点可见、面板长文可滚动，保持 1100×650 画布／zoom／角色比例。竖屏仅提示横屏更佳，仍可移动与关闭面板。
+轻 HUD 只保留地点、单条目标、必要交互与保存反馈；纸页手账集中记录，标题用同一个暂停中的真实街景，无外部图片／字体／无效音乐开关。江水青蓝、暖灯金、系统中文字体与布局均为本轮 PROPOSED UI 试制，不是最终美术／设计冻结。按钮主要触控目标实测至少 48 CSS px，正文主要为 14—16px；焦点可见、面板长文可滚动，保持 1100×650 画布／zoom／角色比例。
 
 | 验收 | 开发实际结果 |
 | --- | --- |
 | U01 | PASS：根标题真实暂停、鼠标／Enter／Space／触屏开始；合法继续、坏／未来／不可读保护，prototype 与三个显式旧入口。 |
 | U02 | PASS：同实例返回标题不丢坐标／进度；menu＋journal 原生 hidden 时 2→3→2，title＋hidden 1→2→1，仅释放对应 owner；旧持键清理与快门代次回归保留。 |
 | U03 | PASS：纯投影 6/6；空白、接取、线索、物件、开路、观察、拍摄逐层已知，无答案提前泄露；重复开关不发奖；原已拍照继续／重看／刷新／新局正常。 |
-| U04 | PASS：桌面 1280×720／1920×1080、844×390／667×375／390×844 布局截图与尺寸测量；另有真实 hasTouch＋CDP 根标题开始／手账／暂停／返回标题／继续、多指调查、取消／旋转与竖屏输入。桌面改 viewport 与真实触屏模拟分开，Android／iOS 真机 NOT RUN。 |
+| U04 | PASS：桌面 1280×720／1920×1080、844×390／667×375 布局截图与尺寸测量；另有真实 hasTouch＋CDP 根标题开始／手账／暂停／返回标题／继续、多指调查、取消／旋转。桌面改 viewport 与真实触屏模拟分开，Android／iOS 真机 NOT RUN。 |
 | U05 | PASS：本轮重新运行 EXP-02C 完整 14 组，保留桌面／触屏空白 A→B→C 找物／开路／拍摄卡片、旧档迁入、三轮往返、hidden、旧快门、资源及旧 first-level 显式入口冒烟断言。 |
 | U06 | PASS：全量 221/221、构建、UI 11 组、格式检查；UI 页面／网络错误为空；标题与手账持令牌时的合成 pagehide 探针、所有自绑 AbortSignal、Canvas／ResizeObserver／图像引用与重复销毁通过。原生隐藏另验，不拿合成事件代替。 |
 
@@ -240,7 +344,7 @@ git diff --check
 
 最终 UI [11 组报告](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/report.json)，SHA-256 `01f823b513303c012a6487ac96c4fd9c18e4eb01a5f1205f4d986dfd6044a4a6`；原流程[本轮 14 组回归](test-results/exp-02c/run-2026-11-20T01-22-01-452Z/report.json)，SHA-256 `a421e42d588ea81279c028bbb53c3ba7b33c258a45df219e4c96dac87e66b417`。UI 全部新增源码／测试和当前 dist 入口共 28 项指纹在报告，实际仅引用 `index-CpC8TH4o.js`／`index-DRlc1Xg8.css`，不拿旧残留构建代替；交付文件／截图／日志／阶段历史与保护区核对统一见 `test-results/exp-03a/delivery-manifest.json`。Chrome 157.0.8103.79，普通原生 Chrome PID `25240` 及临时 HTTP／上下文回收 PASS；Phaser 内部全局监听按整页回收另列。
 
-实机图：[桌面标题](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/title-1280x720.png)、[1920 HUD](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/hud-1920x1080.png)、[空白手账](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/journal-empty.png)、[已知手账](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/journal-1280x720.png)、[暂停](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/pause-desktop.png)、[纪念卡](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/card-667x375.png)、[844 触屏手账](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/touch-journal-844x390.png)、[667 触屏标题](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/touch-title-667x375.png)、[多指调查](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/touch-native-two-finger-dialogue.png)、[竖屏操作](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/touch-portrait-hud.png)。其余五档面板图均在同报告目录。
+实机图：[桌面标题](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/title-1280x720.png)、[1920 HUD](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/hud-1920x1080.png)、[空白手账](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/journal-empty.png)、[已知手账](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/journal-1280x720.png)、[暂停](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/pause-desktop.png)、[纪念卡](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/card-667x375.png)、[844 触屏手账](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/touch-journal-844x390.png)、[667 触屏标题](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/touch-title-667x375.png)、[多指调查](test-results/exp-03a/run-2026-11-20T01-27-26-544Z/touch-native-two-finger-dialogue.png)。其余五档面板图均在同报告目录。
 
 历史完整保留：首次 `build-stage.log` 退出 2，为残余 menu 名称和 NodeList 的 DOM iterable 类型错误，改为当前 view／Array.from 后构建通过。`run-2026-11-20T01-19-10-471Z` 只检查 2 组预览；截图发现“尚未保存”误匹配坏档警告，已区分空白与失败，并区分当前局返回标题和刷新安全点继续。`run-2026-11-20T01-21-01-327Z` 实际只有 6 组桌面布局／存档／菜单检查，报告当时 phase=full 标签不代表执行了触屏／原生 hidden／标题销毁；保留原报告，不追改，最终 11 组才包含这些新分支。原历史 FAIL／阶段 PASS 不升级。
 
@@ -266,7 +370,7 @@ WASD／方向键走，E／Space 交互，Esc 暂停；触屏摇杆＋交互。A 
 | C02 | PASS：服务店调查／原门返回，A↔B↔C 三轮同 Runtime／单 Canvas、持续按键不连切；原五图／12 锚点／旧其他目标与派发快照哈希一致，旧锁门不可绕过。 |
 | C03 | PASS：单游客取消／正常关闭／重访不重复登记；桌面真实空白 A 完整走到旧线索／导扣／开路／拍摄／卡片，错误视野与旧快门保护保留。 |
 | C04 | PASS：A／B／服务店保存刷新；旧 02B 未接／开路／已拍照分别迁入，原安全点／照片／奖励保留，旧未接 C 可回 B；02A 严格性、坏档／不可写／新局后刷新有专项。 |
-| C05 | PASS：Chrome 1280×720 桌面、844×390 触屏空白 A 完整主线；多指、touchCancel、可信 lost capture、旋转 390×844、原生 hidden＋menu 与旧快门。Android／iOS 真机 NOT RUN。 |
+| C05 | PASS：Chrome 1280×720 桌面、844×390 触屏空白 A 完整主线；多指、touchCancel、可信 lost capture原生 hidden＋menu 与旧快门。Android／iOS 真机 NOT RUN。 |
 | C06 | PASS：探索专项 24/24（新增 C 六项）、全量 215/215、生产构建、Chrome 14 组、旧默认移动／跳跃／B 对话冒烟与格式检查；零非预期页面错误，自有资源回收 PASS。 |
 
 实际命令最终均退出 0：
@@ -281,7 +385,7 @@ git diff --check
 
 最终生产 [report.json](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/report.json)，SHA-256 `104f107eb33a7269262ce201685ca48e83ab379c512f55824654ab9753bb7893`，task=EXP-02C、scope=production-prologue-quest-migration-input-regression。全部新增源码／测试／来源文件与当前入口实际引用的 `index-DlHNZGFx.js`、`index-BWcOtaEV.css` 指纹均在报告；最终汇总见 `test-results/exp-02c/delivery-manifest.json`。Chrome 157.0.8103.79，完整路线为实际品牌 headless Chrome 输入，原生隐藏另用普通 Chrome＋CDP noDefaults；测试 Chrome PID `28384`、自有 HTTP／上下文已清理。AbortSignal、ResizeObserver、Layer／Canvas 与图片引用已检查；Phaser 内部全局监听随页面回收，未冒称全部第三方内部监听逐项销毁。
 
-截图：[A 广场](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/01-a-plaza.png)、[商业街](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/03-a-commercial.png)、[过渡街巷](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/04-a-alley.png)、[B 高处入口](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/05-b-entry.png)、[A 服务小店](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/02-a-service.png)、[C 衔接](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/06-c-seam.png)、[桌面纪念卡](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/04-postcard.png)、[空白触屏全链纪念卡](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/touch-fresh-postcard.png)、[旧 B 卡片迁入](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/legacy-b-card.png)、[旋转竖屏](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/08-touch-portrait-card.png)。
+截图：[A 广场](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/01-a-plaza.png)、[商业街](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/03-a-commercial.png)、[过渡街巷](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/04-a-alley.png)、[B 高处入口](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/05-b-entry.png)、[A 服务小店](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/02-a-service.png)、[C 衔接](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/06-c-seam.png)、[桌面纪念卡](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/04-postcard.png)、[空白触屏全链纪念卡](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/touch-fresh-postcard.png)、[旧 B 卡片迁入](test-results/exp-02c/run-2026-11-19T16-01-52-491Z/legacy-b-card.png)。
 
 历史不追改：`run-2026-11-19T15-58-32-961Z` 仅为城市预览／新图进出刷新阶段 PASS，不是全链；`unit-prologue-stage.log` 保留 21/24、退出 1 的首次新测试失败（测试调用不存在的手动奖励 API；以及用重复逻辑上升沿代替物理持续按键）。修正测试为目标自动发奖、切图后无输入不连切，并在最终浏览器保留真实持续按键断言，随后专项 24/24。未为此改动移动／输入／拍摄业务。最终生产首轮 PASS，无删除或挑选失败报告；原 02B 与更早 focus FAIL 历史保留，旧 focus 长套件 NOT RUN。
 
@@ -315,7 +419,7 @@ WASD／方向键移动，E／Space 交互或关闭，Esc 暂停；触屏摇杆�
 | P02 | PASS：核心拒绝缺前置、无／旧／异 Runtime 预览、无效位置／地图／墙段资格及额外暂停；真实旧快门 click、held、菜单／隐藏不发奖；明确新快门成功一次。 |
 | P03 | PASS：桌面／触屏卡片可读可关、重看／刷新重建，回访不增目标或奖励，开路／物件保持。 |
 | P04 | PASS：旧空白／接受／调查／道具／开路／找到视野分别迁入；坏／未来／矛盾／不可写与原文保护有专项。真实确认新局后再刷新仍为空白，不重迁旧档，其他键保留。 |
-| P05 | 桌面 Chrome 1280×720、原生触屏模拟 844×390／390×844 PASS；取消／可信 lost capture、旋转、隐藏＋菜单 Owner 通过。Android／iOS 真机 NOT RUN。 |
+| P05 | 桌面 Chrome 1280×720、原生触屏模拟 844×390 PASS；取消／可信 lost capture、旋转、隐藏＋菜单 Owner 通过。Android／iOS 真机 NOT RUN。 |
 | P06 | PASS：专项 18/18、全量 209/209、构建、最终生产 Chrome 10 组、旧默认移动／跳跃／B 对话冒烟及格式检查。旧 focus 长套件 NOT RUN，历史 FAIL 不追改。 |
 
 实际命令最终均退出 0：
@@ -330,9 +434,9 @@ git diff --check
 
 最终实际执行 [run-2026-11-19T15-21-02-266Z/report.json](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/report.json)，SHA-256 `7b879e2497d4d633e5c8e2171d3ce8d8429e0a4c1a4d6b30046730d4030509ba`。全部新增／迁移测试、源码脚本及实际 `dist/index.html` 引用的 `index-BVzP9YEa.js`／`index-BWcOtaEV.css` 指纹在报告中，不拿旧残留产物代替。Chrome `157.0.8103.79`；完整路线使用真实品牌 headless Chrome 输入，原生隐藏另用普通 Chrome＋CDP `noDefaults`，不把 hidden 等同于失焦。测试 Chrome PID `21064`、上下文／HTTP 清理 PASS；自有 AbortSignal／ResizeObserver／Layer／Canvas 和预览／卡片图像引用已清理，Phaser 内部全局监听整页回收单列。
 
-截图：[檐下](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/01-eaves-preview.png)、[花窗](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/02-window-preview.png)、[江边](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/03-river-preview.png)、[纪念卡](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/04-postcard.png)、[刷新重看](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/05-postcard-restored.png)、[触屏预览](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/06-touch-direct-preview.png)、[触屏卡片](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/07-touch-postcard.png)、[竖屏卡片](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/08-touch-portrait-card.png)。初阶段 `run-2026-11-19T13-02-57-403Z` 仅验证三处预览，不冒充拍摄／兼容通过。
+截图：[檐下](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/01-eaves-preview.png)、[花窗](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/02-window-preview.png)、[江边](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/03-river-preview.png)、[纪念卡](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/04-postcard.png)、[刷新重看](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/05-postcard-restored.png)、[触屏预览](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/06-touch-direct-preview.png)、[触屏卡片](test-results/exp-02b/run-2026-11-19T15-21-02-266Z/07-touch-postcard.png)。初阶段 `run-2026-11-19T13-02-57-403Z` 仅验证三处预览，不冒充拍摄／兼容通过。
 
-失败均原样保留：`run-2026-11-19T15-11-55-167Z` full FAIL 为 lostcapture 尚未派发即读状态，现场随后已有可信事件／pointers=0，改等事件后保持零指针断言；`run-2026-11-19T15-14-06-857Z` full FAIL 为竖屏重看无 click。先用 `run-2026-11-19T15-18-24-828Z` 最小探针复现“pointerdown/up 有、click 无”，排除核心拒绝／先开后关；该报告 PASS 只表示诊断采样取得，非功能通过。`run-2026-11-19T15-19-03-178Z` 最小验证：CDP 跨 viewport 手势用原生 touchCancel 结束，再一次新 tap 就有 click／卡片；保持应用 resize 清输入断言。再补快门按下身份保护及原生旧 click 负向回归后才执行最终完整 PASS，无盲重跑／删断言／改旧报表。
+失败均原样保留：`run-2026-11-19T15-11-55-167Z` full FAIL 为 lostcapture 尚未派发即读状态，现场随后已有可信事件／pointers=0，改等事件后保持零指针断言；`run-2026-11-19T15-14-06-857Z` full FAIL 为旋转后重看无 click。先用 `run-2026-11-19T15-18-24-828Z` 最小探针复现“pointerdown/up 有、click 无”，排除核心拒绝／先开后关；该报告 PASS 只表示诊断采样取得，非功能通过。`run-2026-11-19T15-19-03-178Z` 最小验证：CDP 跨 viewport 手势用原生 touchCancel 结束，再一次新 tap 就有 click／卡片；保持应用 resize 清输入断言。再补快门按下身份保护及原生旧 click 负向回归后才执行最终完整 PASS，无盲重跑／删断言／改旧报表。
 
 日志与探针位于 `test-results/exp-02b/`：`unit-attempt-1.log`、`npm-test-gesture-final.log`、`build-gesture-final.log`、`browser-full-attempt-1.log`／`2.log`／`3.log`、`input-probe.mjs`／`input-probe-cancel.mjs` 及日志、`diff-check-final.log`。诊断 fixture 从实际失败记录的稳定元数据重建，仅用于最小复现；完整浏览器路线没有写当前进度／dataset 或传送。最终文件／截图／报告与 Work 基线核对见 `delivery-manifest.json`。
 
@@ -386,7 +490,7 @@ flowchart LR
 
 | 验收条目 | 实际结果与边界 |
 | --- | --- |
-| A1 比例、镜头、街区 | PASS：两张 3300×1300 世界图、多个横向视野与纵向后街绕行，跟随限界、zoom=1；实测 HUD 边界不随世界镜头移动，横竖屏画布保持 FIT。 |
+| A1 比例、镜头、街区 | PASS：两张 3300×1300 世界图、多个横向视野与纵向后街绕行，跟随限界、zoom=1；实测 HUD 边界不随世界镜头移动，旋转后画布保持 FIT。 |
 | A2 三室内／往返 | PASS：三室均实际行走／调查、对应门口返回，每间连续三轮；同运行内不换 Runtime、不复制 Canvas／输入绑定。两条主线用途不同，茶歇可跳过。 |
 | A3 因果、提交、交互资格 | PASS：游客正常完成才接取、暂停不提交；信息与导扣支持判断；栈门先阻挡后能真实通过，西回廊不能提前绕过。隔工具屏不能拿物／跨图不能交互；误用和重复取物／开门无重复永久记录或道具丢失。 |
 | A4 保存／版本 | PASS：桌面在导览、木作、茶歇及两层室外逐一刷新，安全锚点一致、运行 UUID 更换；坏／未来／矛盾档、不可写与旧档保护有纯专项。最终触屏上下文保留旧单庭院通关 fixture，确认新街区初始未通关且旧原文不变；该 fixture 仅是版本保护测试，不写当前街区进度。 |
@@ -445,7 +549,7 @@ npm.cmd run preview -- --host 127.0.0.1 --port 4198 --strictPort
 | E04 输入与暂停 | PASS：键盘别名、键盘＋摇杆、原生多指、cancel、真实 lost capture、对话／切图清理、旋转与尺寸恢复；普通 Chrome 无焦点模拟的真实隐藏／显示验证双 Owner 令牌与冻结，不断言 hidden 必然等于失焦。 |
 | E05 宿主与回收 | PASS：自有 AbortSignal 监听、可见性解绑、ResizeObserver、地图对象与 Canvas 回收；重复 pagehide 探针后旧回调无效；Canvas 启动失败在输入接线后逆序回收。pagehide 销毁探针为显式事件派发，原生隐藏另有独立证据。Phaser 自身 document visibility／window onblur/onfocus 的遗留行为单列，完整页面销毁回收，不声称已修改第三方。 |
 | E06 回归与报告 | PASS：专项 5/5、全量 196/196、生产构建、生产 Chrome 14 组检查、旧默认移动／跳跃／B 对话冒烟、差异格式检查。旧 H5 focus FAIL 未重跑或追改。 |
-| E07 证据分级 | 桌面 Chrome 1280×720 PASS；触屏模拟 844×390、旋转 390×844 PASS；真实 Android／iOS NOT RUN；负责人方向／美术／新玩家时长试玩 NOT RUN。 |
+| E07 证据分级 | 桌面 Chrome 1280×720 PASS；触屏模拟 844×390 PASS；真实 Android／iOS NOT RUN；负责人方向／美术／新玩家时长试玩 NOT RUN。 |
 
 实际命令与退出码（均为 0）：
 
@@ -459,7 +563,7 @@ git diff --check
 
 最终生产证据：[report.json](test-results/exp-01/run-2026-11-19T11-30-53-621Z/report.json)，SHA-256 `9a1ba51bb0a3f5ce0bd560246ccefb21a69192f81a9854299e4de12560274d14`，Chrome `157.0.8103.79`。报告包括全部源码／脚本／产物哈希、真实按键／触屏操作路径、原生 visibility 轨迹、指针真实 ID／isTrusted、截图与自有测试 Chrome PID `28140`／HTTP 服务回收 PASS。当前产物 `index-D6rB0Iza.js` SHA-256 `bf67942b95871d09fe62ed06e5c37d73d3339d2d8208a2a8c57547a13a8ea6d7`。全量日志 [npm-test-resize-final.log](test-results/exp-01/npm-test-resize-final.log)、[build-resize-final.log](test-results/exp-01/build-resize-final.log)；构建保留既有大包体积提示与 npm 配置提示，非退出失败。
 
-实机截图：[街区](test-results/exp-01/run-2026-11-19T11-30-53-621Z/01-street-first.png)、[室内](test-results/exp-01/run-2026-11-19T11-30-53-621Z/03-room.png)、[取物](test-results/exp-01/run-2026-11-19T11-30-53-621Z/04-item.png)、[开路／观景](test-results/exp-01/run-2026-11-19T11-30-53-621Z/05-open-view.png)、[触屏室内](test-results/exp-01/run-2026-11-19T11-30-53-621Z/10-touch-room.png)、[竖屏](test-results/exp-01/run-2026-11-19T11-30-53-621Z/08-portrait.png)。第一版可操作街区截图另保留在 `test-results/exp-01/first-visible/street.png`。
+实机截图：[街区](test-results/exp-01/run-2026-11-19T11-30-53-621Z/01-street-first.png)、[室内](test-results/exp-01/run-2026-11-19T11-30-53-621Z/03-room.png)、[取物](test-results/exp-01/run-2026-11-19T11-30-53-621Z/04-item.png)、[开路／观景](test-results/exp-01/run-2026-11-19T11-30-53-621Z/05-open-view.png)、[触屏室内](test-results/exp-01/run-2026-11-19T11-30-53-621Z/10-touch-room.png)。第一版可操作街区截图另保留在 `test-results/exp-01/first-visible/street.png`。
 
 模块／资源所有权：`core/exploration*.ts` 是无 DOM／Phaser 的固定步二维脚底阻挡、地图／交互／任务权威及存档验证；同一 Runtime 在两图间共用进度，新建／读档才换 UUID。`progress.ts` 只增加显式 `exp01` 封闭目录与整体恢复，默认旧目录和拒绝关系不变。`platform/web/exploration*.ts` 持有键盘／Pointer 来源、UI、localStorage、可见性与菜单 Owner；`rendering/phaser/exploration.ts` 读取权威快照，持有一个 Game、当前 Layer 与 ResizeObserver。入口在 `main.ts` 独立分支，局部样式在 `style.css`；旧输入／PlayerMotor／Matter／事务／快照／Electron 算法与所有依赖、配置保持原状。
 
@@ -475,7 +579,7 @@ git diff --check
 | `run-2026-11-19T11-21-36-183Z` | FAIL：墙钟起停采样混入空闲 Tick；改持续按住期间取稳定 Tick 区间，并扩为八向逐项严格 3.5／Tick。 |
 | `run-2026-11-19T11-22-02-023Z`／`run-2026-11-19T11-23-03-682Z` | FAIL：捕获释放夹具先猜错浏览器 Pointer ID、后未触发 pending capture 处理；改读取实际 gotpointercapture ID，并发下一真实 pointermove。保留 cancel／lost capture 的原断言。 |
 | `run-2026-11-19T11-23-57-678Z` | FAIL：Canvas 故障注入过早破坏 Phaser 导入，未到预期回收阶段；注入限制为 EXP 根建立之后，最终启动失败回收通过。 |
-| `run-2026-11-19T11-25-46-955Z`／`run-2026-11-19T11-27-38-792Z` | 原脚本 PASS；后续截图复核发现旋转画布滞后一轮（视觉 FAIL，不改原报告）。最终补父容器 ResizeObserver 与双方向画布完整适配断言，`run-2026-11-19T11-30-53-621Z` PASS：横屏 660×390，竖屏 390×230.45 等比且无裁切。 |
+| `run-2026-11-19T11-25-46-955Z`／`run-2026-11-19T11-27-38-792Z` | 原脚本 PASS；后续截图复核发现旋转画布滞后一轮（视觉 FAIL，不改原报告）。最终补父容器 ResizeObserver 与双方向画布完整适配断言，`run-2026-11-19T11-30-53-621Z` PASS：画布等比且无裁切。 |
 
 正式设计正文交 Work；物件／对白／坐标／速度／横屏 UI 均为试制参数。最终物理、整章内容、收藏成就、真机和负责人方向验收未完成；不以本小样 PASS 推定比赛版完成。证据目录由 Git 忽略，但本地保留可直接审阅。
 
@@ -2774,7 +2878,7 @@ V05-B 宿主监听、Chrome Web／Electron 开发版／独立包 GUI、平台长
 
 2026-11-15 完成 H5-01 的受限原型实现与当前版本 Chrome 自动化验证。实现状态为 `BLOCKED（待 Work 审查）`：桌面 Chrome、Chrome 触屏模拟、输入与核心回归已经通过，但 H08 要求的真实手机尚未执行，因此不能把本任务标为全面 DONE，也不能宣称手机整关或最终双设备验收通过。
 
-首关仍使用 Phaser `1000×580` 逻辑画布和 `Scale.FIT`，世界、碰撞、固定步及任务规则不变。页面现在根据动态可用视口和 safe-area 计算显示区域，提供左右、跳跃和交互按钮，以及明确的触控呈现开关、暂停／继续和“完成对话”按钮。桌面默认保留键盘；触屏模式下可用多指同时移动和跳跃。只显示非阻断“建议横屏”，未锁方向、未禁竖屏、未新增方向暂停 Token。
+首关仍使用 Phaser `1000×580` 逻辑画布和 `Scale.FIT`，世界、碰撞、固定步及任务规则不变。页面现在根据动态可用视口和 safe-area 计算显示区域，提供左右、跳跃和交互按钮，以及明确的触控呈现开关、暂停／继续和“完成对话”按钮。桌面默认保留键盘；触屏模式下可用多指同时移动和跳跃。旧横版原型显示横屏建议。
 
 输入由单一 `InputSourceAggregator` 聚合键盘 code、pointerId 与控件代次，再经原 `core.key` 和 `PlayerMotor` 执行：
 
