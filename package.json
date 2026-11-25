@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Layered City Adventures: a 2D platform exploration adventure in a fictional layered mountain city.",
+  "description": "A 2D top-down exploration adventure in a fictional hillside city.",
   "main": "dist-electron/main.js",
   "engines": {
     "node": ">=22.12.0"

@@ -11,8 +11,37 @@ const lowerBuildings=[{...wood,y:80,h:460},{x:500,y:280,w:360,h:260,name:'檐下
 const street=(name:string,buildings:ExplorationMapDefinition['buildings'],extra:readonly Rect[]):ExplorationMapDefinition=>({
   name,width:2200,height:1300,outdoor:true,bounds:{x:60,y:220,w:2080,h:1000},buildings,walls:[...buildings,...extra],
 });
+// Two coordinate views of the same west staircase. Y increases downhill in
+// both views; the same section of stair crosses the map seam at these depths.
+export const WEST_STREET_JOIN = {
+  x: 250, halfWidth: 48,
+  upperY: 990, middleY: 410,
+  down: 'west-down', up: 'middle-west-upper',
+  middleSafe: 'cMiddleWest', upperSafe: 'cUpperWest',
+} as const;
+export const UPPER_EAST_STAIR_X = 2000;
+export const UPPER_STREET_EDGE_Y = 800;
+export const UPPER_STAIR_LANDING_Y = 880;
+export const UPPER_STAIR_END_Y = 1040;
+export const UPPER_STAIR_RAIL_HALF_WIDTH = 60;
+export const UPPER_SHOP_DISPLAYS = [
+  {x:1105,y:503,w:66,h:23},
+  {x:1757,y:534,w:66,h:17},
+] as const;
+// Two stair cuts in the same bank. The ledge above the cuts still serves
+// the west side door; the painted valley below the ledge is solid terrain.
+const upperStairFlanks = [
+  {x:60,w:WEST_STREET_JOIN.x-UPPER_STAIR_RAIL_HALF_WIDTH-60},
+  {x:WEST_STREET_JOIN.x+UPPER_STAIR_RAIL_HALF_WIDTH,w:420-WEST_STREET_JOIN.x-UPPER_STAIR_RAIL_HALF_WIDTH},
+  {x:UPPER_EAST_STAIR_X+UPPER_STAIR_RAIL_HALF_WIDTH,w:2140-UPPER_EAST_STAIR_X-UPPER_STAIR_RAIL_HALF_WIDTH},
+].map(r=>({...r,y:UPPER_STAIR_LANDING_Y,h:UPPER_STAIR_END_Y-UPPER_STAIR_LANDING_Y}));
 export const C_MAPS=Object.freeze({
-  upper:street('上街 · 屋檐与悬挑廊',upperBuildings,[{x:60,y:1040,w:2080,h:180},{x:420,y:800,w:1520,h:240}]),
+  upper:street('上街 · 屋檐与悬挑廊',upperBuildings,[
+    {x:60,y:UPPER_STAIR_END_Y,w:2080,h:180},
+    {x:420,y:UPPER_STREET_EDGE_Y,w:1520,h:UPPER_STAIR_END_Y-UPPER_STREET_EDGE_Y},
+    ...upperStairFlanks,
+    ...UPPER_SHOP_DISPLAYS,
+  ]),
   middle:street('中街 · 穿楼院落与市集',middleBuildings,[{x:60,y:1080,w:130,h:140},{x:310,y:1080,w:1630,h:140},{x:2060,y:1080,w:80,h:140}]),
   lower:street('下街 · 吊脚支柱与生活檐廊',lowerBuildings,[{x:60,y:1160,w:2080,h:60},{x:1020,y:280,w:70,h:260},{x:1150,y:280,w:70,h:260}]),
   guide:{name:'临江导览楼 · 1F 中街接待',width:1100,height:650,outdoor:false,bounds:{x:180,y:220,w:740,h:380},buildings:[],walls:[{x:440,y:320,w:200,h:70},{x:300,y:260,w:80,h:35}]},
@@ -42,6 +71,7 @@ export const C_SAFE=Object.freeze({
   cMiddleDownEast:{map:'middle',x:2000,y:1010},cLowerEast:{map:'lower',x:2000,y:650},
   cLowerRiver:{map:'lower',x:1950,y:1050},cMiddleGate:{map:'middle',x:1900,y:990},
 } as const);
+
 export const C_TARGETS:readonly ExplorationTarget[]=Object.freeze([
   {id:'guide-door',map:'upper',x:710,y:550,label:'进入导览楼2F',destination:'cGuide2Door'},
   {id:'guide-upper-exit',map:'guide2',x:1100,y:740,label:'从2F出上街',destination:'cGuideH3'},

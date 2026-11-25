@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {EXP_MAPS,EXP_TARGETS,type Building} from '../../core/exploration-content';
-import {PROLOGUE_MONUMENT} from '../../core/exploration-prologue';
+import {PROLOGUE_INFILL,PROLOGUE_MONUMENT} from '../../core/exploration-prologue';
 import {drawTopDownBuilding, drawTopDownRoom} from './exploration-topdown-art';
 import {stoneTiles, lightPool} from './exploration-paint';
 import {ambient, glowLayer, pool, halo, doorSpill} from './exploration-lighting';
@@ -28,6 +28,13 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
   };
   const modern=(b:Building)=>{
     const g=scene.add.graphics().setDepth(b.y+b.h);layer.add(g);
+    if(PROLOGUE_INFILL.includes(b)){
+      drawTopDownBuilding(g,b,{
+        roof:0x556063,ridge:0x323d40,wall:0x323d45,eave:0xc9c0a8,ground:0x98a49e,
+        door:0xe8d0a4,facade:0xcbba98,facadeLine:0x8a7f66,fhCap:92,fhRatio:0.5,
+      });
+      return;
+    }
     lightPool(g,b.x+b.w/2,b.y+b.h+12,92,24);
     // The bookshop reads taller than its neighbours: roof down to two thirds of the
     // wall, which stops a single-storey shop from looking like it wears a hat.
@@ -67,7 +74,9 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
       propTop:0xa8875a,propEdge:0x59422e,propLine:0x3c2d1e,
     });
     rect(base,247,269,66,43,0xead9a8);base.lineStyle(3,0x467d85);base.lineBetween(258,296,299,279);base.strokeCircle(260,295,5);base.strokeCircle(299,279,5);
-    label(280,245,'导览／操作提示',17,'#fff0c5',1600);label(550,92,'游客服务小店',25);label(550,470,'先观察，再主动交互',18,'#ffe4ad',1600);link(760,546,'返回服务店门口');
+    label(280,245,'导览／操作提示',17,'#fff0c5',1600);label(550,92,'游客服务小店',25);label(550,470,'先观察，再主动交互',18,'#ffe4ad',1600);
+    const exit=EXP_TARGETS.find(target=>target.id==='service-exit');
+    if(exit)link(exit.x,exit.y,exit.label);
     // Interior lamp: one warm pool over the counter, corners left to go dark.
     ambient(scene,layer,m.width,m.height,{base:0x2a1a0a,alpha:0.09,hazeAlpha:0});
     const gl=glowLayer(scene,layer);
@@ -124,19 +133,6 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     base.fillStyle(0x77807f, 0.24);
     base.fillRect(60, 978, 3180, 282);
     rect(base,2830,595,380,700,0xa4a795);
-    // Low back-row houses filling the gaps between the frontage shops. They sit
-    // behind the front line (shallower depth) so the row reads continuous from
-    // the street without putting an invisible blocker where people walk.
-    const infill=(x:number,w:number,y:number,h:number)=>{
-      const g=scene.add.graphics().setDepth(y+h);layer.add(g);
-      drawTopDownBuilding(g,{x,y,w,h},{
-        roof:0x556063,ridge:0x323d40,wall:0x323d45,eave:0xc9c0a8,ground:0x98a49e,
-        door:0xe8d0a4,facade:0xcbba98,facadeLine:0x8a7f66,fhCap:92,fhRatio:0.5,
-      });
-    };
-    infill(2126,194,400,160);
-    infill(2816,94,420,140);
-    infill(1466,234,380,180);
     m.buildings.forEach(modern);
     const deco=(y:number,fn:(gg:Phaser.GameObjects.Graphics)=>void)=>{const gg=scene.add.graphics().setDepth(y);layer.add(gg);fn(gg);};
     deco(560,g=>{hangingBoard(g,1660,470,26,86,0x2f4a4c);hangingBoard(g,2280,470,26,86,0x5a3630);hangingBoard(g,2870,440,24,78,0x3c4a36);});
@@ -150,7 +146,6 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     // Square furniture around the monument, so the walk in from the gate has something to look at.
     deco(1014,g=>{bench(g,556,1014,74);});
     deco(985,g=>{bench(g,984,985,68);});
-    deco(890,g=>{kiosk(g,898,890,94,54);});
     deco(800,g=>{streetTree(g,1078,800,1.05);});
     // People near the monument, so the square the player first lands in is inhabited.
     deco(762,g=>{passerby(g,626,762,0x47405a);});
@@ -212,7 +207,11 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
         }
         for(let x=w.x+40;x<w.x+w.w-10;x+=52){g.fillStyle(0xcc7f63);g.fillCircle(x,w.y+w.h*0.4,3);}
       }
-      else {
+      else if(i===1){
+        // The kiosk now occupies an existing solid footprint, clear of the first
+        // investigation target. Its front edge and depth use the same rectangle.
+        kiosk(g,w.x,w.y+w.h,w.w,w.h);
+      }else {
         // Stone planter full of shrubs, the sort that edges a public square.
         g.fillStyle(0x000000,0.14);g.fillRect(w.x+4,w.y+5,w.w,w.h);
         rect(g,w.x,w.y,w.w,w.h,0x8e8c7c);

@@ -5,14 +5,15 @@ import {test} from 'node:test';
 import {ExplorationRuntime,emptyExplorationSave,validateExplorationSave,migrateExp03BSave,migrateExp02CSave,migrateExp02BSave,migrateExp02ASave} from '../src/core/exploration.ts';
 import {EXP_MAPS,EXP_SAFE,EXP_PRE05_SAFE,EXP_TARGETS,EXP03B_CONTENT_VERSION,EXP02C_CONTENT_VERSION,EXP02B_CONTENT_VERSION,EXP02A_CONTENT_VERSION} from '../src/core/exploration-content.ts';
 import {PHOTO_SITES} from '../src/core/exploration-photo.ts';
+import {FERRY_SAFE} from '../src/core/exploration-ferry.ts';
 import {InMemoryRunProgress,EXP02A_PROGRESS_CONTENT as P,EXP02B_PROGRESS_CONTENT as Q} from '../src/core/progress.ts';
 import {MEMENTO_COLLECTION_IDS,MEMENTO_COMPLETION as M} from '../src/core/exploration-mementos.ts';
 import {ExplorationStorage,EXP_STORAGE_KEY,EXP_03B_STORAGE_KEY} from '../src/platform/web/exploration-storage.ts';
 function opened(safe='cMiddleEast',photo=false,all=false){const p=new InMemoryRunProgress('exp03b');p.completeGoal(P.accepted);p.completeGoal(P.clue);p.recordCollection(P.item);p.completeGoal(P.unlocked);if(photo){p.completeGoal(P.completed);p.completeGoal(Q.photographed);}if(all){for(const id of MEMENTO_COLLECTION_IDS)p.recordCollection(id);p.completeGoal(M.goal);}return {...emptyExplorationSave(),safe,progress:p.snapshot,observedSites:photo?['river']:[],photo:photo?{cardId:'card.exp02b.night-for-faraway',siteId:'river'}:null};}
 import {coreDriver as drive} from './exploration-floor-routes.mjs';
 test('S01 C routes paired, original rooms and all current anchors clear, lower admission remains closed',()=>{
- assert.equal(Object.keys(EXP_MAPS).length,15);assert.equal(Object.keys(EXP_SAFE).length,43);assert.equal(Object.keys(EXP_PRE05_SAFE).length,19);
- for(const safe of Object.keys(EXP_SAFE)){const d=drive(opened(safe)),before=d.r.snapshot.position;d.r.move(1,0);d.r.frame(20);assert.ok(d.r.snapshot.position.x>before.x,safe);}
+ assert.equal(Object.keys(EXP_MAPS).length,16);assert.equal(Object.keys(EXP_SAFE).length,46);assert.equal(Object.keys(EXP_PRE05_SAFE).length,19);
+ for(const safe of Object.keys(EXP_SAFE)){const d=drive(opened(safe,Object.hasOwn(FERRY_SAFE,safe))),before=d.r.snapshot.position;d.r.move(1,0);d.r.frame(20);assert.ok(d.r.snapshot.position.x>before.x,safe);}
  for(const [safe,portal,map,back,destination] of [['cUpperEast','east-down','middle','middle-east-upper','cUpperEast'],['cUpperWest','west-down','middle','middle-west-upper','cUpperWest'],['cLowerEast','east-up','middle','middle-east-lower','cLowerEast'],['cLowerWest','west-up','middle','middle-west-lower','cLowerWest'],['cLowerRiver','riverfront-down','riverfront','riverfront-up','cLowerRiver'],['serviceDoor','service-door','service','service-exit','serviceDoor']]){const d=drive(opened(safe));d.use(portal);assert.equal(d.r.snapshot.map,map);const id=d.r.id;d.step(5);d.use(back);assert.equal(d.r.save.safe,destination);assert.equal(d.r.id,id);}
  for(const safe of ['cLowerEast','cLowerWest','cTeaRoom','cLanternRoom','riverArrival','riverView'])assert.equal(validateExplorationSave({...emptyExplorationSave(),safe}),undefined);
  const d=drive({...emptyExplorationSave(),safe:'cUpperWest'});d.use('west-down');d.use('middle-west-lower');d.r.closeDialogue();assert.equal(d.r.snapshot.map,'middle');assert.equal(d.r.snapshot.unlocked,false);

@@ -3,20 +3,61 @@ import {test} from 'node:test';
 import {createHash} from 'node:crypto';
 import {ExplorationRuntime,emptyExplorationSave,validateExplorationSave,migrateExp05BSave,migrateExp05ASave,migrateExp03BSave,migrateExp02CSave,migrateExp02BSave,migrateExp02ASave} from '../src/core/exploration.ts';
 import {EXP_MAPS,EXP_SAFE,EXP_TARGETS,EXP05B_SAFE,EXP05A_SAFE,EXP_PRE05_SAFE,EXP_LEGACY_SAFE,EXP05B_CONTENT_VERSION,EXP05A_CONTENT_VERSION,EXP03B_CONTENT_VERSION,EXP02C_CONTENT_VERSION,EXP02B_CONTENT_VERSION,EXP02A_CONTENT_VERSION,explorationWalls,segmentHitsRect} from '../src/core/exploration-content.ts';
-import {C_OLD_SAFE_MAP} from '../src/core/exploration-c-routes.ts';
+import {C_OLD_SAFE_MAP,UPPER_SHOP_DISPLAYS,UPPER_STAIR_LANDING_Y,WEST_STREET_JOIN} from '../src/core/exploration-c-routes.ts';
 import {InMemoryRunProgress,EXP02A_PROGRESS_CONTENT as P,EXP02B_PROGRESS_CONTENT as Q} from '../src/core/progress.ts';
 import {MEMENTO_COLLECTION_IDS,MEMENTO_COMPLETION as M} from '../src/core/exploration-mementos.ts';
 import {PHOTO_SITES,PHOTO_METADATA} from '../src/core/exploration-photo.ts';
+import {FERRY_SAFE} from '../src/core/exploration-ferry.ts';
 import {ExplorationStorage,EXP_STORAGE_KEY,EXP_05B_STORAGE_KEY} from '../src/platform/web/exploration-storage.ts';
 import {coreDriver} from './exploration-floor-routes.mjs';
 export function stage(safe='cArrival',which='open',all=false){const p=new InMemoryRunProgress('exp03b');if(which!=='empty'){p.completeGoal(P.accepted);p.completeGoal(P.clue);p.recordCollection(P.item);p.completeGoal(P.unlocked);}if(which==='photo'){p.completeGoal(P.completed);p.completeGoal(Q.photographed);}if(all){for(const id of MEMENTO_COLLECTION_IDS)p.recordCollection(id);p.completeGoal(M.goal);}return {...emptyExplorationSave(),safe,progress:p.snapshot,observedSites:which==='photo'?['river']:[],photo:which==='photo'?PHOTO_METADATA:null};}
 const mapped=safe=>C_OLD_SAFE_MAP[safe]??safe;
 const port=entries=>{const values=new Map(entries);return{values,getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v),removeItem:()=>assert.fail('archive removal')};};
 
+test('West street connects on continuous foot travel in either direction, within the staircase width',()=>{
+ const join=WEST_STREET_JOIN;
+ const d=coreDriver(stage(join.upperSafe,'empty'));
+ d.move(1,0,7);
+ const x=d.r.snapshot.position.x;
+ d.r.move(0,1);
+ d.step(13);
+ assert.equal(d.r.snapshot.map,'middle');
+ assert.equal(d.r.snapshot.walkedAcrossStreet,true);
+ assert.deepEqual(d.r.snapshot.position,{x,y:join.middleY+5.5});
+ assert.equal(d.r.save.safe,join.middleSafe);
+ d.step(7);
+ assert.ok(d.r.snapshot.position.y>join.middleY+28);
+ assert.equal(d.r.snapshot.mapRevision,1);
+ d.move(0,-1,10);
+ assert.equal(d.r.snapshot.map,'upper');
+ assert.equal(d.r.save.safe,join.upperSafe);
+ assert.equal(d.r.snapshot.position.x,x);
+ assert.equal(d.r.snapshot.unlocked,false);
+ assert.deepEqual(d.r.snapshot.progress,stage(join.upperSafe,'empty').progress);
+ const side=coreDriver(stage(join.upperSafe,'empty'));
+ side.to(350,850);
+ side.move(0,1,30);
+ assert.equal(side.r.snapshot.map,'upper');
+ assert.equal(side.r.snapshot.revision,0);
+ assert.ok(side.r.snapshot.position.y<=UPPER_STAIR_LANDING_Y-12);
+ side.use('wrong-gate');
+ assert.ok(side.r.snapshot.dialogue);
+});
+
+test('Upper street shop displays block the traveller at the drawn counter footprint',()=>{
+ const d=coreDriver(stage('cGuideH3','empty'));
+ for(const counter of UPPER_SHOP_DISPLAYS){
+  const bottom=counter.y+counter.h;
+  d.to(counter.x+counter.w/2,600);
+  d.move(0,-1,45);
+  assert.ok(d.r.snapshot.position.y>=bottom+12 && d.r.snapshot.position.y<bottom+18);
+ }
+});
+
 test('C01 every current safe clears foot; each portal walks, goes and returns to its own side without held bounce',()=>{
- assert.equal(Object.keys(EXP_MAPS).length,15);assert.equal(Object.keys(EXP05B_SAFE).length,31);
+ assert.equal(Object.keys(EXP_MAPS).length,16);assert.equal(Object.keys(EXP05B_SAFE).length,31);
  assert.equal(new Set(EXP_TARGETS.map(t=>t.id)).size,EXP_TARGETS.length);
- for(const [safe,p] of Object.entries(EXP_SAFE)){const d=coreDriver(stage(safe));assert.deepEqual(d.r.snapshot.position,{x:p.x,y:p.y});d.to(p.x+20,p.y);d.to(p.x,p.y);}
+ for(const [safe,p] of Object.entries(EXP_SAFE)){const d=coreDriver(stage(safe,Object.hasOwn(FERRY_SAFE,safe)?'photo':'open'));assert.deepEqual(d.r.snapshot.position,{x:p.x,y:p.y});d.to(p.x+20,p.y);d.to(p.x,p.y);}
  for(const t of EXP_TARGETS.filter(t=>t.destination)){
   const source=Object.keys(EXP_SAFE).find(k=>EXP_SAFE[k].map===t.map);assert.ok(source,t.id);
   const d=coreDriver(stage(source));d.target(t.id);d.r.interact(true);assert.equal(d.r.save.safe,t.destination);const landed=d.r.snapshot;d.step(5);assert.equal(d.r.snapshot.map,landed.map);d.r.interact(false);
@@ -28,7 +69,7 @@ test('C01 C02 early exterior and two building routes cross H3/H2; all outgoing H
  const routes=[['cUpperWest',['west-down','middle-west-upper']],['cGuideH3',['guide-door','guide-down','guide-exit','guide-middle-door','guide-up','guide-upper-exit']],['cWoodH3',['workshop-upper-door','workshop-down-2','workshop-middle-exit','workshop-middle-door','workshop-up-3','workshop-upper-exit']]];
  for(const [safe,ids] of routes){const d=coreDriver({...emptyExplorationSave(),safe});for(const id of ids)d.use(id);assert.equal(d.r.snapshot.accepted,false);assert.equal(d.r.snapshot.unlocked,false);}
  const market=coreDriver({...emptyExplorationSave(),safe:'cMarketWest'});for(const id of ['market-west-door','market-east-exit'])market.use(id);assert.equal(market.r.save.safe,'cMarketEast');assert.notDeepEqual(EXP_SAFE.cMarketWest,EXP_SAFE.cMarketEast);market.use('market-east-door');market.use('market-west-exit');
- const early=Object.keys(EXP_SAFE).filter(k=>!['lower','tea','lantern','riverfront'].includes(EXP_SAFE[k].map));
+ const early=Object.keys(EXP_SAFE).filter(k=>!['lower','tea','lantern','riverfront','ridge'].includes(EXP_SAFE[k].map));
  for(const safe of early)assert.ok(validateExplorationSave({...emptyExplorationSave(),safe}),safe);
  for(const t of EXP_TARGETS.filter(t=>t.destination&&['lower','tea','lantern','riverfront'].includes(EXP_SAFE[t.destination].map))){assert.equal(t.locked,true,t.id);if(!['lower','tea','lantern','riverfront'].includes(t.map)){const safe=early.find(k=>EXP_SAFE[k].map===t.map),d=coreDriver({...emptyExplorationSave(),safe});d.use(t.id);assert.equal(d.r.snapshot.map,t.map);assert.equal(d.r.snapshot.unlocked,false);d.r.closeDialogue(false);}}
  // Actual movement at both exterior openings meets the same closed barrier.

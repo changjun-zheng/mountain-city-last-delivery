@@ -12,14 +12,19 @@ const cityBuildings:readonly Building[]=[
   {x:2910,y:280,w:250,h:250,name:'巷口商铺',kind:'city'},
   {x:2850,y:1050,w:330,h:220,name:'过渡街巷',kind:'city'},
 ];
+export const PROLOGUE_INFILL:readonly Building[]=[
+  {x:2126,y:400,w:194,h:160,name:'街后人家',kind:'city'},
+  {x:2816,y:420,w:94,h:140,name:'坡地民居',kind:'city'},
+  {x:1466,y:380,w:234,h:180,name:'巷后小院',kind:'city'},
+];
 const entryBuildings:readonly Building[]=[
   {x:420,y:250,w:420,h:240,name:'入口街廊',kind:'city'},
   {x:1400,y:260,w:330,h:230,name:'观景平台服务点',kind:'city'},
   {x:1800,y:400,w:260,h:140,name:'东侧门廊',kind:'city'},
 ];
 export const PROLOGUE_MAPS:Readonly<Record<'plaza'|'entry'|'service',ExplorationMapDefinition>>=Object.freeze({
-  plaza:{name:'解放碑 · 城市序章',width:3300,height:1500,outdoor:true,bounds:{x:60,y:180,w:3180,h:1260},buildings:cityBuildings,
-    walls:[...cityBuildings,PROLOGUE_MONUMENT,{x:300,y:1050,w:220,h:90},{x:1000,y:1060,w:170,h:90},{x:450,y:550,w:180,h:65}]},
+  plaza:{name:'解放碑 · 城市序章',width:3300,height:1500,outdoor:true,bounds:{x:60,y:180,w:3180,h:1260},buildings:[...cityBuildings,...PROLOGUE_INFILL],
+    walls:[...cityBuildings,...PROLOGUE_INFILL,PROLOGUE_MONUMENT,{x:300,y:1050,w:220,h:90},{x:1000,y:1060,w:170,h:90},{x:450,y:550,w:180,h:65}]},
   entry:{name:'沧白路 · 洪崖洞高处入口',width:2200,height:1300,outdoor:true,bounds:{x:60,y:230,w:2080,h:1000},buildings:entryBuildings,
     walls:[...entryBuildings,{x:60,y:980,w:2080,h:250}]},
   service:{name:'解放碑 · 游客服务小店',width:1100,height:650,outdoor:false,bounds:{x:160,y:240,w:780,h:360},buildings:[],

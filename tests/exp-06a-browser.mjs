@@ -12,12 +12,12 @@ import {chromium} from 'playwright-core';
 import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './browser-selection.mjs';
 
 const args=process.argv.slice(2);
-if(!args.includes('--production')||args.some(a=>a!=='--production'&&a!=='--probe-only'&&a!=='--spatial-only'&&a!=='--spatial-lower-only'&&!a.startsWith('--browser=')))throw new Error('Use --production --browser=chrome');
+if(!args.includes('--production')||args.some(a=>a!=='--production'&&a!=='--probe-only'&&a!=='--spatial-only'&&a!=='--spatial-lower-only'&&a!=='--journey-only'&&!a.startsWith('--browser=')))throw new Error('Use --production --browser=chrome');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
 const dir=resolve('test-results/exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
-const report={task:'EXP-06A',scope:args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
+const report={task:args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
   browser:{...selection},layers:{desktopChrome:'NOT RUN',touchEmulation:'NOT RUN',androidChrome:'NOT RUN',iosSafari:'NOT RUN',directionReview:'NOT RUN'},
   checks:[],timeline:[],screenshots:[],pageErrors:[],networkErrors:[],cleanup:{},hashes:{},protectedHashes:{},actualDist:{},historicalFailures:[],
@@ -56,7 +56,7 @@ else {
 }
 report.origin={url:base,probe4199:probe,mode:probe.status===200?'external-4199':'test-owned-fallback',pid:Number(process.env.EXP_03C_SERVICE_PID||0)||undefined};
 
-let browser,active,nativeProcess,nativeBrowser;
+let browser,active,nativeProcess,nativeBrowser,headlessProcess;
 const contexts=[];
 const state=page=>page.locator('#exp-root').evaluate(e=>{const g=document.querySelector('#exp-stage').dataset;return{...e.dataset,x:Number(e.dataset.x),y:Number(e.dataset.y),tick:Number(e.dataset.tick),tokens:Number(e.dataset.tokens),cameraX:Number(g.cameraX),cameraY:Number(g.cameraY),mapObjects:Number(g.mapObjects),zoom:Number(g.zoom)};});
 const wait=async(page,predicate,arg)=>page.waitForFunction(predicate,arg,{timeout:20000,polling:'raf'});
@@ -185,7 +185,13 @@ async function nativeFloorHidden(){
 }
 
 async function mainRoute(page){
- await page.goto(base);await loaded(page);assert.equal((await state(page)).view,'title');assert.equal((await state(page)).map,'plaza');await page.locator('#exp-begin').click();const runtime=(await state(page)).runtimeId,started=Date.now();
+ await page.goto(base);await loaded(page);assert.equal((await state(page)).view,'title');assert.equal((await state(page)).map,'plaza');
+ await page.locator('#exp-begin').click();
+ assert.equal((await state(page)).view,'intro');assert.equal((await state(page)).tokens,1);
+ assert.match(await page.locator('#exp-intro').innerText(),/沧白路栏边/);
+ await page.locator('#exp-intro-start').click();
+ assert.equal((await state(page)).view,'play');
+ const runtime=(await state(page)).runtimeId,started=Date.now();
  await walkRoute(page,[[1250,790],[1250,650],[3060,650],[3060,900],[3120,900],'city-to-entry',[1100,850],[1100,800],'visitor']);await closeDialogue(page);await walkRoute(page,[[2000,800],[2000,780],'entry-to-core']);
  await walkRoute(page,[[710,690],[710,560],'guide-door',[950,700],[950,350],'note']);await closeDialogue(page);await shot(page,'main-guide2');await walkRoute(page,G2_DOWN);assert.equal((await state(page)).safe,'cGuideH2');await shot(page,'main-middle-guide');
  await walkRoute(page,[[810,560],[810,740],'market-west-door',[1080,600],'market-east-exit',[1290,600],[1620,600],[1620,570],'workshop-middle-door',[1100,700],[1080,700],'workshop-up-3']);
@@ -195,17 +201,128 @@ async function mainRoute(page){
  await walkRoute(page,[[680,570],'tea-door',[800,540],[800,330],'window']);await page.locator('#exp-shutter').click();assert.equal((await state(page)).photographed,'false');await page.locator('#exp-photo-close').click();await walkRoute(page,[[800,540],[540,540],'tea-exit',[680,650],[850,650],[850,1050],[1350,1050],'photo-eaves']);await page.locator('#exp-shutter').click();assert.equal((await state(page)).photographed,'false');await page.locator('#exp-photo-close').click();
  await walkRoute(page,[[1950,1050],'riverfront-down',[900,650],[900,1050],[1950,1050],'view']);await page.locator('#exp-shutter').click();assert.equal((await state(page)).cardOpen,'true');assert.equal((await state(page)).photographed,'true');assert.equal((await state(page)).runtimeId,runtime);assert.deepEqual(JSON.parse((await state(page)).mementos),[]);assert.equal(JSON.parse((await state(page)).progress).counts.rewards,1);await shot(page,'main-D-completion');const before=(await state(page)).progress;await page.locator('#exp-card-close').click();await interact(page,'view');await page.locator('#exp-shutter').click();assert.equal((await state(page)).progress,before);await page.locator('#exp-card-title').click();await page.locator('#exp-begin').click();assert.equal((await state(page)).runtimeId,runtime);await page.reload();await loaded(page);assert.equal((await state(page)).safe,'riverView');assert.equal((await state(page)).progress,before);await page.locator('#exp-begin').click();
  report.automationTiming={actualRootToCompletionWithChecksMs:Date.now()-started,note:'Scripted real keyboard route with assertions, not first-player chapter duration.'};record('C01 C02 C03 C05 blank A title to B, guide H3/H2, market two doors, wood H2/H3 and H3 exit, original middle gate, wood1 H1, wrong views and original D shutter once',{runtime,optionalMementos:0});report.layers.desktopChrome='PASS';
+ await rideAcross(page,1280,false);
+}
+
+async function follow(page,id,touch){
+ const before=await state(page);
+ assert.equal(before.routeTarget,id);
+ if(before.target!==id || Number(before.routePoints)>0){
+  await page.locator('#exp-auto-walk')[touch?'tap':'click']();
+  await wait(page,id=>{const s=document.querySelector('#exp-root').dataset;return s.target===id&&s.autoWalk==='false';},id);
+ }
+ assert.equal((await state(page)).dialogue,'false');
+}
+
+async function rideAcross(page,width,touch){
+ const press=async id=>page.locator(`#${id}`)[touch?'tap':'click']();
+ await follow(page,'ferry-out',touch);
+ await shot(page,`dock-${width}`);
+ await interact(page,'ferry-out');
+ assert.equal((await state(page)).pending,'ferry-out');
+ await press('exp-close');
+ assert.equal((await state(page)).map,'riverfront');
+ await wait(page,()=>Number(document.querySelector('#exp-root').dataset.ferryFraction)>.24);
+ await shot(page,`ferry-${width}`);
+ await press('exp-menu-button');
+ const fraction=(await state(page)).ferryFraction;
+ await page.waitForTimeout(180);
+ assert.equal((await state(page)).ferryFraction,fraction);
+ await press('exp-resume');
+ await wait(page,()=>document.querySelector('#exp-root').dataset.map==='ridge');
+ assert.equal((await state(page)).safe,'ridgeDock');
+ await shot(page,`arrival-${width}`);
+ await press('exp-menu-button');await press('exp-weather');
+ assert.equal((await state(page)).weather,'rain');
+ await wait(page,()=>Number(document.querySelector('#exp-stage').dataset.wetness)>.95);
+ await shot(page,`rain-${width}`);
+ await follow(page,'ridge-lookout',touch);
+ await shot(page,`lookout-${width}`);
+ await interact(page,'ridge-lookout');await press('exp-close');
+ await restore(page,'ridgeLookout',touch);
+ await press('exp-notes-toggle');await press('exp-track-bookmark');
+ await follow(page,'ferry-back',touch);
+ await interact(page,'ferry-back');await press('exp-close');
+ await wait(page,()=>document.querySelector('#exp-root').dataset.map==='riverfront');
+ await restore(page,'riverDock',touch);
+ record(`${width} docks, paused ferry, ridge uphill, two light states, landmark and return/reload`,{touch});
+}
+
+async function journeyProbe(){
+ const page=await newPage({viewport:{width:1280,height:760}});
+ await page.goto(base);await loaded(page);await shot(page,'title');
+ await page.locator('#exp-begin').click();await shot(page,'intro');
+ await page.locator('#exp-intro-start').click();
+ await page.locator('#exp-auto-walk').click();
+ await wait(page,()=>document.querySelector('#exp-root').dataset.autoWalk==='true');
+ await page.keyboard.down('ShiftLeft');await page.keyboard.down('KeyD');
+ await wait(page,()=>document.querySelector('#exp-stage').dataset.gait==='slow');
+ assert.equal((await state(page)).autoWalk,'false');
+ await page.keyboard.up('ShiftLeft');
+ await wait(page,()=>document.querySelector('#exp-stage').dataset.gait==='brisk');
+ await page.keyboard.up('KeyD');
+ await follow(page,'city-monument',false);await interact(page,'city-monument');await closeDialogue(page);
+ await page.locator('#exp-notes-toggle').click();
+ assert.equal(await page.locator('#exp-track-sketch').isDisabled(),true);
+ await shot(page,'journal');
+ await page.locator('#exp-track-none').click();assert.equal((await state(page)).routePoints,'0');
+ await page.locator('#exp-notes-toggle').click();await page.locator('#exp-track-main').click();
+ await follow(page,'city-to-entry',false);await interact(page,'city-to-entry');
+ await follow(page,'visitor',false);await interact(page,'visitor');await closeDialogue(page);
+ assert.equal((await state(page)).accepted,'true');
+ await shot(page,'entry');await page.close();
+ record('Fresh opening, optional main tracking, disabled locked task, manual cancel and distinct slow/brisk motion');
+ const locked=await currentPage(fixture('riverView'));
+ await walk(locked,2180,1102);await interact(locked,'ferry-out');
+ assert.equal((await state(locked)).pending,'');
+ assert.match(await locked.locator('#exp-dialogue-text').innerText(),/等你拍好/);
+ await closeDialogue(locked);assert.equal((await state(locked)).ferry,'');
+ await shot(locked,'locked-dock');await locked.close();
+ record('Locked crossing stays on the near bank before the photograph');
+ for(const size of [{width:844,height:390},{width:667,height:375}]){
+  const touchPage=await currentPage(fixture('riverView',true),size,true);
+  await touchPage.locator('#exp-auto-walk').tap();
+  const start=(await state(touchPage)).x;
+  await axis(touchPage,'x',start-28);
+  assert.equal((await state(touchPage)).autoWalk,'false');
+  await rideAcross(touchPage,size.width,true);
+  await touchPage.close();
+ }
+ report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
+}
+
+async function startChrome(){
+ const profile=join(dir,'chrome-profile');await mkdir(profile);
+ headlessProcess=spawn(selection.executablePath,['--headless=new','--remote-debugging-port=0',`--user-data-dir=${profile}`,'--no-first-run','--no-default-browser-check','about:blank'],{stdio:['ignore','ignore','pipe'],windowsHide:true});
+ const endpoint=await new Promise((resolve,reject)=>{
+  const timer=setTimeout(()=>reject(new Error('Chrome CDP endpoint did not become available')),15000);
+  let stderr='';
+  headlessProcess.once('exit',code=>{clearTimeout(timer);reject(new Error(`Chrome exited before CDP attached (${code})`));});
+  headlessProcess.once('error',error=>{clearTimeout(timer);reject(error);});
+  headlessProcess.stderr.on('data',chunk=>{
+   stderr=(stderr+String(chunk)).slice(-4096);
+   const match=stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/);
+   if(match){clearTimeout(timer);resolve(match[1]);}
+  });
+ });
+ return chromium.connectOverCDP(endpoint,{noDefaults:true});
 }
 try{
- browser=await chromium.launch({executablePath:selection.executablePath,headless:true});const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(args.includes('--spatial-lower-only'))await spatialLower();
+ browser=await startChrome();const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
+ if(args.includes('--journey-only'))await journeyProbe();
+ else if(args.includes('--spatial-lower-only'))await spatialLower();
  else if(args.includes('--spatial-only'))await spatialFirst();
  else if(args.includes('--probe-only')){await touchBuildings();await dialogueProbe();await photoCloseProbe();await nativeFloorHidden();report.mainRoute='NOT RUN';}
  else{const page=await newPage({viewport:{width:1280,height:760}});await mainRoute(page);}
  assert.deepEqual(report.pageErrors,[]);assert.deepEqual(report.networkErrors,[]);record('C06 zero unexpected page/network errors and current execution fingerprints');
 }catch(error){report.failure={message:String(error),stack:error.stack};console.error(error);if(active&&!active.isClosed()){try{await shot(active,'FAIL');report.failureState=await state(active);report.failurePointerEvents=await active.evaluate(()=>window.__pointerEvents??[]);}catch(e){report.evidenceError=String(e);}}}
 finally{
- for(const c of contexts){try{await c.close();}catch(e){report.cleanup.contextError=String(e);}}report.cleanup.contexts=report.cleanup.contextError?'FAIL':'PASS';try{await browser?.close();report.cleanup.browser='PASS';}catch(e){report.cleanup.browser='FAIL';report.cleanup.error=String(e);}
+ for(const c of contexts){try{await c.close();}catch(e){report.cleanup.contextError=String(e);}}report.cleanup.contexts=report.cleanup.contextError?'FAIL':'PASS';
+ try{if(browser){const session=await browser.newBrowserCDPSession();await session.send('Browser.close');await browser.close();}report.cleanup.browser='PASS';}catch(e){report.cleanup.browser='FAIL';report.cleanup.error=String(e);}
+ if(headlessProcess&&headlessProcess.exitCode===null&&headlessProcess.signalCode===null){
+  await new Promise(resolve=>{const timer=setTimeout(resolve,1500);headlessProcess.once('exit',()=>{clearTimeout(timer);resolve();});});
+  if(headlessProcess.exitCode===null&&headlessProcess.signalCode===null)headlessProcess.kill();
+ }
  if(nativeBrowser){try{const session=await nativeBrowser.newBrowserCDPSession();await session.send('Browser.close');}catch{}await nativeBrowser.close().catch(()=>{});}if(nativeProcess){if(nativeProcess.exitCode===null)await new Promise(done=>{const timer=setTimeout(done,2000);nativeProcess.once('exit',()=>{clearTimeout(timer);done();});});if(nativeProcess.exitCode===null){nativeProcess.kill();await new Promise(done=>nativeProcess.once('exit',done));}report.cleanup.nativeChrome=nativeProcess.exitCode!==null||nativeProcess.signalCode!==null?'PASS':'FAIL';}
  if(localServer)await new Promise(done=>localServer.close(done));report.cleanup.server=localServer?'PASS':'EXTERNAL 4199 PRESERVED';report.cleanup.thirdParty='Phaser document-scope handlers reclaimed by page teardown; own AbortSignals checked separately.';report.finishedAt=new Date().toISOString();report.status=report.failure||Object.values(report.cleanup).includes('FAIL')?'FAIL':'PASS';await writeFile(join(dir,'report.json'),JSON.stringify(report,null,2));await writeFile(join(dir,'script-source.mjs'),await readFile('tests/exp-06a-browser.mjs'));await writeFile(join(dir,'report.sha256'),await sha(join(dir,'report.json')));console.log(report.status,report.task,dir);if(report.status==='FAIL')process.exitCode=1;
 }

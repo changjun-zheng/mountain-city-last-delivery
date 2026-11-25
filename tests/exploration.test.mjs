@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ExplorationRuntime, validateExplorationSave, emptyExplorationSave } from '../src/core/exploration.ts';
 import { EXP_SAFE } from '../src/core/exploration-content.ts';
+import { FERRY_SAFE } from '../src/core/exploration-ferry.ts';
 import { InMemoryRunProgress, EXP02A_PROGRESS_CONTENT as P, PROTOTYPE_PROGRESS_CONTENT } from '../src/core/progress.ts';
 import { ExplorationInputSources } from '../src/platform/web/exploration-input.ts';
 import { ExplorationStorage, EXP_STORAGE_KEY } from '../src/platform/web/exploration-storage.ts';
@@ -45,6 +46,7 @@ test('EXP E03 closed records, immutable targets, atomic validation and every unl
   assert.equal(progress.restore({...baseline,goals:[P.accepted,P.accepted],counts:{...baseline.counts,goals:2}}),false);assert.deepEqual(progress.snapshot,baseline);
   const full=new InMemoryRunProgress('exp02a');full.completeGoal(P.accepted);full.completeGoal(P.clue);full.recordCollection(P.item);full.completeGoal(P.unlocked);
   for(const [safe,point] of Object.entries(EXP_SAFE)){
+    if(Object.hasOwn(FERRY_SAFE,safe)){assert.equal(validateExplorationSave({...empty,safe,progress:full.snapshot}),undefined);continue;}
     const r=new ExplorationRuntime('safe',{...empty,safe,progress:full.snapshot});assert.equal(r.snapshot.map,point.map);r.move(1,1);r.frame(0);r.frame(20);assert.notDeepEqual(r.snapshot.position,{x:point.x,y:point.y});
   }
 });

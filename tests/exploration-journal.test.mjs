@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import{test}from'node:test';
 import{ExplorationRuntime,emptyExplorationSave}from'../src/core/exploration.ts';
-import{PHOTO_SITES}from'../src/core/exploration-photo.ts';
-import{projectExplorationJournal}from'../src/platform/web/exploration-journal.ts';
+import{PHOTO_SITES,PHOTO_METADATA}from'../src/core/exploration-photo.ts';
+import{InMemoryRunProgress,EXP02A_PROGRESS_CONTENT as P,EXP02B_PROGRESS_CONTENT as Q}from'../src/core/progress.ts';
+import{projectExplorationJournal,explorationDialogueAction}from'../src/platform/web/exploration-journal.ts';
 
 const fresh=new ExplorationRuntime('projection-only').snapshot;
 const model=changes=>projectExplorationJournal({...fresh,...changes});
@@ -28,4 +29,72 @@ test('EXP-03A U03 found view is not photographed completion; earned card only fo
 test('EXP-03A U03 repeated projection never mutates runtime, save, progress or its own later observations',()=>{
  const r=new ExplorationRuntime('read-only',emptyExplorationSave()),before=JSON.stringify(r.save);for(let i=0;i<10;i++)projectExplorationJournal(r.snapshot);assert.equal(JSON.stringify(r.save),before);
  const m=projectExplorationJournal({...r.snapshot,observations:[PHOTO_SITES.window]});m.observations[0].text='local mutation';assert.equal(PHOTO_SITES.window.observation.includes('local mutation'),false);assert.equal(r.snapshot.progress.counts.rewards,0);
+});
+
+// SHORT-DEMO-01: real validated save fixtures; no movement/commit shortcuts in runtime.
+function at(safe,flags={}){
+ const progress=new InMemoryRunProgress('exp03b');
+ for(const name of ['accepted','clue'])if(flags[name])progress.completeGoal(P[name]);
+ if(flags.item)progress.recordCollection(P.item);
+ for(const name of ['unlocked','completed'])if(flags[name])progress.completeGoal(P[name]);
+ if(flags.photographed)progress.completeGoal(Q.photographed);
+ return new ExplorationRuntime('short-demo',{...emptyExplorationSave(),safe,progress:progress.snapshot,observedSites:flags.photographed?['river']:[],photo:flags.photographed?PHOTO_METADATA:null});
+}
+const equipped={accepted:true,clue:true,item:true},opened={...equipped,unlocked:true};
+test('SHORT S01 new and pre-quest guidance uses reachable return floors without disclosing puzzle answers',()=>{
+ const start=at('chapterStart');assert.match(start.snapshot.objective,/纪念碑右侧/);
+ start.skipOnboarding();assert.match(start.snapshot.objective,/向东（右侧）/);
+ assert.match(at('serviceRoom').snapshot.objective,/返回步行街/);
+ assert.match(at('cGuideH3').snapshot.objective,/西口返回沧白路入口/);
+ assert.match(at('cGuide1Door').snapshot.objective,/出楼回中街/);
+ assert.match(at('cWood1Door').snapshot.objective,/上2F出中街/);
+ assert.match(at('cWood3Door').snapshot.objective,/本层门口回上街/);
+ for(const safe of ['chapterStart','cGuideH3','cGuide1Door','cWood1Door']){
+  const text=JSON.stringify(projectExplorationJournal(at(safe).snapshot));
+  for(const secret of ['两道水波','江纹栈门','江边开阔面'])assert.equal(text.includes(secret),false,secret);
+ }
+});
+test('SHORT S02 clue guidance follows the real guide entrance and floor, including item-first saves',()=>{
+ assert.match(at('cGuideH3',{accepted:true}).snapshot.objective,/导览楼2F/);
+ assert.match(at('cGuideH2',{accepted:true}).snapshot.objective,/1F.*2F/);
+ assert.match(at('cGuide1Door',{accepted:true}).snapshot.objective,/东侧楼梯上2F/);
+ assert.match(at('cGuide2Door',{accepted:true}).snapshot.objective,/2F东侧阅览桌/);
+ assert.match(at('cWood3Door',{accepted:true,item:true}).snapshot.objective,/查看楼层与纹样导览/);
+});
+test('SHORT S03 item and gate directions name the existing floors, without forcing one acquisition order',()=>{
+ const informed={accepted:true,clue:true};
+ assert.match(at('cWoodH2',informed).snapshot.objective,/木作楼2F.*3F/);
+ assert.match(at('cWood2Door',informed).snapshot.objective,/东侧楼梯上3F/);
+ assert.match(at('cWood3Door',informed).snapshot.objective,/绕过屏风/);
+ assert.match(at('cGuide2Door',equipped).snapshot.objective,/下1F出中街/);
+ assert.match(at('cWood3Door',equipped).snapshot.objective,/木作2F出中街/);
+ assert.match(at('cArrival',equipped).snapshot.objective,/中街东侧栈门/);
+});
+test('SHORT S04 known route goes into notebook but undiscovered photo answers do not',()=>{
+ const accepted=projectExplorationJournal(at('cArrival',{accepted:true}).snapshot);
+ assert.match(accepted.quest.text,/导览楼2F.*木作楼3F/);
+ assert.deepEqual(accepted.discoveries,[]);assert.deepEqual(accepted.observations,[]);
+ const ready=at('cMiddleGate',equipped).snapshot,book=projectExplorationJournal(ready);
+ assert.equal(book.direction,ready.objective);assert.match(book.direction,/中街东侧/);
+ assert.equal(JSON.stringify(book).includes('江边开阔面'),false);
+ assert.match(projectExplorationJournal(at('cMiddleGate',opened).snapshot).discoveries.at(-1).text,/木作1F门/);
+});
+test('SHORT S05 finding a view still requires shutter and never claims photographed completion',()=>{
+ const view=at('riverView',{...opened,completed:true}).snapshot;
+ assert.match(view.objective,/拍摄这一刻/);assert.equal(view.photographed,false);
+ assert.equal(projectExplorationJournal(view).quest.status,'进行中');
+ const done=at('riverView',{...opened,completed:true,photographed:true}).snapshot;
+ assert.match(done.objective,/照水岭已开放/);assert.equal(projectExplorationJournal(done).quest.status,'已完成');
+});
+test('SHORT S06 confirmation labels describe pending action without changing commits or repeats',()=>{
+ for(const [pending,label] of [['accepted','接受委托'],['clue','记下导览'],['item','带上导扣'],['unlocked','转动导扣，开门']]){
+  assert.equal(explorationDialogueAction({...fresh,pending}),label+' · E');
+  assert.equal(explorationDialogueAction({...fresh,pending,[pending]:true}),'收起 · E');
+ }
+ assert.equal(explorationDialogueAction({...fresh,inspectingMemento:'bookmark',pending:'memento-bookmark'}),'收进纪念册 · E');
+ assert.equal(explorationDialogueAction({...fresh,inspectingMemento:'bookmark'}),'收起 · E');
+ assert.equal(explorationDialogueAction(fresh),'收起 · E');
+ const r=at('cMiddleGate',equipped),before=JSON.stringify(r.save),revision=r.snapshot.revision;
+ for(let i=0;i<50;i++){projectExplorationJournal(r.snapshot);explorationDialogueAction(r.snapshot);}
+ assert.equal(JSON.stringify(r.save),before);assert.equal(r.snapshot.revision,revision);
 });

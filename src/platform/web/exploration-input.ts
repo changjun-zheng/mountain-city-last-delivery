@@ -35,7 +35,7 @@ export function bindExplorationInput(options: {
   const publish=()=>{
     if(disposed)return;
     const s=sources.snapshot;
-    runtime.move(s.x,s.y);runtime.interact(s.interact);
+    runtime.move(s.x,s.y,s.keys.includes('ShiftLeft')||s.keys.includes('ShiftRight'));runtime.interact(s.interact);
     root.dataset.input=JSON.stringify(s);
     changed();
   };
@@ -46,7 +46,7 @@ export function bindExplorationInput(options: {
     for(const id of captures) for(const el of [stick,interact]) if(el.hasPointerCapture(id))el.releasePointerCapture(id);
     root.dataset.input=JSON.stringify(sources.snapshot);
   };
-  const keys=new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowLeft','ArrowDown','ArrowRight','KeyE','Space']);
+  const keys=new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowLeft','ArrowDown','ArrowRight','KeyE','Space','ShiftLeft','ShiftRight']);
   window.addEventListener('keydown',e=>{
     if(options.uiKey?.(e))return;
     if(e.code==='Escape' && !e.repeat){e.preventDefault();options.menu();return;}
@@ -95,7 +95,7 @@ export function bindExplorationInput(options: {
     clear,
     sync:()=>{
       const s=runtime.snapshot,locked=!!s.pauseCount;
-      if(lastMap!==s.mapRevision || lastLocked!==locked || lastDialogue!==!!s.dialogue)clear();
+      if((lastMap!==s.mapRevision && !s.walkedAcrossStreet) || lastLocked!==locked || lastDialogue!==!!s.dialogue)clear();
       lastMap=s.mapRevision;lastLocked=locked;lastDialogue=!!s.dialogue;
     },
     dispose:()=>{if(disposed)return;clear();disposed=true;abort.abort();held.clear();suppressed.clear();root.dataset.inputBindings='0';},

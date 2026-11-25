@@ -5,6 +5,7 @@ import { ExplorationRuntime, validateExplorationSave, emptyExplorationSave } fro
 import { EXP_MAPS, EXP_TARGETS, EXP_SAFE, EXP_LEGACY_SAFE, EXP_CONTENT_VERSION, explorationWalls, segmentHitsRect } from '../src/core/exploration-content.ts';
 import { InMemoryRunProgress, EXP01_PROGRESS_CONTENT, EXP02A_PROGRESS_CONTENT as P } from '../src/core/progress.ts';
 import { ExplorationStorage, EXP_STORAGE_KEY, EXP_LEGACY_STORAGE_KEY } from '../src/platform/web/exploration-storage.ts';
+import { FERRY_SAFE } from '../src/core/exploration-ferry.ts';
 
 import {coreDriver as driver} from './exploration-floor-routes.mjs';
 function fullProgress(){const p=new InMemoryRunProgress('exp02a');p.completeGoal(P.accepted);p.completeGoal(P.clue);p.recordCollection(P.item);p.completeGoal(P.unlocked);return p.snapshot;}
@@ -12,7 +13,7 @@ function fullProgress(){const p=new InMemoryRunProgress('exp02a');p.completeGoal
 // EXP-06A explicitly replaces old C geometry/door expectations. Historical
 // safe values remain frozen; cancellation, items and route ownership are kept.
 test('EXP-02A A1 current bounded C and five useful paired building doorways, all foot anchors clear',()=>{
- assert.equal(Object.keys(EXP_MAPS).length,15);assert.equal(Object.keys(EXP_LEGACY_SAFE).length,12);
+ assert.equal(Object.keys(EXP_MAPS).length,16);assert.equal(Object.keys(EXP_LEGACY_SAFE).length,12);
  for(const id of ['upper','middle','lower']){assert.equal(EXP_MAPS[id].width,2200);assert.ok(EXP_MAPS[id].buildings.length>=3);}
  for(const [safe,door,room,back] of [['cGuideH3','guide-door','guide2','guide-upper-exit'],['cWoodH3','workshop-upper-door','workshop3','workshop-upper-exit'],['cTeaH1','tea-door','tea','tea-exit'],['cLanternH1','lantern-door','lantern','lantern-exit'],['cMarketWest','market-west-door','market','market-west-exit']]){const d=driver({...emptyExplorationSave(),safe,progress:fullProgress()});d.use(door);assert.equal(d.r.snapshot.map,room);d.use(back);assert.equal(d.r.save.safe,safe);}
  for(const point of Object.values(EXP_SAFE)){const b=EXP_MAPS[point.map].bounds;assert.ok(point.x>=b.x+12&&point.x<=b.x+b.w-12&&point.y>=b.y+12&&point.y<=b.y+b.h-12);assert.ok(!explorationWalls(point.map,true).some(w=>point.x+12>w.x&&point.x-12<w.x+w.w&&point.y+12>w.y&&point.y-12<w.y+w.h));}
@@ -41,6 +42,7 @@ test('EXP-02A A4 independent content IDs, future/old version protection and unch
 test('EXP-02A A4 complete import rebuilds every map safe point without input, queue or duplicate records',()=>{
   const save={...new ExplorationRuntime('base').save,progress:fullProgress()};
   for(const [safe,p] of Object.entries(EXP_SAFE)){
+    if(Object.hasOwn(FERRY_SAFE,safe)){assert.equal(validateExplorationSave({...save,safe}),undefined);continue;}
     const a=new ExplorationRuntime('restored-'+safe,{...save,safe});assert.equal(a.snapshot.map,p.map);assert.deepEqual(a.snapshot.position,{x:p.x,y:p.y});assert.equal(a.snapshot.unlocked,true);assert.equal(a.snapshot.pending,undefined);assert.equal(a.snapshot.pauseCount,0);
     assert.deepEqual(Object.keys(a.save).sort(),['contentVersion','observedSites','photo','progress','safe','schemaVersion']);assert.equal(a.save.photo,null);const progress=a.snapshot.progress;a.closeDialogue();assert.deepEqual(a.snapshot.progress,progress);
   }

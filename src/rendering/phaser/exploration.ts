@@ -1,29 +1,36 @@
 import {drawCExploration} from './exploration-c-art';
+import {createStorybookActor,faceStorybookActor,preloadStorybook,updateStorybookOcclusion,updateStorybookWater,updateStreetResidents} from './exploration-storybook-art';
 import {drawBuildingFloor} from './exploration-building-art';
-import {drawDistrict} from './exploration-district-art';
+import {createFerryView,drawFerryDistrict,preloadFerryArt} from './exploration-ferry-art';
 import Phaser from 'phaser';
 import type { ExplorationRuntime, ExplorationSnapshot } from '../../core/exploration';
 import { EXP_MAPS, EXP_GATE, EXP_RIVER, EXP_TARGETS } from '../../core/exploration-content';
+import { WEST_STREET_JOIN } from '../../core/exploration-c-routes';
+import { RIVER_PIER_X } from '../../core/exploration-ferry';
 import {PHOTO_SITES} from '../../core/exploration-photo';
 import {drawPrologueCity} from './exploration-city-art';
 import {MEMENTOS} from '../../core/exploration-mementos';
 import {drawMemento} from './exploration-memento-art';
+import {drawRouteCues,drawGateFeedback} from './exploration-feedback-art';
+import {createWeatherView,type ExplorationWeather} from './exploration-weather';
 
 // Original procedural artwork for EXP-01. Coordinates are shared with the
 // limited content definition; no old side-view assets are used.
 const C = { ink: 0x243d48, river: 0x356b78, stone: 0x718e8b, wood: 0x724838, light: 0xffd487, roof: 0x344d55 };
-export async function mountExplorationScene(parent: HTMLElement, runtime: ExplorationRuntime, sampled: () => void) {
+export async function mountExplorationScene(parent: HTMLElement, runtime: ExplorationRuntime, sampled: () => void, weather:()=>ExplorationWeather) {
   if (!document.createElement('canvas').getContext('2d')) throw new Error('Canvas 2D is unavailable.');
   let game: Phaser.Game | undefined;
   let disposed = false;
   let mapObjects = 0;
   let resizeObserver: ResizeObserver | undefined;
+  let seamOverlay: HTMLDivElement | undefined;
   await new Promise<void>((resolve, reject) => {
     game = new Phaser.Game({
       parent, type: Phaser.CANVAS, width: 1100, height: 650, backgroundColor: '#244a59', banner: false,
       autoFocus: false, audio: { noAudio: true }, input: { keyboard: false, mouse: false, touch: false, gamepad: false },
       scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
       scene: {
+        preload(this: Phaser.Scene) { preloadStorybook(this, reject); preloadFerryArt(this,reject); },
         create(this: Phaser.Scene) {
           try {
             const scene = this;
@@ -32,7 +39,32 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
             let lastOpen = false;
             let lastItem = false;
             let lastMementos='';
-            let previous = { x: 0, y: 0 };
+            let lastPhotographed=false;
+            let gateStart:number|undefined;
+            let gateFeedback:ReturnType<typeof drawGateFeedback>;
+            const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
+            let seamBlend: Animation | undefined;
+            const softenStreetSeam = () => {
+              if (reducedMotion.matches) return;
+              if (!seamOverlay) {
+                seamOverlay = document.createElement('div');
+                seamOverlay.setAttribute('aria-hidden','true');
+                Object.assign(seamOverlay.style,{position:'absolute',inset:'0',pointerEvents:'none',backgroundSize:'100% 100%',zIndex:'1'});
+                parent.append(seamOverlay);
+              }
+              seamBlend?.cancel();
+              seamOverlay.style.backgroundImage = `url(${scene.game.canvas.toDataURL('image/jpeg',.77)})`;
+              const animation = seamOverlay.animate([{opacity:1},{opacity:0}],{duration:170,easing:'ease-out'});
+              seamBlend = animation;
+              animation.finished.then(() => {
+                if (seamBlend===animation && seamOverlay) seamOverlay.style.backgroundImage = '';
+              }, () => {});
+            };
+            let previous: ExplorationSnapshot | undefined;
+            let stride = 0;
+            let lastStepTick = -10;
+            let pace = 0;
+            let footDirection = {x: 0, y: 1};
             const poly = (g: Phaser.GameObjects.Graphics, points: number[], color: number, alpha = 1) => {
               g.fillStyle(color, alpha); g.fillPoints(points.reduce<Phaser.Math.Vector2[]>((p, _, i) => {
                 if (!(i % 2)) p.push(new Phaser.Math.Vector2(points[i], points[i + 1])); return p;
@@ -72,7 +104,7 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
               return g;
             };
             function draw(s: ExplorationSnapshot) {
-              map.remove([player, ring, hint]);
+              map.remove([storybookPlayer, trail, ring, hint]);
               map.destroy(true); map = scene.add.layer();
               const definition=EXP_MAPS[s.map];
               const bg=scene.add.graphics().setDepth(-100);map.add(bg);
@@ -82,8 +114,8 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
                 drawCExploration(scene,map,s);
               }else if(s.map==='plaza'||s.map==='entry'||s.map==='service'){
                 drawPrologueCity(scene,map,s.map,()=>actor(scene,0xc88c6a,0xdac5a5));
-              }else if(s.map==='middle'||s.map==='riverfront'){
-                drawDistrict(scene,map,s.map);
+              }else if(s.map==='riverfront'||s.map==='ridge'){
+                drawFerryDistrict(scene,map,s);
               }else if(s.map==='guide2'||s.map==='workshop2'||s.map==='workshop3'){
                 drawBuildingFloor(scene,map,s);
               }else if(definition.outdoor){
@@ -157,29 +189,121 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
                 text(540,590,'返回原门口',16).setDepth(620);text(550,96,definition.name,25).setDepth(630);lantern(bg,b.x+30,b.y-20);lantern(bg,b.x+b.w-30,b.y-20);
               }
               for(const m of MEMENTOS)if(m.map===s.map)drawMemento(scene,map,m.id,m.x,m.y,s.mementos.some(owned=>owned.id===m.id));
-              map.add([player, ring, hint]);mapObjects=map.length;
-              scene.cameras.main.setBounds(0,0,definition.width,definition.height);
+              drawRouteCues(scene,map,s);
+              gateFeedback=drawGateFeedback(scene,map,s,gateStart);
+              map.add([storybookPlayer, trail, ring, hint]);mapObjects=map.length;
             }
-            const player = actor(scene,0x408b88,0xffe3b2);
+            const storybookPlayer = createStorybookActor(scene);
+            const trail = scene.add.graphics().setDepth(-1);
+            const showFerry = createFerryView(scene);
+            const showWeather = createWeatherView(scene);
             const ring = scene.add.ellipse(0,0,24,24).setStrokeStyle(2,0xffde92).setDepth(20000);
-            const hint = scene.add.text(0,0,'◇',{fontSize:'22px',color:'#ffe3a0'}).setOrigin(.5).setDepth(20001);
+            const hint = scene.add.text(0,0,'◇',{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'20px',color:'#385f61',stroke:'#fff0cb',strokeThickness:3}).setOrigin(.5).setDepth(20001);
             const update = () => {
               if(disposed)return;
               runtime.frame(performance.now());
               const s=runtime.snapshot;
+              const changedMap = previous !== undefined && previous.mapRevision !== s.mapRevision;
+              const continued = changedMap && s.walkedAcrossStreet;
+              if (continued) softenStreetSeam();
               const mementoSignature=s.mementos.map(m=>m.id).join(',');
-              if(lastMap!==s.map || lastOpen!==s.unlocked || lastItem!==s.item||lastMementos!==mementoSignature){draw(s);lastMap=s.map;lastOpen=s.unlocked;lastItem=s.item;lastMementos=mementoSignature;}
-              const moving=s.position.x!==previous.x || s.position.y!==previous.y;
-              player.setPosition(s.position.x,s.position.y).setDepth(s.position.y);
-              setActorFacing(player,s.facing.x,s.facing.y);
-              player.setAngle(0);
-              if (moving) player.setScale(1.01,1.01); else player.setScale(1,1);
-              previous=s.position;
+              if(lastMap!==s.map)gateStart=undefined;
+              else if(s.map==='middle'&&!lastOpen&&s.unlocked)gateStart=s.tick;
+              if(lastMap!==s.map || lastOpen!==s.unlocked || lastItem!==s.item||lastMementos!==mementoSignature||lastPhotographed!==s.photographed){draw(s);lastMap=s.map;lastOpen=s.unlocked;lastItem=s.item;lastMementos=mementoSignature;lastPhotographed=s.photographed;}
+              const gateFraction=gateFeedback?.update(s.tick,reducedMotion.matches);
+              parent.dataset.gateOpening=gateFraction===undefined?'':String(gateFraction);
+              parent.dataset.gateAnimating=String(gateStart!==undefined&&gateFraction!==undefined&&gateFraction<1);
+              parent.dataset.sceneObjects=String(scene.children.length);
+              if (!previous || (changedMap && !continued)) {
+                stride = 0;
+                pace = 0;
+                lastStepTick = -10;
+                footDirection = s.facing;
+              } else if (s.tick !== previous.tick) {
+                const dx = s.position.x - previous.position.x;
+                const shift = WEST_STREET_JOIN.upperY - WEST_STREET_JOIN.middleY;
+                const dy = s.position.y - previous.position.y + (continued ? (s.map==='middle' ? shift : -shift) : 0);
+                if (dx || dy) {
+                  const movement = Math.hypot(dx,dy);
+                  pace = movement*50/(s.tick-previous.tick);
+                  stride = (stride+movement)%240;
+                  footDirection = {x: dx, y: dy};
+                  lastStepTick = s.tick;
+                } else if (s.tick - lastStepTick > 2) {
+                  stride = 0;
+                }
+              }
+              const walking = !s.paused && s.tick - lastStepTick <= 2;
+              storybookPlayer.setPosition(s.position.x,s.position.y).setDepth(s.position.y);
+              const gait = pace>=133?'brisk':'slow';
+              faceStorybookActor(storybookPlayer,footDirection.x,footDirection.y,walking&&!reducedMotion.matches ? stride : undefined,gait);
+              parent.dataset.walking=String(walking);
+              parent.dataset.gait=walking?gait:'idle';
+              parent.dataset.streetResidents=String(updateStreetResidents(map,s.tick/50,reducedMotion.matches));
+              updateStorybookWater(map,s.tick,reducedMotion.matches);
+              trail.clear();
+              if (!s.paused) {
+                let origin = s.position;
+                let covered = 0;
+                let dot = 25;
+                for (const point of s.tracking.points) {
+                  const length = Math.hypot(point.x-origin.x,point.y-origin.y);
+                  while (dot <= covered+length && dot < 485) {
+                    const t = (dot-covered)/length;
+                    const x = origin.x+(point.x-origin.x)*t, y = origin.y+(point.y-origin.y)*t;
+                    const opacity = (1-dot/565)*(reducedMotion.matches?.55:.52+.14*Math.cos(s.tick/22-dot/70));
+                    trail.fillStyle(0x483139,opacity*.75).fillEllipse(x,y,9,5);
+                    trail.fillStyle(0xffd699,opacity).fillEllipse(x,y-1,6,3.5);
+                    dot += 21;
+                  }
+                  if (dot >= 485) break;
+                  covered += length;
+                  origin = point;
+                }
+              }
+              parent.dataset.occluded=String(updateStorybookOcclusion(map,s.position.x,s.position.y));
+              previous=s;
               const camera=scene.cameras.main;
-              camera.setScroll(Math.max(0,Math.min(s.worldWidth-1100,s.position.x-550)),Math.max(0,Math.min(s.worldHeight-650,s.position.y-482)));
+              const desiredY = s.position.y-camera.height*.58;
+              const normalY = Phaser.Math.Clamp(desiredY,0,Math.max(0,s.worldHeight-camera.height));
+              const westSeam = s.map==='upper'?WEST_STREET_JOIN.upperY:s.map==='middle'?WEST_STREET_JOIN.middleY:undefined;
+              const nearStairs = westSeam===undefined ? 0 :
+                Phaser.Math.Clamp((420-Math.abs(s.position.x-WEST_STREET_JOIN.x))/290,0,1) *
+                Phaser.Math.Clamp((212-Math.abs(s.position.y-westSeam))/212,0,1);
+              const atLookout = s.map==='upper'
+                ? Phaser.Math.Clamp(Math.min(s.position.x-420,1940-s.position.x)/110,0,1) *
+                  Phaser.Math.Clamp((s.position.y-707)/81,0,1)
+                : 0;
+              const atHarbour = s.map==='riverfront'
+                ? Phaser.Math.Clamp((s.position.y-955)/100,0,1)*Phaser.Math.Clamp((495-Math.abs(s.position.x-RIVER_PIER_X))/430,0,1)
+                : 0;
+              const lookDown = atLookout * Math.min(camera.height*.46, Math.max(0,1275-(normalY+camera.height)))+
+                atHarbour * Math.min(camera.height*.29,Math.max(0,s.worldHeight-(normalY+camera.height)));
+              camera.setScroll(Phaser.Math.Clamp(s.position.x-camera.width/2,0,Math.max(0,s.worldWidth-camera.width)),
+                Phaser.Math.Linear(normalY,desiredY,nearStairs)+lookDown);
+              showFerry(s.ferry,reducedMotion.matches);
+              parent.dataset.wetness=String(showWeather(weather(),EXP_MAPS[s.map].outdoor&&!s.ferry,s.tick,reducedMotion.matches));
+              parent.dataset.viewportWidth=String(camera.width);parent.dataset.viewportHeight=String(camera.height);
               Object.assign(parent.dataset,{cameraX:String(camera.scrollX),cameraY:String(camera.scrollY),zoom:String(camera.zoom),worldWidth:String(s.worldWidth),worldHeight:String(s.worldHeight)});
-              ring.setVisible(!!s.target);hint.setVisible(!!s.target);
-              if(s.target){ring.setPosition(s.target.x,s.target.y);hint.setPosition(s.target.x,s.target.y-32);}
+              const teachingTarget=s.onboarding==='approach'?EXP_TARGETS.find(t=>t.id==='city-monument'):undefined;
+              const onWestSteps = s.target?.id===WEST_STREET_JOIN.down || s.target?.id===WEST_STREET_JOIN.up;
+              const marked=onWestSteps ? undefined : s.target??teachingTarget;
+              ring.setVisible(!!marked);hint.setVisible(!!marked&&!s.dialogue);
+              hint.setText(!s.target&&teachingTarget?'先调查这里\n↓':'◇');
+              if(marked){
+                ring.setPosition(marked.x,marked.y);hint.setPosition(marked.x,marked.y-(s.target?32:54));
+                // Portrait crops the world, so the optional first lesson also
+                // points toward a target beyond the visible camera rectangle.
+                if(teachingTarget&&!s.target){
+                  const right=marked.x>camera.scrollX+camera.width-60,left=marked.x<camera.scrollX+60;
+                  const below=marked.y>camera.scrollY+camera.height-120,above=marked.y<camera.scrollY+130;
+                  if(right||left||below||above){
+                    hint.setText(right?'纪念碑 →':left?'← 纪念碑':below?'纪念碑 ↓':'↑ 纪念碑');
+                    hint.setPosition(camera.scrollX+Phaser.Math.Clamp(marked.x-camera.scrollX,85,camera.width-85),
+                      camera.scrollY+Phaser.Math.Clamp(marked.y-camera.scrollY,140,camera.height-190));
+                  }
+                }
+              }
               parent.dataset.mapObjects=String(mapObjects);
               sampled();
             };
@@ -191,7 +315,11 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
             const fit = () => {
               if (disposed) return;
               const bounds = parent.getBoundingClientRect();
+              if (!bounds.width || !bounds.height) return;
+              const height = bounds.width < bounds.height ? 1000 : Math.max(520,Math.min(760,bounds.height));
+              parent.dataset.layout = bounds.width < bounds.height ? 'portrait' : 'landscape';
               scene.scale.setParentSize(bounds.width, bounds.height);
+              scene.scale.setGameSize(Math.round(height*bounds.width/bounds.height),height);
             };
             resizeObserver = new ResizeObserver(fit);
             resizeObserver.observe(parent);
@@ -202,11 +330,12 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
         },
       },
     });
-  }).catch(error=>{ resizeObserver?.disconnect();game?.destroy(true);throw error; });
+  }).catch(error=>{ resizeObserver?.disconnect();seamOverlay?.remove();game?.destroy(true);throw error; });
   return { destroy: async () => {
     if(disposed)return;
     disposed=true;
     resizeObserver?.disconnect();
+    seamOverlay?.remove();
     parent.dataset.resizeObservers='0';
     await new Promise<void>(done=>{if(!game){done();return;}game.events.once(Phaser.Core.Events.DESTROY,done);game.destroy(true);game.loop.wake();});
     parent.dataset.mapObjects='0';

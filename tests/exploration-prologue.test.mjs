@@ -7,7 +7,7 @@ import {createHash} from 'node:crypto';
 import {ExplorationRuntime,emptyExplorationSave,validateExplorationSave,migrateExp02ASave,migrateExp02BSave} from '../src/core/exploration.ts';
 import {EXP_MAPS,EXP_SAFE,EXP_LEGACY_SAFE,EXP_TARGETS,EXP02A_CONTENT_VERSION,EXP02B_CONTENT_VERSION,EXP_CONTENT_VERSION} from '../src/core/exploration-content.ts';
 import {MEMENTO_TARGETS} from '../src/core/exploration-mementos.ts';
-import {PROLOGUE_TARGETS} from '../src/core/exploration-prologue.ts';
+import {PROLOGUE_INFILL,PROLOGUE_MAPS,PROLOGUE_TARGETS} from '../src/core/exploration-prologue.ts';
 import {InMemoryRunProgress,EXP02A_PROGRESS_CONTENT as P,EXP02B_PROGRESS_CONTENT as Q} from '../src/core/progress.ts';
 import {ExplorationStorage,EXP_STORAGE_KEY,EXP_02B_STORAGE_KEY,EXP_PREVIOUS_STORAGE_KEY} from '../src/platform/web/exploration-storage.ts';
 
@@ -30,10 +30,53 @@ function legacy(stage='empty',version='b'){
 }
 const port=(entries=[])=>{const data=new Map(entries);return{data,getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v),removeItem:()=>assert.fail('Must preserve archive keys')};};
 
-test('EXP-02C C01 A/B/D geometry exact, historical 12 safe identities frozen; authorized C reworked',()=>{
- assert.equal(Object.keys(EXP_MAPS).length,15);assert.equal(Object.keys(EXP_SAFE).length,43);assert.equal(Object.keys(EXP_LEGACY_SAFE).length,12);
- assert.equal(hash(Object.fromEntries(['plaza','entry','service','riverfront'].map(k=>[k,EXP_MAPS[k]]))),'8e7f37e060da21e3a8f8ca38013143da9252a31aea8254ad5ec04a0c08993db2');
+test('PLAYABILITY-02 only the three authorized plaza footprints change; historical geometry and safe identities frozen',()=>{
+ assert.equal(Object.keys(EXP_MAPS).length,16);assert.equal(Object.keys(EXP_SAFE).length,46);assert.equal(Object.keys(EXP_LEGACY_SAFE).length,12);
+ assert.equal(hash(Object.fromEntries(['plaza','entry','service'].map(k=>[k,EXP_MAPS[k]]))),'e2ff07f45f1482f791ebd990367856b5bcc66196bd4fdbfed6ea11724108c56b');
+ const previousPlaza={...EXP_MAPS.plaza,buildings:EXP_MAPS.plaza.buildings.filter(b=>!PROLOGUE_INFILL.includes(b)),walls:EXP_MAPS.plaza.walls.filter(w=>!PROLOGUE_INFILL.includes(w))};
+ assert.equal(hash(Object.fromEntries(['plaza','entry','service'].map(k=>[k,k==='plaza'?previousPlaza:EXP_MAPS[k]]))),'8f46c6dedad50c6b193727588fd3dffdbf3b726dbcaca329f83e739a57a336eb');
  assert.equal(hash(EXP_LEGACY_SAFE),'63448e372985889e4bb3334d0baba4b8b02335224edb2a4531f47995cdcdc71e');assert.deepEqual(EXP_SAFE.cArrival,{map:'upper',x:230,y:690});const d=driver(emptyExplorationSave());assert.equal(d.r.snapshot.map,'plaza');assert.equal(d.r.save.safe,'chapterStart');
+});
+test('PLAYABILITY-02 first minute teaches walk-interact-confirm without adding saved progress',()=>{
+ const d=driver(emptyExplorationSave());
+ assert.match(d.r.snapshot.objective,/沿广场浅色路/);
+ const before=d.r.snapshot.progress;
+ d.to(900,900);
+ assert.equal(d.r.snapshot.target?.id,'city-monument');
+ assert.match(d.r.snapshot.objective,/按 E/);
+ d.interact('city-monument');
+ assert.match(d.r.snapshot.dialogue,/按 E 或点击「收起」/);
+ assert.equal(d.r.snapshot.onboarding,'approach');
+ d.close(false);
+ assert.equal(d.r.snapshot.onboarding,'approach');
+ d.interact('city-monument');
+ d.close();
+ assert.match(d.r.snapshot.objective,/第一次调查完成/);
+ assert.deepEqual(d.r.snapshot.progress,before);
+ d.r.skipOnboarding();assert.equal(d.r.snapshot.onboarding,'done');
+ d.r.replayOnboarding();assert.equal(d.r.snapshot.onboarding,'approach');
+ assert.deepEqual(d.r.save,emptyExplorationSave());
+});
+test('PLAYABILITY-02 every painted back-row house has the same authoritative collision footprint',()=>{
+ const map=PROLOGUE_MAPS.plaza;
+ const houses=map.buildings.filter(b=>['街后人家','坡地民居','巷后小院'].includes(b.name));
+ assert.equal(houses.length,3);
+ for(const building of houses)assert.ok(map.walls.includes(building),building.name);
+ const d=driver(emptyExplorationSave());
+ d.to(1247,790);d.to(1247,653.5);d.to(1548,653.5);
+ d.move(0,-1,100);
+ assert.ok(d.r.snapshot.position.y>=572,JSON.stringify(d.r.snapshot.position));
+ assert.ok(d.r.snapshot.position.y<=574,JSON.stringify(d.r.snapshot.position));
+});
+test('PLAYABILITY-02 service-room exit target remains interactive at its rendered data point',()=>{
+ const marker=PROLOGUE_TARGETS.find(target=>target.id==='service-exit');
+ assert.ok(marker);
+ assert.deepEqual({x:marker.x,y:marker.y},{x:540,y:570});
+ const d=driver(emptyExplorationSave());d.to(1250,790);d.to(1250,580);d.interact('service-door');
+ d.to(marker.x,marker.y);
+ assert.equal(d.r.snapshot.target?.id,'service-exit');
+ d.interact('service-exit');
+ assert.equal(d.r.snapshot.map,'plaza');
 });
 test('EXP-02C C01 C02 physical monument can be circled, optional service has no progress, portals repeat without held bounce',()=>{
  const d=driver(emptyExplorationSave()),p=d.r.snapshot.progress;d.to(470,1000);d.to(740,1000);d.r.move(0,-1);d.step(80);d.r.move(0,0);assert.ok(d.r.snapshot.position.y>=972);

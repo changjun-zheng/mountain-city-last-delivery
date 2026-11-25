@@ -10,17 +10,32 @@
 #exp-root button:focus-visible { outline:3px solid var(--exp-lamp); outline-offset:3px; }
 #exp-root .exp-primary { background:var(--exp-lamp); border-color:var(--exp-lamp); color:var(--exp-ink); font-weight:700; }
 #exp-root .exp-primary:hover { background:#f5dba5; }
-#exp-root .exp-hud { top:max(10px,env(safe-area-inset-top)); left:max(18px,env(safe-area-inset-left)); right:max(18px,env(safe-area-inset-right)); gap:16px; padding:7px 12px; background:#193c46b8; border:0; border-left:3px solid var(--exp-lamp); border-radius:4px; align-items:center; z-index:2; }
-#exp-root .exp-location { min-width:160px; }
+#exp-root .exp-hud { display:flex; position:absolute; top:max(10px,env(safe-area-inset-top)); left:max(14px,env(safe-area-inset-left)); right:max(14px,env(safe-area-inset-right)); gap:10px; padding:0; background:none; border:0; align-items:flex-start; pointer-events:none; z-index:2; }
+#exp-root .exp-location { min-width:0; padding:5px 12px 6px; background:#16333cd6; border-left:3px solid var(--exp-lamp); border-radius:4px; pointer-events:auto; }
 #exp-root .exp-location span { color:#d2dbce; font-size:11px; }
-#exp-root .exp-location strong { display:block; font:600 16px/1.35 'Microsoft YaHei',sans-serif; letter-spacing:0; white-space:normal; }
-#exp-root #exp-objective { font-size:14px; line-height:1.4; margin-right:auto; }
-#exp-root .exp-hud nav { display:flex; gap:8px; flex-shrink:0; }
-#exp-root .exp-hud button { padding:7px 12px; background:#244c55; }
-#exp-root .exp-save { position:absolute; left:max(20px,env(safe-area-inset-left)); top:84px; padding:3px 9px; background:#193c46db; color:#edf2e5; font-size:14px; border-radius:3px; z-index:1; max-width:calc(100vw - 40px); }
+#exp-root .exp-location strong { display:block; font:600 16px/1.3 'Microsoft YaHei',sans-serif; letter-spacing:0; white-space:normal; }
+#exp-root #exp-objective { position:absolute; top:52px; left:0; margin:0; max-width:min(62vw,440px); padding:3px 10px; background:#16333cc4; border-radius:3px; font-size:13px; line-height:1.4; }
+#exp-root #exp-onboarding { position:absolute; top:76px; left:max(14px,env(safe-area-inset-left)); width:min(340px,calc(100vw - 28px)); padding:14px 17px; box-sizing:border-box; background:#efe6ccf5; color:var(--exp-ink); border-left:4px solid var(--exp-wood); border-radius:4px 12px 12px 4px; box-shadow:0 5px 22px #102a3540; z-index:3; pointer-events:none; }
+#exp-root #exp-onboarding .exp-page-label { font-size:12px; color:#506a69; }
+#exp-root #exp-onboarding h2 { margin:3px 0 7px; font-size:18px; line-height:1.4; }
+#exp-root #exp-onboarding p { margin:0; font-size:14px; line-height:1.6; }
+#exp-root #exp-onboarding > div { display:flex; gap:8px; margin-top:10px; pointer-events:auto; }
+#exp-root #exp-onboarding button { min-height:44px; padding:7px 12px; background:var(--exp-water); color:#fff4dc; font-size:13px; }
+#exp-root #exp-onboarding-skip { background:transparent; color:var(--exp-ink); border-color:#9b9c88; }
+#exp-root[data-onboarding]:not([data-onboarding="done"]) #exp-objective,#exp-root[data-onboarding]:not([data-onboarding="done"]) #exp-save { visibility:hidden; }
+#exp-root #exp-onboarding-replay { width:100%; margin:0 0 10px; }
+@media(max-height:540px) { #exp-root #exp-onboarding { top:62px; width:300px; padding:10px 14px; } #exp-root #exp-onboarding h2 { font-size:16px; } #exp-root #exp-onboarding p { font-size:13px; } #exp-root #exp-onboarding > div { margin-top:6px; } }
+#exp-root .exp-hud nav { position:absolute; top:0; right:0; display:flex; gap:8px; flex-shrink:0; pointer-events:auto; }
+#exp-root .exp-hud button { padding:6px 11px; background:#1c414acb; }
+#exp-root #exp-auto-walk { display:block; margin-top:6px; color:#ffe7b9; border-color:#aa795b; background:#432f36; pointer-events:auto; }
+#exp-root #exp-auto-walk[hidden] { display:none; }
+#exp-root #exp-ferry-status { position:absolute; z-index:2; bottom:clamp(42px,10vh,90px); left:50%; transform:translateX(-50%); margin:0; padding:7px 16px; color:#fae9c6; background:#372b37e8; border:1px solid #aa795b; border-radius:5px; font-size:14px; white-space:nowrap; }
+#exp-root[data-ferry]:not([data-ferry=""]) .exp-location,
+#exp-root[data-ferry]:not([data-ferry=""]) #exp-help,
+#exp-root[data-ferry]:not([data-ferry=""]) #exp-touch { visibility:hidden; }
+#exp-root .exp-save { position:absolute; left:max(20px,env(safe-area-inset-left)); top:104px; padding:3px 9px; background:#193c46db; color:#edf2e5; font-size:14px; border-radius:3px; z-index:1; max-width:calc(100vw - 40px); }
 #exp-root #exp-help { bottom:max(14px,env(safe-area-inset-bottom)); padding:4px 10px; font-size:14px; background:#193c46db; }
 #exp-root #exp-prompt { max-width:calc(100vw - 300px); white-space:normal; text-align:center; bottom:64px; font-size:15px; padding:7px 14px; }
-#exp-root #exp-orientation { font-size:14px; bottom:146px; left:16px; right:16px; z-index:1; }
 #exp-root #exp-touch { z-index:2; }
 #exp-root #exp-interact { min-height:70px; }
 @media (pointer:fine) { #exp-root #exp-touch { display:none; } }
@@ -39,19 +54,6 @@
 #exp-root .exp-instructions-panel dd { margin:4px 0 0; font-size:15px; }
 #exp-root #exp-instructions-close { width:100%; margin:0; }
 
-#exp-root .exp-title-screen { position:absolute; inset:0; z-index:5; display:grid; grid-template-columns:minmax(400px,46%) 1fr; background:linear-gradient(90deg,#12303bf2 0%,#12303bd8 34%,#12303b45 62%,#12303b12 100%),url('./assets/title-hongyadong.jpg') center/cover no-repeat,#153b48; box-sizing:border-box; }
-#exp-root .exp-title-copy { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; padding:28px clamp(28px,5vw,84px); box-sizing:border-box; max-height:100dvh; overflow:auto; }
-#exp-root .exp-title-intro { color:#cedacc; font-size:15px; }
-#exp-root #exp-title-name { margin:14px 0 18px; font:700 clamp(76px,8.5vw,126px)/1.02 'KaiTi','STKaiti',serif; letter-spacing:.04em; color:#fff0cc; text-shadow:2px 3px #173743; }
-#exp-root #exp-title-name span { display:block; padding-left:.7em; }
-#exp-root .exp-title-description { font-size:17px; line-height:1.7; color:#e0e9dc; }
-#exp-root .exp-title-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; width:min(360px,100%); margin:24px 0 16px; }
-#exp-root #exp-begin { grid-column:1 / -1; min-height:54px; }
-#exp-root #exp-title-status,#exp-root #exp-archive-notice { font-size:14px; line-height:1.5; color:#ecdfbb; max-width:360px; }
-#exp-root #exp-archive-notice { margin-top:6px; }
-#exp-root .exp-title-copy small { display:block; margin-top:18px; color:#bccdc6; font-size:12px; }
-#exp-root .exp-title-window { display:flex; align-items:flex-end; justify-content:flex-end; padding:30px; pointer-events:none; }
-#exp-root .exp-title-window span { padding:7px 13px; color:#f5e3bb; background:#173f4bd9; font-size:14px; border-left:2px solid var(--exp-lamp); }
 
 #exp-root .exp-journal { z-index:8; background:#102e3bbd; }
 #exp-root .exp-journal-book { color:var(--exp-ink); background:var(--exp-paper); box-sizing:border-box; width:min(960px,100%); max-height:100%; overflow:auto; border-radius:4px 12px 12px 4px; border-left:9px solid var(--exp-wood); box-shadow:0 18px 65px #102a3570; }
@@ -60,6 +62,12 @@
 #exp-root .exp-journal-book .exp-page-label { color:#546e6e; }
 #exp-root .exp-journal-book button { background:var(--exp-water); color:#fff4dc; border-color:var(--exp-water); margin:0; }
 #exp-root .exp-journal-book button:focus-visible { outline-color:var(--exp-ink); }
+#exp-root .exp-tracking { padding:14px clamp(14px,3vw,28px); border-bottom:1px solid #b8b39c; }
+#exp-root .exp-tracking h2 { margin:0 0 8px; font-size:17px; }
+#exp-root .exp-track-options { display:flex; flex-wrap:wrap; gap:6px; }
+#exp-root .exp-track-options button { font-size:13px; padding:6px 9px; }
+#exp-root .exp-track-options button[aria-pressed="true"] { background:#663e37; border-color:#663e37; }
+#exp-root .exp-tracking p { margin:8px 0 0; font-size:13px; line-height:1.45; }
 #exp-root .exp-journal-pages { display:grid; grid-template-columns:1fr 1fr; }
 #exp-root .exp-journal-pages > section { padding:24px 28px 30px; min-width:0; }
 #exp-root .exp-journal-pages > section + section { border-left:1px solid #b8b39c; background:#e9dfc2; }
@@ -110,20 +118,9 @@
 #exp-root[data-view]:not([data-view="play"]) .exp-hud,
 #exp-root[data-view]:not([data-view="play"]) #exp-touch,
 #exp-root[data-view]:not([data-view="play"]) #exp-save,
-#exp-root[data-view]:not([data-view="play"]) #exp-help,
-#exp-root[data-view]:not([data-view="play"]) #exp-orientation { display:none; }
+#exp-root[data-view]:not([data-view="play"]) #exp-help { display:none; }
 
 @media(max-height:540px) {
-  #exp-root .exp-title-screen { grid-template-columns:53% 1fr; }
-  #exp-root .exp-title-copy { padding:18px 28px; justify-content:flex-start; }
-  #exp-root #exp-title-name { font-size:68px; margin:4px 0 8px; }
-  #exp-root #exp-title-name span { display:inline; padding:0; }
-  #exp-root .exp-title-description { font-size:14px; }
-  #exp-root .exp-title-description br { display:none; }
-  #exp-root .exp-title-intro { font-size:14px; }
-  #exp-root .exp-title-actions { margin:12px 0 10px; gap:8px; }
-  #exp-root .exp-title-copy small { margin-top:8px; }
-  #exp-root .exp-title-window { padding:18px; }
   #exp-root .exp-shade .exp-panel { padding:18px 24px; }
   #exp-root .exp-menu-actions { grid-template-columns:1fr 1fr; gap:8px; margin-top:16px; }
   #exp-root #exp-resume { grid-column:1 / -1; }
@@ -146,14 +143,14 @@
   #exp-root .exp-completion-footer small { margin-top:4px; }
 }
 @media(max-width:900px) {
-  #exp-root .exp-hud { top:max(7px,env(safe-area-inset-top)); left:max(8px,env(safe-area-inset-left)); right:max(8px,env(safe-area-inset-right)); padding:7px 10px; gap:12px; }
-  #exp-root .exp-location { min-width:150px; max-width:185px; }
+  #exp-root .exp-hud { top:max(7px,env(safe-area-inset-top)); left:max(8px,env(safe-area-inset-left)); right:max(8px,env(safe-area-inset-right)); gap:8px; padding:0; }
+  #exp-root .exp-location { min-width:0; max-width:200px; }
   #exp-root .exp-location span { display:none; }
   #exp-root .exp-location strong { font-size:14px; }
-  #exp-root #exp-objective { font-size:14px; }
-  #exp-root .exp-hud button { padding:8px 10px; font-size:14px; }
+  #exp-root #exp-objective { top:40px; font-size:12px; max-width:min(70vw,380px); }
+  #exp-root .exp-hud button { padding:6px 10px; font-size:14px; }
   #exp-root .exp-hud nav { gap:6px; }
-  #exp-root .exp-save { top:80px; left:12px; }
+  #exp-root .exp-save { top:84px; left:12px; }
   #exp-root #exp-prompt { bottom:20px; font-size:14px; }
   #exp-root #exp-help { display:none; }
 }
@@ -162,24 +159,44 @@
   #exp-root .exp-hud { gap:8px; }
   #exp-root .exp-journal-book > header { padding:14px 18px; }
   #exp-root .exp-journal-pages > section { padding:18px; }
-  #exp-root #exp-title-name { font-size:58px; }
 }
-@media(orientation:portrait) {
-  #exp-root .exp-title-screen { grid-template-columns:1fr; background:linear-gradient(#12303be8,#12303bd2),url('./assets/title-hongyadong.jpg') center/cover no-repeat,#153b48; }
-  #exp-root .exp-title-copy { padding:38px 32px; }
-  #exp-root #exp-title-name { font-size:96px; }
-  #exp-root .exp-title-window { display:none; }
-  #exp-root .exp-hud { flex-wrap:wrap; }
-  #exp-root .exp-location { min-width:0; max-width:calc(100% - 180px); flex:1; }
-  #exp-root .exp-hud nav { order:1; }
-  #exp-root #exp-objective { order:2; flex-basis:100%; }
-  #exp-root .exp-save { top:127px; }
+@media(orientation:portrait) and (pointer:fine) {
+  #exp-root .exp-location { max-width:calc(100vw - 170px); }
+  #exp-root #exp-objective { top:52px; max-width:calc(100vw - 32px); }
+  #exp-root .exp-save { top:96px; }
   #exp-root #exp-prompt { max-width:calc(100vw - 170px); bottom:144px; }
-  #exp-root #exp-orientation { bottom:180px; }
   #exp-root .exp-journal-pages { grid-template-columns:1fr; }
   #exp-root .exp-journal-pages > section + section { border-left:0; border-top:1px solid #b8b39c; }
 }
+/* Narrow desktop windows still use a keyboard, not the hidden touch controls. */
+@media(pointer:fine) {
+  #exp-root #exp-help { display:block; width:max-content; max-width:calc(100vw - 32px); white-space:normal; text-align:center; box-sizing:border-box; }
+  #exp-root #exp-prompt { bottom:72px; max-width:calc(100vw - 32px); }
+  #exp-root[data-dialogue="true"] #exp-help,#exp-root[data-preview]:not([data-preview=""]) #exp-help { display:none; }
+}
 @media(prefers-reduced-motion:reduce) { #exp-root *,#exp-root *::before,#exp-root *::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
+
+/* Read-only pattern comparison inside the original confirmation dialogue. */
+#exp-root #exp-dialogue[data-investigation="true"] { width:min(940px,calc(100vw - 32px)); box-sizing:border-box; padding:18px; }
+#exp-root #exp-dialogue[data-investigation="true"]:not([hidden]) { display:grid; grid-template-columns:minmax(290px,1fr) minmax(0,1fr); gap:0 22px; }
+#exp-root #exp-investigation { grid-row:1 / 3; margin:0; min-width:0; }
+#exp-root #exp-investigation-title { margin:0 0 10px; font-size:18px; color:var(--exp-lamp); }
+#exp-root #exp-investigation-image { display:block; width:100%; height:auto; margin:0; }
+#exp-root #exp-investigation-caption { font-size:14px; line-height:1.6; margin-top:10px; color:#d2e0d7; }
+#exp-root #exp-dialogue[data-investigation="true"] #exp-dialogue-text { margin:0 0 14px; white-space:pre-line; }
+#exp-root #exp-dialogue[data-investigation="true"] .exp-dialogue-actions { align-self:end; position:sticky; bottom:-18px; padding:10px 0; background:var(--exp-river); }
+#exp-root #exp-gate-feedback { position:absolute; left:50%; top:130px; transform:translateX(-50%); width:max-content; max-width:calc(100vw - 48px); box-sizing:border-box; margin:0; padding:12px 18px; color:var(--exp-paper); background:#173f4bf5; border-left:4px solid var(--exp-lamp); font-size:20px; z-index:3; pointer-events:none; }
+#exp-root #exp-gate-feedback span { font-size:14px; }
+@media(max-width:620px) {
+  #exp-root #exp-dialogue[data-investigation="true"]:not([hidden]) { display:block; }
+  #exp-root #exp-dialogue[data-investigation="true"] #exp-dialogue-text { margin-top:16px; }
+  #exp-root #exp-gate-feedback { top:174px; }
+}
+@media(max-height:540px) {
+  #exp-root #exp-dialogue[data-investigation="true"] { max-height:calc(100dvh - 32px); bottom:16px; }
+  #exp-root #exp-dialogue[data-investigation="true"] #exp-dialogue-text { font-size:14px; line-height:1.65; }
+  #exp-root #exp-investigation-title { margin-bottom:6px; }
+}
 
 /* Optional paper keepsakes extend the existing notebook, not the task HUD. */
 #exp-root[data-view="journal"],#exp-root:has(#exp-dialogue:not([hidden])) { touch-action:pan-y; }

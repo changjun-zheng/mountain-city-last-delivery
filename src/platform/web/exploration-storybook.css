@@ -1,0 +1,160 @@
+/* In-game surfaces share the title's dusk ink and copper highlights. */
+#exp-root {
+  --exp-ink:#3b2934;
+  --exp-river:#f7e8d7;
+  --exp-water:#703b36;
+  --exp-lamp:#ffcd91;
+  --exp-paper:#f7e8d7;
+  --exp-wood:#8e5040;
+  --exp-dusk:#302631;
+  --exp-dusk-text:#fae9d5;
+  --exp-dusk-muted:#e0c9bb;
+  color:var(--exp-ink);
+  background:#4a404e;
+}
+
+#exp-root button {
+  color:var(--exp-ink);
+  background:#ecd7c4;
+  border:1px solid #b08c7c;
+  border-radius:6px;
+}
+#exp-root button:hover:not(:disabled) { background:#f6e4cf; }
+#exp-root button:focus-visible { outline-color:#c66b43; outline-offset:3px; }
+#exp-root .exp-primary,
+#exp-root .exp-journal-book button,
+#exp-root #exp-onboarding-help {
+  color:#fff4e5;
+  background:var(--exp-water);
+  border-color:#65302d;
+}
+#exp-root .exp-primary:hover:not(:disabled),
+#exp-root .exp-journal-book button:hover:not(:disabled),
+#exp-root #exp-onboarding-help:hover { background:#88483a; }
+
+#exp-root .exp-hud { gap:10px; justify-content:space-between; }
+#exp-root .exp-location {
+  width:max-content;
+  min-width:0;
+  max-width:min(390px,65vw);
+  box-sizing:border-box;
+  padding:9px 13px 8px;
+  color:var(--exp-dusk-text);
+  background:var(--exp-dusk);
+  border:1px solid #765b64;
+  border-left:3px solid #db9168;
+  border-radius:5px;
+  box-shadow:0 3px 14px #20172336;
+  pointer-events:none;
+}
+#exp-root .exp-location strong {
+  font:700 20px/1.22 KaiTi, STKaiti, "Microsoft YaHei", serif;
+  color:var(--exp-dusk-text);
+}
+#exp-root #exp-objective {
+  position:static;
+  max-width:none;
+  margin:4px 0 0;
+  padding:0;
+  color:var(--exp-dusk-muted);
+  background:none;
+  font-size:13px;
+  line-height:1.48;
+}
+#exp-root #exp-save {
+  position:static;
+  display:block;
+  max-width:none;
+  margin:4px 0 0;
+  padding:0;
+  color:#ebc69f;
+  background:none;
+  font-size:11px;
+  line-height:1.25;
+}
+#exp-root[data-onboarding]:not([data-onboarding="done"]) #exp-objective,
+#exp-root[data-onboarding]:not([data-onboarding="done"]) #exp-save { display:none; }
+#exp-root .exp-hud nav { position:static; gap:5px; }
+#exp-root .exp-hud button {
+  min-height:44px;
+  padding:7px 12px;
+  color:var(--exp-dusk-text);
+  background:var(--exp-dusk);
+  border-color:#8a6b70;
+}
+#exp-root .exp-hud button:hover:not(:disabled) { background:#513647; }
+#exp-root .exp-hud button:focus-visible { outline-color:var(--exp-lamp); }
+
+#exp-root #exp-onboarding {
+  top:calc(max(10px,env(safe-area-inset-top)) + 49px);
+  background:var(--exp-paper);
+  border:1px solid #b28c77;
+  border-left:3px solid #a75d43;
+  border-radius:5px;
+  box-shadow:0 5px 20px #291c3150;
+}
+#exp-root #exp-onboarding h2 { font:700 20px/1.3 KaiTi, STKaiti, "Microsoft YaHei", serif; }
+#exp-root #exp-onboarding .exp-page-label { color:#79564c; }
+#exp-root #exp-onboarding-skip { color:var(--exp-ink); border-color:#b28c77; }
+#exp-root #exp-help,
+#exp-root #exp-prompt,
+#exp-root #exp-memento-feedback,
+#exp-root #exp-gate-feedback {
+  color:var(--exp-dusk-text);
+  background:var(--exp-dusk);
+  border:1px solid #886874;
+  border-radius:5px;
+}
+#exp-root #exp-help { font-size:12px; color:var(--exp-dusk-muted); }
+#exp-root #exp-prompt { box-shadow:0 3px 8px #281c2a44; }
+#exp-root #exp-gate-feedback { border-left:3px solid #db9168; }
+
+#exp-root .exp-panel {
+  background:var(--exp-paper);
+  color:var(--exp-ink);
+  border:1px solid #aa8475;
+  border-top:3px solid #93533d;
+  box-shadow:0 12px 42px #281a2f65;
+}
+#exp-root .exp-shade { background:#271b30ad; }
+#exp-root .exp-shade h1,
+#exp-root .exp-panel h2 { color:var(--exp-ink); font-family:KaiTi, STKaiti, "Microsoft YaHei", serif; }
+#exp-root .exp-shade .exp-page-label,
+#exp-root .exp-instructions-panel dt,
+#exp-root #exp-investigation-caption { color:#785148; }
+#exp-root #exp-dialogue-text { color:var(--exp-ink); }
+#exp-root #exp-investigation-title { color:#713d2e; }
+#exp-root .exp-journal-book { border-left-color:var(--exp-wood); box-shadow:0 12px 42px #281a2f65; }
+#exp-root .exp-journal-book > header { border-bottom-color:#bc9685; }
+#exp-root .exp-journal-pages > section + section { background:#efddcd; border-color:#bc9685; }
+#exp-root #exp-stick { background:#3026319e; border-color:#e7c5a5d9; box-shadow:inset 0 0 0 5px #2119233b; }
+#exp-root #exp-knob { background:#ecc196; box-shadow:0 2px 6px #1f172c70; }
+#exp-root #exp-interact { color:#fff3de; background:#784436; border:2px solid #edc49b; }
+#exp-root #exp-interact:disabled { color:var(--exp-dusk-text); background:#302631e8; border-color:#a98b84; opacity:.84; }
+
+#exp-root #exp-orientation:not([hidden]) {
+  position:absolute;
+  inset:0;
+  z-index:30;
+  display:grid;
+  place-items:center;
+  padding:24px;
+  background:var(--exp-dusk);
+  color:var(--exp-dusk-text);
+  text-align:center;
+}
+#exp-orientation h2 { margin:0; font:700 25px/1.3 KaiTi, STKaiti, "Microsoft YaHei", serif; }
+#exp-orientation p { margin:9px 0 0; color:var(--exp-dusk-muted); }
+
+@media(max-width:900px) {
+  #exp-root .exp-location { padding:7px 9px; }
+  #exp-root .exp-location strong { font-size:17px; }
+  #exp-root #exp-objective { font-size:12px; }
+  #exp-root .exp-hud button { padding-inline:8px; }
+}
+@media(orientation:portrait) and (pointer:fine) {
+  #exp-root .exp-location { max-width:min(100%,390px); }
+  #exp-root #exp-prompt { max-width:calc(100vw - 34px); }
+  #exp-root #exp-onboarding h2 { font-size:18px; }
+  #exp-root #exp-onboarding p { font-size:13px; }
+}

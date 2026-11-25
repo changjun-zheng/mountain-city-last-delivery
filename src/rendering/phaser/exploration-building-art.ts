@@ -23,7 +23,7 @@ export function drawBuildingFloor(scene:Phaser.Scene,layer:Phaser.GameObjects.La
     }
   }
   for(const target of EXP_TARGETS.filter(t=>t.map===s.map&&['guide-up','guide-down','workshop-up-2','workshop-down-1','workshop-up-3','workshop-down-2'].includes(t.id)&&t.destination&&t.id!=='guide-exit'&&t.id!=='workshop-exit')){
-    const stairs=scene.add.graphics().setDepth(target.y-1);layer.add(stairs);for(let n=0;n<7;n++){stairs.fillStyle(n%2?0x79684e:0xb29a6e);stairs.fillRect(target.x-48,target.y-35+n*9,96,7);}label(target.x,target.y-65,target.label,16);
+    const stairs=scene.add.graphics().setDepth(target.y-1);layer.add(stairs);for(let n=0;n<7;n++){stairs.fillStyle(n%2?0x79684e:0xb29a6e);stairs.fillRect(target.x-48,target.y-35+n*9,96,7);}
   }
   if(s.map==='workshop'){label(320,435,'1F工作台／2F工具／3F门扣',16);}
 }

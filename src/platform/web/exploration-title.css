@@ -1,0 +1,254 @@
+/* Title scene. Local dusk palette, separate from the in-game paper panels. */
+@font-face {
+  font-family:"Pokan Title";
+  src:url('./assets/pokan-title.woff') format("woff");
+  font-style:normal;
+  font-weight:400;
+  font-display:swap;
+  unicode-range:U+4E4B,U+574E,U+5761,U+95F4;
+}
+
+#exp-root[data-view="title"] { touch-action:pan-y; }
+#exp-root .exp-title-screen {
+  --title-paper:#fff0d5;
+  --title-muted:#d5c2b2;
+  --title-ember:#f7b87c;
+  --title-frame:#a65e40;
+  position:absolute;
+  inset:0;
+  z-index:5;
+  display:grid;
+  grid-template-columns:minmax(430px, 47%) 1fr;
+  background:
+    linear-gradient(90deg,#211b28f7 0%,#211b28eb 25%,#211b2892 43%,#231d290e 68%),
+    url('./assets/title-hongyadong.jpg') 60% center / cover no-repeat #211b28;
+}
+#exp-root .exp-title-screen::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:0;
+  background:radial-gradient(ellipse at 82% 66%,#ffe1a02c 0%,transparent 49%);
+  animation:title-lights 14s ease-in-out infinite alternate;
+}
+#exp-root .exp-title-copy {
+  position:relative;
+  z-index:1;
+  min-width:0;
+  min-height:0;
+  display:flex;
+  overflow-y:auto;
+  padding:max(26px,env(safe-area-inset-top)) clamp(24px,5.5vw,105px)
+    max(26px,env(safe-area-inset-bottom)) max(clamp(28px,5.6vw,110px),env(safe-area-inset-left));
+  color:var(--title-paper);
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+}
+#exp-root .exp-title-content { width:100%; margin-block:auto; }
+#exp-root .exp-title-ornament { height:44px; display:flex; align-items:center; gap:14px; }
+#exp-root .exp-title-ornament::after {
+  content:"";
+  width:61px;
+  height:1px;
+  background:linear-gradient(90deg,#e9a268,#e9a26800);
+  animation:title-wick-on 740ms ease-out both;
+}
+#exp-root .exp-title-lantern {
+  position:relative;
+  width:24px;
+  height:22px;
+  margin-inline:3px;
+  border:1px solid #ffbd7b;
+  border-radius:40%;
+  background:repeating-linear-gradient(90deg,#b95432 0 1px,#de7546 1px 4px);
+  box-shadow:inset 0 2px 4px #ffe0a48a,0 0 16px #fa854895;
+  animation:title-lantern-on 900ms ease-out both;
+  transform-origin:center -10px;
+}
+#exp-root .exp-title-lantern::before,
+#exp-root .exp-title-lantern::after {
+  content:"";
+  position:absolute;
+  left:50%;
+  width:8px;
+  height:4px;
+  translate:-50% 0;
+  border-radius:1px;
+  background:#e9a866;
+}
+#exp-root .exp-title-lantern::before { top:-3px; box-shadow:0 -4px 0 -1px #ad806c; }
+#exp-root .exp-title-lantern::after { bottom:-4px; width:5px; height:6px; }
+#exp-root #exp-title-name {
+  display:flex;
+  flex-wrap:nowrap;
+  align-items:baseline;
+  gap:.095em;
+  margin:8px 0 16px;
+  width:max-content;
+  max-width:100%;
+  font:400 clamp(65px,7.6vw,122px)/1.08 "Pokan Title", KaiTi, STKaiti, "Kaiti SC", "Songti SC", serif;
+  letter-spacing:-.026em;
+  color:var(--title-paper);
+  text-shadow:0 3px 2px #291b28,0 0 .24em #ffa96534;
+  white-space:nowrap;
+}
+#exp-root #exp-title-name span { display:block; animation:title-ink-in 760ms cubic-bezier(.23,.54,.19,1) both; }
+#exp-root #exp-title-name span + span { animation-delay:160ms; }
+#exp-root .exp-title-description { margin:0; color:var(--title-muted); font-size:16px; line-height:1.6; }
+#exp-root .exp-title-actions {
+  display:grid;
+  gap:6px;
+  width:min(100%,347px);
+  margin:32px 0 15px;
+}
+#exp-root #exp-title-screen #exp-begin {
+  position:relative;
+  width:100%;
+  min-height:58px;
+  padding:13px 48px 13px 19px;
+  border:1px solid #e59b69;
+  border-radius:4px;
+  background:linear-gradient(103deg,#a85537 0%,#82402e 76%,#78392e 100%);
+  box-shadow:inset 0 0 0 3px #6e352b55,0 4px 15px #1b141d80;
+  color:#fff3dc;
+  font-size:18px;
+  font-weight:700;
+  text-align:left;
+  transition:background-color 160ms, border-color 160ms, box-shadow 160ms, transform 160ms;
+}
+#exp-root #exp-title-screen #exp-begin::after {
+  content:"";
+  position:absolute;
+  top:50%;
+  right:21px;
+  width:9px;
+  height:9px;
+  border-top:2px solid #fff3dc;
+  border-right:2px solid #fff3dc;
+  transform:translateY(-50%) rotate(45deg);
+  transition:translate 160ms;
+}
+#exp-root #exp-title-screen button:focus-visible { outline:2px solid #ffcf97; outline-offset:4px; }
+@media (hover:hover) {
+  #exp-root #exp-title-screen #exp-begin:hover {
+    border-color:#ffcd92;
+    box-shadow:inset 0 0 0 3px #963f3044,0 4px 17px #dfa27635;
+    transform:translateY(-1px);
+  }
+  #exp-root #exp-title-screen #exp-begin:hover::after { translate:3px 0; }
+}
+#exp-root #exp-title-screen #exp-begin:active { transform:translateY(1px); }
+#exp-root .exp-title-secondary {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  border-bottom:1px solid #cea58d3b;
+}
+#exp-root #exp-title-screen .exp-title-secondary button {
+  min-height:46px;
+  padding:8px 10px;
+  border:1px solid transparent;
+  border-radius:3px;
+  background:transparent;
+  box-shadow:none;
+  color:#e6cfb9;
+  font-size:14px;
+}
+#exp-root #exp-title-screen .exp-title-secondary button + button { border-left-color:#cea58d3b; }
+#exp-root #exp-title-screen .exp-title-secondary button:hover { background:#f7b87c13; color:#fff0d5; }
+#exp-root #exp-title-status,#exp-root #exp-archive-notice {
+  max-width:353px;
+  margin:0;
+  font-size:13px;
+  line-height:1.6;
+  color:var(--title-muted);
+}
+#exp-root #exp-archive-notice {
+  margin-top:8px;
+  padding-left:9px;
+  border-left:2px solid var(--title-frame);
+  color:#ffdbad;
+}
+@keyframes title-lantern-on {
+  0% { opacity:.4; transform:rotate(-7deg); box-shadow:inset 0 1px 3px #ffe0a425; }
+  55% { opacity:1; transform:rotate(3deg); }
+  100% { opacity:1; transform:rotate(0); }
+}
+@keyframes title-wick-on {
+  from { transform:scaleX(.25); transform-origin:left; opacity:.35; }
+  to { transform:scaleX(1); transform-origin:left; opacity:1; }
+}
+@keyframes title-ink-in {
+  from { transform:translateY(8px); opacity:0; clip-path:inset(-12% 100% -12% -12%); }
+  to { transform:translateY(0); opacity:1; clip-path:inset(-12% -12% -12% -12%); }
+}
+@keyframes title-lights { from { opacity:.28; } to { opacity:.86; } }
+
+#exp-root[data-view="intro"] { touch-action:pan-y; }
+#exp-root .exp-intro {
+  position:absolute;
+  inset:0;
+  z-index:6;
+  display:grid;
+  align-items:center;
+  padding:max(24px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right))
+    max(24px,env(safe-area-inset-bottom)) max(clamp(24px,8vw,120px),env(safe-area-inset-left));
+  overflow:auto;
+  background:
+    linear-gradient(92deg,#261e27 4%,#261e27ef 36%,#261e2784 62%,#261e2740 100%),
+    url('./assets/title-hongyadong.jpg') 66% center / cover no-repeat #261e27;
+  color:#fae9d5;
+}
+#exp-root .exp-intro-story {
+  max-width:455px;
+  animation:title-ink-in 510ms ease-out both;
+}
+#exp-root .exp-intro-story h2 {
+  margin:0 0 15px;
+  color:#ffe3b7;
+  font:700 clamp(32px,5vw,54px)/1.15 KaiTi, STKaiti, "Microsoft YaHei", serif;
+}
+#exp-root .exp-intro-story p {
+  margin:0 0 13px;
+  line-height:1.8;
+  font-size:clamp(14px,1.55vw,18px);
+  text-wrap:pretty;
+}
+#exp-root p.exp-intro-goal { padding-left:12px; border-left:2px solid #d19063; color:#ffd2a0; }
+#exp-root .exp-intro-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:22px; }
+#exp-root #exp-intro-back { background:#342931; color:#f4d9be; }
+#exp-root #exp-intro-back:hover { background:#503a3c; }
+#exp-root .exp-intro button:focus-visible { outline-color:#ffcf97; }
+@media (orientation:landscape) and (max-height:550px) {
+  #exp-root .exp-title-screen { grid-template-columns:minmax(320px,49%) 1fr; }
+  #exp-root .exp-title-copy { padding-block:max(13px,env(safe-area-inset-top)) max(13px,env(safe-area-inset-bottom)); }
+  #exp-root .exp-title-ornament { height:28px; }
+  #exp-root .exp-title-lantern { transform:scale(.8); }
+  #exp-root #exp-title-name { font-size:clamp(47px,12vh,67px); margin:4px 0 8px; }
+  #exp-root .exp-title-description { font-size:14px; }
+  #exp-root .exp-title-actions { margin:16px 0 9px; }
+  #exp-root #exp-title-screen #exp-begin { min-height:48px; padding-block:8px; font-size:16px; }
+  #exp-root #exp-title-status,#exp-root #exp-archive-notice { font-size:12px; }
+}
+@media (orientation:portrait) and (pointer:fine) {
+  #exp-root .exp-title-screen {
+    grid-template-columns:1fr;
+    background:
+      linear-gradient(180deg,#251e2c12 8%,#251e2c1a 26%,#251e2cbf 57%,#251e2cfa 86%),
+      url('./assets/title-hongyadong.jpg') 68% center / cover no-repeat #211b28;
+  }
+  #exp-root .exp-title-copy {
+    --title-side:clamp(21px,7vw,48px);
+    padding:max(18px,env(safe-area-inset-top)) max(var(--title-side),env(safe-area-inset-right))
+      max(28px,env(safe-area-inset-bottom)) max(var(--title-side),env(safe-area-inset-left));
+  }
+  #exp-root .exp-title-content { margin-block:auto 0; }
+  #exp-root #exp-title-name { font-size:clamp(47px,16vw,82px); margin:3px 0 10px; }
+  #exp-root .exp-title-description { font-size:14px; }
+  #exp-root .exp-title-actions { margin-top:22px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  #exp-root #exp-title-screen #exp-begin,
+  #exp-root #exp-title-screen #exp-begin::after { transform:none; translate:none; }
+  #exp-root #exp-title-screen #exp-begin::after { transform:translateY(-50%) rotate(45deg); }
+}
