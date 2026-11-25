@@ -12,7 +12,7 @@ export const explorationUiMarkup=`
       <small id="exp-save" class="exp-save" role="status"></small>
       <button id="exp-auto-walk" type="button" hidden>顺路前往</button>
     </div>
-    <nav aria-label="旅程操作"><button id="exp-notes-toggle" type="button">旅程记录</button><button id="exp-menu-button" type="button" aria-label="暂停">暂停</button></nav>
+    <nav aria-label="旅程操作"><button id="exp-notes-toggle" type="button" aria-label="旅程记录"><svg class="exp-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V4Z"/><path d="M5 18a2 2 0 0 1 2-2h12"/><path d="M9 8h6M9 11h6"/></svg><span>旅程记录</span></button><button id="exp-menu-button" type="button" aria-label="暂停"><svg class="exp-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></button></nav>
   </header>
   <aside id="exp-onboarding" aria-label="开场指引" hidden><span class="exp-page-label" id="exp-onboarding-step"></span><h2 id="exp-onboarding-title"></h2><p id="exp-onboarding-text"></p><div><button id="exp-onboarding-help" type="button">操作说明</button><button id="exp-onboarding-skip" type="button">跳过教学</button></div></aside>
   <p id="exp-help">WASD／方向键行走　Shift 慢行　E／空格交互　Esc 暂停</p>
@@ -20,7 +20,7 @@ export const explorationUiMarkup=`
     <div><h2 id="exp-orientation-title">请将手机横过来</h2><p>横屏后继续旅程。</p></div>
   </section>
   <div id="exp-touch"><div id="exp-stick" role="group" aria-label="移动摇杆"><span id="exp-knob"></span></div><button id="exp-interact" type="button">交互</button></div>
-  <p id="exp-prompt"></p>
+  <p id="exp-prompt" hidden><kbd id="exp-prompt-key">E</kbd><span id="exp-prompt-text"></span></p>
   <p id="exp-ferry-status" role="status" hidden></p>
   <p id="exp-memento-feedback" role="status"></p>
   <p id="exp-gate-feedback" role="status" hidden>江纹栈门已开<br><span>两端外阶与木作1F门，现在可以通行。</span></p>
@@ -55,9 +55,9 @@ export const explorationUiMarkup=`
       </div>
     </div>
   </section>
-  <section id="exp-menu" class="exp-shade" role="dialog" aria-modal="true" aria-labelledby="exp-menu-title" hidden><div class="exp-panel exp-menu-panel"><span class="exp-page-label">旅途中</span><h1 id="exp-menu-title">歇一会儿</h1><p>这一刻先停下，发现留在旅程里。</p><div class="exp-menu-actions"><button id="exp-resume" class="exp-primary" type="button">继续探索</button><button id="exp-menu-journal" type="button">旅程记录</button><button id="exp-weather" type="button">天气 · 夕照</button><button id="exp-menu-help" type="button">操作说明</button><button id="exp-title" type="button">返回标题</button><button id="exp-restart" type="button">重新开始</button></div></div></section>
+  <section id="exp-menu" class="exp-shade" role="dialog" aria-modal="true" aria-labelledby="exp-menu-title" hidden><div class="exp-panel exp-menu-panel"><span class="exp-page-label">旅途中</span><h1 id="exp-menu-title">歇一会儿</h1><p>这一刻先停下，发现留在旅程里。</p><div class="exp-menu-actions exp-pause-actions"><button id="exp-resume" class="exp-primary" type="button">继续探索</button><div class="exp-menu-grid"><button id="exp-menu-journal" type="button">旅程手账</button><button id="exp-menu-help" type="button">操作说明</button><button id="exp-weather" type="button"><svg class="exp-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg><span>天气 · 夕照</span></button><button id="exp-title" type="button">返回标题</button></div></div><footer class="exp-menu-foot"><span id="exp-menu-save" class="exp-save-dot"></span><button id="exp-restart" class="exp-restart" type="button">重新开始</button></footer></div></section>
   <section id="exp-notes" class="exp-shade exp-journal" role="dialog" aria-modal="true" aria-labelledby="exp-journal-title" hidden><div class="exp-journal-book">
-    <header><div><span class="exp-page-label">把发现写下来</span><h1 id="exp-journal-title">旅程手账</h1></div><button id="exp-notes-close" type="button">收起手账</button></header>
+    <header><div><span class="exp-page-label">把发现写下来</span><h1 id="exp-journal-title">旅程手账</h1></div><button id="exp-notes-close" type="button">收起<span class="exp-close-long">手账</span></button></header>
     <section class="exp-tracking" aria-labelledby="exp-track-heading">
       <h2 id="exp-track-heading">跟踪任务</h2>
       <div class="exp-track-options">
