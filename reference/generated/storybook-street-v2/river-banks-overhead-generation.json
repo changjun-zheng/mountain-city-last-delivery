@@ -1,0 +1,20 @@
+{
+  "source": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/exec-71b05f33-e5e4-428d-a394-52cb0fcf2d7c.png",
+  "styleReference": "docs/assets/art-direction/style-options-2026-11-24/style-c-storybook.png",
+  "generator": "built-in image_gen",
+  "prompt": "Create a game BACKGROUND TILE, ultra-wide approximately 3:1. Reference only for original warm painterly gouache palette and brush textures. Completely different viewpoint from its perspective: 2D orthographic steep top-down oblique aerial view, 65 to 75 degrees downward, looking down from a steep terraced urban hillside in a fictional Chongqing-inspired city; absolutely NO sky, NO horizon line, NO clouds and NO landscape skyline, no vanishing point. Along the ENTIRE TOP edge, the art begins exactly at a continuous muted stone retaining wall and just below it one newly visible narrow near-bank terrace with small tiled ROOFS as seen from ABOVE, not fa\u00e7ades, plus stairs and garden tufts. Following down the vertical axis of picture: immediately below these roofs comes a wide turquoise river running horizontally across full canvas, both shorelines clear, then a narrower opposite bank with rooftops, stepped stone embankment and a few hill houses in the LOWER edge. From above we see both banks clearly and roof planes dominate. No dramatic close tree canopy. One small overhead wooden riverboat, no actual playable city street, no character, text, border or game UI. Low contrast secondary scenery, muted jade water, blue gray rooftops, pale terracotta sandstone. Straight top seam is flush with game street above. Viewer looks down at the river located under the player's feet on a 2D map. Strong stylized yet textured aerial depth; must feel like viewing the map from the same diagonal orthographic camera as a 2D top-down exploration game; on no account a panorama from eye level.",
+  "archive": {
+    "path": "reference/generated/storybook-street-v2/river-banks-overhead.png",
+    "width": 2172,
+    "height": 724,
+    "sha256": "fb55de63c5c444bd86acfcbb484a9a13d201ee2dd32094ba2e44e1b652725258",
+    "bytes": 3345905
+  },
+  "runtime": {
+    "path": "src/rendering/phaser/assets/storybook-c-v1/river-banks-overhead-v3.webp",
+    "width": 1536,
+    "height": 512,
+    "sha256": "4f79845a37e069f0364e857ac2c162235cc3978ee75dba5941fe33ae5797e6ca",
+    "bytes": 263654
+  }
+}

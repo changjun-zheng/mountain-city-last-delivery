@@ -1,0 +1,146 @@
+{
+  "date": "2026-11-24",
+  "scope": "Research downloads, concept archive and document synchronization; no new runtime art or bug fix.",
+  "checks": {
+    "protected_source_test_tools": {
+      "status": "PASS",
+      "count": 211,
+      "changed": []
+    },
+    "photos": {
+      "status": "PASS",
+      "count": 9,
+      "bytes": 4091595,
+      "files": [
+        {
+          "file": "01-shancheng-alley.jpg",
+          "dimensions": [
+            1280,
+            960
+          ],
+          "bytes": 373292,
+          "sha256": "245DB497B0C6393FCC0560B17867E809D72513883C55BA534BE225FEEFFEB674"
+        },
+        {
+          "file": "02-hongyadong-night.jpg",
+          "dimensions": [
+            1280,
+            1920
+          ],
+          "bytes": 794876,
+          "sha256": "868B89EBFFDD12F4BEB74FC1658967C07F673E1E6AADBA682A81548B741A1F77"
+        },
+        {
+          "file": "03-yangtze-cableway.jpg",
+          "dimensions": [
+            1280,
+            960
+          ],
+          "bytes": 183669,
+          "sha256": "EF5DEE4CB0D82289C24DB3CADEED8739274D9E22CCE44BBEBDE2510955F92E22"
+        },
+        {
+          "file": "04-dongshuimen-bridge.jpg",
+          "dimensions": [
+            1280,
+            960
+          ],
+          "bytes": 295661,
+          "sha256": "7BFC0F84E93FBC793E72212121ED2C5F96A2142765E2760D0CE80297613CD937"
+        },
+        {
+          "file": "05-jiaotong-teahouse.jpg",
+          "dimensions": [
+            1280,
+            787
+          ],
+          "bytes": 286735,
+          "sha256": "8B97F355718699E30D40E2703F67B72D6E87C8E92CFE83393B4E94E22339BCC5"
+        },
+        {
+          "file": "06-ciqikou-street.jpg",
+          "dimensions": [
+            1280,
+            961
+          ],
+          "bytes": 443006,
+          "sha256": "B21EB2EBFA4FC64DCAF4DCC5498A3ADABB2700E5C65BF82D6EC24C4033D3A0B9"
+        },
+        {
+          "file": "07-shibati-square.jpg",
+          "dimensions": [
+            1280,
+            1707
+          ],
+          "bytes": 411671,
+          "sha256": "2CAC96859097EC3CCD16EB18ADBFFD0B33BA98B7AE1CE06C2E32F7FF37D027BD"
+        },
+        {
+          "file": "08-shancheng-cliff-walk.jpg",
+          "dimensions": [
+            1600,
+            1003
+          ],
+          "bytes": 543264,
+          "sha256": "B8F026CD610327DFC7EC481F51468E7C49BA865BEC1360D50D75A4A986FBE929"
+        },
+        {
+          "file": "09-daijiaxiang-cliff-lane.jpg",
+          "dimensions": [
+            1600,
+            2399
+          ],
+          "bytes": 759421,
+          "sha256": "ACE87C96E71607D6DD53C4F5B52A41D11AA1FBD0C4050CC6899E24A6B329A8EE"
+        }
+      ]
+    },
+    "concepts": {
+      "status": "PASS",
+      "count": 3,
+      "match_original_tool_outputs": true,
+      "adoption": "PROPOSED; no runtime import"
+    },
+    "github_downloads": {
+      "status": "PASS",
+      "groups": [
+        {
+          "path": "D:\\Workspace\\github_repos\\phaser-ui-components",
+          "head": "d5a689976a18475d4af6545db9f158b4d898b99f",
+          "status": "PASS"
+        },
+        {
+          "path": "D:\\Workspace\\github_repos\\phaser3-ninepatch-plugin",
+          "head": "11cfc39edb972db092aff0652172610df98756fc",
+          "status": "PASS"
+        },
+        {
+          "path": "D:\\Workspace\\github_repos\\phaser-3-tilemap-blog-posts",
+          "head": "06a12a0917ccf2b359bf81180797cdc5f687cb72",
+          "status": "PASS"
+        },
+        {
+          "path": "D:\\Workspace\\github_repos\\game-icons-reference-20261124",
+          "head": "82d948812bfe3f269ef8f731dcdb07b08160edc4",
+          "status": "PASS"
+        }
+      ],
+      "runtime_compatibility": "NOT RUN"
+    },
+    "new_doc_local_links": {
+      "status": "PASS",
+      "checked": 40,
+      "broken": []
+    },
+    "git_diff_check": {
+      "status": "PASS",
+      "output": "warning: in the working copy of 'docs/ART_DIRECTION_AND_SCENE_PROTOTYPE.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'docs/DECISIONS.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'docs/FULL_GAME_CONTENT_AND_LEVEL_EXPANSION_ARCHITECTURE.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/platform/web/exploration-journal.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/platform/web/exploration-ui.css', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/platform/web/exploration-ui.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/platform/web/exploration.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'src/rendering/phaser/exploration-c-art.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/exploration-journal.test.mjs', LF will be replaced by CRLF the next time Git touches it\n"
+    }
+  },
+  "validation_notes": [
+    "First validator assumed the photo manifest key was images/photos; actual schema is assets. Corrected the validator; no asset changes."
+  ],
+  "runtime_tests": "NOT RUN in this research-only task; earlier evidence retains original scope/date.",
+  "product_feedback": "FAIL: current onboarding, occlusion/clipping and visual experience; not fixed or reaccepted here.",
+  "status": "PASS"
+}

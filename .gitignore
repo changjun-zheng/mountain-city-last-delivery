@@ -3,3 +3,11 @@
 /dist-electron/
 /release/
 /test-results/
+
+# Generated art originals stay local; manifests and the user's style reference
+# are tracked as provenance.
+/reference/generated/**/*.png
+!/reference/generated/cel-v1/user-style-reference.png
+/reference/generated/**/*.jpg
+/reference/generated/**/*.jpeg
+/reference/generated/**/*.webp

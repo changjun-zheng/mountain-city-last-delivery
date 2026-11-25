@@ -1,0 +1,400 @@
+{
+  "created_date": "2026-11-24",
+  "tool": "built-in image_gen.imagegen",
+  "asset_type": "traveller character sprite sheet",
+  "style_direction": "C warm storybook, confirmed by user according to task handoff",
+  "style_reference": "D:\\Workspace\\Code_Projects\\mountain-city-last-delivery\\docs\\assets\\art-direction\\style-options-2026-11-24\\style-c-storybook.png",
+  "selected_original_path": "C:\\Users\\24839\\.codex\\generated_images\\01a20b97-5ad3-7ae0-b6e9-99b5a4a31e93\\call_499c8e74b4074e60a5998f7b715de3e1.png",
+  "workspace_asset_path": "D:\\Workspace\\Code_Projects\\mountain-city-last-delivery\\reference\\generated\\storybook-c-v1\\traveller-sheet.png",
+  "originals_preserved": true,
+  "local_pixel_edits": "none; byte-for-byte copy only",
+  "attempts": [
+    {
+      "number": 1,
+      "original_path": "C:\\Users\\24839\\.codex\\generated_images\\01a20b97-5ad3-7ae0-b6e9-99b5a4a31e93\\call_3cb090f7ec81427aa51982a485323ff2.png",
+      "prompt": "Use case: stylized-concept.\nAsset type: production-oriented 2D game character sprite sheet, not a scene, not a concept illustration.\nInput image: supplied style-c-storybook.png is STYLE AND CHARACTER REFERENCE ONLY. Match its warm storybook linework and watercolor character treatment; do not reproduce any scenery, panels, icons, floor, or shadow.\nPrimary request: Generate exactly ONE transparent PNG sprite sheet containing exactly 8 full-body sprites of the SAME young boy traveller. Four equal columns by two equal rows, strict uniform grid with no drawn grid lines. Landscape 2:1 canvas, ideally 2048 by 1024 pixels, with 8 equal square cells. Read cells left-to-right then top-to-bottom.\nCharacter identity invariant: same youthful boy, tousled short dark-brown hair, warm blue jacket over a simple light shirt, ochre-yellow cross-body satchel with the strap consistently crossing from his left shoulder to his right hip, brown knee-length shorts, black shoes. Keep facial features, haircut, body proportions, outfit construction, colours, bag size, and bag attachment identical in all frames.\nCamera invariant: slightly tilted overhead/top-down orthographic adventure-game camera, see a little of the crown of the head and upper surfaces; not isometric, not side-view platformer, not a flat front character turnaround. Keep the same orthographic camera in every cell.\nColumn directions for BOTH rows: column 1 SOUTH (toward the bottom of the image, face visible); column 2 NORTH (toward the top of the image, back of head/back visible); column 3 WEST (toward the left); column 4 EAST (toward the right).\nRow 1: relaxed neutral standing pose. Row 2: a small mid-step walking pose in the same respective direction, subtle arm motion and only a modest leg stride. No dramatic action. No big pose jumps.\nStrict framing/alignment: each full body is centered at exactly the horizontal center of its cell; identical character height and scale in all 8 cells. Crown of head at 16% of cell height and lowest sole on the shared baseline at 87% of cell height. Nothing may touch or cross a cell boundary. Keep at least 12% transparent padding on left/right and 10% on top/bottom within every cell. Feet/foot-contact positions stay registered between stand and step frames. Empty cells are forbidden; extra sprites are forbidden.\nStyle/medium: hand-drawn warm ink contours with restrained soft watercolor shading and subtle pigment texture INSIDE each character only. The friendly handmade illustrated storybook feel of the reference, clean enough to read when displayed small. Clear solid silhouettes; not pixel art, not photorealistic, not glossy 3D.\nBackdrop: genuinely transparent alpha channel everywhere outside the 8 characters. No opaque white, cream, grey, checkerboard, paper, landscape, floor, cast shadow, aura, glow, border, decorative flecks or background objects. No ground/contact shadows at all. No captions, text, numbers, labels, watermark or grid lines. The satchel is worn clothing, never a detached prop. Exactly one character per cell.",
+      "referenced_image_paths": [
+        "D:\\Workspace\\Code_Projects\\mountain-city-last-delivery\\docs\\assets\\art-direction\\style-options-2026-11-24\\style-c-storybook.png"
+      ],
+      "transparent_background": true
+    },
+    {
+      "number": 2,
+      "original_path": "C:\\Users\\24839\\.codex\\generated_images\\01a20b97-5ad3-7ae0-b6e9-99b5a4a31e93\\call_499c8e74b4074e60a5998f7b715de3e1.png",
+      "prompt": "Use case: precise-object-edit. Asset type: game-ready transparent PNG character sprite sheet.\nEdit this existing 8-frame traveller sprite sheet. Preserve the exact established boy design, warm hand-drawn ink/watercolor storybook style, clothing, hair, colour palette, column order and both existing pose rows. Change ONLY technical alignment and framing so it can be sliced with identical cells.\nThe delivered PNG canvas must be EXACTLY 2048 pixels wide by 1024 pixels tall. Do not crop the canvas or trim transparent margins. This is an unmarked 4 columns by 2 rows grid, each cell EXACTLY 512 by 512 pixels. Eight sprites total.\nEach sprite is fully contained within its own cell. Put each character foot-contact baseline at local y=448 pixels, and top of hair at local y=64 pixels, giving a consistent 384-pixel full-body drawing height. Center each sprite at local x=256 pixels. The same fixed baseline and scale applies to all eight cells. No sprite enters another cell. Wide transparent margins must remain.\nBoth rows, left to right: SOUTH/front-facing; NORTH/back-facing; WEST/left-facing; EAST/right-facing. First row neutral standing. Second row small walking step. Keep the same slightly top-down orthographic game camera.\nIdentity stays unchanged: short dark-brown tousled hair; blue jacket; ochre-yellow crossbody satchel, worn consistently on the boy's right hip from his left shoulder; brown knee shorts; black shoes. Preserve details and texture inside the figure only.\nMust use a true transparent alpha background, empty alpha=0 outside characters. No opaque or semiopaque ground, backdrop, checkerboard, cast shadows, paper, texture, labels, grid lines, words, numbers, or border. No new objects. Transparent negative space must not be automatically cropped. Deliver the entire 2048×1024 sheet with uniform cells.",
+      "referenced_image_paths": [
+        "C:\\Users\\24839\\.codex\\generated_images\\01a20b97-5ad3-7ae0-b6e9-99b5a4a31e93\\call_3cb090f7ec81427aa51982a485323ff2.png"
+      ],
+      "transparent_background": true
+    }
+  ],
+  "validation": {
+    "format": "PNG",
+    "mode": "RGBA",
+    "dimensions_px": [
+      1774,
+      887
+    ],
+    "bytes": 760747,
+    "sha256": "9d7b36b74184dba12c1974460a06cc8b0c359c4f115b9f653dc65f443c576581",
+    "copy_matches_original": true,
+    "alpha_range": [
+      0,
+      255
+    ],
+    "transparent_pixels": 1310147,
+    "semi_transparent_pixels": 261477,
+    "opaque_pixels": 1914,
+    "transparent_ratio": 0.8326122406958077,
+    "grid_columns": 4,
+    "grid_rows": 2,
+    "integer_uniform_grid": false,
+    "bbox_alpha_threshold": 16,
+    "checks": {
+      "true_alpha": "PASS",
+      "eight_visible_characters": "PASS",
+      "direction_order": "PASS",
+      "no_meaningful_cross_cell_overlap": "PASS",
+      "exact_integer_grid": "FAIL",
+      "identical_baked_baseline_and_scale": "FAIL",
+      "runtime_frame_registration": "NOT RUN"
+    },
+    "notes": [
+      "Generator returned 1774x887 twice despite exact-size prompt; parent accepted explicit frame rectangles instead of a uniform integer grid.",
+      "Background is truly transparent, with some alpha=1 noise at cell edges. At alpha>16 all character silhouettes stay well inside their own cells.",
+      "Selected standing frame heights are 343-347 px and step heights are 330-334 px; generation does not meet literal identical height/baseline. Use actual frame rectangles/foot registration; no third generation requested.",
+      "Bag remains on wearer right hip in front/back views, but profile treatments are illustrative and not a mechanically perfect 3D turntable.",
+      "This is two poses per direction, not a complete multi-frame walking cycle."
+    ]
+  },
+  "frames": [
+    {
+      "name": "south-stand",
+      "row": 0,
+      "column": 0,
+      "cell_rect_xywh": [
+        0,
+        0,
+        444,
+        444
+      ],
+      "visible_alpha_bbox_local_ltrb": [
+        155,
+        80,
+        295,
+        425
+      ],
+      "solid_alpha_bbox_local_ltrb": [
+        155,
+        81,
+        294,
+        425
+      ],
+      "frame_rect_xywh": [
+        155,
+        80,
+        140,
+        345
+      ],
+      "bottom_y_local": 424,
+      "lowest_sole_sample_local": [
+        229.0,
+        424
+      ],
+      "recommended_frame_origin": [
+        0.5,
+        1.0
+      ],
+      "runtime_note": "Use frame rectangle bottom as the foot baseline. Horizontal lowest-pixel sample is observational only; use stable body centre for positioning. Per-frame height differs and requires runtime scale/registration if exact visual height is needed.",
+      "cell_boundary_max_alpha": 0,
+      "meaningful_pixels_touch_boundary": false
+    },
+    {
+      "name": "north-stand",
+      "row": 0,
+      "column": 1,
+      "cell_rect_xywh": [
+        444,
+        0,
+        443,
+        444
+      ],
+      "visible_alpha_bbox_local_ltrb": [
+        153,
+        82,
+        292,
+        425
+      ],
+      "solid_alpha_bbox_local_ltrb": [
+        154,
+        83,
+        291,
+        424
+      ],
+      "frame_rect_xywh": [
+        597,
+        82,
+        139,
+        343
+      ],
+      "bottom_y_local": 424,
+      "lowest_sole_sample_local": [
+        222.0,
+        424
+      ],
+      "recommended_frame_origin": [
+        0.5,
+        1.0
+      ],
+      "runtime_note": "Use frame rectangle bottom as the foot baseline. Horizontal lowest-pixel sample is observational only; use stable body centre for positioning. Per-frame height differs and requires runtime scale/registration if exact visual height is needed.",
+      "cell_boundary_max_alpha": 1,
+      "meaningful_pixels_touch_boundary": false
+    },
+    {
+      "name": "west-stand",
+      "row": 0,
+      "column": 2,
+      "cell_rect_xywh": [
+        887,
+        0,
+        443,
+        444
+      ],
+      "visible_alpha_bbox_local_ltrb": [
+        159,
+        81,
+        291,
+        427
+      ],
+      "solid_alpha_bbox_local_ltrb": [
+        160,
+        82,
+        291,
+        426
+      ],
+      "frame_rect_xywh": [
+        1046,
+        81,
+        132,
+        346
+      ],
+      "bottom_y_local": 426,
+      "lowest_sole_sample_local": [
+        207.5,
+        426
+      ],
+      "recommended_frame_origin": [
+        0.5,
+        1.0
+      ],
+      "runtime_note": "Use frame rectangle bottom as the foot baseline. Horizontal lowest-pixel sample is observational only; use stable body centre for positioning. Per-frame height differs and requires runtime scale/registration if exact visual height is needed.",
+      "cell_boundary_max_alpha": 0,
+      "meaningful_pixels_touch_boundary": false
+    },
+    {
+      "name": "east-stand",
+      "row": 0,
+      "column": 3,
+      "cell_rect_xywh": [
+        1330,
+        0,
+        444,
+        444
+      ],
+      "visible_alpha_bbox_local_ltrb": [
+        148,
+        80,
+        282,
+        427
+      ],
+      "solid_alpha_bbox_local_ltrb": [
+        148,
+        81,
+        281,
+        426
+      ],
+      "frame_rect_xywh": [
+        1478,
+        80,
+        134,
+        347
+      ],
+      "bottom_y_local": 426,
+      "lowest_sole_sample_local": [
+        233.0,
+        426
+      ],
+      "recommended_frame_origin": [
+        0.5,
+        1.0
+      ],
+      "runtime_note": "Use frame rectangle bottom as the foot baseline. Horizontal lowest-pixel sample is observational only; use stable body centre for positioning. Per-frame height differs and requires runtime scale/registration if exact visual height is needed.",
+      "cell_boundary_max_alpha": 0,
+      "meaningful_pixels_touch_boundary": false
+    },
+    {
+      "name": "south-step",
+      "row": 1,
+      "column": 0,
+      "cell_rect_xywh": [
+        0,
+        444,
+        444,
+        443
+      ],
+      "visible_alpha_bbox_local_ltrb": [
+        146,
+        76,
+        296,
+        410
+      ],
+      "solid_alpha_bbox_local_ltrb": [
+        147,
+        77,
+        295,
+        409
+      ],
+      "frame_rect_xywh": [
+        146,
+        520,
+        150,
+        334
+      ],
+      "bottom_y_local": 409,
+      "lowest_sole_sample_local": [
+        217.5,
+        409
+      ],
+      "recommended_frame_origin": [
+        0.5,
+        1.0
+      ],
+      "runtime_note": "Use frame rectangle bottom as the foot baseline. Horizontal lowest-pixel sample is observational only; use stable body centre for positioning. Per-frame height differs and requires runtime scale/registration if exact visual height is needed.",
+      "cell_boundary_max_alpha": 1,
+      "meaningful_pixels_touch_boundary": false
+    },
+    {
+      "name": "north-step",
+      "row": 1,
+      "column": 1,
+      "cell_rect_xywh": [
+        444,
+        444,
+        443,
+        443
+      ],
+      "visible_alpha_bbox_local_ltrb": [
+        152,
+        77,
+        298,
+        409
+      ],
+      "solid_alpha_bbox_local_ltrb": [
+        153,
+        77,
+        298,
+        408
+      ],
+      "frame_rect_xywh": [
+        596,
+        521,
+        146,
+        332
+      ],
+      "bottom_y_local": 408,
+      "lowest_sole_sample_local": [
+        201.0,
+        408
+      ],
+      "recommended_frame_origin": [
+        0.5,
+        1.0
+      ],
+      "runtime_note": "Use frame rectangle bottom as the foot baseline. Horizontal lowest-pixel sample is observational only; use stable body centre for positioning. Per-frame height differs and requires runtime scale/registration if exact visual height is needed.",
+      "cell_boundary_max_alpha": 1,
+      "meaningful_pixels_touch_boundary": false
+    },
+    {
+      "name": "west-step",
+      "row": 1,
+      "column": 2,
+      "cell_rect_xywh": [
+        887,
+        444,
+        443,
+        443
+      ],
+      "visible_alpha_bbox_local_ltrb": [
+        137,
+        76,
+        295,
+        407
+      ],
+      "solid_alpha_bbox_local_ltrb": [
+        138,
+        77,
+        294,
+        406
+      ],
+      "frame_rect_xywh": [
+        1024,
+        520,
+        158,
+        331
+      ],
+      "bottom_y_local": 406,
+      "lowest_sole_sample_local": [
+        184.0,
+        406
+      ],
+      "recommended_frame_origin": [
+        0.5,
+        1.0
+      ],
+      "runtime_note": "Use frame rectangle bottom as the foot baseline. Horizontal lowest-pixel sample is observational only; use stable body centre for positioning. Per-frame height differs and requires runtime scale/registration if exact visual height is needed.",
+      "cell_boundary_max_alpha": 1,
+      "meaningful_pixels_touch_boundary": false
+    },
+    {
+      "name": "east-step",
+      "row": 1,
+      "column": 3,
+      "cell_rect_xywh": [
+        1330,
+        444,
+        444,
+        443
+      ],
+      "visible_alpha_bbox_local_ltrb": [
+        144,
+        77,
+        304,
+        407
+      ],
+      "solid_alpha_bbox_local_ltrb": [
+        145,
+        77,
+        303,
+        406
+      ],
+      "frame_rect_xywh": [
+        1474,
+        521,
+        160,
+        330
+      ],
+      "bottom_y_local": 406,
+      "lowest_sole_sample_local": [
+        256.5,
+        406
+      ],
+      "recommended_frame_origin": [
+        0.5,
+        1.0
+      ],
+      "runtime_note": "Use frame rectangle bottom as the foot baseline. Horizontal lowest-pixel sample is observational only; use stable body centre for positioning. Per-frame height differs and requires runtime scale/registration if exact visual height is needed.",
+      "cell_boundary_max_alpha": 1,
+      "meaningful_pixels_touch_boundary": false
+    }
+  ]
+}

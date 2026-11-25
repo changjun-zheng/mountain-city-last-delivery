@@ -1,0 +1,46 @@
+{
+  "generator": "Built-in image_gen",
+  "styleReference": "docs/assets/art-direction/style-options-2026-11-24/style-c-storybook.png",
+  "assets": [
+    {
+      "original": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/exec-1fa3fe05-04d6-41fb-a674-dae3ffced942.png",
+      "archive": {
+        "path": "reference/generated/storybook-street-v2/residents.png",
+        "width": 2172,
+        "height": 724,
+        "mode": "RGBA",
+        "bytes": 1088195,
+        "sha256": "a6747c5577c35951235d3b7e02d765aaa222da57386ee48ff5e0927088a0158c"
+      },
+      "runtime": {
+        "path": "src/rendering/phaser/assets/storybook-c-v1/residents-v2.webp",
+        "width": 1086,
+        "height": 362,
+        "mode": "RGBA",
+        "bytes": 74676,
+        "sha256": "014ad48216928a43189e76787fbb00f2c8679800cc6043323f0e2e3008175748"
+      },
+      "prompt": "Use the reference only for the original warm gouache ink visual style. ONE wide RGBA game sprite atlas, exactly FOUR isolated side-view full-body walking figures in FOUR equal columns with generous empty padding, all facing right. From left to right: older Chinese woman with gray bun, modest dusty purple jacket and cloth shopping bag; middle-aged Chinese man in moss coat and dark trousers; young adult Chinese woman in brick red cardigan and blue skirt; Chinese school-age child in mustard top and simple small blue backpack. These are original residents of a fictional hillside city inspired by Chongqing. Warm restrained colors, painterly illustrated storybook style, soft outlines, slight top-down orthographic sprite viewing angle. Calm distinct gait stance with modest spread feet. Each figure entirely separated, front shoe visible, no ground, no shadows, no text, no grid lines or labels, no checkerboard, actual transparent alpha. All four bodies equally tall in source art; production adjusts height for children. No background."
+    },
+    {
+      "original": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/exec-2dd956a5-b71b-4315-bf63-c162a4152bed.png",
+      "archive": {
+        "path": "reference/generated/storybook-street-v2/river-city.png",
+        "width": 1774,
+        "height": 887,
+        "mode": "RGB",
+        "bytes": 3420533,
+        "sha256": "034eb2527d5f7953338dd7425805ee9c674548bbe58aa1bd86c947abfc0a76f6"
+      },
+      "runtime": {
+        "path": "src/rendering/phaser/assets/storybook-c-v1/river-city-v2.webp",
+        "width": 1536,
+        "height": 768,
+        "mode": "RGB",
+        "bytes": 378110,
+        "sha256": "756b8aaceb0eeb5ab938c341b4e393b87be63e9fab6b7079ce53bd5ee40a6e91"
+      },
+      "prompt": "Wide horizontal warm illustrated gouache game background. Match brushwork and soft light from the reference only. Panorama across a fictional Chongqing-inspired river valley from a hillside, lower tiled roofs and stepped houses across the bottom third, winding muted jade river in the middle and a bridge on right, layered hillside homes and apartment blocks behind, blue-green ridge and warm sky. Compression into three clear horizontal layers, visible high and low structures, weathered reds and cream. Full bleed, no foreground walkable terrace, no characters, no UI, no lettering, no logos. Scenic backdrop art, not game geometry."
+    }
+  ]
+}

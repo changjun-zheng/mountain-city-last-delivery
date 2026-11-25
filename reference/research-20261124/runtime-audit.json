@@ -1,0 +1,131 @@
+{
+  "date": "2026-11-24",
+  "mode": "read-only source audit + pure runtime simulations; no game source edits, no user-browser storage",
+  "head": "212721c59f8a6436cbd72881d7d056185251279f",
+  "findings": [
+    {
+      "id": "A1",
+      "priority": "P1",
+      "title": "New journey has controls text and a small objective, but no contextual first-action tutorial",
+      "status": "CONFIRMED_CODE_AND_USER_FEEDBACK",
+      "evidence": [
+        "src/platform/web/exploration.ts:157 begin only hides title and focuses journal button",
+        "src/platform/web/exploration.ts:284 help only opens through optional button",
+        "src/platform/web/exploration-ui.css:17 objective uses 13px text",
+        "src/core/exploration-prologue.ts:29 spawn 470,790; :43 next-area exit3120,900",
+        "src/core/exploration-prologue.ts:42 tutorial is inside service at280,330; entrance1250,550"
+      ],
+      "impact": "First quest giver is in the next map. First-screen controls do not teach walking -> noticing a target -> E -> confirming an action. It is inaccurate to say literally no objective exists, but current onboarding plainly does not communicate the task to the owner."
+    },
+    {
+      "id": "A2",
+      "priority": "P1",
+      "title": "Opaque infill buildings are drawn inside traversable ground with no collider",
+      "status": "REPRODUCED_PURE_RUNTIME",
+      "evidence": [
+        "src/rendering/phaser/exploration-city-art.ts:126-139 draws infill not listed in map data",
+        "src/core/exploration-prologue.ts:23 collision uses only registered buildings and4other rectangles",
+        "src/core/exploration.ts:258 movement uses explorationWalls",
+        "src/rendering/phaser/exploration.ts:188 player depth is foot y"
+      ],
+      "reproduction": {
+        "pathFromFreshSave": [
+          [
+            1247,
+            790
+          ],
+          [
+            1247,
+            653.5
+          ],
+          [
+            1548,
+            653.5
+          ],
+          [
+            1548,
+            454
+          ]
+        ],
+        "paintedBuilding": {
+          "x": 1466,
+          "y": 380,
+          "w": 234,
+          "h": 180,
+          "depth": 560
+        },
+        "registeredWallOverlapCount": 0,
+        "playerFootDepth": 454
+      },
+      "impact": "Player legitimately walks into the filled building image, then the building paints on top. This is a visual/collision ownership mismatch, not merely a player correctly walking behind a building. Decorative stalls/cars/trees also lack data-based collision and need per-object classification before fixes."
+    },
+    {
+      "id": "A3",
+      "priority": "P1",
+      "title": "Service-room painted exit points to noninteractive ground",
+      "status": "REPRODUCED_PURE_RUNTIME",
+      "evidence": [
+        "src/rendering/phaser/exploration-city-art.ts:70 link760,546",
+        "src/core/exploration-prologue.ts:41 service-exit540,570",
+        "src/core/exploration.ts:315 target radius64"
+      ],
+      "reproduction": {
+        "legalInitialSave": "empty current save with safe serviceRoom",
+        "paintedExit": [
+          760,
+          546
+        ],
+        "realExit": [
+          540,
+          570
+        ],
+        "distance": 221.30521909796883,
+        "walkResult": [
+          757,
+          543.5
+        ],
+        "target": null,
+        "mapAfterE": "service"
+      },
+      "impact": "A player following the visible Return sign gets no target and cannot leave there. Render exit markers from target data rather than separate coordinates."
+    },
+    {
+      "id": "A4",
+      "priority": "P2",
+      "title": "Rendering families and protagonist appearance switch by map",
+      "status": "CONFIRMED_CODE_AND_EXISTING_SCREENSHOTS",
+      "evidence": [
+        "src/rendering/phaser/exploration-sunset-art.ts:26 limits sample to upper and guide2",
+        "src/rendering/phaser/exploration.ts:188-196 swaps procedural actor with sunset sprite by map",
+        "src/rendering/phaser/exploration-c-art.ts:13 routes upper/guide2 to sunset; other C uses procedural blockout",
+        "test-results/exp-06a/run-2026-11-24T02-37-48-422Z/main-upper-wood.png",
+        "test-results/exp-06a/run-2026-11-24T02-37-48-422Z/main-middle-guide.png"
+      ],
+      "impact": "Continuity, material scale and density break across adjacent places. Current rectangular procedural drawings are not a polished pixel-art system; copying Eastward pixel size will not resolve the underlying art-direction mismatch."
+    }
+  ],
+  "nextLimitedTaskProposal": {
+    "name": "One readable onboarding block + coherent solid/door rendering",
+    "scope": [
+      "A/service and first route only for tutorial; no new currencies or quest lines",
+      "Classify 3 infill houses and solid-looking props: actual ground footprints in shared data OR move scenery to nonwalkable background. Do not just put player above every object.",
+      "Derive rendered service exit from real target position; check other doors/stairs similarly",
+      "One consistent character silhouette across transitions; optional temporary occlusion silhouette where actual back paths remain valid, separate from collision repair"
+    ],
+    "acceptance": [
+      "First player can explain immediate goal within first minute without external hints",
+      "Walk -> approach -> interact -> confirm cycle is experienced on first visible block; skip/help and keyboard/touch remain usable",
+      "Normal-input path cannot enter any newly registered solid footprint; old safe points and all exits remain reachable",
+      "Each painted doorway/arrow is within the real target interaction area; the service exit works at its displayed marker",
+      "At building rear/edge/screen/door player remains identifiable; correct front/back relation still holds",
+      "Style is chosen from owner-approved concept alternatives before broad map painting"
+    ],
+    "notClaimed": [
+      "No full browser run in this audit",
+      "No new real-device or first-player validation",
+      "Not all owner-reported clipping reproduced; only named infill and exit cases proven",
+      "No final art or large-map scope accepted by this audit"
+    ]
+  },
+  "eastwardLesson": "Use composed small spaces, an immediate purpose, readable warm/cool focal lighting, recognizable silhouettes, dense but navigable props, and character-to-door scale. Do not import proprietary assets or infer pixel art approval from the reference."
+}

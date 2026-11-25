@@ -1,0 +1,78 @@
+{
+  "task": "STORYBOOK-C-01",
+  "date": "2026-11-24",
+  "direction": "C warm storybook confirmed by owner",
+  "assets": [
+    {
+      "asset": "reference/generated/storybook-c-v1/material-atlas.png",
+      "runtime": "src/rendering/phaser/assets/storybook-c-v1/material-atlas.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGB",
+      "bytes": 2871529,
+      "sha256": "0985180ad552c1c600eb35597daae8db2b260c4feee1ddfd784ce662d0febb02",
+      "modeUsed": "built-in image_gen",
+      "runtimeCopy": "byte-identical original PNG; atlas rectangles selected in Phaser, no pixel rewrite",
+      "exactPrompt": "Create ONE production game material texture atlas as a square image, precisely 2 columns by 2 rows of equal sized texture squares, no gaps, no labels, no borders. Reference image role: visual style only. Warm gouache illustrated storybook game matching the reference's hand painted stone and wood, delicate ink outlines, low contrast and subtle natural pigment. Each quadrant is a separate orthographic flat surface filling the entire quadrant; no perspective, no objects, no lighting gradients, no cast shadows. Top LEFT: warm beige-pink large irregular flagstones with fine muted gray moss joints, broad stones, small number of stones, restrained detail, seamless repeat. Top RIGHT: warm honey muted wood floor planks with soft hand painted grain, no nails, seamless repeat. Bottom LEFT: ivory weathered lime plaster with very subtle ochre texture, no cracks or objects, seamless repeat. Bottom RIGHT: weathered red-brown timber grain, for beams and wood furniture, no objects, seamless repeat. Uniform material density and top-down illumination across all four. Painterly game art, not photorealistic materials, not pixel art. Output square 1024x1024 if possible. No UI, text, logo, white margins.",
+      "originalOutput": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/call_a7e68a4e5e6f4d14b4f10a43acbfd503.png",
+      "referenceImage": "docs/assets/art-direction/style-options-2026-11-24/style-c-storybook.png",
+      "transparentBackground": false
+    },
+    {
+      "asset": "reference/generated/storybook-c-v1/furniture-atlas.png",
+      "runtime": "src/rendering/phaser/assets/storybook-c-v1/furniture-atlas.png",
+      "size": [
+        1263,
+        1246
+      ],
+      "mode": "RGBA",
+      "bytes": 1212785,
+      "sha256": "7420a90a8c0424faa7fffab247b9dbaabe6af29915b2b80c03073bd0a712e9bc",
+      "modeUsed": "built-in image_gen",
+      "runtimeCopy": "byte-identical original PNG; atlas rectangles selected in Phaser, no pixel rewrite",
+      "exactPrompt": "Create one production furniture game sprite atlas with real transparent background, exactly a 2x2 grid of four fully separated sprites centered in equal cells with generous transparent margins, no labels no text no floor no cast shadows. Match the warm gouache storybook and gentle brown ink illustration style of reference image (reference is STYLE ONLY). Slight top down orthographic RPG perspective, visible front faces and top surfaces, no isometric diamond. TOP LEFT: low broad rectangular ochre wood reading desk with one open paper folio, one ceramic tea cup and tiny ink pot on top, horizontal front edge. TOP RIGHT: low wide red-brown wood museum display cabinet, a few closed books and rolled cloth on top, same material and perspective as desk. BOTTOM LEFT: warm amber latticed rectangular wooden window with open slender shutters, dark blue green glass, front facing, not a room. BOTTOM RIGHT: one modest ceramic pot with fern and small muted pink blossoms, compact triangular foliage silhouette. Uniform upper-left soft sunlight, muted cream, warm wood, olive leaves, blue gray shadows. These are usable game props, restrained delicate brushwork, no photorealism, no pixel art, no outline stickers. Each whole object stays entirely inside its cell; true transparent alpha behind all four.",
+      "originalOutput": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/call_0f2c119a662943cea39013d5cf3a271d.png",
+      "referenceImage": "docs/assets/art-direction/style-options-2026-11-24/style-c-storybook.png",
+      "transparentBackground": true
+    },
+    {
+      "asset": "reference/generated/storybook-c-v1/building-atlas.png",
+      "runtime": "src/rendering/phaser/assets/storybook-c-v1/building-atlas.png",
+      "size": [
+        2172,
+        724
+      ],
+      "mode": "RGBA",
+      "bytes": 1339708,
+      "sha256": "083f1f268c8f13bf2a72fdfb46cc77757f4b03c1794c346ce05d694df0097c37",
+      "modeUsed": "built-in image_gen",
+      "runtimeCopy": "byte-identical original PNG; atlas rectangles selected in Phaser, no pixel rewrite",
+      "generationRecord": "building-generation.json"
+    },
+    {
+      "asset": "reference/generated/storybook-c-v1/traveller-sheet.png",
+      "runtime": "src/rendering/phaser/assets/storybook-c-v1/traveller-sheet.png",
+      "size": [
+        1774,
+        887
+      ],
+      "mode": "RGBA",
+      "bytes": 760747,
+      "sha256": "9d7b36b74184dba12c1974460a06cc8b0c359c4f115b9f653dc65f443c576581",
+      "modeUsed": "built-in image_gen",
+      "runtimeCopy": "byte-identical original PNG; atlas rectangles selected in Phaser, no pixel rewrite",
+      "generationRecord": "traveller-generation.json"
+    }
+  ],
+  "scope": "upper / guide2 scene art; the same traveller across maps; generated decorations are not claims of authentic named artifacts.",
+  "frameAuthority": "src/rendering/phaser/exploration-storybook-art.ts",
+  "limitations": [
+    "Generated sheets are not exact equal-cell grids. Frame rectangles follow measured alpha bounds; traveller visible height and feet normalized at rendering time.",
+    "Building transparent padding has faint alpha=1 residue. Original pixels retained.",
+    "Four facing directions and two poses per direction are a provisional walk cycle, not a final eight-direction animation set.",
+    "Materials requested seamless but visible repeat remains a visual review item.",
+    "No new external code/icon/photo imported into runtime."
+  ]
+}

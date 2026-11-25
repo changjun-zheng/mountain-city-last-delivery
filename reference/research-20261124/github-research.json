@@ -1,0 +1,307 @@
+{
+  "researchedAt": "2026-11-24",
+  "timezone": "Asia/Shanghai",
+  "status": "REFERENCE_ONLY_NOT_INTEGRATED",
+  "project": {
+    "name": "坡坎之间",
+    "path": "D:\\Workspace\\Code_Projects\\mountain-city-last-delivery",
+    "stack": "Phaser 3.90, TypeScript, Vite, existing DOM UI",
+    "direction": "2D斜俯视、自由八向移动、非战斗探索，电脑与手机H5；虚构世界中融入重庆建筑与文化"
+  },
+  "method": {
+    "discovery": "先使用用户指定的GitHub工具搜索仓库并读取README、分支、许可证和文件，再下载选定源码核验。",
+    "downloadsRoot": "D:\\Workspace\\github_repos",
+    "validation": "已核对固定提交、README、许可证与所列源文件；未安装依赖、未运行仓库脚本、未将资源接入游戏。",
+    "mutations": "仅下载外部参考仓库/选定文件，并创建本研究JSON；没有git commit或git push。"
+  },
+  "recommendations": [
+    "保留现有Phaser3与DOM UI，先统一任务卡、交互提示、手账/收藏和按钮的排版、色彩、边框、图标和信息层级。UI库不能直接提供完整美术风格。",
+    "保留已经验证的键盘焦点、触屏取消与关闭行为；只借鉴布局和状态设计，不能把外部pointerdown直接触发动作的实现覆盖到现有操作中。",
+    "地图表现采用地面、脚底碰撞、主体、前景分离的思路；针对建筑另行实现并验证遮挡淡化/切顶和正确排序。下载参考不代表穿模已解决。",
+    "借鉴《风来之国》的场景构图、建筑体积、前中后景层次、克制HUD与生活细节，不下载其专有素材，不迁移引擎，不直接换皮。",
+    "先做一个可玩的精致街区和统一UI样板，再扩展虚构大地图；本清单不把扩大地图或最终风格变为已确认决策。"
+  ],
+  "downloaded": [
+    {
+      "repository": "bicarbon8/phaser-ui-components",
+      "url": "https://github.com/bicarbon8/phaser-ui-components",
+      "localPath": "D:\\Workspace\\github_repos\\phaser-ui-components",
+      "downloadType": "shallow git clone",
+      "branch": "main",
+      "head": "d5a689976a18475d4af6545db9f158b4d898b99f",
+      "packageVersion": "3.1.3",
+      "license": {
+        "code": "MIT",
+        "verifiedFile": "LICENSE",
+        "copyright": "2022 Jason Holt Smith",
+        "assets": "未把代码许可证视为外部字体或示例美术的通用授权；本次推荐限于所列组件代码与布局思路。"
+      },
+      "use": "任务卡、收藏卡、按钮状态和弹性布局参考。",
+      "files": [
+        {
+          "path": "src/card/card.ts",
+          "purpose": "卡片标题、图片、正文组合"
+        },
+        {
+          "path": "src/card/card-body.ts",
+          "purpose": "正文与动作区布局"
+        },
+        {
+          "path": "src/layout/flex-layout.ts",
+          "purpose": "弹性尺寸、换行与布局约束"
+        },
+        {
+          "path": "src/button/text-button.ts",
+          "purpose": "悬停、禁用、按下状态参考"
+        }
+      ],
+      "limits": [
+        "依赖Phaser ^3.55.2和lodash；未验证与本项目版本的运行兼容性。",
+        "按钮在pointerdown派发动作，不能直接替换现有完成手势和取消保护。",
+        "本项目现有UI使用DOM，建议借鉴设计而非整套引入Canvas组件。",
+        "不是可直接替换游戏画面的美术包。"
+      ]
+    },
+    {
+      "repository": "koreezgames/phaser3-ninepatch-plugin",
+      "url": "https://github.com/koreezgames/phaser3-ninepatch-plugin",
+      "localPath": "D:\\Workspace\\github_repos\\phaser3-ninepatch-plugin",
+      "downloadType": "shallow git clone",
+      "branch": "master",
+      "head": "11cfc39edb972db092aff0652172610df98756fc",
+      "packageVersion": "2.0.2",
+      "license": {
+        "code": "MIT",
+        "verifiedFile": "LICENSE",
+        "copyright": "2018 Koreez LLC",
+        "assets": "示意图片仅作九宫格拉伸原理预览，不作为本项目正式美术资产。"
+      },
+      "use": "理解面板缩放时保持四角和边框的九宫格方法。",
+      "files": [
+        {
+          "path": "src/com/koreez/plugin/ninepatch/NinePatch.ts",
+          "purpose": "九宫格切片、最小尺寸和绘制处理"
+        },
+        {
+          "path": "assets/what-is-nine-patch.png",
+          "purpose": "已本地预览：固定边角与拉伸失真的对比示意"
+        },
+        {
+          "path": "assets/np.gif",
+          "purpose": "仓库内九宫格效果动画"
+        },
+        {
+          "path": "assets/nnp.gif",
+          "purpose": "仓库内普通拉伸对比动画"
+        }
+      ],
+      "limits": [
+        "仓库已归档，最近推送在2020年；peer Phaser ^3.12.0，开发版本^3.16.2。只作参考，不安装旧插件。",
+        "已核对本项目node_modules/phaser/src/gameobjects/nineslice/NineSlice.js：Phaser自3.60提供内置NineSlice，且为WebGL路径。",
+        "对于本项目DOM面板，优先评估CSS border-image或普通CSS边框；不为装饰边框迁移UI架构。"
+      ]
+    },
+    {
+      "repository": "mikewesthad/phaser-3-tilemap-blog-posts",
+      "url": "https://github.com/mikewesthad/phaser-3-tilemap-blog-posts",
+      "localPath": "D:\\Workspace\\github_repos\\phaser-3-tilemap-blog-posts",
+      "downloadType": "shallow filtered sparse git clone",
+      "branch": "master",
+      "head": "06a12a0917ccf2b359bf81180797cdc5f687cb72",
+      "sparsePaths": [
+        "examples/post-1/04-tiled",
+        "examples/post-1/05-physics"
+      ],
+      "included": "仓库根目录文档、许可证、配置，以及两个指定示例源码；未检出混合许可的贴图素材目录。",
+      "license": {
+        "code": "所选示例代码MIT，2018 Michael Hadley",
+        "verifiedFile": "licenses.md",
+        "otherCode": "Post 3另含zlib的地下城库，本次未检出该示例。",
+        "assets": "资源按原作者单独授权，包含Mario、Tuxemon等来源，不能按仓库示例代码MIT整体复用。",
+        "articles": "博客文章及posts目录关联素材未授予再发布许可。"
+      },
+      "use": "地面/主体/前景分层，脚底碰撞体与角色画面分离，以及镜头边界参考。",
+      "files": [
+        {
+          "path": "examples/post-1/05-physics/index.js",
+          "purpose": "51-60行分离Below Player、World、Above Player图层和前景深度；67-74行设置独立碰撞体尺寸、偏移和collider；另含镜头跟随与边界"
+        },
+        {
+          "path": "examples/post-1/04-tiled/index.js",
+          "purpose": "Tiled地图图层加载与组织"
+        }
+      ],
+      "limits": [
+        "README记录于2021-08-13更新到Phaser3.55.2；未执行与当前3.90的兼容测试。",
+        "稀疏检出不是可直接运行的完整游戏。",
+        "只借鉴分层和碰撞建模，不要求切换格子移动、Arcade物理或立即迁移Tiled。",
+        "示例没有解决复杂建筑局部淡化/切顶问题，不将其称为完整遮挡方案。"
+      ]
+    },
+    {
+      "repository": "game-icons/icons",
+      "url": "https://github.com/game-icons/icons",
+      "localPath": "D:\\Workspace\\github_repos\\game-icons-reference-20261124",
+      "downloadType": "selected raw files pinned to commit; not a git clone",
+      "head": "82d948812bfe3f269ef8f731dcdb07b08160edc4",
+      "provenanceManifest": "SOURCE.json",
+      "downloadedFileCount": 10,
+      "downloadedBytes": 8581,
+      "license": {
+        "selectedIcons": "CC BY 3.0",
+        "verifiedFile": "license.txt",
+        "author": "Delapouite",
+        "requiredAttribution": "Icons made by Delapouite; include CC BY 3.0 license link and indicate modifications when applicable.",
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+        "otherAuthors": "仓库部分其他作者目录为CC0，不能据此免除本次所选Delapouite图标的署名要求。"
+      },
+      "use": "任务、手账、导向、门口、楼梯等统一单色图标候选。",
+      "files": [
+        "README.md",
+        "license.txt",
+        "delapouite/direction-signs.svg",
+        "delapouite/book-cover.svg",
+        "delapouite/checklist.svg",
+        "delapouite/asian-lantern.svg",
+        "delapouite/cable-stayed-bridge.svg",
+        "delapouite/chopsticks.svg",
+        "delapouite/door.svg",
+        "delapouite/3d-stairs.svg"
+      ],
+      "limits": [
+        "属于通用图标，不能作为重庆地域文化真实性的证据。",
+        "需要统一线条/实心风格、视觉尺寸和色彩后再接入；本次尚未接入游戏。",
+        "SOURCE.json保存每份下载文件的固定版本URL、字节数和SHA256。"
+      ]
+    }
+  ],
+  "focusedAssetFollowup": {
+    "name": "OpenPixelProject",
+    "checkedAt": "2026-11-24",
+    "status": "NO_VERIFIED_SUITABLE_SOURCE",
+    "requestedLocalPath": "D:\\Workspace\\github_repos\\open-pixel-project-reference-20261124",
+    "downloaded": false,
+    "reason": "本轮聚焦查验未定位到可核实的GitHub官方仓库、CC0许可与斜俯视城镇/室内tilesheet组合，因此没有创建下载目录或获取图片。此结论仅描述本轮证据，不断言该项目不存在。",
+    "evidence": [
+      {
+        "method": "GitHub两套搜索工具",
+        "query": "OpenPixelProject",
+        "result": "精确名称查询均返回0个仓库；进一步检查openpixel名称和README引用未定位到该项目官方素材仓库。"
+      },
+      {
+        "url": "https://github.com/OpenPixelProject/opp",
+        "result": "推定路径经GitHub内容API查验返回404，不能作为可靠来源。"
+      },
+      {
+        "url": "https://github.com/OfirTheOne/Lil-Jungle-Traveler/blob/2ffd76a6b98623b5a08b72be1a9ada33251acd87/README.md",
+        "result": "README将OPP-Jungle归属OpenPixelProject.com团队，并指向opengameart.org/content/opp-jungle-tiles；该项目为横版丛林游戏，不能据此证实有斜俯视城镇或室内资产。"
+      },
+      {
+        "url": "https://github.com/Patch4Code/TheWhaleTale/blob/9f08a23f91071ac62ee0f98269bcad08fb012d26/README.md",
+        "result": "README仅列出itch.io的OPP 2017 - Cave and mine cart来源；第三方credits不等于核实原资产许可证。"
+      }
+    ],
+    "licenseStatus": "UNVERIFIED；没有将任务中提到的CC0视为已证实许可。",
+    "intendedUseIfLaterVerified": "仅作为A像素方向的材质、像素密度和尺寸统一候选参考，不改变最终美术风格决策。",
+    "scope": "未继续扩大到其他资产项目；未下载第三方游戏中的OPP素材充当官方素材包。"
+  },
+  "excludedOrDeferred": [
+    {
+      "repository": "rexrainbow/phaser3-rex-notes",
+      "url": "https://github.com/rexrainbow/phaser3-rex-notes",
+      "downloaded": false,
+      "reason": "仓库名仍带phaser3，但当前master README已写Phaser4，package为phaser4-rex-plugins 4.2.0，依赖Phaser ^4.2.1；不能直接引入当前主分支。",
+      "masterHead": "3910746e4699f779b53a9ef4fc7285a902f487c9",
+      "possibleFutureReference": {
+        "branch": "v3.xx",
+        "head": "0327a213d7b0d4a3eaa889fcf41092252d0ac486",
+        "package": "phaser3-rex-plugins 1.80.20",
+        "developmentPhaser": "3.85.2",
+        "license": "MIT",
+        "status": "仅核验版本；暂不下载、不接入。"
+      }
+    },
+    {
+      "repository": "skhoroshavin/phaser-pixui",
+      "url": "https://github.com/skhoroshavin/phaser-pixui",
+      "head": "081cda1eea514099d044decfe9df579ae71a805b",
+      "downloaded": false,
+      "reason": "README要求Phaser4 ^4.0.0；代码MIT不覆盖演示全部美术。Minifantasy UI演示素材仅获该项目特别商业许可且禁止再分发，不能当作MIT美术包下载复用。"
+    },
+    {
+      "repository": "Annoraaq/grid-movement",
+      "url": "https://github.com/Annoraaq/grid-movement",
+      "downloaded": false,
+      "reason": "未找到根目录LICENSE；格子移动也不匹配本项目已确认的自由八向移动。"
+    },
+    {
+      "repository": "daan93/phaser-isometric-demo",
+      "url": "https://github.com/daan93/phaser-isometric-demo",
+      "downloaded": false,
+      "reason": "未找到根目录LICENSE，不推荐代码复用；本项目也不改成等距菱形地图。"
+    }
+  ],
+  "downloadIncidents": [
+    {
+      "repository": "mikewesthad/phaser-3-tilemap-blog-posts",
+      "attempt": "首次完整浅克隆",
+      "result": "FAIL",
+      "error": "RPC failed; curl 56 schannel: server closed abruptly (missing close_notify); early EOF",
+      "recovery": "随后使用--depth 1 --filter=blob:none --sparse并仅检出两个示例，成功。没有手动删除文件。"
+    }
+  ],
+  "verification": {
+    "sourceAndLicenseInspection": "PASS",
+    "downloadedPathsAndPinnedVersions": "PASS",
+    "runtimeCompatibility": "NOT RUN",
+    "dependencyInstallation": "NOT RUN",
+    "gameIntegration": "NOT RUN",
+    "visualAndPlayabilityAcceptance": "NOT RUN",
+    "note": "参考资料已准备；不表示界面美化、建筑遮挡修复或产品观感验收完成。"
+  },
+  "streetLifeFollowUp": {
+    "status": "DESIGN_REFERENCE_APPLIED",
+    "downloaded": [
+      {
+        "repository": "gamedev-skills/awesome-gamedev-agent-skills",
+        "url": "https://github.com/gamedev-skills/awesome-gamedev-agent-skills",
+        "localPath": "D:\\Workspace\\github_repos\\awesome-gamedev-agent-skills",
+        "head": "c6ca6c41c839b68319ffc08430b99ab768debc32",
+        "license": "Apache-2.0",
+        "files": [
+          "skills/disciplines/game-ui-ux/SKILL.md",
+          "skills/disciplines/level-design/SKILL.md"
+        ],
+        "use": "界面锚定、安全区、弹窗焦点，以及以脚点和实际碰撞复核路线。"
+      },
+      {
+        "repository": "bobeff/open-source-games",
+        "url": "https://github.com/bobeff/open-source-games",
+        "localPath": "D:\\Workspace\\github_repos\\open-source-games",
+        "head": "3a9ab8fc892a2cdadf8989a72ba7624a11e39cec",
+        "license": "CC0-1.0 for the index",
+        "files": [
+          "README.md",
+          "LICENSE"
+        ],
+        "use": "后续索引；各子项目的代码和资产需分别核对许可。"
+      }
+    ],
+    "compared": [
+      {
+        "repository": "junwatu/codex-plugins",
+        "url": "https://github.com/junwatu/codex-plugins/blob/main/plugins/game-studio/skills/game-ui-frontend/SKILL.md",
+        "use": "参考将地点和当前目标合并、弱化常驻控件、保留中心游玩区。线上阅读。"
+      },
+      {
+        "repository": "bicarbon8/phaser-ui-components",
+        "use": "已在本地；只参考界面组成。"
+      },
+      {
+        "repository": "Claude-Code-Game-Studios",
+        "use": "已有本地副本；其引擎侧 UI 参考主要面向 Godot、Unity 和 Unreal。"
+      }
+    ],
+    "runtime": "Existing DOM and Phaser 3. No third-party skill or assets bundled. No global installation."
+  }
+}

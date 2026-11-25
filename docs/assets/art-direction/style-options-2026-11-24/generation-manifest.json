@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-24",
+  "purpose": "Compare major visual directions; no image imported into the game runtime.",
+  "shared_comparison": "Same scene brief and character colors, not identical camera/geometry or a deterministic controlled comparison.",
+  "images": [
+    {
+      "option": "A",
+      "file": "style-a-pixel.png",
+      "original_tool_output": "C:\\Users\\24839\\.codex\\generated_images\\01a20b64-37da-7511-a252-88c54b4e00a4\\call_223dbd6a82e94ad4ab79a57c3415082a.png",
+      "generation_mode": "built-in imagegen; new image; opaque background",
+      "prompt_brief": "Original concept for 坡坎之间, a noncombat fictional hillside-city exploration adventure. A 16:9 oblique top-down-inspired composition shows one Chongqing-influenced neighborhood corner: broad stone walking lane, stairs at left leading to a small market, a timber stilt teahouse at right, mixed plaster shops, laundry and a courtyard, distant river and cableway accents. Blue-jacket traveler with a tan bag at lower center. Clear walking space, visible building fronts, roofs and side walls, warm lived-in atmosphere, restrained task and notebook UI. No combat, no copied proprietary game scene or assets. This single themed neighborhood does not prescribe the appearance of the entire fictional world. Refined pixel-influenced illustration; dense deliberate pixel clusters, amber windows against cool teal evening, small traveler silhouette. Tiny objective 去茶铺问问, E at door and notebook icon.",
+      "prompt_record": "Reconstructed authoring brief from the generation record, not a verbatim tool-request transcript.",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3127630,
+      "sha256": "aa35dc4c9559cb5da3329de2df20c8b78712c96de50725fda2d12327124764d7",
+      "adoption_status": "PROPOSED_OWNER_CHOICE_PENDING",
+      "limitation": "Pixel-influenced concept, not a verified production pixel grid."
+    },
+    {
+      "option": "B",
+      "file": "style-b-painted.png",
+      "original_tool_output": "C:\\Users\\24839\\.codex\\generated_images\\01a20b64-37da-7511-a252-88c54b4e00a4\\call_6d49e8d493194a9e868610bc71b3abf5.png",
+      "generation_mode": "built-in imagegen; new image; opaque background",
+      "prompt_brief": "Original concept for 坡坎之间, a noncombat fictional hillside-city exploration adventure. A 16:9 oblique top-down-inspired composition shows one Chongqing-influenced neighborhood corner: broad stone walking lane, stairs at left leading to a small market, a timber stilt teahouse at right, mixed plaster shops, laundry and a courtyard, distant river and cableway accents. Blue-jacket traveler with a tan bag at lower center. Clear walking space, visible building fronts, roofs and side walls, warm lived-in atmosphere, restrained task and notebook UI. No combat, no copied proprietary game scene or assets. This single themed neighborhood does not prescribe the appearance of the entire fictional world. Hand-painted animation-background direction with organic brushwork, crisp readable contours, aged timber/plaster/stone, natural evening light, restrained blank UI shapes.",
+      "prompt_record": "Reconstructed authoring brief from the generation record, not a verbatim tool-request transcript.",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3121079,
+      "sha256": "854669a66bc060956a2c6adbf9ce103a4f28b79ac9d1412a15dc5bd41ab2866c",
+      "adoption_status": "PROPOSED_OWNER_CHOICE_PENDING",
+      "limitation": "Painterly scenic concept; exact gameplay camera, character proportion and UI remain to be adapted."
+    },
+    {
+      "option": "C",
+      "file": "style-c-storybook.png",
+      "original_tool_output": "C:\\Users\\24839\\.codex\\generated_images\\01a20b64-37da-7511-a252-88c54b4e00a4\\call_df5edaa1e576451f9f3a556bf263db4c.png",
+      "generation_mode": "built-in imagegen; new image; opaque background",
+      "prompt_brief": "Original concept for 坡坎之间, a noncombat fictional hillside-city exploration adventure. A 16:9 oblique top-down-inspired composition shows one Chongqing-influenced neighborhood corner: broad stone walking lane, stairs at left leading to a small market, a timber stilt teahouse at right, mixed plaster shops, laundry and a courtyard, distant river and cableway accents. Blue-jacket traveler with a tan bag at lower center. Clear walking space, visible building fronts, roofs and side walls, warm lived-in atmosphere, restrained task and notebook UI. No combat, no copied proprietary game scene or assets. This single themed neighborhood does not prescribe the appearance of the entire fictional world. Storybook gouache and ink direction with simplified chunky forms, clean outlines, warm paper texture, brighter late-afternoon light and a charming small traveler.",
+      "prompt_record": "Reconstructed authoring brief from the generation record, not a verbatim tool-request transcript.",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3621958,
+      "sha256": "9950f16a89a63c076f41e45435952a1ef62524b389d5d0cfa1624236e7e99088",
+      "adoption_status": "PROPOSED_OWNER_CHOICE_PENDING",
+      "limitation": "Brighter storybook illustration; not a 3D miniature or an accepted runtime style."
+    }
+  ]
+}

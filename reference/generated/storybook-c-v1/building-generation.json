@@ -1,0 +1,164 @@
+{
+  "generatedAt": "2026-11-24",
+  "tool": "built-in image_gen.imagegen",
+  "skill": "C:/Users/24839/.codex/skills/.system/imagegen/SKILL.md",
+  "styleReferencePath": "D:\\Workspace\\Code_Projects\\mountain-city-last-delivery\\docs\\assets\\art-direction\\style-options-2026-11-24\\style-c-storybook.png",
+  "selectedAttempt": 2,
+  "selectedOriginalPath": "C:\\Users\\24839\\.codex\\generated_images\\01a20b96-c9aa-7843-b0ef-22486d5ee55e\\call_88a73fb380f7459fa4152ebc36529195.png",
+  "savedPath": "D:\\Workspace\\Code_Projects\\mountain-city-last-delivery\\reference\\generated\\storybook-c-v1\\building-atlas.png",
+  "sha256": "083f1f268c8f13bf2a72fdfb46cc77757f4b03c1794c346ce05d694df0097c37",
+  "size": [
+    2172,
+    724
+  ],
+  "mode": "RGBA",
+  "alpha": {
+    "min": 0,
+    "max": 255,
+    "fullyTransparentPixels": 1030193,
+    "fullyTransparentFraction": 0.6551190185484773,
+    "note": "Actual RGBA alpha present. Very faint alpha=1 residue exists in nominally transparent gutters. No pixel cleanup, cropping, thresholding or image rewriting performed."
+  },
+  "textureFrames": [
+    {
+      "name": "guide",
+      "cellXYWH": [
+        0,
+        0,
+        724,
+        724
+      ],
+      "alphaThresholdExclusive": 8,
+      "bboxLocalXYXY": [
+        85,
+        196,
+        648,
+        638
+      ],
+      "bboxAtlasXYXY": [
+        85,
+        196,
+        648,
+        638
+      ],
+      "frameXYWH": [
+        85,
+        196,
+        563,
+        442
+      ],
+      "naturalAspectRatio": 1.2737556561085972,
+      "baselineBottomExclusive": 638
+    },
+    {
+      "name": "workshop",
+      "cellXYWH": [
+        724,
+        0,
+        724,
+        724
+      ],
+      "alphaThresholdExclusive": 8,
+      "bboxLocalXYXY": [
+        82,
+        210,
+        644,
+        640
+      ],
+      "bboxAtlasXYXY": [
+        806,
+        210,
+        1368,
+        640
+      ],
+      "frameXYWH": [
+        806,
+        210,
+        562,
+        430
+      ],
+      "naturalAspectRatio": 1.3069767441860465,
+      "baselineBottomExclusive": 640
+    },
+    {
+      "name": "gallery",
+      "cellXYWH": [
+        1448,
+        0,
+        724,
+        724
+      ],
+      "alphaThresholdExclusive": 8,
+      "bboxLocalXYXY": [
+        110,
+        372,
+        606,
+        638
+      ],
+      "bboxAtlasXYXY": [
+        1558,
+        372,
+        2054,
+        638
+      ],
+      "frameXYWH": [
+        1558,
+        372,
+        496,
+        266
+      ],
+      "naturalAspectRatio": 1.8646616541353382,
+      "baselineBottomExclusive": 638
+    }
+  ],
+  "validation": {
+    "trueAlpha": "PASS",
+    "oneRowThreeEqualCells": "PASS",
+    "visuallySeparateAtAlphaGreaterThan8": "PASS",
+    "strictAllBackgroundAlphaZero": "FAIL",
+    "styleAndSubjects": "PASS",
+    "sourceCopyHashMatch": "PASS",
+    "runtimeIntegration": "NOT RUN",
+    "notes": [
+      "Second version explicitly selected by parent. Third attempt was already generated before the stop message arrived; retained but not selected.",
+      "The gallery retains natural aspect ratio about 1.865; parent permits placing it naturally within a 250-wide entity.",
+      "Frame coordinates use alpha > 8 only for metadata, not image processing.",
+      "Building bottoms differ by 2 px at alpha > 8 due to faint edge pixels. Align frame bottom anchors in renderer."
+    ]
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "originalPath": "C:\\Users\\24839\\.codex\\generated_images\\01a20b96-c9aa-7843-b0ef-22486d5ee55e\\call_bbfedfced699412d93b183ea249c823a.png",
+      "sha256": "53796d74e079688fc1aaa9543b7239ec40b2dcedb6004944797fbf69da0013f9",
+      "prompt": "Use case: stylized-concept.\nAsset type: production-ready transparent PNG building sprite atlas for a 2D orthographic top-down adventure game.\nInput image 1 is a STYLE REFERENCE ONLY: match its warm storybook painted material treatment, delicate warm dark outlines, softly brushed cream plaster, ochre timber, muted blue-grey roof tiles, and gentle upper-left afternoon light. Do not reproduce its full scene, perspective composition, background, people or UI.\nCreate ONE wide transparent canvas, ideally 3072 x 1024, divided conceptually into EXACTLY THREE EQUAL-WIDTH cells in a SINGLE HORIZONTAL ROW. Each cell contains exactly ONE independent complete building, centered horizontally, and the three buildings share one horizontal ground-contact baseline. Nothing crosses cell boundaries. Keep at least 8% of each cell width as empty TRANSPARENT gutter on both sides and clear transparent margin around every outline. No cell dividers or drawn frames.\nCell 1 LEFT: a friendly two-storey riverside visitor guide house. Rich ochre timber frame and creamy lime plaster walls, muted slate blue-grey tiled pitched roof, wooden lattice windows, centered clearly open dark doorway at the lowest facade, stone masonry foundation integrated into the lower facade, a small restrained vine with blossoms clinging directly to one wall. Building silhouette width-to-height approximately 1.25:1. No signs or text.\nCell 2 CENTER: a two-storey timber craft workshop in exactly the same visual language. Warm timber structural beams and wooden panels with some cream plaster, muted blue-grey tiled roof, simple wooden windows, centered clearly open dark doorway on the ground facade. Building silhouette width-to-height approximately 1.25:1. No signs or text.\nCell 3 RIGHT: a visibly shorter enclosed window gallery building, same cream plaster and timber construction, shallow blue-grey tiled roof, closed wooden lattice windows only, NO door or open doorway. Building silhouette width-to-height approximately 1.4:1. Keep its actual height smaller than the two main buildings rather than filling the same vertical extent.\nCamera: consistent 2D RPG orthographic slightly top-down view, front facade dominant, enough roof top and a shallow side face visible to communicate volume, all verticals parallel, no strong perspective, no isometric diamond orientation. The buildings are game sprites, not illustrated dioramas. Same lighting direction, outline weight, paint texture and color harmony across all three. Warm illustrated storybook art, neither pixel art nor photorealistic nor low-poly. Surfaces have restrained irregular painted detail, legible at game scale.\nSTRICT CONSTRAINTS: actual transparent alpha background, not a white background, not a checkerboard painting. No landscape, sky, ground plane, cobblestones, standalone platforms, landscape fragments, people, animals, detached props, cast shadows, ambient drop shadows, glow, captions, lettering, logos, numbers, watermarks. Only subtle shading WITHIN each building is allowed. All eaves and wall edges fully visible, no crop, no overlap. Produce only this single three-building atlas.",
+      "referenced_image_paths": [
+        "D:\\Workspace\\Code_Projects\\mountain-city-last-delivery\\docs\\assets\\art-direction\\style-options-2026-11-24\\style-c-storybook.png"
+      ],
+      "transparent_background": true,
+      "selected": false
+    },
+    {
+      "attempt": 2,
+      "originalPath": "C:\\Users\\24839\\.codex\\generated_images\\01a20b96-c9aa-7843-b0ef-22486d5ee55e\\call_88a73fb380f7459fa4152ebc36529195.png",
+      "sha256": "083f1f268c8f13bf2a72fdfb46cc77757f4b03c1794c346ce05d694df0097c37",
+      "prompt": "Edit the supplied transparent three-building atlas. Keep the same three subjects, warm storybook brush texture, cream plaster, ochre wood, blue-grey roof tiles, gentle upper-left lighting, and the same RPG orthographic front-dominant slightly top-down camera. Preserve actual transparent alpha.\nMake ONLY these production layout/proportion corrections:\n1. Output a wide 3:1 canvas, conceptually exactly three equal square cells in ONE row. Each sprite must be entirely contained strictly inside its own cell. The leftmost and rightmost 10% of EACH cell must be completely empty transparent pixels. There must be no visible or nearly invisible residual paint, halo or shadow in those gutters. No grid or frames.\n2. Both LEFT and CENTER buildings have width:height approximately 1.25:1 (currently they are too tall). Fit each to approximately 76% cell width and 61% cell height. Keep both genuinely two-storey: shorten roof/facade together without removing either storey. Center them in their cells.\n3. RIGHT closed window gallery is narrower and taller in proportion than the supplied version: width:height approximately 1.4:1. Fit it to approximately 60% cell width and 43% cell height, so it is still visibly shorter and smaller overall than the two houses. Keep closed wooden windows only, NO door.\n4. All three masonry/wood ground-contact bottoms sit on precisely the same horizontal baseline at about 87% canvas height. Transparent pixels below the baseline. Baseline means bottom edge of building only: do not draw a line, platform, pavement or cast shadow.\nKeep the centered open dark doorway on each of the first two buildings. Keep sparse wall-clinging flower vine only on first. No new details or detached props. Absolutely no background, ground, scenery, people, writing, numbers, frames, cast shadows, drop shadows, floor, white background or painted checkerboard. Only shading contained within the buildings. All three silhouettes must be isolated with clean transparent edges. Retain beautiful warm painted storybook material; no pixels, realism, low-poly or vector flatness.",
+      "referenced_image_paths": [
+        "C:\\Users\\24839\\.codex\\generated_images\\01a20b96-c9aa-7843-b0ef-22486d5ee55e\\call_bbfedfced699412d93b183ea249c823a.png"
+      ],
+      "transparent_background": true,
+      "selected": true
+    },
+    {
+      "attempt": 3,
+      "originalPath": "C:\\Users\\24839\\.codex\\generated_images\\01a20b96-c9aa-7843-b0ef-22486d5ee55e\\call_0664b1dacb4c4abab71e24890e265269.png",
+      "sha256": "8f1f617b816a6f5b910738a387ee43b060a241299e8deadfed644928ac93eabb",
+      "prompt": "Production correction of this transparent 3-building atlas. Keep the first and second buildings EXACTLY as they are in appearance, size, position, their open dark doorways, painted warm storybook style, and ground-contact baseline. Keep one horizontal row of 3 equal cells on a wide 3:1 canvas.\nChange the RIGHTMOST closed window gallery only: its current width:height is too wide (about 1.86). Make it a compact shorter rectangular building with width:height about 1.4. Reduce its WIDTH by about 25%, keeping its current height and keeping it horizontally centered in its rightmost cell. It should be a small closed window building with TWO main wooden lattice window bays instead of three. Keep the same small blue-grey tiled roof, cream plaster, warm wooden framing, no door. Its bottom must remain exactly aligned with the bottoms of the first two buildings.\nAlso clean the transparent background of the entire canvas: all background pixels must have alpha exactly 0, including all gutters, no low-opacity paint residue, no colored fringes, no red fringe pixels, no faint artifacts. Building interiors should be fully opaque, with smooth antialiasing ONLY at the silhouette edges. Preserve genuine RGBA transparency; do not replace transparency with white, black, a matte color or checkerboard. Leave a completely empty gutter at each cell boundary. NO ground, base slab, shadow, backdrop, scenery, lettering, grid or frames. This is a clean game sprite sheet containing only the three isolated buildings. Do not add or change any other elements.",
+      "referenced_image_paths": [
+        "C:\\Users\\24839\\.codex\\generated_images\\01a20b96-c9aa-7843-b0ef-22486d5ee55e\\call_88a73fb380f7459fa4152ebc36529195.png"
+      ],
+      "transparent_background": true,
+      "selected": false
+    }
+  ]
+}

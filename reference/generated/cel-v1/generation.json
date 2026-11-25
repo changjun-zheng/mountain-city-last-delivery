@@ -1,0 +1,277 @@
+{
+  "generator": "built-in image_gen",
+  "reference": {
+    "path": "reference/generated/cel-v1/user-style-reference.png",
+    "size": [
+      2047,
+      1152
+    ],
+    "mode": "RGB",
+    "bytes": 4378784,
+    "sha256": "5e8c5236bd50003d03755dd00a13426f678bfa0293b5ee1a33ab00d2b78fb4af"
+  },
+  "assets": [
+    {
+      "type": "props",
+      "originalOutput": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/exec-8608709f-6f77-4f56-a816-c4249bb9de77.png",
+      "archived": {
+        "path": "reference/generated/cel-v1/props.png",
+        "size": [
+          1774,
+          887
+        ],
+        "mode": "RGBA",
+        "bytes": 912861,
+        "sha256": "91ce42eb44cb751b46fdc85e2c9748011aa845fefad5781134f759b0e81d54b6"
+      },
+      "runtime": {
+        "path": "src/rendering/phaser/assets/cel-v1/props.webp",
+        "size": [
+          1774,
+          887
+        ],
+        "mode": "RGBA",
+        "bytes": 174396,
+        "sha256": "f3a085767251f54b16d02ecb7c86c1a04fe7772c2b05a1e78b80226eec079c83"
+      },
+      "prompt": "Create a usable 2D game alpha sprite atlas, 4 columns by 2 rows, exactly 8 objects entirely separate with very generous empty gaps. Use the attached image ONLY as an original cel animation art direction: crisp deep aubergine/brown linework, distinct flat color regions, lavender charcoal shadow planes, brick orange and golden dusk edge light from upper right, baked light shapes, sparse detail. NO brushy watercolor or photo texture. Consistent face/front and roof-visible three-quarter orthographic camera suitable for top-down RPG, all feet/bottom edges horizontal. Top row: (1) a wide two-story tea-brown timber hillside community visitor hall with dark slate roof, open dark centered doorway at ground and balcony, tiny red lantern on each side and stone plinth; (2) a two-story original woodworking shop, big open centered ground doorway, similar roof and timber but lower balcony; (3) single story wooden shuttered gallery with dark slate roof and no door; (4) small terracotta pot with compact dark olive plant. Bottom row: (1) walnut rectangular low reading desk with one folded note, (2) deep warm wood display cabinet, (3) rectangular amber glowing wood lattice window, (4) a single modest red glowing round hanging lantern. Objects go in equal-sized spatial cells in a clear 4x2 rectangle, no overlap or clipping, no contact shadows, no floors, no background, no checkerboard, real RGBA transparency, no lettering, no labels. Consecutive buildings among top row use the same light and camera and direct flat color planes."
+    },
+    {
+      "type": "traveller",
+      "originalOutput": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/exec-17f8aef8-d8f3-47b5-87d2-585587e69ece.png",
+      "archived": {
+        "path": "reference/generated/cel-v1/traveller.png",
+        "size": [
+          1774,
+          887
+        ],
+        "mode": "RGBA",
+        "bytes": 728933,
+        "sha256": "b24da76d07497519b6614943cff2ed25bc9f3177b2841f2f95c78e1d9cf942c4"
+      },
+      "runtime": {
+        "path": "src/rendering/phaser/assets/cel-v1/traveller.webp",
+        "size": [
+          887,
+          443
+        ],
+        "mode": "RGBA",
+        "bytes": 68108,
+        "sha256": "cf65db18f0b9e1fd45c9e094d443ae359ff22ca54b0c20c19fe2db0bf860c0d5"
+      },
+      "prompt": "A precise transparent 2D videogame sprite sheet, FOUR columns by TWO rows, eight separated full-body sprites, generous cell margins, no guides, no shadows or background, real RGBA transparency. Same original young traveler boy throughout: short tousled dark brown hair, desaturated deep teal blue jacket, cream undershirt, dark brown cropped pants, tan ochre crossbody satchel, dark shoes. First row exactly from left to right front/south facing viewport, back/north facing away, left/west facing left, right/east facing right, relaxed idle pose. Second row reuses these four viewpoints in same order, each in a distinct gentle normal near-contact walking step with one foot forward. Front and back clearly differentiated. All four direction drawings compatible with a slight elevated camera, avoiding eyes looking up at camera. Reference image is for cel art direction only: two clean solid shade values, dark wine-brown outlines, shadow in cool violet tones, warm amber edge-light from upper right, no grain, no texture, no pixel art, no photoreal, solid silhouette and concise details at 84 game pixels. Aim for strong balanced 4.5 head proportions. Every frame uncut and spaced, no text."
+    },
+    {
+      "type": "residents",
+      "originalOutput": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/exec-2372da8c-6a81-460c-b897-12615c7790fd.png",
+      "archived": {
+        "path": "reference/generated/cel-v1/residents.png",
+        "size": [
+          2172,
+          724
+        ],
+        "mode": "RGBA",
+        "bytes": 993905,
+        "sha256": "cbb875c217c7f9b7f5f7b9e9b31864e25e1640c426e1dde44dff9b62f0c29c5a"
+      },
+      "runtime": {
+        "path": "src/rendering/phaser/assets/cel-v1/residents.webp",
+        "size": [
+          1086,
+          362
+        ],
+        "mode": "RGBA",
+        "bytes": 74030,
+        "sha256": "33026fc9b54f0e515ae1e0ebc0853c9164907bdaf0b719321510d5d07a0628d4"
+      },
+      "prompt": "Original four residents in one production ready RGBA transparent game sprite atlas, exactly four separated figures in equal width columns, one row, no background or cast shadows. Left to right: older Chinese grandmother with dusty plum coat and cloth bag of greens; middle-aged Chinese man in dark moss work jacket and cropped trousers; young adult Chinese woman wearing a clay red jacket and indigo skirt; Chinese school age child in muted mustard top with a small dark blue backpack. All face right and gently walk, each has both feet visible, 2D orthographic from slightly elevated side, stand in four entirely independent segments with ample margins. Original sharp cel animation style informed by the reference: warm dark thin ink outlines, two discrete shadow values, lavender/cool dark sides, narrow warm amber highlights, restrained detail; no grain or painterly textures. No text, ground, frames, words, chart or checkerboard. Use true alpha."
+    },
+    {
+      "type": "river",
+      "originalOutput": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/exec-808a3b34-fff5-493b-9698-4acc52855d9b.png",
+      "archived": {
+        "path": "reference/generated/cel-v1/river.png",
+        "size": [
+          2172,
+          724
+        ],
+        "mode": "RGB",
+        "bytes": 2729853,
+        "sha256": "a560648436d0eb2b95b0a1da6b2347916abd6d4a70332e4cd8a7d3cdc40d4bc8"
+      },
+      "runtime": {
+        "path": "src/rendering/phaser/assets/cel-v1/river.webp",
+        "size": [
+          1536,
+          512
+        ],
+        "mode": "RGB",
+        "bytes": 235494,
+        "sha256": "b87011e0c290b54d7dd77c1a484ec0faeb9744bace2366bb4aa7452388aa9571"
+      },
+      "prompt": "One playable game scenic strip with ultra-wide approximately 3:1 ratio, strictly steep aerial orthographic 60-70-degree downward view, looking from a hillside terrace down at a fictional river town. Layout must show BOTH BANKS and river stripe running horizontally throughout the entire view: very first top edge is sheer slate and terracotta retaining-wall band, below that small near-side layered rooftops, stone steps and alley roof planes, in middle a wide muted cool teal river reflecting thin amber sunset shapes, and at bottom far-side smaller blue grey rooftops and opposite embankment receding in cool shadow. No visible sky, no horizon, no perspective vanishing point, no lookout foreground, no UI, no text or people. A single tiny overhead ferry optional. Apply exact aesthetic role of reference as style only: animation cel painted ground and buildings, flat controlled material planes, legible thin dark warm contour lines, terracotta sunset and indigo violet shadows, selective lanterns. No watercolor grain/photo texture. Strong height read without visual noise. Secondary composition designed to match dark grey-purple small block stone ground in playable top-down game above the top edge."
+    },
+    {
+      "type": "residentsAtRest",
+      "originalOutput": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/exec-9794cf34-40a2-4923-aca6-cfdc49a7b0dd.png",
+      "archived": {
+        "path": "reference/generated/cel-v1/residents-at-rest-original.png",
+        "size": [
+          2172,
+          724
+        ],
+        "mode": "RGBA",
+        "bytes": 879189,
+        "sha256": "ff3090164e86490f05f2dc1bdbd6ffb50a7098aedcd0340df5afdfdc6f7bbebd"
+      },
+      "runtime": {
+        "path": "src/rendering/phaser/assets/cel-v1/residents-at-rest.webp",
+        "size": [
+          1086,
+          362
+        ],
+        "mode": "RGBA",
+        "bytes": 61264,
+        "sha256": "7730a7e7ecd0c18898d44976f4ae29fa6f5500d26b81074f3e700ea941d5ab2b"
+      },
+      "reference": "src/rendering/phaser/assets/cel-v1/residents.webp",
+      "prompt": "Create an original 2D cel animation game sprite atlas for the four exact original residents of the provided reference sheet. Reference is for character identities and style; draw NEW stationary poses of the same people. Transparent native RGBA background, perfectly isolated full bodies. A SINGLE HORIZONTAL ROW, four spacious equal cells, no overlap, all soles sharing a horizontal baseline, all hair and shoes visible. Same side-view facing RIGHT, very slightly three-quarter, same subtle dark purple outlines, hand-drawn detailed dusk anime cel shading. Exactly in this order: 1 gray-haired older woman mauve blouse, trousers, vegetable tote, STOPPED with both feet planted looking towards riverside, relaxed softly bent arm; 2 olive-jacket middle-aged man with charcoal cropped trousers, STOPPED feet planted, leaning a little forward with two forearms reaching out at waist height to move a piece of wood (no table, no items besides a small wood slat in hands); 3 dark-bun adult woman in reddish jacket, navy skirt and tan flower shoulder bag, STOPPED with both feet planted looking at a store; 4 school-age boy in mustard jacket, charcoal trousers and backpack, STOPPED, feet close together, looking up at accompanying adult. IMPORTANT all poses should visibly be at rest, no split striding feet. Match all identities and scale on reference. No ground, shadows, labels, symbols, border, extra furniture or objects, no special effects. Intended for direct frame cropping in game; wide horizontal canvas, transparent gaps."
+    },
+    {
+      "type": "foothillBank",
+      "originalOutput": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/exec-036ddbc5-d4e0-4b2f-98aa-aa457f55894b.png",
+      "archived": {
+        "path": "reference/generated/cel-v1/foothill-bank.png",
+        "size": [
+          2172,
+          724
+        ],
+        "mode": "RGB",
+        "bytes": 3182131,
+        "sha256": "64ad445de2edad75fe313097bb8ec28741559045c6d2bf60b25470e4d87e1894"
+      },
+      "runtime": {
+        "path": "src/rendering/phaser/assets/cel-v1/foothill-bank.webp",
+        "size": [
+          1920,
+          640
+        ],
+        "mode": "RGB",
+        "bytes": 406766,
+        "sha256": "51f12af585b11bb88be75ddee6e0a92db050f023105c4fead80ea9cb318aabaf"
+      },
+      "reference": "src/rendering/phaser/assets/cel-v1/river.webp",
+      "prompt": "Paint an original finished ultra-wide 3:1 ENVIRONMENT BACKDROP for a detailed two-dimensional slanted overhead Chinese hillside game. The provided image is the project's own watercolor-free hand-painted cel-shaded dusk tone and camera reference; retain that original finish, thin dark warm contours, terracotta and aubergine highlights plus muted olive foliage, not its shoreline layout. Create a coherent new composition at 60–70 degree DOWNWARD orthographic angle, where roofs and lower street are visible, NO SKY/HORIZON. PRECISION SCREEN GEOGRAPHY: LEFTMOST 23% across the entire frame is solid continuous rugged planted hillside with natural olive scrub and dark warm layered rock descending all the way to the bottom-left. No river, beach, waterfront water, stairs, pots, or isolated cutouts within the leftmost 23%. RIGHTMOST 12% also solid continuous rock and greenery across the full height, no water. A textured dry retaining ledge and a small group of connected lower timber houses on the SAME bank run just below the top edge from x=20% to x=88%. Then a continuous winding river appears ONLY in the central 24–86% region, predominantly from 57% to 81% image height, with subtly mirrored golden dusk streaks and a mostly uncluttered channel. Closely packed teal slate roofs and a short low embankment of the opposite shore sit along BOTTOM CENTER only. Rocky hillsides form irregular curving borders, smoothly integrating foliage, roofs, and water, no straight vertical seam or separate illustration boxes. The left hillside needs natural painted shading, strata, roots and small scrub similar in finish to the rich center; no flat geometric placeholder blocks. No bridges, no character, no signs/text/UI, no isolated png-like objects, no typography, no foreground staircase. The upper playable street and its stairs will be drawn ABOVE this scene by the game; this image is entirely fixed downstream scenery. Keep foreground lower-shore roofs in cooler shade. Small believable scale across houses. Strongly preserve water-free continuous west hill as the primary design constraint."
+    },
+    {
+      "type": "ridge-landing",
+      "originalOutput": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/exec-2a73b3ee-f656-4049-8480-6ff283f91c57.png",
+      "archived": {
+        "path": "reference/generated/cel-v1/ridge-landing.png",
+        "size": [
+          1536,
+          1024
+        ],
+        "mode": "RGB",
+        "bytes": 3236119,
+        "sha256": "c2b105edb42ffc7a7c3c6c640cc4069ca47d3b9dc1a086326b0eaf013579a282"
+      },
+      "runtime": {
+        "path": "src/rendering/phaser/assets/cel-v1/ridge-landing.webp",
+        "size": [
+          1536,
+          1024
+        ],
+        "mode": "RGB",
+        "bytes": 503054,
+        "sha256": "dc0752c3f789233ea406b6d776fe7fbc6ddcb37786c2f4af2cb8dced075b5850"
+      },
+      "reference": "src/rendering/phaser/assets/cel-v1/foothill-bank.webp",
+      "prompt": "Create one original full-bleed slant-overhead cel environment plate for the opposite bank of 坎坡之间. Keep sunset amber against slate rock and olive foliage. Show the near fronts of risers and low walls around the trail. Put water at the bottom 14% and the pier at x50%. The path climbs through a bottom landing and a middle landing to its left bend beneath an ancient tree. Forest and rock frame the wide, unobstructed walkable area on both sides. No sky, text, characters, houses or bridges."
+    },
+    {
+      "type": "traveller-brisk",
+      "originalOutput": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/exec-23cd5ad9-597e-4203-8c62-02b606ddc43f.png",
+      "archived": {
+        "path": "reference/generated/cel-v1/traveller-brisk.png",
+        "size": [
+          1774,
+          887
+        ],
+        "mode": "RGBA",
+        "bytes": 831576,
+        "sha256": "f03e8f8b5e9e141fd7dd09301d5a746ee566bad959f6b44b417d336fd925ec16"
+      },
+      "runtime": {
+        "path": "src/rendering/phaser/assets/cel-v1/traveller-brisk.webp",
+        "size": [
+          887,
+          444
+        ],
+        "mode": "RGBA",
+        "bytes": 80672,
+        "sha256": "6c9628f8bbcd663bb02b09db30dc618db178acea20bdb3f4661812465e8a5cdd"
+      },
+      "reference": "src/rendering/phaser/assets/cel-v1/traveller.webp",
+      "prompt": "Create a transparent 4-column by 2-row sprite sheet of the same original adventurer and attire in a brisk walk. Direction in each row is down, up, left, right. Use two stride phases, visibly bent elbows, long strides and subtle forward lean. Retain his satchel, boots, slate jacket, muted cel rendering and matching camera. Include generous gutters with no shadows, scenery or text."
+    },
+    {
+      "type": "bay-harbour",
+      "originalOutput": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/exec-39396fee-5c5a-4f36-894a-efbd42c2518d.png",
+      "archived": {
+        "path": "reference/generated/cel-v1/bay-harbour.png",
+        "size": [
+          1672,
+          941
+        ],
+        "mode": "RGB",
+        "bytes": 3131953,
+        "sha256": "c8e5937380de30a756140ae55123a34641ba46f3b282e0eb5b5f14201ce0b18b"
+      },
+      "runtime": {
+        "path": "src/rendering/phaser/assets/cel-v1/bay-harbour.webp",
+        "size": [
+          1672,
+          941
+        ],
+        "mode": "RGB",
+        "bytes": 481928,
+        "sha256": "aceda727f59f61ed316b6f37e5de6051893123b03134776a7d64090fdf34cbda"
+      },
+      "references": [
+        "src/rendering/phaser/assets/cel-v1/ridge-landing.webp",
+        "src/rendering/phaser/assets/cel-v1/foothill-bank.webp"
+      ],
+      "prompt": "Paint a continuous 16:9 elevated cel-shaded quay. A warehouse and a smaller pavilion anchor the upper terrace. Keep irregular paving walkable. Put the river below 77% and place the only dock at x84%, reached from shore by stairs, with the forested opposite bank at lower right. No people, boat, signage or interface."
+    },
+    {
+      "type": "ferry",
+      "originalOutput": "C:/Users/24839/.codex/generated_images/01a20b64-37da-7511-a252-88c54b4e00a4/exec-b726b3d7-a02d-4413-8593-5a795c27abd9.png",
+      "archived": {
+        "path": "reference/generated/cel-v1/ferry.png",
+        "size": [
+          2172,
+          724
+        ],
+        "mode": "RGBA",
+        "bytes": 615889,
+        "sha256": "8fd9374b4c7d2033829830a5d0d2d7f40119ad251b0975f90633963e5c2705f0"
+      },
+      "runtime": {
+        "path": "src/rendering/phaser/assets/cel-v1/ferry.webp",
+        "size": [
+          560,
+          175
+        ],
+        "mode": "RGBA",
+        "bytes": 35300,
+        "sha256": "9abb44c228883b216c8396c0347a1620ee29eb18606500c572b32696adea8d62"
+      },
+      "references": [
+        "src/rendering/phaser/assets/cel-v1/foothill-bank.webp"
+      ],
+      "prompt": "Isolated transparent cel sprite of a low covered wooden ferry pointing right. Show both the cabin roof and the hull. Include two honey-lit cabin windows, slate shadow and copper edge light. Keep the silhouette readable at small scale. No water, wake, people, lettering or background."
+    }
+  ],
+  "frameMap": "src/rendering/phaser/assets/cel-v1/frames.json"
+}
