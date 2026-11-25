@@ -1,0 +1,108 @@
+{
+  "task": "SUNSET-SAMPLE-01",
+  "date": "2026-11-23",
+  "approval": "User chose existing-asset adaptation after ImageGen HTTP 403. upper + guide2 only; existing projection and logic retained.",
+  "reference": {
+    "file": "reference.png",
+    "sha256": "8e0b0ba3227ce31a03914ce1c9f1d48fea98a1d1078cb2afa8ff9dc10a4c860e",
+    "usage": "User supplied style reference only; not a level background."
+  },
+  "method": "Pillow crop, quadrilateral rectification, resampling and original local drawing. No new model-generated assets, downloads or scene-plate substitution.",
+  "sourceHashes": {
+    "reference/generated/shop.png": "a228e50113e71ac6a2bae9c782950051e0d53c974fe108bd8c34f2780876b459",
+    "reference/generated/tea.png": "c7d62511d1f6ce4f8e49a1925338708c9cf36ac4a48bb065d0bc33ccd4d7751d",
+    "reference/generated/slab.png": "5f72a1cb4805c06c412a99338a10123f8892cd83746dec8182082747f388a708",
+    "reference/generated/scene2_plates/room_shop.jpg": "8196c75d7acc1ac1c7a88ef41632f8e1a37a6064b82a8804a170d6bc463d9a11",
+    "reference/generated/far_city.png": "8adce57e1b6a33e6fd985911aef876ad3e796831fbc934a380f56841883950c5"
+  },
+  "outputs": {
+    "timber-floor.webp": {
+      "width": 512,
+      "height": 512,
+      "bytes": 9878,
+      "sha256": "f9537a2ca4a89b0b98f505416589ff7991284bdff77f63ebbd6ecd29b57c42a0"
+    },
+    "timber-grain.webp": {
+      "width": 420,
+      "height": 100,
+      "bytes": 1564,
+      "sha256": "eade7cba5ed36eef3e8f5e41020dbfb41f26e8965e6891f18e0447228f77203f"
+    },
+    "lime-plaster.webp": {
+      "width": 160,
+      "height": 140,
+      "bytes": 1038,
+      "sha256": "24314c40b5399d2c81a8b01bdd47bc9d7db1cf8568e8c6cf3fb1333c3fc89dd5"
+    },
+    "lattice-window.webp": {
+      "width": 160,
+      "height": 200,
+      "bytes": 5192,
+      "sha256": "487e141769a6654f0da81e8901c4f703298c509b4124b06c49efc7b56fc21a37"
+    },
+    "roof-tiles.webp": {
+      "width": 840,
+      "height": 260,
+      "bytes": 40344,
+      "sha256": "467f917411671f7d9f17b04b02d120854401afdd05c4fe053f9439614eab008b"
+    },
+    "stone-paving.webp": {
+      "width": 768,
+      "height": 576,
+      "bytes": 117320,
+      "sha256": "62f41b8c8c1802234cf0cf642a9b4d6743a85b4da5c6ffacffb53aadda4a4f9a"
+    },
+    "city-haze.webp": {
+      "width": 1190,
+      "height": 343,
+      "bytes": 16426,
+      "sha256": "d9fa26741793fe4b574fe7d2d09e4e79193891793f7d8de2e69dff8f06c1cf53"
+    },
+    "guide-building.webp": {
+      "width": 900,
+      "height": 560,
+      "bytes": 58714,
+      "sha256": "3988278edca569a81761b6a9c7dffbf07212c32b4f17ac3ac32d6534623d4f0d"
+    },
+    "workshop-building.webp": {
+      "width": 900,
+      "height": 560,
+      "bytes": 58908,
+      "sha256": "779ba3beaea239a3726508872e80f6087aacca58185dcb6cb1645d9d8fd2f1e7"
+    },
+    "gallery-building.webp": {
+      "width": 900,
+      "height": 560,
+      "bytes": 61680,
+      "sha256": "f74ef817c5bdfd21554886e7d01eddc81f5e3ec620a8294c573b09f82b6205dc"
+    },
+    "sunlit-window.webp": {
+      "width": 256,
+      "height": 280,
+      "bytes": 16572,
+      "sha256": "455a639a4f44427f3e2497c1fcc25c03caaf85bd381fb4cbf7972217c3b67686"
+    },
+    "reading-desk.webp": {
+      "width": 460,
+      "height": 230,
+      "bytes": 4026,
+      "sha256": "ef47d95a84b9351c548914aec937fa6c0a63db3dc51afd30aec2f2999ff29a08"
+    },
+    "traveller-directions.webp": {
+      "width": 384,
+      "height": 80,
+      "bytes": 6908,
+      "sha256": "cf15f0ed82d31649c5737eba2436ef469dfd459cb455d82f2f50f44589f9c095"
+    }
+  },
+  "knownSourceLinks": {
+    "shop.png": "https://aka.doubaocdn.com/s/XxX6Q7vigB",
+    "tea.png": "https://aka.doubaocdn.com/s/ulkfgMWiSI"
+  },
+  "rights": "Existing project candidates reused with user approval for this local sample. Third-party source rights and commercial-release clearance NOT independently verified. Source originals untouched.",
+  "generationAttempts": {
+    "status": "BLOCKED",
+    "httpStatus": 403,
+    "filesCreated": 0
+  }
+}
