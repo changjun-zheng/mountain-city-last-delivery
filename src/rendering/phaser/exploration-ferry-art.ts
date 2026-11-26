@@ -18,9 +18,11 @@ export function preloadFerryArt(scene: Phaser.Scene, failed: (error:Error)=>void
   for(const [name,url] of Object.entries(assets))scene.load.image(name,url);
 }
 
-function label(scene:Phaser.Scene,layer:Phaser.GameObjects.Layer,x:number,y:number,message:string) {
-  layer.add(scene.add.text(x,y,message,{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'16px',color:'#f4d7a7',
-    backgroundColor:'#3e3038e6',padding:{x:9,y:5}}).setOrigin(.5).setDepth(y+8));
+function label(scene:Phaser.Scene,layer:Phaser.GameObjects.Layer,x:number,y:number,message:string,navigation=false) {
+  const plate=scene.add.text(x,y,message,{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'16px',color:navigation?'#f2e8d5':'#f4d7a7',
+    backgroundColor:navigation?'#122224e6':'#3e3038e6',padding:{x:9,y:5}}).setOrigin(.5).setDepth(y+8);
+  layer.add(plate);
+  if(navigation){const bounds=plate.getBounds(),rule=scene.add.graphics().setDepth(y+9);layer.add(rule);rule.lineStyle(2,0xe8c35a).lineBetween(bounds.x+6,bounds.bottom-1,bounds.right-6,bounds.bottom-1);}
 }
 
 export function drawFerryDistrict(scene: Phaser.Scene,layer:Phaser.GameObjects.Layer,s:ExplorationSnapshot) {
@@ -32,7 +34,7 @@ export function drawFerryDistrict(scene: Phaser.Scene,layer:Phaser.GameObjects.L
   if(ridge){
     layer.setData('storybookWater',{graphics:glints,left:120,right:1320,top:885,bottom:956});
     label(scene,layer,472,175,'古树台');
-    label(scene,layer,802,748,'照水岭渡口');
+    label(scene,layer,802,748,'照水岭渡口',true);
     return;
   }
 
@@ -44,11 +46,11 @@ export function drawFerryDistrict(scene: Phaser.Scene,layer:Phaser.GameObjects.L
     rope.lineStyle(2,0xbb9668,.8).lineBetween(RIVER_PIER_X+32,1219,boat.x-71,1264);
     layer.add(rope);
   }
-  label(scene,layer,RIVER_PIER_X+80,1030,s.photographed?'照水岭渡船 · 可乘':'照水岭渡船');
+  label(scene,layer,RIVER_PIER_X+80,1030,s.photographed?'照水岭渡船 · 可乘':'照水岭渡船',true);
   label(scene,layer,2335,1438,'对岸 · 照水岭');
   const ascent=EXP_TARGETS.find(target=>target.id==='riverfront-up')!;
-  label(scene,layer,ascent.x,ascent.y-54,'沿坡路回下街');
-  label(scene,layer,1929,997,'江岸取景台');
+  label(scene,layer,ascent.x,ascent.y-54,'沿坡路回下街',true);
+  label(scene,layer,1929,997,'江岸取景台',true);
 }
 
 export function createFerryView(scene:Phaser.Scene) {

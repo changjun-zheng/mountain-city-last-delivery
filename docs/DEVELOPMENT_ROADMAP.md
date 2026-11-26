@@ -10,6 +10,8 @@
 >
 > [WAYFIND-01 下街沿江阶口和路标](#wayfind-01-riverside-landing) 已通过技术复核，现行构建的三档空白档主线已复跑。
 >
+> [STYLE-UI-02 主线导航牌配色](#style-ui-02-route-sign-palette) 已通过技术复核。
+>
 > [ROUTE-01 从导览楼到木作楼的识路提示](#route-01-guide-to-workshop) 已通过技术复核。[STYLE-UI-01 城市插画风格的探索浮层](#style-ui-01-exploration-panels) 已通过技术复核。[LOAD-01 场景载入失败与恢复](#load-01-scene-startup-recovery) 已通过技术复核。[HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 待观感复核后定范围。
 
 <a id="photo-ui-01-landscape-framing"></a>
@@ -122,7 +124,19 @@
 
 实施及主窗口技术复核 PASS。沿江出口画出灰紫石阶、低亮暖边、顺岸落脚台和岸墙。落脚台使用街面同尺度、同相位的石板，三张下街导航牌用 A 色板。主窗口拒绝首轮青蓝踏面与深色矩形平台的拼接观感，改材质并修复被背景遮住的姜黄边，保留早期截图与视觉 FAIL。三档专项共八项通过，实际按住向下停在岸线，江岸往返和刷新仍可用。四份核心地形、通路、保存及行为相关差异为空，源码改动集中在下街绘制。构建、286/286 单测通过，主窗口实看三档关键画面并核对两份专项的各 201 个源码／测试、三个构建指纹和普通入口。独立复跑最新构建三档空白档主线，调查、开闸、拍摄、完成卡和刷新均通过，共 13 项，浏览器错误为零。真机、首次玩家和最终美术仍 NOT RUN。[667 专项](../test-results/wayfind-01/run-2026-11-26T10-55-20-519Z/report.json) · [桌面及 844 专项](../test-results/wayfind-01/run-2026-11-26T10-57-12-160Z/report.json) · [修后阶口](../test-results/wayfind-01/run-2026-11-26T10-57-12-160Z/844-riverside-stairs-front.png) · [首轮画面](../test-results/wayfind-01/run-2026-11-26T10-49-43-147Z/667-riverside-stairs-front.png) · [空白档主线](../test-results/style-02a/run-2026-11-26T11-00-03-449Z/report.json)
 
+<a id="style-ui-02-route-sign-palette"></a>
+
+## 已实施 STYLE-UI-02 主线导航牌配色
+
+状态为开发验证及主窗口技术复核 PASS，基线 `c5899c1`。修前下街导航牌和 HUD 已使用 A 风格，木作楼阶口／临街门、江纹栈门和江岸取景／渡口仍用旧紫褐底与另一套暖字色。按 [A 色板](assets/style-reset-v1/STYLE_BIBLE.md)统一功能牌的墨绿底、暖纸字和姜黄强调，使用箭头、门形、锁形与文案区分去向和通行状态。
+
+限定于现有导航牌渲染。用实际木作 3F／2F、江纹栈门开关、下街沿江阶口与江岸取景／渡口画面做并排截图。路线要通过桌面键盘和两档横屏触控模拟，先查 667×375 的文字位置和控件避让，再核对 844×390、1280×760。优先用 ROUTE-02 与现有主线、渡口回归，不新增同用途测试入口。构建、全量单测与最终报告指纹齐全。仅原开发会话写代码，主窗口复核后提交并核对 GitHub main。
+
+实施及主窗口技术复核 PASS。木作楼阶口／临街门、中街江纹栈门、江岸取景台、返程和两岸渡船牌采用 A 的墨绿、暖纸色及姜黄边，视觉规则与下街入口一致。两份渲染源码有改动。构建、286/286 单测通过，三档木作专项 5 项、空白档主线 13 项、渡口专项 5 项通过。主窗口实看木作、关闭与已开栈门、取景台和可乘渡船图，核对四份报告各 201 个源码／测试、三份构建指纹及 4199 入口。667 常见门前站位仍有栈门牌和角色上身相叠，这是修前已有的布局问题。真机、负责人观感、最终场景美术仍待验收。[667 木作与栈门](../test-results/route-02/run-2026-11-26T14-00-20-571Z/report.json) · [桌面及 844](../test-results/route-02/run-2026-11-26T14-01-56-578Z/report.json) · [主线](../test-results/style-02a/run-2026-11-26T14-03-18-758Z/report.json) · [渡船](../test-results/exp-06a/run-2026-11-26T14-07-45-685Z/report.json) · [江岸导航牌](../test-results/exp-06a/run-2026-11-26T14-07-45-685Z/dock-844.png)
+
 ## 当前可试玩构建
+
+最新 STYLE-UI-02 构建已复跑三档新档主线、木作及渡口专项。原即时试玩入口使用此版。[本地试玩](http://127.0.0.1:4199/) · [新档主线](../test-results/style-02a/run-2026-11-26T14-03-18-758Z/report.json) · [渡口往返](../test-results/exp-06a/run-2026-11-26T14-07-45-685Z/report.json)
 
 现行构建包含 ROUTE-02、ROUTE-03 与 WAYFIND-01 的下行、开闸、江岸承托和路标修订。桌面 1280×760 与 667×375、844×390 横屏从空白档走完开场至拍照、完成卡与刷新，另以合法隔离档实走木作与中街、下街与江岸。真机、负责人观感与新玩家 6—8 分钟仍未验收。[本地试玩](http://127.0.0.1:4199/) · [最新三档主线](../test-results/style-02a/run-2026-11-26T11-00-03-449Z/report.json)
 
