@@ -178,3 +178,71 @@
   }
   #exp-root #exp-gate-feedback span { font-size:11px; white-space:nowrap; }
 }
+
+/* STYLE-UI-01: the city handbook's ink covers and paper reading surfaces. */
+#exp-root .exp-shade,
+#exp-root .exp-photo-overlay { background:rgba(9,22,23,.76); }
+#exp-root #exp-instructions-panel .exp-instructions-panel,
+#exp-root #exp-confirm .exp-menu-panel {
+  color:var(--ui-paper);
+  background:linear-gradient(160deg,#1a3435,#122224);
+  border-color:#6e8b80;
+  box-shadow:0 24px 64px rgba(4,12,12,.62);
+}
+#exp-root #exp-instructions-title,
+#exp-root #exp-confirm h1,
+#exp-root #exp-confirm .exp-menu-panel > p { color:var(--ui-paper); }
+#exp-root .exp-instructions-panel .exp-page-label { color:#b5c5b9; }
+#exp-root .exp-instructions-panel dt { color:var(--ui-yellow); }
+#exp-root #exp-dialogue,
+#exp-root .exp-photo-panel,
+#exp-root .exp-completion-card {
+  color:var(--ui-text);
+  background:var(--ui-paper);
+  border-color:#9baf9e;
+}
+#exp-root #exp-dialogue { border-left-color:var(--ui-teal); }
+#exp-root #exp-dialogue-text,
+#exp-root #exp-investigation-title,
+#exp-root .exp-photo-panel h2,
+#exp-root .exp-completion-card h2 { color:var(--ui-text); }
+#exp-root #exp-investigation-caption { color:#50645b; }
+#exp-root #exp-photo-feedback,
+#exp-root #exp-restart-status { color:inherit; }
+#exp-root #exp-instructions-close,
+#exp-root #exp-cancel-restart,
+#exp-root #exp-close {
+  color:var(--ui-ink);
+  background:linear-gradient(180deg,#f0cf74,#d9ad3f);
+  border-color:#c39b3c;
+}
+#exp-root #exp-instructions-close:hover:not(:disabled),
+#exp-root #exp-cancel-restart:hover:not(:disabled),
+#exp-root #exp-close:hover:not(:disabled) { background:linear-gradient(180deg,#f7dc8e,#e3ba4e); }
+#exp-root #exp-onboarding-replay,
+#exp-root #exp-memento-cancel,
+#exp-root .exp-photo-actions button:not(.exp-primary) {
+  color:var(--ui-paper);
+  background:#21443f;
+  border-color:#76978a;
+}
+#exp-root #exp-onboarding-replay:hover:not(:disabled),
+#exp-root #exp-memento-cancel:hover:not(:disabled),
+#exp-root .exp-photo-actions button:not(.exp-primary):hover:not(:disabled) { background:#2c5750; }
+#exp-root #exp-confirm-restart {
+  color:var(--ui-paper);
+  background:#813e38;
+  border-color:#bb7d70;
+}
+#exp-root #exp-confirm-restart:hover:not(:disabled) { background:#954b42; }
+#exp-root :is(#exp-instructions-panel,#exp-confirm,#exp-dialogue,#exp-photo,#exp-photo-card) button:focus-visible {
+  outline-color:#35665c;
+}
+#exp-root :is(#exp-instructions-panel,#exp-confirm) button:focus-visible { outline-color:var(--ui-yellow); }
+#exp-root :is(#exp-instructions-panel,#exp-confirm,#exp-dialogue,#exp-photo,#exp-photo-card) button:disabled {
+  color:#64716a;
+  background:#dedfd4;
+  border-color:#98a397;
+  box-shadow:none;
+  opacity:.65;
+}

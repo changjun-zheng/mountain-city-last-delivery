@@ -4,7 +4,7 @@
 
 > 截止口径（2026-11-25）：官方 **2026-12-06**；12月10日目标已撤回。内部封版建议12-03，12-04完成材料与投稿。见[截止时间更正](DECISIONS.md#deadline-corrected-20261125)。
 >
-> [LOAD-01 场景载入失败与恢复](#load-01-scene-startup-recovery) 已通过技术复核。[HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 待观感复核后定范围。
+> [STYLE-UI-01 城市插画风格的探索浮层](#style-ui-01-exploration-panels) 已通过技术复核。[LOAD-01 场景载入失败与恢复](#load-01-scene-startup-recovery) 已通过技术复核。[HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 待观感复核后定范围。
 
 <a id="photo-ui-01-landscape-framing"></a>
 
@@ -53,6 +53,20 @@
 桌面 1280×760 与手机短横屏至少 667×375。仅在实测复现时修正现有错误展示或场景销毁；保留素材、首帧就绪合同、进度和原服务。保留修前修后、报告、全量单测、构建和保护指纹，由既有开发会话独占写入，主窗口复核后独立提交及推送。
 
 实施与主窗口技术复核 PASS。桌面 1280×760 和 667×375 触控均暂扣真实必需图片，标题保持禁用、Tick 冻结，放行后能开局并实际移动。另注入一次 404，错误提示可见且获焦，原标题和控制退出，场景彻底清理。取消故障注入后刷新，从合法非空隔离档继续，原存档字节保持。Phaser 失败与正常退出共用同一幂等清理。构建、286/286 单测、LOAD 专项 5 项及正常生命周期／旋转回归 8 项通过。主窗口核对两份报告的 201 个源码／测试、三个生产指纹和实际入口。修前两份 FAIL 和故障注入日志保留，真实网络或手机体验仍 NOT RUN。[LOAD 报告](../test-results/load-01/run-2026-11-26T05-14-54-823Z/report.json) · [旋转回归](../test-results/resize-01/run-2026-11-26T05-15-26-829Z/report.json) · [修前 FAIL](../test-results/load-01/run-2026-11-26T05-07-30-829Z/report.json) · [横屏错误提示](../test-results/load-01/run-2026-11-26T05-14-54-823Z/load-667-error.png)
+
+<a id="style-ui-01-exploration-panels"></a>
+
+## 已实施 STYLE-UI-01 城市插画风格的探索浮层
+
+状态为开发验证及主窗口技术复核 PASS。方向来自负责人本轮「城市插画风格的界面优化」及现有 A 手册。现行标题、HUD、暂停主键已有墨绿与姜黄，操作说明和重开确认仍有旧酒红主按钮，调查与取景次要操作和遮罩仍分散。先按实际开场→调查→开闸→取景路线统一视觉层级。此项只记录界面实施和技术比较，场景美术 STYLE-02B 仍按既有复核门槛。
+
+帮助与重开确认延续标题墨绿底、暖纸色正文、姜黄聚焦和青绿次级。保留旅程是重开确认的默认安全操作，危险动作有清楚文字和克制的暖红提示。调查、认领收藏、取景预览与完成沿用纸面阅读感，共用 A 的边线、遮罩与文字层级，主动作、次动作、禁用、反馈与焦点可辨。保留标题楷体、已有按钮布局和短横屏可点击区，不增加装饰文案。优先在现有 exploration-style-a.css 复用色板和已存在组件，其余改动只为必要验证。地图、资产、任务/保存、生命周期和输入保持。
+
+保存修前后实际截图，使用品牌 Chrome 1280×760 桌面和 844×390、667×375 横屏触控验证调查、开闸、取景、拍摄与续玩。帮助和重开确认用现有专项检查，真实取消、返回焦点与触控区仍达标。主次按钮正负状态和文字对比可量化，再对照最终截图。保留构建、全量单测和指纹；开发会话独占源码，主窗口复核、提交并验证远端。
+
+实施及主窗口技术复核 PASS。帮助／确认使用墨绿暗面和暖纸文字，返回／保留旅程为姜黄主动作，确认重开为暖红。调查和取景沿用纸面，主次按钮、遮罩、边线及键盘焦点跟随 A 色板。仅修改 A 主题 CSS 与现有 Chrome 断言。实际核对桌面、844×390 和 667×375 的帮助、暂停、确认、调查、开闸、取景和完成卡。构建、286/286 单测、帮助 10 项、暂停 18 项及完整新档主线 13 项通过；最终主线报告与现行 201 个源码／测试指纹及 3 个生产资源一致。较早帮助／暂停报告与当前应用及构建相同，脚本指纹早于 hover 断言修订。断连 FAIL 及 hover 断言 FAIL 原样保留，真机与负责人观感仍 NOT RUN。[主线](../test-results/style-02a/run-2026-11-26T06-10-09-026Z/report.json) · [帮助](../test-results/help-01/run-2026-11-26T05-58-25-173Z/report.json) · [暂停](../test-results/pause-01/run-2026-11-26T06-01-25-078Z/report.json) · [交付与失败记录](../test-results/style-ui-01/delivery.json) · [横屏帮助](../test-results/help-01/run-2026-11-26T05-58-25-173Z/help-667-pause.png) · [横屏取景](../test-results/style-02a/run-2026-11-26T06-10-09-026Z/667x375-photo-preview.png)
+
+同轮基础功能只读复核确认现有 H5 已有开场、调查、开闸、收藏、拍摄、渡船、暂停和保存闭环。评估缺口在自主识路、场景比例和遮挡，既有主线大量使用跟走，不能替代首次玩家实测。取景仍为固定视点。下一次场景评估聚焦上街→导览 2F→木作 3F，真机、负责人观感以及新玩家 6—8 分钟均按未验收记录。
 
 ## 当前可试玩构建
 

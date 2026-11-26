@@ -15,7 +15,7 @@ import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './
 
 const args=process.argv.slice(2);
 const modes=['--load-baseline','--load-only','--help-only','--help-baseline','--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only','--viewport-only','--photo-frame-only','--photo-frame-baseline'];
-if(!args.includes('--production')||args.some(a=>a!=='--production'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
+if(!args.includes('--production')||args.some(a=>a!=='--production'&&a!=='--panel-style'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
 const loadAcceptance=args.includes('--load-only')||args.includes('--load-baseline');
 const helpAcceptance=args.includes('--help-only')||args.includes('--help-baseline');
 const styleAcceptance=args.includes('--style-02a');
@@ -81,7 +81,7 @@ let browser,active,nativeProcess,nativeBrowser,headlessProcess;
 const contexts=[];
 const state=page=>page.locator('#exp-root').evaluate(e=>{const g=document.querySelector('#exp-stage').dataset;return{...e.dataset,x:Number(e.dataset.x),y:Number(e.dataset.y),tick:Number(e.dataset.tick),tokens:Number(e.dataset.tokens),cameraX:Number(g.cameraX),cameraY:Number(g.cameraY),mapObjects:Number(g.mapObjects),zoom:Number(g.zoom)};});
 const wait=async(page,predicate,arg)=>page.waitForFunction(predicate,arg,{timeout:20000,polling:'raf'});
-const shot=async(page,name)=>{const path=join(dir,`${name}.png`);await page.screenshot({path});report.screenshots.push(path);return path;};
+const shot=async(page,name)=>{if(args.includes('--panel-style'))await panelPalette(page,name);const path=join(dir,`${name}.png`);await page.screenshot({path});report.screenshots.push(path);return path;};
 const key=async(page,code)=>{report.timeline.push({event:'key',code,at:new Date().toISOString()});await page.keyboard.press(code);};
 const fitCanvas=async page=>{
   const sample=await page.evaluate(async()=>{
@@ -387,6 +387,34 @@ async function pausedAt(page,view,tokens,focus,baseline){
  await frames(page);const next=await state(page);assert.equal(next.tick,s.tick);
  if(baseline)for(const name of ['runtimeId','map','progress','tick'])assert.equal(s[name],baseline[name]);
  return s;
+}
+async function panelPalette(page,name){
+ const palette=await page.evaluate(()=>{
+  const ids=['exp-instructions-panel','exp-confirm','exp-dialogue','exp-photo','exp-photo-card'];
+  return ids.map(id=>document.getElementById(id)).filter(e=>!e.hidden&&e.getBoundingClientRect().height>0).map(root=>{
+   const panel=root.querySelector('.exp-panel')||root,style=getComputedStyle(panel);
+   return{id:root.id,background:style.backgroundColor,gradient:style.backgroundImage,border:style.borderColor,text:style.color,buttons:[...root.querySelectorAll('button')].filter(e=>e.getBoundingClientRect().height>0).map(e=>{
+    const s=getComputedStyle(e),r=e.getBoundingClientRect();return{id:e.id,text:s.color,background:s.backgroundColor,gradient:s.backgroundImage,border:s.borderColor,outline:s.outlineColor,focusVisible:e.matches(':focus-visible'),hovered:e.matches(':hover'),disabled:e.disabled,opacity:s.opacity,height:r.height};
+   })};
+  });
+ });
+ const luminance=rgb=>rgb.slice(0,3).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+ const rgb=text=>text.match(/[\d.]+/g).map(Number);
+ const contrast=(a,b)=>{const x=luminance(rgb(a)),y=luminance(rgb(b));return(Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+ for(const panel of palette){
+  const dark=['exp-instructions-panel','exp-confirm'].includes(panel.id);
+  assert.equal(panel.text,dark?'rgb(242, 232, 213)':'rgb(38, 49, 47)');
+  assert.equal(panel.background,dark?'rgba(0, 0, 0, 0)':'rgb(242, 232, 213)');
+  if(dark)assert.match(panel.gradient,/rgb\(18, 34, 36\)/);
+  for(const b of panel.buttons){
+   assert.ok(b.height>=48,JSON.stringify(b));
+   if(!b.disabled){const backgrounds=b.gradient==='none'?[b.background]:b.gradient.match(/rgb\([^)]+\)/g);for(const background of backgrounds)assert.ok(contrast(b.text,background)>=4.5,JSON.stringify(b));}
+   if(['exp-instructions-close','exp-cancel-restart','exp-close','exp-shutter','exp-card-close'].includes(b.id)&&!b.disabled)assert.equal(b.gradient,b.hovered?'linear-gradient(rgb(247, 220, 142), rgb(227, 186, 78))':'linear-gradient(rgb(240, 207, 116), rgb(217, 173, 63))',JSON.stringify(b));
+   if(b.id==='exp-confirm-restart')assert.equal(b.background,b.hovered?'rgb(149, 75, 66)':'rgb(129, 62, 56)');
+   if(b.focusVisible)assert.equal(b.outline,dark?'rgb(232, 195, 90)':'rgb(53, 102, 92)');
+  }
+ }
+ if(palette.length)report.timeline.push({event:'STYLE-UI-01 actual panel palette and >=4.5 button text contrast',name,palette});
 }
 async function loadProbe(){
  const asset=(await readdir('dist/assets')).find(n=>/^ridge-landing-.*\.webp$/.test(n));assert.ok(asset);report.injectedAsset={asset,sha256:await sha('dist/assets/'+asset)};
