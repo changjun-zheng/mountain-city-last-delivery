@@ -107,7 +107,7 @@ export const C_TARGETS:readonly ExplorationTarget[]=Object.freeze([
   {id:'tea-observe',map:'tea',x:545,y:325,label:'看看茶桌与竹椅'},
   {id:'window',map:'tea',x:800,y:330,label:'调查茶歇后窗视野'},
   {id:'photo-eaves',map:'lower',x:1350,y:1050,label:'调查檐下视野'},
-  {id:'note',map:'guide2',x:950,y:350,label:'阅读楼层与纹样导览'},
+  {id:'note',map:'guide2',x:950,y:350,label:'阅读纹样展柜导览'},
   {id:'plaque',map:'workshop3',x:742,y:415,label:'查看江纹导扣'},
 ]);
 

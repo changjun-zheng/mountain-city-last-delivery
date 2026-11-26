@@ -17,9 +17,16 @@ export function drawBuildingFloor(scene:Phaser.Scene,layer:Phaser.GameObjects.La
       label(310,260,'工具存放');label(700,285,'纹样整理位');label(900,470,'整理工作台');rect(665,300,70,20,0xc69d68);g.lineStyle(3,0x496665);g.strokeTriangle(673,316,683,301,693,316);g.lineBetween(702,306,727,302);g.lineBetween(702,314,727,310);
     }else{
       const clasp=EXP_TARGETS.find(t=>t.id==='plaque')!;
-      label(310,280,'储物区');label(clasp.x,325,'水波门扣柜');label(1050,215,'山纹工具箱');
+      const sign=(x:number,y:number,text:string,name:string)=>{
+        const board=scene.add.text(x,y,text,{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'20px',align:'center',color:'#122224',backgroundColor:'#f2e8d5',padding:{x:8,y:5}}).setOrigin(.5).setDepth(1000).setName(name);
+        layer.add(board);
+      };
+      label(310,280,'储物区');
+      sign(760,305,'水波门扣柜\n'+(s.item?'导扣已带走':'可借 · 江纹导扣'),'route01-water-cabinet');
+      sign(1060,270,'山纹工具箱','route01-mountain-box');
+      sign(900,450,'↙ 从长屏风下端绕行','route01-screen-way');
       if(!s.item){rect(clasp.x-21,366,42,10,0xf3ce80);g.lineStyle(2,0x5a735f);g.lineBetween(clasp.x-14,369,clasp.x+13,367);g.lineBetween(clasp.x-14,373,clasp.x+13,371);}
-      label(clasp.x,470,s.item?'导扣已带走':'可借 · 江纹导扣',16);g.lineStyle(3,0x5c7b77);g.strokeTriangle(1028,278,1050,255,1072,278);
+      g.lineStyle(3,0x5c7b77);g.strokeTriangle(1028,278,1050,255,1072,278);
     }
   }
   for(const target of EXP_TARGETS.filter(t=>t.map===s.map&&['guide-up','guide-down','workshop-up-2','workshop-down-1','workshop-up-3','workshop-down-2'].includes(t.id)&&t.destination&&t.id!=='guide-exit'&&t.id!=='workshop-exit')){

@@ -4,7 +4,7 @@
 
 > 截止口径（2026-11-25）：官方 **2026-12-06**；12月10日目标已撤回。内部封版建议12-03，12-04完成材料与投稿。见[截止时间更正](DECISIONS.md#deadline-corrected-20261125)。
 >
-> [STYLE-UI-01 城市插画风格的探索浮层](#style-ui-01-exploration-panels) 已通过技术复核。[LOAD-01 场景载入失败与恢复](#load-01-scene-startup-recovery) 已通过技术复核。[HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 待观感复核后定范围。
+> [ROUTE-01 从导览楼到木作楼的识路提示](#route-01-guide-to-workshop) 已通过技术复核。[STYLE-UI-01 城市插画风格的探索浮层](#style-ui-01-exploration-panels) 已通过技术复核。[LOAD-01 场景载入失败与恢复](#load-01-scene-startup-recovery) 已通过技术复核。[HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 待观感复核后定范围。
 
 <a id="photo-ui-01-landscape-framing"></a>
 
@@ -67,6 +67,18 @@
 实施及主窗口技术复核 PASS。帮助／确认使用墨绿暗面和暖纸文字，返回／保留旅程为姜黄主动作，确认重开为暖红。调查和取景沿用纸面，主次按钮、遮罩、边线及键盘焦点跟随 A 色板。仅修改 A 主题 CSS 与现有 Chrome 断言。实际核对桌面、844×390 和 667×375 的帮助、暂停、确认、调查、开闸、取景和完成卡。构建、286/286 单测、帮助 10 项、暂停 18 项及完整新档主线 13 项通过；最终主线报告与现行 201 个源码／测试指纹及 3 个生产资源一致。较早帮助／暂停报告与当前应用及构建相同，脚本指纹早于 hover 断言修订。断连 FAIL 及 hover 断言 FAIL 原样保留，真机与负责人观感仍 NOT RUN。[主线](../test-results/style-02a/run-2026-11-26T06-10-09-026Z/report.json) · [帮助](../test-results/help-01/run-2026-11-26T05-58-25-173Z/report.json) · [暂停](../test-results/pause-01/run-2026-11-26T06-01-25-078Z/report.json) · [交付与失败记录](../test-results/style-ui-01/delivery.json) · [横屏帮助](../test-results/help-01/run-2026-11-26T05-58-25-173Z/help-667-pause.png) · [横屏取景](../test-results/style-02a/run-2026-11-26T06-10-09-026Z/667x375-photo-preview.png)
 
 同轮基础功能只读复核确认现有 H5 已有开场、调查、开闸、收藏、拍摄、渡船、暂停和保存闭环。评估缺口在自主识路、场景比例和遮挡，既有主线大量使用跟走，不能替代首次玩家实测。取景仍为固定视点。下一次场景评估聚焦上街→导览 2F→木作 3F，真机、负责人观感以及新玩家 6—8 分钟均按未验收记录。
+
+<a id="route-01-guide-to-workshop"></a>
+
+## 已实施 ROUTE-01 从导览楼到木作楼的识路提示
+
+状态为开发验证及主窗口技术复核 PASS。主窗口从仅已接受委托的合法上街档开始，用桌面原生键盘走完导览2F、返回上街、木作3F与取得导扣。全程未用自动跟走。当前导览目标说东侧阅览桌，实画右侧是纹样展柜，两张阅览桌在左侧。木作3F门扣柜名称靠近竖向隔断，借用标签离实际柜体偏远。可达性通过，自主辨识有明确改进点。新玩家盲测仍 NOT RUN。[实走记录](../test-results/manual-route-01/run-2026-11-26T06-32-55-677Z/report.json) · [导览修前](../test-results/manual-route-01/run-2026-11-26T06-32-55-677Z/04-guide-clue.png) · [木作修前](../test-results/manual-route-01/run-2026-11-26T06-32-55-677Z/11-wood-clasp.png)
+
+用同一短名称关联导览二楼东侧的展柜、任务文字和现场标牌，让两张阅览桌继续可以从画面辨认。木作三楼按实际可走侧明确绕屏风的方向，让水波门扣柜和山纹工具箱各自的标识跟着物件，避免隔断、HUD 或角色常见站位遮住文字。保留比对纹样、可借导扣与原收取反馈；误选工具箱不推进。主题沿用 A 的暖纸、墨绿和姜黄路标，位置／字色改动限定于这两个室内。地图碰撞、门和安全点、业务条件、收藏、跟走、资源和 STYLE-02B 设计边界保持。
+
+桌面与 667×375、844×390 横屏用实际键盘或可信 CDP 触控完成从合法上街档到查导览、返回上街、进木作、看错物件再收取导扣。禁止测试脚本使用自动跟走或运行中写进度，初始夹具在隔离档单列。核对门口、柜前、错误对象、说明中的名词和短横屏可读位置；按最终证据确认当前地图相邻出口及当前保存行为，构建、全量单测与三档报告齐备，旧屏幕样本保留。开发会话独占源码，主窗口复核、提交并核对远端。
+
+实施及主窗口技术复核 PASS。导览二楼的任务、互动和牌统一为东侧「纹样展柜」。木作三楼把水波柜和山纹工具箱各自标明，长屏风旁的左下绕行牌避开常见站位和触屏提示。核心只改五处提示及一个目标标签，主窗口对照保留关卡坐标、规则、跟走和存档。1280×760、844×390 和 667×375 从合法上街已接委托档真实移动，查导览、出楼、误查工具箱、拿导扣一次和刷新均通过，全程未启用跟走。构建、286/286 单测及 4 项 Chrome 路线检查 PASS。主窗口实看两处修后标牌和错误物件场景，核对 201 个源码／测试指纹、3 个当前生产指纹及服务。首轮脚本误用焦点锁 FAIL、两个中间布局版本的测量和截图均留存；真人首次试玩和真机仍 NOT RUN。[三档报告](../test-results/route-01/run-2026-11-26T07-13-17-112Z/report.json) · [首轮 FAIL](../test-results/route-01/run-2026-11-26T07-02-51-449Z/report.json) · [横屏展柜](../test-results/route-01/run-2026-11-26T07-13-17-112Z/route-667-guide-cabinet.png) · [横屏柜体与绕行牌](../test-results/route-01/run-2026-11-26T07-13-17-112Z/route-667-water-cabinet.png)
 
 ## 当前可试玩构建
 

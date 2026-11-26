@@ -581,7 +581,7 @@ export function drawStorybookSample(scene: Phaser.Scene, layer: Phaser.GameObjec
     const paper=g(-10);paper.fillStyle(0xf7e8be);paper.fillRoundedRect(note.x-26,note.y-17,52,34,3);
     paper.lineStyle(2,0x6d8073);paper.strokeTriangle(note.x-19,note.y+9,note.x-11,note.y-9,note.x-3,note.y+9);
     for (const y of [-7,1,9]) paper.lineBetween(note.x+4,note.y+y,note.x+18,note.y+y-3);
-    label(note.x,note.y+42,'纹样导览',17);
+    label(note.x+15,note.y-72,'纹样展柜',20,301).setName('route01-guide-cabinet');
     stairs(252,705,96,70);
     tile('stone',{x:1058,y:710,w:84,h:76},-65);
     label(360,235,'临窗阅览',17);

@@ -58,14 +58,14 @@ test('SHORT S02 clue guidance follows the real guide entrance and floor, includi
  assert.match(at('cGuideH3',{accepted:true}).snapshot.objective,/导览楼2F/);
  assert.match(at('cGuideH2',{accepted:true}).snapshot.objective,/1F.*2F/);
  assert.match(at('cGuide1Door',{accepted:true}).snapshot.objective,/东侧楼梯上2F/);
- assert.match(at('cGuide2Door',{accepted:true}).snapshot.objective,/2F东侧阅览桌/);
- assert.match(at('cWood3Door',{accepted:true,item:true}).snapshot.objective,/查看楼层与纹样导览/);
+ assert.match(at('cGuide2Door',{accepted:true}).snapshot.objective,/2F东侧纹样展柜/);
+ assert.match(at('cWood3Door',{accepted:true,item:true}).snapshot.objective,/查看纹样展柜/);
 });
 test('SHORT S03 item and gate directions name the existing floors, without forcing one acquisition order',()=>{
  const informed={accepted:true,clue:true};
  assert.match(at('cWoodH2',informed).snapshot.objective,/木作楼2F.*3F/);
  assert.match(at('cWood2Door',informed).snapshot.objective,/东侧楼梯上3F/);
- assert.match(at('cWood3Door',informed).snapshot.objective,/绕过屏风/);
+ assert.match(at('cWood3Door',informed).snapshot.objective,/长屏风下端向左绕/);
  assert.match(at('cGuide2Door',equipped).snapshot.objective,/下1F出中街/);
  assert.match(at('cWood3Door',equipped).snapshot.objective,/木作2F出中街/);
  assert.match(at('cArrival',equipped).snapshot.objective,/中街东侧栈门/);

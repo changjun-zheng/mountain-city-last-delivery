@@ -398,13 +398,13 @@ export class ExplorationRuntime {
     if(map==='plaza'||map==='service')return '回到步行街向东走，经沧白路进入上街';
     if(map==='entry')return '沿东侧门廊进入上街，继续游客的取景委托';
     if(!has(P.clue)){
-      if(map==='guide2')return '在2F东侧阅览桌前，阅读楼层与纹样导览';
-      if(map==='guide')return '从1F东侧楼梯上2F，查看纹样导览';
-      if(map==='middle')return '进入临江导览楼1F，再上2F查看导览';
-      return '到上街临江导览楼2F，查看楼层与纹样导览';
+      if(map==='guide2')return '到2F东侧纹样展柜前，阅读导览';
+      if(map==='guide')return '从1F东侧楼梯上2F，查看纹样展柜';
+      if(map==='middle')return '进入临江导览楼1F，再上2F查看纹样展柜';
+      return '到上街临江导览楼2F，查看纹样展柜';
     }
     if(!this.#progress.snapshot.collections.includes(P.item)){
-      if(map==='workshop3')return '在3F绕过屏风，到门扣柜前比对纹样';
+      if(map==='workshop3')return '沿3F长屏风下端向左绕，到水波门扣柜比对纹样';
       if(map==='workshop2')return '从2F东侧楼梯上3F，寻找对应纹样的导扣';
       if(map==='workshop')return '经西侧楼梯上2F，再从东侧楼梯上3F';
       if(map==='middle')return '进入木作楼2F，再上3F查看门扣柜';

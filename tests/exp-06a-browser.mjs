@@ -14,8 +14,9 @@ import {chromium} from 'playwright-core';
 import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './browser-selection.mjs';
 
 const args=process.argv.slice(2);
-const modes=['--load-baseline','--load-only','--help-only','--help-baseline','--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only','--viewport-only','--photo-frame-only','--photo-frame-baseline'];
+const modes=['--route-only','--load-baseline','--load-only','--help-only','--help-baseline','--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only','--viewport-only','--photo-frame-only','--photo-frame-baseline'];
 if(!args.includes('--production')||args.some(a=>a!=='--production'&&a!=='--panel-style'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
+const routeAcceptance=args.includes('--route-only');
 const loadAcceptance=args.includes('--load-only')||args.includes('--load-baseline');
 const helpAcceptance=args.includes('--help-only')||args.includes('--help-baseline');
 const styleAcceptance=args.includes('--style-02a');
@@ -28,7 +29,7 @@ const photoFrameBaseline=args.includes('--photo-frame-baseline');
 const photoFrameAcceptance=photoFrameBaseline||args.includes('--photo-frame-only');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results',loadAcceptance?'load-01':helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',routeAcceptance?'route-01':loadAcceptance?'load-01':helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
 const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
@@ -44,6 +45,7 @@ if(viewportAcceptance){report.task='VIEWPORT-01';report.scope='fresh title/lesso
 if(photoFrameAcceptance){report.task='PHOTO-UI-01';report.scope=photoFrameBaseline?'old geometry measurement only; new frame ratio acceptance NOT RUN':'legal tea fixture, physical walk to failed window view, uncropped frame and usable feedback/actions';}
 if(helpAcceptance){report.task='HELP-01';report.scope=args.includes('--help-baseline')?'ordinary-entry pre-fix geometry reproduction':'fresh title and pause help, device instructions and replay without archive change';}
 if(loadAcceptance){report.task='LOAD-01';report.scope='JS-started scene image latch and explicit 404, isolated contexts; fresh success and legal nonempty archive recovery';report.injectedErrors=[];report.preFixDefects=[];}
+if(routeAcceptance){report.task='ROUTE-01';report.scope='accepted-only legal cArrival fixture; manual explicit keyboard/CDP joystick route, no follow or runtime progress writes';}
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
 async function hashTree(path){for(const e of await readdir(path,{withFileTypes:true})){const p=join(path,e.name);if(e.isDirectory())await hashTree(p);else report.hashes[relative(process.cwd(),p).replaceAll('\\','/')]=await sha(p);}}
 await hashTree('src');
@@ -387,6 +389,26 @@ async function pausedAt(page,view,tokens,focus,baseline){
  await frames(page);const next=await state(page);assert.equal(next.tick,s.tick);
  if(baseline)for(const name of ['runtimeId','map','progress','tick'])assert.equal(s[name],baseline[name]);
  return s;
+}
+async function routeProbe(){
+ const p=new InMemoryRunProgress('exp03b');p.completeGoal(P.accepted);const save={...emptyExplorationSave(),safe:'cArrival',progress:p.snapshot};assert.ok(validateExplorationSave(save));
+ for(const [size,touch] of [[{width:1280,height:760},false],[{width:844,height:390},true],[{width:667,height:375},true]]){
+  const page=await currentPage(save,size,touch),press=id=>touch?page.locator('#'+id).tap():keyboardActivate(page,id);
+  await fitCanvas(page);const start=await state(page);assert.equal(start.map,'upper');assert.equal(JSON.parse(start.progress).counts.goals,1);
+  const capture=async name=>{await shot(page,`route-${size.width}-${name}`);report.timeline.push({event:'ROUTE-01 real standing view',name,size,state:await state(page),visible:await page.evaluate(()=>Object.fromEntries(['exp-objective','exp-prompt','exp-dialogue-text'].map(id=>[id,document.getElementById(id).innerText])))});};
+  await walk(page,710,690);await walk(page,710,575);await capture('guide-door');await interact(page,'guide-door');assert.equal((await state(page)).map,'guide2');assert.match(await page.locator('#exp-objective').innerText(),/2F东侧纹样展柜/);await capture('guide-entry');
+  await walk(page,950,700);await walk(page,950,395);await capture('guide-cabinet');assert.match(await page.locator('#exp-prompt').innerText(),/纹样展柜/);await interact(page,'note');await capture('guide-dialogue');assert.match(await page.locator('#exp-dialogue-text').innerText(),/两道水波.*不是三角山尖/);await press('exp-close');
+  const informed=await state(page);assert.ok(JSON.parse(informed.progress).goals.includes(P.clue));assert.equal(JSON.parse(informed.progress).collections.length,0);
+  await walk(page,950,700);await walk(page,1100,700);await interact(page,'guide-upper-exit');assert.equal((await state(page)).map,'upper');assert.equal((await state(page)).safe,'cGuideH3');await capture('guide-return');
+  await walk(page,710,690);await walk(page,1620,690);await walk(page,1620,575);await capture('wood-door');await interact(page,'workshop-upper-door');assert.equal((await state(page)).map,'workshop3');assert.match(await page.locator('#exp-objective').innerText(),/长屏风下端向左绕.*水波门扣柜/);await capture('wood-entry');
+  await walk(page,1050,700);await walk(page,1050,350);await capture('wrong-box');const wrongBefore=await state(page);await interact(page,'building-wrong-box');assert.equal((await state(page)).pending,'');assert.match(await page.locator('#exp-dialogue-text').innerText(),/三角山纹.*不是水波门扣/);await capture('wrong-dialogue');await press('exp-close');assert.equal((await state(page)).progress,wrongBefore.progress);
+  await walk(page,1050,640);await walk(page,760,640);await capture('screen-lower-way');await walk(page,760,430);await capture('water-cabinet');const before=await state(page);await interact(page,'plaque');await capture('clasp-dialogue');assert.equal((await state(page)).pending,'item');
+  await press('exp-close');const acquired=await state(page);assert.equal(JSON.parse(acquired.progress).collections.filter(id=>id===P.item).length,1);assert.equal(JSON.parse(acquired.progress).counts.rewards,0);assert.equal(acquired.unlocked,'false');await capture('clasp-taken');
+  await interact(page,'plaque');await press('exp-close');assert.equal((await state(page)).progress,acquired.progress);
+  await walk(page,760,700);await walk(page,1080,700);await interact(page,'workshop-upper-exit');assert.equal((await state(page)).map,'upper');assert.equal((await state(page)).safe,'cWoodH3');await capture('wood-return');await restore(page,'cWoodH3',touch);assert.equal((await state(page)).progress,acquired.progress);await capture('reload');
+  record(`ROUTE-01 ${size.width} explicit guide-return-wood route, wrong object no progress, take once and reload`,{fixture:save,method:touch?'trusted CDP joystick and taps':'real keyboard',autoWalk:'NOT USED',start,informed,acquired,restored:await state(page)});await page.close();
+ }
+ report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
 }
 async function panelPalette(page,name){
  const palette=await page.evaluate(()=>{
@@ -1183,7 +1205,8 @@ try{
  headlessProcess.on('exit',(code,signal)=>report.timeline.push({event:'chrome-exit',code,signal,at:new Date().toISOString()}));
  browser.on('context',context=>{context.on('close',()=>report.timeline.push({event:'context-close',at:new Date().toISOString()}));context.on('page',page=>{page.on('close',()=>report.timeline.push({event:'page-close',at:new Date().toISOString()}));page.on('crash',()=>report.timeline.push({event:'page-crash',at:new Date().toISOString()}));});});
  const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(loadAcceptance)await loadProbe();
+ if(routeAcceptance)await routeProbe();
+ else if(loadAcceptance)await loadProbe();
  else if(helpAcceptance)await helpProbe();
  else if(photoFrameAcceptance)await photoFrameProbe();
  else if(viewportAcceptance)await viewportProbe();
