@@ -14,7 +14,7 @@ import {chromium} from 'playwright-core';
 import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './browser-selection.mjs';
 
 const args=process.argv.slice(2);
-const modes=['--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only','--viewport-only'];
+const modes=['--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only','--viewport-only','--photo-frame-only','--photo-frame-baseline'];
 if(!args.includes('--production')||args.some(a=>a!=='--production'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
 const styleAcceptance=args.includes('--style-02a');
 const resizeAcceptance=args.includes('--resize-only');
@@ -22,9 +22,11 @@ const pauseAcceptance=args.includes('--pause-only')||args.includes('--pause-mult
 const saveAcceptance=args.includes('--save-only');
 const collectionAcceptance=args.includes('--collection-only');
 const viewportAcceptance=args.includes('--viewport-only');
+const photoFrameBaseline=args.includes('--photo-frame-baseline');
+const photoFrameAcceptance=photoFrameBaseline||args.includes('--photo-frame-only');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results',viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
 const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
@@ -37,6 +39,7 @@ if(pauseAcceptance){report.task='PAUSE-01';report.scope=args.includes('--pause-m
 if(saveAcceptance){report.task='SAVE-01';report.scope='isolated archive corruption, storage faults and explicit restart; fixture injection separate from real UI input';}
 if(collectionAcceptance){report.task='COLLECTION-01';report.scope='three optional souvenir routes using journal navigation and physical keyboard/CDP joystick; legal unlocked fixture only at start';}
 if(viewportAcceptance){report.task='VIEWPORT-01';report.scope='fresh title/lesson/visitor to upper guide, short-landscape west-stair return; screenshot and screen-boundary review';}
+if(photoFrameAcceptance){report.task='PHOTO-UI-01';report.scope=photoFrameBaseline?'old geometry measurement only; new frame ratio acceptance NOT RUN':'legal tea fixture, physical walk to failed window view, uncropped frame and usable feedback/actions';}
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
 async function hashTree(path){for(const e of await readdir(path,{withFileTypes:true})){const p=join(path,e.name);if(e.isDirectory())await hashTree(p);else report.hashes[relative(process.cwd(),p).replaceAll('\\','/')]=await sha(p);}}
 await hashTree('src');
@@ -799,6 +802,52 @@ async function viewportProbe(){
  report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
 }
 
+async function photoFrame(page,size,site,phase,enforce=true){
+ await page.locator('#exp-photo-image').evaluate(e=>e.decode());
+ const m=await page.locator('#exp-photo').evaluate(panel=>{
+  const box=e=>{const b=e.getBoundingClientRect();return{left:b.left,right:b.right,top:b.top,bottom:b.bottom,width:b.width,height:b.height};};
+  const img=panel.querySelector('#exp-photo-image'),css=getComputedStyle(img),b=box(img);
+  const inset={x:parseFloat(css.borderLeftWidth)+parseFloat(css.paddingLeft),y:parseFloat(css.borderTopWidth)+parseFloat(css.paddingTop),w:parseFloat(css.borderLeftWidth)+parseFloat(css.borderRightWidth)+parseFloat(css.paddingLeft)+parseFloat(css.paddingRight),h:parseFloat(css.borderTopWidth)+parseFloat(css.borderBottomWidth)+parseFloat(css.paddingTop)+parseFloat(css.paddingBottom)};
+  const content={left:b.left+inset.x,top:b.top+inset.y,width:b.width-inset.w,height:b.height-inset.h},ratio=img.naturalWidth/img.naturalHeight;
+  const effectiveWidth=Math.min(content.width,content.height*ratio),effectiveHeight=effectiveWidth/ratio;
+  const feedback=panel.querySelector('#exp-photo-feedback');
+  return{image:b,content,natural:{width:img.naturalWidth,height:img.naturalHeight},effective:{width:effectiveWidth,height:effectiveHeight},css:{objectFit:css.objectFit,objectPosition:css.objectPosition,width:css.width,height:css.height,flex:css.flex,aspectRatio:css.aspectRatio,maxHeight:css.maxHeight},panel:box(panel.querySelector('.exp-photo-panel')),instructions:box(panel.querySelector('#exp-photo-instructions')),requirement:box(panel.querySelector('#exp-photo-requirement')),feedback:{...box(feedback),text:feedback.textContent},controls:['exp-shutter','exp-photo-menu','exp-photo-close'].map(id=>({id,...box(panel.querySelector('#'+id))}))};
+ });
+ assert.deepEqual(m.natural,{width:900,height:500});assert.equal(m.css.objectFit,'contain');assert.equal(m.css.objectPosition,'50% 50%');
+ for(const b of m.controls)assert.ok(b.height>=48&&b.top>=0&&b.bottom<=size.height&&b.left>=0&&b.right<=size.width,JSON.stringify(m));
+ assert.ok(m.image.height>0&&m.image.top>=m.requirement.bottom&&m.image.bottom<=m.instructions.top,JSON.stringify(m));
+ assert.ok(m.instructions.bottom<=m.controls[0].top&&m.feedback.bottom<=m.controls[0].top,JSON.stringify(m));
+ if(m.feedback.text.trim())assert.ok(m.feedback.height>0&&m.feedback.top>=m.instructions.bottom&&m.feedback.bottom<=size.height,JSON.stringify(m));
+ if(enforce&&size.height<=540){
+  assert.ok(Math.abs(m.content.width/m.content.height-1.8)<.01,JSON.stringify(m));
+  assert.ok(Math.abs(m.effective.width-m.content.width)<1&&Math.abs(m.effective.height-m.content.height)<1,JSON.stringify(m));
+  assert.ok(Math.abs(m.image.left+m.image.width/2-(m.panel.left+m.panel.width/2))<1,JSON.stringify(m));
+ }
+ const src=await page.locator('#exp-photo-image').getAttribute('src');
+ const evidence={event:'PHOTO-UI-01 frame',size,site,phase,enforce,srcSha256:createHash('sha256').update(src).digest('hex'),...m};report.timeline.push(evidence);
+ return evidence;
+}
+async function photoFrameProbe(){
+ if(photoFrameBaseline){
+  for(const [size,touch] of [[{width:1280,height:760},false],[{width:667,height:375},true],[{width:844,height:390},true]]){
+   const save=fixture('riverView');assert.ok(validateExplorationSave(save));const page=await currentPage(save,size,touch);await interact(page,'view');
+   const geometry=await photoFrame(page,size,'river','empty',false);await shot(page,`${size.width}-before-river-preview`);
+   record(`PHOTO-UI-01 ${size.width} old river geometry measured only; new frame ratio NOT RUN`,geometry);await page.close();
+  }
+ }
+ for(const size of [{width:667,height:375},{width:844,height:390}]){
+  const save=fixture('cTeaRoom');assert.ok(validateExplorationSave(save));const page=await currentPage(save,size,true);
+  await walk(page,800,540);await walk(page,800,330);assert.equal((await state(page)).target,'window');await shot(page,`${size.width}-window-open-world`);await interact(page,'window');
+  const empty=await photoFrame(page,size,'window','empty',!photoFrameBaseline),inspected=await state(page);await shot(page,`${size.width}-window-preview`);
+  await page.locator('#exp-shutter').tap();const failed=await state(page),feedback=await photoFrame(page,size,'window','feedback',!photoFrameBaseline);
+  assert.equal(failed.previewId,inspected.previewId);assert.equal(failed.progress,inspected.progress);assert.equal(failed.photographed,'false');assert.equal(failed.cardOpen,'false');assert.equal(JSON.parse(failed.progress).counts.rewards,0);assert.match(feedback.feedback.text,/木楼/);
+  await shot(page,`${size.width}-window-failure-feedback`);await page.locator('#exp-photo-close').tap();assert.equal((await state(page)).preview,'');assert.equal((await state(page)).progress,failed.progress);
+  await interact(page,'window');await page.locator('#exp-photo-menu').tap();assert.equal((await state(page)).view,'menu');assert.equal((await state(page)).preview,'');await page.locator('#exp-resume').tap();assert.equal((await state(page)).tokens,0);
+  record(`PHOTO-UI-01 ${size.width} window mismatch keeps photo/reward empty; feedback readable and shutter/return/menu usable`,{fixture:'legal inline cTeaRoom unlocked save; real CDP joystick to window; not fresh main route',baselineOnly:photoFrameBaseline,empty,feedback,inspected,failed});await page.close();
+ }
+ report.layers.touchEmulation='PASS';if(photoFrameBaseline)report.layers.desktopChrome='PASS';
+}
+
 async function styleRoute(size,touch){
  const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1});
  const press=id=>page.locator(`#${id}`)[touch?'tap':'click']();
@@ -860,7 +909,9 @@ async function styleRoute(size,touch){
   if(screen)await capture(screen);
  }
  await follow(page,'view',touch);
+ assert.equal((await state(page)).target,'view');await capture('view-open-world');report.timeline.push({event:'PHOTO-UI-01 actual view before interaction',size,state:await state(page)});
  await interact(page,'view');
+ const frame=await photoFrame(page,size,'river','empty');record(`PHOTO-UI-01 ${size.width} full river illustration frame and 48px controls`,frame);
  await wait(page,()=>document.activeElement?.id==='exp-photo-close');
  const previewLayout=await page.locator('#exp-photo').evaluate(panel=>{
   const box=e=>{const r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom,height:r.height,left:r.left,right:r.right};};
@@ -1034,7 +1085,8 @@ try{
  headlessProcess.on('exit',(code,signal)=>report.timeline.push({event:'chrome-exit',code,signal,at:new Date().toISOString()}));
  browser.on('context',context=>{context.on('close',()=>report.timeline.push({event:'context-close',at:new Date().toISOString()}));context.on('page',page=>{page.on('close',()=>report.timeline.push({event:'page-close',at:new Date().toISOString()}));page.on('crash',()=>report.timeline.push({event:'page-crash',at:new Date().toISOString()}));});});
  const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(viewportAcceptance)await viewportProbe();
+ if(photoFrameAcceptance)await photoFrameProbe();
+ else if(viewportAcceptance)await viewportProbe();
  else if(collectionAcceptance)await collectionProbe();
  else if(saveAcceptance)await saveProbe();
  else if(args.includes('--pause-multitouch-only')){for(const size of [{width:844,height:390},{width:667,height:375}])await pauseSecondaryTouch(size);report.layers.touchEmulation='PASS';}

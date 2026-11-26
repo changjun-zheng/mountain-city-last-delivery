@@ -244,6 +244,15 @@
     max-height:34dvh;
     margin:0 auto;
   }
+  #exp-root #exp-photo-image {
+    width:auto;
+    height:auto;
+    max-width:100%;
+    aspect-ratio:9 / 5;
+    flex:0 1 auto;
+    align-self:center;
+    margin-inline:auto;
+  }
   #exp-root .exp-completion-footer { position:static; padding-block:8px; }
   #exp-root .exp-completion-actions {
     display:grid;
