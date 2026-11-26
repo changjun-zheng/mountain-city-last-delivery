@@ -469,7 +469,7 @@
   font-size:13px;
   line-height:1.65;
 }
-#exp-root .exp-pause-actions { display:grid; gap:8px; margin-top:0; }
+#exp-root .exp-pause-actions { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; margin-top:0; }
 #exp-root #exp-resume {
   width:100%;
   min-height:48px;

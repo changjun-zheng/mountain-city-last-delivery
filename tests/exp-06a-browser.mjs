@@ -367,6 +367,24 @@ async function pausedAt(page,view,tokens,focus,baseline){
  if(baseline)for(const name of ['runtimeId','map','progress','tick'])assert.equal(s[name],baseline[name]);
  return s;
 }
+async function pauseGridLayout(page,size){
+ const layout=await page.locator('#exp-menu').evaluate(menu=>{
+  const box=e=>{const r=e.getBoundingClientRect();return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
+  return{primary:box(menu.querySelector('#exp-resume')),grid:box(menu.querySelector('.exp-menu-grid')),secondary:[...menu.querySelectorAll('.exp-menu-grid button')].map(box),restart:box(menu.querySelector('#exp-restart')),panel:box(menu.querySelector('.exp-menu-panel')),parentColumns:getComputedStyle(menu.querySelector('.exp-pause-actions')).gridTemplateColumns};
+ });
+ report.timeline.push({event:'UI-03 menu geometry',size,layout});await shot(page,`ui03-${size.width}-menu`);
+ const close=(a,b)=>assert.ok(Math.abs(a-b)<1,JSON.stringify(layout));
+ close(layout.grid.left,layout.primary.left);close(layout.grid.right,layout.primary.right);
+ const [a,b,c,d]=layout.secondary;for(const button of [b,c,d])close(button.width,a.width);
+ close(a.top,b.top);close(c.top,d.top);close(a.left,c.left);close(b.right,d.right);close(a.left,layout.primary.left);close(b.right,layout.primary.right);
+ const buttons=[layout.primary,...layout.secondary,layout.restart];
+ for(const b of buttons)assert.ok(b.height>=48&&b.top>=0&&b.bottom<=size.height&&b.left>=0&&b.right<=size.width,JSON.stringify(layout));
+ for(let i=0;i<buttons.length;i++)for(let j=i+1;j<buttons.length;j++){
+  const a=buttons[i],b=buttons[j];assert.ok(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top,JSON.stringify(layout));
+ }
+ assert.ok(layout.panel.top>=0&&layout.panel.bottom<=size.height);
+ record(`UI-03 ${size.width} primary and two equal secondary columns align; all controls 48px and nonoverlapping`,layout);
+}
 async function pauseRoute(size,touch,withHeldMenu=false){
  const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1});
  let held;
@@ -396,6 +414,7 @@ async function pauseRoute(size,touch,withHeldMenu=false){
  if(touch&&!withHeldMenu){await dispatch('touchEnd',[]);held=undefined;}
  if(touch)await press('exp-menu-button');else await page.keyboard.press('Escape');
  const parent=await pausedAt(page,'menu',1,'exp-resume');assertEmptyInput(await rotationState(page));
+ await pauseGridLayout(page,size);
  if(touch&&withHeldMenu){await dispatch('touchEnd',[]);held=undefined;await pausedAt(page,'menu',1,'exp-resume',parent);}
  const ownerCounts=[1];
  for(const [open,view,close] of [['exp-menu-journal','journal','exp-notes-close'],['exp-menu-help','help','exp-instructions-close']]){
@@ -417,7 +436,17 @@ async function pauseRoute(size,touch,withHeldMenu=false){
  await frames(page);const tail=await state(page);assert.equal(tail.x,resumed.x);assert.equal(tail.y,resumed.y);assertEmptyInput(await rotationState(page));
  if(touch)await touchPort(page);
  await axis(page,'x',tail.x+25);assert.ok((await state(page)).tick>parent.tick);
- await press('exp-menu-button');const beforeTitle=await state(page);await press('exp-title');
+ await press('exp-menu-button');
+ const oldWeather=await page.locator('#exp-weather').textContent();await press('exp-weather');
+ assert.equal((await state(page)).view,'play');assert.equal((await state(page)).tokens,0);assert.notEqual(await page.locator('#exp-weather').textContent(),oldWeather);
+ await press('exp-menu-button');const restartParent=await pausedAt(page,'menu',1,'exp-resume');await press('exp-restart');
+ await pausedAt(page,'confirm',2,'exp-cancel-restart',restartParent);
+ const confirmLayout=await page.locator('#exp-confirm').evaluate(panel=>[...panel.querySelectorAll('.exp-menu-actions button')].map(e=>{const r=e.getBoundingClientRect();return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};}));
+ for(const b of confirmLayout)assert.ok(b.height>=48&&b.top>=0&&b.bottom<=size.height&&b.left>=0&&b.right<=size.width);
+ if(touch){assert.ok(Math.abs(confirmLayout[0].top-confirmLayout[1].top)<1);assert.ok(Math.abs(confirmLayout[0].width-confirmLayout[1].width)<1);assert.ok(confirmLayout[0].right<confirmLayout[1].left);}
+ await shot(page,`ui03-${size.width}-restart-confirm`);await press('exp-cancel-restart');await pausedAt(page,'menu',1,'exp-restart',restartParent);
+ record(`UI-03 ${size.width} weather works and restart cancel restores focus; short landscape confirmation keeps two columns`,{confirmLayout,touch});
+ const beforeTitle=await state(page);await press('exp-title');
  await pausedAt(page,'title',1,'exp-begin');
  assert.equal((await state(page)).runtimeId,beforeTitle.runtimeId);assert.equal((await state(page)).progress,beforeTitle.progress);
  await press('exp-begin');const continued=await state(page);assert.equal(continued.view,'play');assert.equal(continued.tokens,0);
