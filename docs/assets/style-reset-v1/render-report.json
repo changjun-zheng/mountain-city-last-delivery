@@ -1,0 +1,78 @@
+{
+  "startedAt": "2026-11-25T09:38:31.678Z",
+  "browser": "chrome",
+  "sizes": {
+    "title-desktop": {
+      "view": "title",
+      "size": "desktop",
+      "viewport": [
+        1280,
+        760
+      ],
+      "sceneChildren": 17
+    },
+    "title-loading": {
+      "view": "title",
+      "size": "desktop",
+      "viewport": [
+        1280,
+        760
+      ],
+      "sceneChildren": 17
+    },
+    "title-mobile": {
+      "view": "title",
+      "size": "mobile",
+      "viewport": [
+        844,
+        390
+      ],
+      "sceneChildren": 17
+    },
+    "play-desktop": {
+      "view": "play",
+      "size": "desktop",
+      "viewport": [
+        1280,
+        760
+      ],
+      "sceneChildren": 17
+    },
+    "play-mobile": {
+      "view": "play",
+      "size": "mobile",
+      "viewport": [
+        844,
+        390
+      ],
+      "sceneChildren": 17
+    },
+    "character-sheet": {
+      "view": "character",
+      "size": "desktop",
+      "viewport": [
+        1200,
+        840
+      ],
+      "sceneChildren": 67
+    }
+  },
+  "screenshots": [
+    "title-desktop.png",
+    "title-loading.png",
+    "title-mobile.png",
+    "play-desktop.png",
+    "play-mobile.png",
+    "character-sheet.png"
+  ],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "loadingFlow": {
+    "loadingVisible": true,
+    "view": "play",
+    "loadingHidden": true,
+    "sceneHasSvg": true,
+    "errors": []
+  },
+  "finishedAt": "2026-11-25T09:38:44.346Z"
+}

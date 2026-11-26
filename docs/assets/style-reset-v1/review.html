@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STYLE-01 · A 现代山城都市插画 · 样张复核</title>
+<style>
+  :root {
+    --ink: #0d1a1c;
+    --panel: #142628;
+    --panel-2: #1a2e30;
+    --cream: #f2e8d5;
+    --cream-2: #d8cbb6;
+    --muted: #9faea4;
+    --yellow: #e8c35a;
+    --red: #d4553d;
+    --teal: #4f8a7e;
+    --line: rgba(242, 232, 213, .16);
+    --sans: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+    --serif: "Songti SC", "STSong", "SimSun", serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(ellipse at 78% -10%, rgba(232,195,90,.08), transparent 55%),
+      var(--ink);
+    color: var(--cream);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  .wrap { width: min(1240px, calc(100% - 48px)); margin: 0 auto; }
+  header { padding: 64px 0 32px; border-bottom: 1px solid var(--line); }
+  .kicker {
+    margin: 0 0 14px;
+    color: var(--yellow);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .22em;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(36px, 5vw, 62px);
+    font-weight: 800;
+    letter-spacing: .04em;
+    line-height: 1.1;
+  }
+  h1 .light { color: var(--cream-2); font-weight: 300; }
+  .lede {
+    max-width: 760px;
+    margin: 18px 0 0;
+    color: var(--cream-2);
+    font-size: 15px;
+    line-height: 1.9;
+  }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 22px;
+    padding: 7px 11px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--yellow);
+    background: var(--panel);
+    color: var(--cream-2);
+    font-size: 11.5px;
+    letter-spacing: .06em;
+  }
+  .status .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--yellow);
+    box-shadow: 0 0 8px rgba(232,195,90,.6);
+  }
+  section { padding: 42px 0; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 12px;
+  }
+  h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: .12em;
+  }
+  .section-note { color: var(--muted); font-size: 11.5px; letter-spacing: .04em; }
+  figure { margin: 0; }
+  .shot {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--panel);
+    box-shadow: 0 18px 50px rgba(2, 8, 9, .35);
+  }
+  figcaption {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 9px;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: .04em;
+  }
+  figcaption strong { color: var(--cream-2); font-weight: 600; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  .loading-shot { margin-top: 20px; }
+  .stack { display: grid; gap: 20px; }
+  .mobile-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .tag {
+    display: inline-block;
+    margin-bottom: 8px;
+    padding: 3px 7px;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: .12em;
+  }
+  .tag.old { color: #b9a08d; }
+  .tag.new { color: var(--yellow); border-color: rgba(232,195,90,.35); }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .card {
+    padding: 16px 15px 18px;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(20,38,40,.9), rgba(20,38,40,.55));
+  }
+  .card h3 { margin: 0 0 9px; font-size: 12.5px; letter-spacing: .06em; }
+  .card h3 span { color: var(--yellow); margin-right: 6px; }
+  .card p { margin: 0; color: var(--cream-2); font-size: 12px; line-height: 1.8; }
+  .checklist { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 28px; padding: 0; margin: 0; list-style: none; }
+  .checklist li {
+    position: relative;
+    padding-left: 18px;
+    color: var(--cream-2);
+    font-size: 12.5px;
+    line-height: 1.8;
+    border-bottom: 1px solid rgba(242,232,213,.08);
+    padding-bottom: 9px;
+  }
+  .checklist li::before {
+    content: "";
+    position: absolute; left: 0; top: 9px;
+    width: 6px; height: 6px;
+    border: 1px solid var(--yellow);
+    transform: rotate(45deg);
+  }
+  .checklist li b { color: var(--cream); font-weight: 600; }
+  .next {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .next div {
+    padding: 16px;
+    border-top: 2px solid var(--yellow);
+    background: var(--panel);
+  }
+  .next b { display: block; margin-bottom: 6px; font-size: 12.5px; }
+  .next p { margin: 0; color: var(--muted); font-size: 11.5px; line-height: 1.7; }
+  footer {
+    margin-top: 12px;
+    padding: 24px 0 46px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 10.5px;
+    letter-spacing: .06em;
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  @media (max-width: 900px) {
+    .grid-2, .compare, .cards, .next { grid-template-columns: 1fr; }
+    .checklist { grid-template-columns: 1fr; }
+    .mobile-row { grid-template-columns: 1fr; }
+    header { padding-top: 40px; }
+    .wrap { width: min(100% - 28px, 1240px); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="kicker">STYLE-01 / 视觉方向 A / 2026-11-25</p>
+    <h1>现代山城都市插画<span class="light"> · 样张</span></h1>
+    <p class="lede">
+      这组样张用于确认《坎坡之间》的视觉方向：现代城市的生活质感，山城的坡坎结构，平涂色块加黄昏绘画光。
+      不是赛璐璐动画，也不是古风木构街。当前所有画面由 HTML / SVG 绘制，只验证方向与构图；<strong>没有改动 src/ 下的游戏代码</strong>。
+      本轮按负责人反馈重做了人物视角与比例、清理场景杂物、更换标题字体并加入加载动画。
+      负责人已确认先开发、后美化；游戏内主角先用明确的低精度临时占位，11-29 再按实际路线做美术回头。
+    </p>
+    <div class="status"><span class="dot"></span>状态：方向样张第二轮修订，待负责人复核；STYLE-02A 已登记为下一项 · 非最终游戏画面</div>
+  </header>
+
+  <section>
+    <div class="section-head">
+      <h2>桌面 · 标题与上街样段</h2>
+      <span class="section-note">1280 × 760 / 实际游戏为 Phaser + DOM 覆盖层</span>
+    </div>
+    <div class="grid-2">
+      <figure>
+        <a href="./title-desktop.png"><img class="shot" src="./title-desktop.png" alt="A 方向标题画面：坎坡之间，黄昏山城街区"></a>
+        <figcaption><span><strong>标题画面</strong> · 路线图与街道同屏，不用插画海报</span><span>1280 × 760</span></figcaption>
+      </figure>
+      <div class="stack">
+        <figure>
+          <a href="./play-desktop.png"><img class="shot" src="./play-desktop.png" alt="A 方向上街样段：临江照相馆、石梯巷、行人"></a>
+          <figcaption><span><strong>上街 · 临江巷</strong> · 店招、石梯与街道生活；本轮已做减法</span><span>1280 × 760</span></figcaption>
+        </figure>
+      </div>
+    </div>
+    <figure class="loading-shot">
+      <a href="./title-loading.png"><img class="shot" src="./title-loading.png" alt="加载画面：路线光点、进度条与正在铺路"></a>
+      <figcaption><span><strong>加载动画</strong> · 路线光点 + 进度条 + “正在铺路”；点击开始约 1.9 秒后进入</span><span>1280 × 760</span></figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>手机横屏 · 同一场景</h2>
+      <span class="section-note">844 × 390 / 虚拟摇杆 + 观察 + 交互</span>
+    </div>
+    <div class="mobile-row">
+      <figure>
+        <a href="./title-mobile.png"><img class="shot" src="./title-mobile.png" alt="A 方向标题画面手机横屏"></a>
+        <figcaption><span><strong>标题 · 手机</strong> · 左侧信息区，右侧保留街道</span><span>844 × 390</span></figcaption>
+      </figure>
+      <figure>
+        <a href="./play-mobile.png"><img class="shot" src="./play-mobile.png" alt="A 方向上街样段手机横屏，带虚拟摇杆"></a>
+        <figcaption><span><strong>上街 · 手机</strong> · 摇杆、观察、交互三组触控</span><span>844 × 390</span></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>主角基准 · 男女两套</h2>
+      <span class="section-note">3.3 头身 / 正面 · 3/4 侧面 · 背面 / 游戏内约 90px</span>
+    </div>
+    <figure>
+      <a href="./character-sheet.png"><img class="shot" src="./character-sheet.png" alt="主角角色基准：男女两套，正面、3/4 侧面、背面三视图与色板"></a>
+      <figcaption><span><strong>双主角基准</strong> · 青绿外套、相机与单一背包；男女同色系，靠肩宽、发型与剪影区分</span><span>1200 × 840</span></figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>与旧版的关键差别</h2>
+      <span class="section-note">旧版观感记录与 A 方向样张</span>
+    </div>
+    <div class="compare">
+      <figure>
+        <span class="tag old">旧版 · cel-v1</span>
+        <p>旧版实走截图保存在本地测试记录。下方保留当时的画面对照说明。</p>
+        <figcaption><span>木构古街 + 大面积挡墙 + 平立面背景，现代城市被压成一条天际线</span></figcaption>
+      </figure>
+      <figure>
+        <span class="tag new">A · 现代山城都市插画</span>
+        <a href="./play-desktop.png"><img class="shot" src="./play-desktop.png" alt="A 方向上街画面"></a>
+        <figcaption><span>现代店招、轻轨、石梯巷与外卖骑手同处一个生活现场；本轮清掉了屋顶水箱、缆车、晾衣与散落标牌</span></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>本轮按反馈改了什么</h2>
+      <span class="section-note">对应负责人 2026-11-25 的四条反馈</span>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <h3><span>01</span>人物不再一只眼</h3>
+        <p>场景人物改为 3/4 前视，两只眼睛同时可见；不再用严格侧脸。主角换用新的基准模型，脖子与肩线拉开，身上只保留相机和背包。</p>
+      </div>
+      <div class="card">
+        <h3><span>02</span>场景做减法</h3>
+        <p>移掉屋顶白水箱、空中缆车、晾衣、重复竖牌、A 字牌、纸箱、堆叠盆栽与猫。保留店招、石梯、树、长椅、路灯和骑手；每件保留物有落点与接触阴影。</p>
+      </div>
+      <div class="card">
+        <h3><span>03</span>标题与按钮重做</h3>
+        <p>游戏名改用仓库现有 Pokan Title 子集（OFL，随字体附授权文件）；主按钮加路线图标与两行层级，次按钮改成单列行式；按下、悬停和键盘焦点都有状态。</p>
+      </div>
+      <div class="card">
+        <h3><span>04</span>加载动画</h3>
+        <p>新增可演示的加载层：路线、三个途经点、移动光点、进度条与“正在铺路”。样张点击开始后约 1.9 秒进入上街；游戏内实施只接真实场景／资源就绪，不用固定计时器。Chrome headless 点击流程已跑通，6 张截图 <code>pageErrors</code> / <code>consoleErrors</code> 均为 0。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>方向规则</h2>
+      <span class="section-note">详见 STYLE_BIBLE.md</span>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <h3><span>01</span>城市是现代的</h3>
+        <p>混凝土、卷帘门、玻璃、空调、轻轨、索道、外卖箱。山城体现在坡、坎、梯、错层，不靠古装符号。</p>
+      </div>
+      <div class="card">
+        <h3><span>02</span>平涂 + 绘画光</h3>
+        <p>大色块分形，不描粗黑边。黄昏侧逆光、店铺暖光、江面冷反光，阴影偏青绿，不用纯黑。</p>
+      </div>
+      <div class="card">
+        <h3><span>03</span>生活证据要清楚</h3>
+        <p>店招、长椅、行道树、路灯、外卖骑手、石梯的扶手。每个物件要有明确用途和落点；不确定是什么的东西，宁可删掉。</p>
+      </div>
+      <div class="card">
+        <h3><span>04</span>角色靠剪影</h3>
+        <p>3.3 头身，约 90px；默认 3/4 前视，禁止单眼侧脸。男女同一色系，靠肩宽、发型与剪影区分；脚底必须有接触阴影。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>这版仍然只算样张</h2>
+      <span class="section-note">以下项目必须在游戏里重做，不能拿样图当验收</span>
+    </div>
+    <ul class="checklist">
+      <li><b>镜头与移动</b>：真实 Phaser 摄像机、八向行走、角色遮挡与碰撞，样图没有验证。</li>
+      <li><b>石梯与错层</b>：样图只是单幅构图；进入游戏要拆成可走的地面、楼梯、门与安全点。</li>
+      <li><b>室内</b>：照相馆内部尚未出图；室内光和街道光要能接上。</li>
+      <li><b>手机真机</b>：844×390 只是桌面模拟；真机安全区、摇杆拇指遮挡还要实测。</li>
+      <li><b>字体与资源</b>：标题已用现有 Pokan Title 子集（OFL）；HUD/正文字体、贴图规格与性能预算仍待定。</li>
+      <li><b>性别选择</b>：男女两套基准已出；游戏内选择／切换流程尚未实现，是否作为正式功能待确认。</li>
+      <li><b>叙事</b>：店招、海报、人物只是气氛样本，不是最终任务或文化考据。</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>下一步（开发优先已确认）</h2>
+      <span class="section-note">样张仍待复核；STYLE-02A 已登记</span>
+    </div>
+    <div class="next">
+      <div>
+        <b>STYLE-02A · 下一项</b>
+        <p>只做标题、HUD、解放碑广场出生街区与主角临时占位；复用现有主线、存档、碰撞与输入，不新造“临江照相馆”或新地图。</p>
+      </div>
+      <div>
+        <b>11-29 美术回头</b>
+        <p>先用实际游玩路线截图看观感，再定中街／江岸／室内的统一范围；技术通过不等于美术通过。</p>
+      </div>
+      <div>
+        <b>一次只做一个任务</b>
+        <p>STYLE-02A 完成并经 Work 审查后再安排下一项；不在本轮并行开新的实施窗口。</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>坎坡之间 · STYLE-01 · A 现代山城都市插画</span>
+    <span>样张文件：docs/assets/style-reset-v1/ · 2026-11-25</span>
+  </footer>
+</div>
+</body>
+</html>

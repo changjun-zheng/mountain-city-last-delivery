@@ -1,5 +1,7 @@
 # 首关美术风格规范与场景原型
 
+> 2026-11-25 复核：负责人已否定黄昏赛璐璐与现代城市探索的匹配，选定 A 现代山城都市插画制作样张（待复核）；当前视觉基准见[风格手册](assets/style-reset-v1/STYLE_BIBLE.md)，[STYLE-02A](DEVELOPMENT_ROADMAP.md#style-02a-20261125) 已完成限定技术复核。以下 2026-11-24 及更早的赛璐璐／C 方向记录保留历史，不再作为现行美术目标。
+
 ## 2026-11-24：《风来之国》实机参考与上街修订
 
 Pixpil 与 Chucklefish 的官方资料介绍了矿工约翰与珊离开地下社区、乘铁路旅行、逐站认识居民的故事。原作把城镇生活与双角色环境谜题、地城战斗和烹饪结合。官方实机图中的街道可见立面、屋顶和墙体，台阶口与上下层地面有清楚的高差，人物经常停留在店面或生活场景附近。相关例图为[街道与入口](https://eastwardgame.com/wp-content/uploads/2023/10/f1-travel-the-world.jpg)及[小镇日常](https://eastwardgame.com/wp-content/uploads/2023/10/f4-small-town-life.jpg)。[官方玩法与故事](https://eastwardgame.com/) · [官方媒体资料](https://eastwardgame.com/media/)。

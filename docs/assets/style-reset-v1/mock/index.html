@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>STYLE-01 · A 现代山城都市插画</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23122224'/%3E%3Crect x='8' y='8' width='16' height='16' fill='%23d4553d'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body data-view="play" data-size="desktop">
+  <main id="stage">
+    <div id="scene" aria-hidden="true"></div>
+
+    <section id="hud" aria-label="当前地点与目标">
+      <p class="eyebrow"><span class="pin"></span>上街 · 临江巷</p>
+      <p class="objective">去临江照相馆，问取景的事。</p>
+      <p class="save"><span class="dot"></span>已自动保存 · 临江巷</p>
+    </section>
+
+    <nav id="nav" aria-label="旅途操作">
+      <button class="nav-btn" type="button" aria-label="旅程手账">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5V5.5Z"/><path d="M4 21.5A2.5 2.5 0 0 1 6.5 19H20"/><path d="M8.5 7.5h7M8.5 11.5h5.5"/></svg>
+        <span>旅程</span>
+      </button>
+      <button class="nav-btn icon-only" type="button" aria-label="暂停">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+      </button>
+    </nav>
+
+    <div id="prompt" aria-label="交互提示">
+      <kbd>E</kbd><span class="prompt-main">进入临江照相馆</span>
+      <span class="prompt-alt"><kbd>F</kbd>观察</span>
+    </div>
+
+    <div id="touch" aria-hidden="true">
+      <div class="stick"><div class="knob"></div></div>
+      <button class="action observe" type="button" aria-label="观察">
+        <svg viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+      </button>
+      <button class="action interact" type="button" aria-label="交互">
+        <svg viewBox="0 0 24 24"><path d="M9 11V6.5a1.5 1.5 0 0 1 3 0V11"/><path d="M12 10.5V9a1.5 1.5 0 0 1 3 0v2"/><path d="M15 11v-1a1.5 1.5 0 0 1 3 0v4.5A5.5 5.5 0 0 1 12.5 20h-1A5.5 5.5 0 0 1 6 14.5V13a1.5 1.5 0 0 1 3 0v1"/></svg>
+      </button>
+    </div>
+
+    <section id="title" aria-label="坎坡之间">
+      <svg class="title-route" viewBox="0 0 560 760" aria-hidden="true">
+        <path class="contour" d="M-40 620C70 600 105 520 190 505S320 430 345 350 390 245 470 205"/>
+        <path class="contour" d="M-40 680C85 660 125 575 215 560S350 480 375 395 425 285 510 240"/>
+        <path class="contour" d="M-40 560C55 545 85 470 165 455S285 385 310 310 350 210 430 170"/>
+        <path class="route" d="M-20 675C95 646 126 540 219 516S342 440 365 356 405 244 489 201"/>
+        <circle class="route-dot" cx="219" cy="516" r="5"/>
+        <circle class="route-dot" cx="365" cy="356" r="5"/>
+        <circle class="route-dot" cx="489" cy="201" r="5"/>
+      </svg>
+      <div class="title-copy">
+        <p class="kicker">山城 · 探索</p>
+        <h1><span class="title-main">坎坡</span><span class="title-soft">之间</span><span class="seal">坎</span></h1>
+        <p class="subtitle">一路下坡，去看江边亮灯。</p>
+        <div class="actions">
+          <button class="primary" type="button">
+            <span class="btn-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4.5 19.5c2.7-.4 4.4-1.7 5.7-3.7 1.6-2.4 2.4-5 5.1-6.4 1.8-.9 3.3-1.1 4.8-1.4"/><circle cx="4.5" cy="19.5" r="1.4"/><path d="M16.6 5.3l3.6.8-.8 3.5"/></svg>
+            </span>
+            <span class="btn-label"><b>开始旅程</b><small>上街 · 临江巷</small></span>
+            <span class="arrow">→</span>
+          </button>
+          <div class="secondary">
+            <button type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v16l-6-4-6 4V4Z"/></svg>
+              <span>继续旅程</span><small>上街 · 自动保存</small>
+            </button>
+            <button type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.4 9.3a2.7 2.7 0 0 1 5.3.6c0 1.8-2.7 2.1-2.7 4"/><path d="M12 17.2v.1"/></svg>
+              <span>操作说明</span><small>移动 / 观察 / 交互</small>
+            </button>
+          </div>
+        </div>
+        <p class="status"><span class="dot"></span>已自动保存 · 上街</p>
+      </div>
+    </section>
+
+    <div id="loading" class="loading" hidden aria-live="polite" aria-label="正在加载">
+      <div class="loading-inner">
+        <p class="loading-name">坎坡之间</p>
+        <p class="loading-kicker">上街 · 临江巷</p>
+        <svg class="loading-route" viewBox="0 0 420 96" aria-hidden="true">
+          <path class="loading-contour" d="M-10 82C50 74 66 48 120 44S210 56 250 36 330 18 430 12"/>
+          <path class="loading-contour" d="M-10 94C60 86 78 60 130 56S220 68 260 48 340 30 430 24"/>
+          <path class="loading-path" d="M8 80C58 72 76 42 132 38S214 54 256 32 342 16 412 12"/>
+          <circle class="loading-dot" r="4">
+            <animateMotion dur="1.7s" repeatCount="indefinite" path="M8 80C58 72 76 42 132 38S214 54 256 32 342 16 412 12"/>
+          </circle>
+          <circle class="loading-node" cx="132" cy="38" r="2.8"/>
+          <circle class="loading-node" cx="256" cy="32" r="2.8"/>
+          <circle class="loading-node" cx="412" cy="12" r="2.8"/>
+        </svg>
+        <p class="loading-title">正在铺路<span>…</span></p>
+        <div class="loading-bar"><i></i></div>
+        <p class="loading-note">沿石梯下到江边 · 正在准备街景</p>
+      </div>
+    </div>
+
+    <div id="vignette" aria-hidden="true"></div>
+  </main>
+
+  <script type="module" src="./scene.js"></script>
+</body>
+</html>
