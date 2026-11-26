@@ -287,7 +287,43 @@ async function styleRoute(size,touch){
  }
  await follow(page,'view',touch);
  await interact(page,'view');
+ await wait(page,()=>document.activeElement?.id==='exp-photo-close');
+ const previewLayout=await page.locator('#exp-photo').evaluate(panel=>{
+  const box=e=>{const r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom,height:r.height,left:r.left,right:r.right};};
+  const shutter=panel.querySelector('#exp-shutter'),close=panel.querySelector('#exp-photo-close');
+  return{coarse:matchMedia('(pointer:coarse)').matches,instructions:panel.querySelector('#exp-photo-instructions').innerText,
+   focus:document.activeElement.id,image:box(panel.querySelector('#exp-photo-image')),requirement:box(panel.querySelector('#exp-photo-requirement')),
+   controls:[shutter,panel.querySelector('#exp-photo-menu'),close].map(box),
+   shutterBackground:getComputedStyle(shutter).background,closeBackground:getComputedStyle(close).background};
+ });
+ assert.equal(previewLayout.coarse,touch);assert.equal(previewLayout.focus,'exp-photo-close');
+ assert.notEqual(previewLayout.shutterBackground,previewLayout.closeBackground);
+ assert.match(previewLayout.instructions,/拍摄这一刻/);
+ if(touch){
+  assert.doesNotMatch(previewLayout.instructions,/E|空格/);
+  assert.match(previewLayout.instructions,/返回探索/);
+  await page.getByRole('button',{name:'返回探索',exact:true}).waitFor({state:'visible'});
+ }else{
+  assert.match(previewLayout.instructions,/E／空格/);
+  await page.getByRole('button',{name:'返回探索 · E',exact:true}).waitFor({state:'visible'});
+ }
+ for(const box of previewLayout.controls)assert.ok(box.height>=48&&box.top>=0&&box.bottom<=size.height&&box.left>=0&&box.right<=size.width,JSON.stringify(previewLayout));
+ assert.ok(previewLayout.image.height>0&&previewLayout.image.top>=previewLayout.requirement.bottom&&previewLayout.image.bottom<=previewLayout.controls[0].top,JSON.stringify(previewLayout));
  await capture('photo-preview');
+ const unshot=await state(page);
+ assert.equal(unshot.photographed,'false');assert.equal(JSON.parse(unshot.progress).counts.rewards,0);
+ // Closing the existing view commits the original location-found goal, not a photo.
+ const foundProgress=JSON.parse(unshot.progress);
+ if(!foundProgress.goals.includes(P.completed)){foundProgress.goals.push(P.completed);foundProgress.counts.goals++;}
+ for(const action of touch?['touch-return']:['KeyE','Space']){
+  if(touch)await press('exp-photo-close');else await key(page,action);
+  await page.locator('#exp-photo').waitFor({state:'hidden'});
+  const returned=await state(page);
+  assert.equal(returned.photographed,'false');assert.equal(returned.cardOpen,'false');assert.deepEqual(JSON.parse(returned.progress),foundProgress);
+  await interact(page,'view');
+  await wait(page,()=>document.activeElement?.id==='exp-photo-close');
+ }
+ record(`UI-02 ${size.width}x${size.height} preview hints, focus and return without photo`,{previewLayout,returnActions:touch?['trusted touch return']:['native KeyE','native Space'],fixture:'fresh A route; no seeded save'});
  await press('exp-shutter');
  const completed=await state(page);
  assert.equal(completed.cardOpen,'true');

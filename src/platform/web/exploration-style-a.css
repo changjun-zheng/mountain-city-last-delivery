@@ -130,12 +130,19 @@
   border-color:#35605a;
 }
 #exp-root .exp-completion-actions button:not(.exp-primary):hover { background:#23403f; }
-#exp-root .exp-completion-card .exp-completion-actions .exp-primary {
+#exp-root .exp-completion-card .exp-completion-actions .exp-primary,
+#exp-root #exp-shutter {
   color:#122224;
   background:linear-gradient(180deg,#f0cf74,#d9ad3f);
   border-color:#c39b3c;
 }
-#exp-root .exp-completion-card .exp-completion-actions .exp-primary:hover { background:linear-gradient(180deg,#f7dc8e,#e3ba4e); }
+#exp-root .exp-completion-card .exp-completion-actions .exp-primary:hover,
+#exp-root #exp-shutter:hover:not(:disabled) { background:linear-gradient(180deg,#f7dc8e,#e3ba4e); }
+#exp-root #exp-photo .exp-photo-touch { display:none; }
+@media (pointer:coarse) {
+  #exp-root #exp-photo .exp-photo-keyboard { display:none; }
+  #exp-root #exp-photo .exp-photo-touch { display:inline; }
+}
 #exp-root .exp-completion-stamp { border-color:#b0503c; color:#a8452f; }
 
 /* ---------- Dialogue and status toasts ---------- */
