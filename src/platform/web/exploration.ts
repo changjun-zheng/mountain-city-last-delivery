@@ -457,8 +457,8 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     if(disposed){get('exp-loading').hidden=true;await scene.destroy();return {dispose};}
     cleanup.push(scene.destroy);
     sceneReady=true;
-    // The title stays inert (no Tab into its buttons) until the scene can act on them.
-    get('exp-title-screen').removeAttribute('inert');
+    // Readiness unlocks the title only when the orientation lock is also clear.
+    get('exp-title-screen').inert=!!orientationToken;
     update();root.dataset.ready='true';hideLoading();
     if(showTitle&&!orientationToken)focus('exp-begin');
     return {dispose};

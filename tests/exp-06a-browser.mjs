@@ -12,12 +12,13 @@ import {chromium} from 'playwright-core';
 import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './browser-selection.mjs';
 
 const args=process.argv.slice(2);
-const modes=['--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a'];
+const modes=['--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only'];
 if(!args.includes('--production')||args.some(a=>a!=='--production'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
 const styleAcceptance=args.includes('--style-02a');
+const resizeAcceptance=args.includes('--resize-only');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results',styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
 const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
@@ -25,6 +26,7 @@ const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'
   checks:[],timeline:[],screenshots:[],pageErrors:[],consoleErrors:[],networkErrors:[],cleanup:{},hashes:{},protectedHashes:{},actualDist:{},historicalFailures:[],
   limitations:['True Android Chrome and iOS Safari were not available.','The completion card closes the existing Demo route; it does not prove a full 30-45 minute chapter.','Final art, culture review and real-device H5 acceptance remain separate.']};
 const record=(name,details={})=>{report.checks.push({name,status:'PASS',...details});console.log('PASS',name);};
+if(resizeAcceptance){report.task='RESIZE-01';report.scope='dynamic-canvas-and-held-touch-rotation; fresh-start plus separately labelled river fixture';}
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
 async function hashTree(path){for(const e of await readdir(path,{withFileTypes:true})){const p=join(path,e.name);if(e.isDirectory())await hashTree(p);else report.hashes[relative(process.cwd(),p).replaceAll('\\','/')]=await sha(p);}}
 await hashTree('src');
@@ -65,11 +67,24 @@ const wait=async(page,predicate,arg)=>page.waitForFunction(predicate,arg,{timeou
 const shot=async(page,name)=>{const path=join(dir,`${name}.png`);await page.screenshot({path});report.screenshots.push(path);return path;};
 const key=async(page,code)=>{report.timeline.push({event:'key',code,at:new Date().toISOString()});await page.keyboard.press(code);};
 const fitCanvas=async page=>{
-  await wait(page,()=>{
-    const parent=document.querySelector('#exp-stage').getBoundingClientRect(),canvas=document.querySelector('#exp-stage canvas').getBoundingClientRect();
-    const scale=Math.min(parent.width/1100,parent.height/650);
-    return Math.abs(canvas.width-1100*scale)<2&&Math.abs(canvas.height-650*scale)<2&&canvas.x>=parent.x-1&&canvas.y>=parent.y-1&&canvas.right<=parent.right+1&&canvas.bottom<=parent.bottom+1;
+  const sample=await page.evaluate(async()=>{
+   const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};
+   let previous='',stable=0;
+   for(let frame=0;frame<180;frame++){
+    await new Promise(requestAnimationFrame);
+    const stage=document.querySelector('#exp-stage'),canvas=stage.querySelector('canvas');
+    if(!canvas)continue;
+    const s={viewport:{width:innerWidth,height:innerHeight},stage:rect(stage),canvas:rect(canvas),backing:{width:canvas.width,height:canvas.height},dpr:devicePixelRatio,layout:stage.dataset.layout};
+    const h=s.stage.width<s.stage.height?1000:Math.max(520,Math.min(760,s.stage.height));
+    const fitted=Math.abs(s.canvas.x-s.stage.x)<2&&Math.abs(s.canvas.y-s.stage.y)<2&&Math.abs(s.canvas.width-s.stage.width)<2&&Math.abs(s.canvas.height-s.stage.height)<2&&s.backing.height===h&&s.backing.width===Math.round(h*s.stage.width/s.stage.height);
+    const key=JSON.stringify(s);stable=fitted&&key===previous?stable+1:fitted?1:0;previous=key;
+    if(stable>=2)return{...s,stableFrames:stable};
+   }
+   throw Error('Dynamic canvas did not fit and stabilize for two frames: '+previous);
   });
+  report.timeline.push({event:'dynamic-canvas',sample});
+  assert.ok(Math.abs(sample.canvas.width/sample.canvas.height-sample.backing.width/sample.backing.height)<.01);
+  return sample;
 };
 async function loaded(page){await wait(page,()=>document.querySelector('#exp-root')?.dataset.ready==='true');await page.waitForLoadState('networkidle');}
 async function newPage(options={}){
@@ -226,6 +241,107 @@ async function completeTutorial(page,press){
  assert.equal((await state(page)).onboarding,'continue');
  await press('exp-onboarding-skip');
  assert.equal((await state(page)).onboarding,'done');
+}
+
+const frames=(page,count=8)=>page.evaluate(async n=>{for(let i=0;i<n;i++)await new Promise(requestAnimationFrame);},count);
+async function rotationState(page){return page.evaluate(()=>{
+ const root=document.querySelector('#exp-root'),notice=document.querySelector('#exp-orientation');
+ const rect=notice.getBoundingClientRect(),focus=document.activeElement;
+ const knob=getComputedStyle(document.querySelector('#exp-knob')).transform,matrix=new DOMMatrix(knob==='none'?undefined:knob);
+ return{noticeVisible:!notice.hidden,noticeBounds:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},focus:focus.id,
+  focusVisible:!!focus.getClientRects().length&&!focus.closest('[hidden],[inert]'),titleInert:document.querySelector('#exp-title-screen').inert,
+  content:[...root.children].filter(e=>e!==notice).map(e=>({id:e.id,inert:e.inert})),input:JSON.parse(root.dataset.input),knob,knobMatrix:[matrix.a,matrix.b,matrix.c,matrix.d,matrix.e,matrix.f]};
+ });}
+function assertEmptyInput(s){assert.deepEqual(s.input,{x:0,y:0,interact:false,keys:[],pointers:0});assert.deepEqual(s.knobMatrix,[1,0,0,1,0,0]);}
+async function assertRotationLock(page,tokens){
+ await page.locator('#exp-orientation').waitFor({state:'visible'});
+ const layout=await fitCanvas(page),ui=await rotationState(page),s=await state(page);
+ report.timeline.push({event:'rotation-locked',ui,state:s,layout});
+ assert.equal(ui.titleInert,true);assert.ok(ui.content.every(e=>e.inert));assert.equal(ui.focus,'exp-orientation');assert.equal(ui.focusVisible,true);assertEmptyInput(ui);
+ assert.equal(s.tokens,tokens);assert.equal(s.paused,'true');
+ await frames(page);assert.equal((await state(page)).tick,s.tick);
+ return{s,ui,layout};
+}
+async function freshPlay(page,touch){
+ const press=id=>page.locator('#'+id)[touch?'tap':'click']();
+ await press('exp-begin');await press('exp-intro-start');await press('exp-onboarding-skip');
+ assert.equal((await state(page)).view,'play');
+}
+async function resizeStartup(size){
+ const portrait={width:size.height,height:size.width};
+ const page=await newPage({viewport:portrait,isMobile:true,hasTouch:true,deviceScaleFactor:1});
+ await page.goto(base);await loaded(page);await shot(page,`startup-${size.width}-portrait-ready`);
+ const locked=await assertRotationLock(page,2);
+ await page.keyboard.press('Tab');await page.keyboard.press('Enter');
+ const begin=await page.locator('#exp-begin').boundingBox();await page.touchscreen.tap(begin.x+begin.width/2,begin.y+begin.height/2);
+ assert.equal((await state(page)).view,'title');assert.equal((await rotationState(page)).focus,'exp-orientation');
+ await page.setViewportSize(size);const layout=await fitCanvas(page);
+ assert.equal((await rotationState(page)).noticeVisible,false);assert.equal((await rotationState(page)).titleInert,false);
+ assert.equal(await page.evaluate(()=>document.activeElement.id),'exp-begin');
+ await freshPlay(page,true);await shot(page,`startup-${size.width}-landscape-play`);
+ record(`RESIZE-01 ${size.width} portrait ready keeps title inert, visible focus and normal landscape start`,{fixture:'fresh empty storage',locked,layout});await page.close();
+}
+async function resizeDesktop(){
+ const page=await newPage({viewport:{width:1280,height:760}});await page.goto(base);await loaded(page);await freshPlay(page,false);
+ await axis(page,'x',(await state(page)).x+25);const baseline=await state(page),layouts=[];
+ for(const size of [{width:1280,height:760},{width:980,height:620},{width:640,height:780},{width:1280,height:760}]){
+  await page.setViewportSize(size);layouts.push(await fitCanvas(page));
+  const s=await state(page);for(const name of ['runtimeId','map','progress'])assert.equal(s[name],baseline[name]);
+  assert.equal((await rotationState(page)).noticeVisible,false);
+  await shot(page,`desktop-${size.width}x${size.height}`);
+ }
+ await axis(page,'x',(await state(page)).x+25);
+ record('RESIZE-01 desktop dynamic canvas and keyboard continuation',{fixture:'fresh title/intro start',layouts});await page.close();
+}
+async function rawTouch(page,id){
+ const cdp=await page.context().newCDPSession(page);
+ const send=async(type,point)=>{report.timeline.push({event:'cdp-touch-dispatch',type,id,point});await cdp.send('Input.dispatchTouchEvent',{type,touchPoints:point?[{id,...point,radiusX:5,radiusY:5,force:1}]:[]});};
+ return{start:p=>send('touchStart',p),move:p=>send('touchMove',p),end:()=>send('touchEnd')};
+}
+async function resizeHeldStick(size){
+ const page=await newPage({viewport:size,isMobile:true,hasTouch:true,deviceScaleFactor:size.width===844?2:1});
+ await page.goto(base);await loaded(page);await freshPlay(page,true);await fitCanvas(page);
+ const touch=await rawTouch(page,71),b=await page.locator('#exp-stick').boundingBox(),center={x:b.x+b.width/2,y:b.y+b.height/2},drag={x:center.x+32,y:center.y};
+ const start=await state(page);await touch.start(center);await touch.move(drag);
+ await wait(page,x=>Number(document.querySelector('#exp-root').dataset.x)>x+18,start.x);
+ assert.equal((await rotationState(page)).input.pointers,1);
+ report.timeline.push({event:'resize-with-active-stick-before-any-end',state:await state(page)});
+ await page.setViewportSize({width:size.height,height:size.width});
+ const locked=await assertRotationLock(page,1);await shot(page,`stick-${size.width}-held-portrait`);
+ await page.keyboard.press('Escape');assert.equal((await state(page)).view,'play');
+ await page.setViewportSize(size);const layout=await fitCanvas(page),restored=await state(page);
+ assert.equal((await rotationState(page)).noticeVisible,false);assert.equal(restored.tokens,0);
+ for(const name of ['runtimeId','map','progress'])assert.equal(restored[name],start[name]);
+ await touch.move(drag);await touch.end();await frames(page);
+ const afterTail=await state(page);assert.equal(afterTail.x,restored.x);assert.equal(afterTail.y,restored.y);assertEmptyInput(await rotationState(page));
+ await touch.start(center);await touch.move(drag);await wait(page,x=>Number(document.querySelector('#exp-root').dataset.x)>x+18,afterTail.x);await touch.end();
+ await shot(page,`stick-${size.width}-restored-new-gesture`);
+ record(`RESIZE-01 ${size.width} held joystick rotation clears input, freezes tick, rejects old tail and accepts new gesture`,{fixture:'fresh title/intro start',locked,layout,restored,afterTail});await page.close();
+}
+async function resizeHeldPreview(size){
+ const page=await currentPage(fixture('riverView'),size,true);
+ // Settle the existing location discovery via a normal preview return first.
+ await interact(page,'view');await page.locator('#exp-photo-close').tap();await frames(page);
+ assert.equal((await state(page)).completed,'true');
+ await interact(page,'view');await wait(page,()=>document.activeElement.id==='exp-photo-close');
+ const baseline=await state(page),touch=await rawTouch(page,81),b=await page.locator('#exp-photo-close').boundingBox(),point={x:b.x+b.width/2,y:b.y+b.height/2};
+ assert.equal(baseline.photographed,'false');assert.equal(JSON.parse(baseline.progress).counts.rewards,0);
+ await touch.start(point);report.timeline.push({event:'resize-with-photo-close-held-before-any-end',state:await state(page)});
+ await page.setViewportSize({width:size.height,height:size.width});const locked=await assertRotationLock(page,2);
+ await shot(page,`preview-${size.width}-held-portrait`);
+ await page.setViewportSize(size);const layout=await fitCanvas(page);
+ await touch.end();await frames(page);const tail=await state(page);
+ for(const name of ['runtimeId','previewId','progress','photographed','cardOpen'])assert.equal(tail[name],baseline[name]);
+ assert.equal(tail.tokens,1);assert.equal((await rotationState(page)).focus,'exp-photo-close');
+ await shot(page,`preview-${size.width}-restored-old-release`);
+ await page.locator('#exp-photo-close').tap();assert.equal((await state(page)).preview,'');assert.equal((await state(page)).progress,baseline.progress);assert.equal((await state(page)).photographed,'false');
+ record(`RESIZE-01 ${size.width} held preview return rotation preserves preview and rejects old release; fresh tap returns`,{fixture:'legal inline riverView save with accepted/clue/item/unlocked; discovery settled before baseline; not fresh route',baseline,locked,layout,tail});await page.close();
+}
+async function resizeProbe(){
+ for(const size of [{width:844,height:390},{width:667,height:375}])await resizeStartup(size);
+ await resizeDesktop();report.layers.desktopChrome='PASS';
+ for(const size of [{width:844,height:390},{width:667,height:375}]){await resizeHeldStick(size);await resizeHeldPreview(size);}
+ report.layers.touchEmulation='PASS';
 }
 
 async function styleRoute(size,touch){
@@ -460,7 +576,8 @@ try{
  headlessProcess.on('exit',(code,signal)=>report.timeline.push({event:'chrome-exit',code,signal,at:new Date().toISOString()}));
  browser.on('context',context=>{context.on('close',()=>report.timeline.push({event:'context-close',at:new Date().toISOString()}));context.on('page',page=>{page.on('close',()=>report.timeline.push({event:'page-close',at:new Date().toISOString()}));page.on('crash',()=>report.timeline.push({event:'page-crash',at:new Date().toISOString()}));});});
  const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(styleAcceptance){
+ if(resizeAcceptance)await resizeProbe();
+ else if(styleAcceptance){
   await styleRoute({width:1280,height:760},false);report.layers.desktopChrome='PASS';
   for(const size of [{width:844,height:390},{width:667,height:375}])await styleRoute(size,true);
   report.layers.touchEmulation='PASS';
