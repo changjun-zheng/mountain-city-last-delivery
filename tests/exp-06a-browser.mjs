@@ -14,8 +14,9 @@ import {chromium} from 'playwright-core';
 import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './browser-selection.mjs';
 
 const args=process.argv.slice(2);
-const modes=['--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only','--viewport-only','--photo-frame-only','--photo-frame-baseline'];
+const modes=['--help-only','--help-baseline','--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only','--viewport-only','--photo-frame-only','--photo-frame-baseline'];
 if(!args.includes('--production')||args.some(a=>a!=='--production'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
+const helpAcceptance=args.includes('--help-only')||args.includes('--help-baseline');
 const styleAcceptance=args.includes('--style-02a');
 const resizeAcceptance=args.includes('--resize-only');
 const pauseAcceptance=args.includes('--pause-only')||args.includes('--pause-multitouch-only');
@@ -26,7 +27,7 @@ const photoFrameBaseline=args.includes('--photo-frame-baseline');
 const photoFrameAcceptance=photoFrameBaseline||args.includes('--photo-frame-only');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results',photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
 const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
@@ -40,6 +41,7 @@ if(saveAcceptance){report.task='SAVE-01';report.scope='isolated archive corrupti
 if(collectionAcceptance){report.task='COLLECTION-01';report.scope='three optional souvenir routes using journal navigation and physical keyboard/CDP joystick; legal unlocked fixture only at start';}
 if(viewportAcceptance){report.task='VIEWPORT-01';report.scope='fresh title/lesson/visitor to upper guide, short-landscape west-stair return; screenshot and screen-boundary review';}
 if(photoFrameAcceptance){report.task='PHOTO-UI-01';report.scope=photoFrameBaseline?'old geometry measurement only; new frame ratio acceptance NOT RUN':'legal tea fixture, physical walk to failed window view, uncropped frame and usable feedback/actions';}
+if(helpAcceptance){report.task='HELP-01';report.scope=args.includes('--help-baseline')?'ordinary-entry pre-fix geometry reproduction':'fresh title and pause help, device instructions and replay without archive change';}
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
 async function hashTree(path){for(const e of await readdir(path,{withFileTypes:true})){const p=join(path,e.name);if(e.isDirectory())await hashTree(p);else report.hashes[relative(process.cwd(),p).replaceAll('\\','/')]=await sha(p);}}
 await hashTree('src');
@@ -383,6 +385,35 @@ async function pausedAt(page,view,tokens,focus,baseline){
  await frames(page);const next=await state(page);assert.equal(next.tick,s.tick);
  if(baseline)for(const name of ['runtimeId','map','progress','tick'])assert.equal(s[name],baseline[name]);
  return s;
+}
+async function helpLayout(page,size,touch,context){
+ const layout=await page.locator('#exp-instructions-panel').evaluate(root=>{
+  const box=e=>{const r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height};};
+  return {title:box(root.querySelector('h1')),details:box(root.querySelector('dl')),buttons:[...root.querySelectorAll('button')].filter(e=>!e.hidden).map(e=>({id:e.id,...box(e)})),text:root.innerText,keyboardVisible:[...root.querySelectorAll('dt')].some(e=>e.textContent==='电脑'&&getComputedStyle(e).display!=='none')};
+ });
+ await shot(page,`help-${size.width}-${context}`);report.timeline.push({event:'HELP-01 layout',size,touch,context,layout});
+ if(args.includes('--help-baseline')){record(`HELP-01 ${size.width} ${context} old geometry captured`,{layout,newAcceptance:'NOT RUN'});return;}
+ for(const b of [layout.title,layout.details,...layout.buttons])assert.ok(b.top>=0&&b.bottom<=size.height&&b.left>=0&&b.right<=size.width,JSON.stringify(layout));
+ for(const b of layout.buttons)assert.ok(b.height>=48,JSON.stringify(layout));
+ assert.equal(layout.keyboardVisible,!touch);record(`HELP-01 ${size.width} ${context} title/device text/actions visible`,{layout});
+}
+async function helpProbe(){
+ for(const [size,touch] of [[{width:1280,height:760},false],[{width:844,height:390},true],[{width:667,height:375},true]]){
+  const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1});
+  const press=async id=>touch?page.locator('#'+id).tap():keyboardActivate(page,id);
+  await page.goto(base);await loaded(page);await fitCanvas(page);const title=await state(page);
+  await press('exp-instructions');await pausedAt(page,'help',2,'exp-instructions-close',title);await helpLayout(page,size,touch,'title');
+  await press('exp-instructions-close');await pausedAt(page,'title',1,'exp-instructions',title);
+  await press('exp-begin');await settleIntro(page);await press('exp-intro-start');await press('exp-onboarding-skip');
+  await press('exp-menu-button');const parent=await pausedAt(page,'menu',1,'exp-resume');
+  await press('exp-menu-help');await pausedAt(page,'help',2,'exp-instructions-close',parent);await helpLayout(page,size,touch,'pause');
+  await press('exp-instructions-close');await pausedAt(page,'menu',1,'exp-menu-help',parent);
+  await press('exp-menu-help');const before=await state(page),archive=await page.evaluate(()=>JSON.stringify({...localStorage}));
+  await press('exp-onboarding-replay');const after=await state(page);assert.equal(after.view,'play');assert.equal(after.tokens,0);assert.equal(after.progress,before.progress);assert.equal(after.runtimeId,before.runtimeId);assert.equal(await page.evaluate(()=>JSON.stringify({...localStorage})),archive);
+  assert.equal(after.onboarding,'approach');await press('exp-onboarding-skip');
+  if(touch)await touchPort(page);const start=await state(page);await axis(page,'x',start.x+20);assert.ok((await state(page)).tick>start.tick);
+  record(`HELP-01 ${size.width} title/pause focus and replay preserve progress/archive; new movement works`);await page.close();
+ }
 }
 async function pauseGridLayout(page,size){
  const layout=await page.locator('#exp-menu').evaluate(menu=>{
@@ -1085,7 +1116,8 @@ try{
  headlessProcess.on('exit',(code,signal)=>report.timeline.push({event:'chrome-exit',code,signal,at:new Date().toISOString()}));
  browser.on('context',context=>{context.on('close',()=>report.timeline.push({event:'context-close',at:new Date().toISOString()}));context.on('page',page=>{page.on('close',()=>report.timeline.push({event:'page-close',at:new Date().toISOString()}));page.on('crash',()=>report.timeline.push({event:'page-crash',at:new Date().toISOString()}));});});
  const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(photoFrameAcceptance)await photoFrameProbe();
+ if(helpAcceptance)await helpProbe();
+ else if(photoFrameAcceptance)await photoFrameProbe();
  else if(viewportAcceptance)await viewportProbe();
  else if(collectionAcceptance)await collectionProbe();
  else if(saveAcceptance)await saveProbe();

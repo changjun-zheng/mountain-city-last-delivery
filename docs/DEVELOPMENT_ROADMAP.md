@@ -4,7 +4,7 @@
 
 > 截止口径（2026-11-25）：官方 **2026-12-06**；12月10日目标已撤回。内部封版建议12-03，12-04完成材料与投稿。见[截止时间更正](DECISIONS.md#deadline-corrected-20261125)。
 >
-> [VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 待观感复核后定范围。
+> [HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 待观感复核后定范围。
 
 <a id="photo-ui-01-landscape-framing"></a>
 
@@ -29,6 +29,18 @@
 生产品牌 Chrome 用 667×375、844×390 横屏触控与 1280×760 桌面键盘。空白档实走开场→纪念碑并完成调查→沧白路游客→上街导览门。两档横屏再实走西外阶下上往返，核对同岸接续、原交互和相邻截图。记录角色、地标提示和实际招牌相对触控控件的边界，保留修前修后、阶段报表、指纹、构建及单测。仅既有「项目开发」会话写源码，主窗口独立复核。
 
 实施及主窗口技术复核 PASS。短横屏出生与教学接近阶段，角色、纪念碑主体和交互标记能辨认并避让控件；上街导览楼招牌、西外阶指示与 HUD／摇杆错开。桌面相机及路牌原锚点通过校验。以真实输入验证三档开场、教学、游客及导览楼，两档触控再走西外阶下上往返。诊断路线保留 8px 边界判据；普通入口三档开场取景相同、无逐帧诊断 JSON。构建、286/286 单测、生产 Chrome 7 项通过。主窗口看修后广场及接续截图，核对 201 个源码／测试和 3 个生产资源指纹及实际入口。修前重叠、第一轮修订后的两处间距 FAIL 保留。真机与负责人观感仍 NOT RUN。[最终报告](../test-results/viewport-01/run-2026-11-26T02-27-47-537Z/report.json) · [修前 FAIL](../test-results/viewport-01/run-2026-11-26T02-12-26-850Z/report.json) · [中间 FAIL](../test-results/viewport-01/run-2026-11-26T02-18-13-769Z/report.json) · [广场修后](../test-results/viewport-01/run-2026-11-26T02-27-47-537Z/667-plaza-spawn.png) · [阶口修后](../test-results/viewport-01/run-2026-11-26T02-27-47-537Z/667-west-upper-return.png)
+
+<a id="help-01-landscape-instructions"></a>
+
+## 已实施 HELP-01 手机横屏操作说明
+
+状态为开发验证及主窗口技术复核 PASS。修前短横屏从暂停进入操作说明后，桌面键位占去首屏，标题和「知道了」可能随原滚动区出画。现有 UI-02 和 UI-04 已按设备给出取景、调查动作文案，操作说明沿用同一设备优先规则。[667×375 修前](../test-results/pause-01/run-2026-11-26T01-15-56-807Z/pause-667-help.png)
+
+短横屏触控默认只展示摇杆、交互和旅程说明。标题、代表当前设备的第一段和「知道了」打开可见，广场可用时「重看广场教学」也可直接操作。保留桌面原帮助、按键和焦点返回。只必要调整既有帮助 DOM/CSS 和专项断言。沿用帮助／菜单各自暂停令牌，地图、任务、保存、操作手势和 STYLE-02B 范围保持。
+
+生产 Chrome 667×375、844×390 横屏触控和 1280×760 桌面，实际走标题→说明→标题、开局→暂停→说明→暂停及复看广场教学。查标题、设备说明、上下文动作的位置、可达及所有按钮 48px 触控高度。复看时原进度与存档保持，再继续有效操作。记录修前后、构建、全量单测、专项报告和指纹。开发窗口独占源码，主窗口复核、提交、推送并核对远端。
+
+实施与主窗口技术复核 PASS。667×375 与 844×390 的触控说明打开可见标题、摇杆与旅程内容，桌面键位从触屏阅读顺序移出。「知道了」和广场可用时的「重看广场教学」完整显示，各至少 48px。三档验证标题、暂停各自返回焦点及重看后可走动，同一运行实例、进度和存档原字节保持，桌面原键位可查。构建、286/286 单测、帮助专项 10 项与同版本暂停回归 18 项通过。专项报告的顶层设备字段保留 NOT RUN，实际三档操作见逐项记录，同构建暂停报告的桌面和触控模拟字段均 PASS。主窗口核对 201 个源码／测试、三个生产指纹及两档截图。真机及观感仍 NOT RUN。[基线](../test-results/help-01/run-2026-11-26T03-43-26-769Z/report.json) · [帮助专项](../test-results/help-01/run-2026-11-26T03-45-52-202Z/report.json) · [暂停回归](../test-results/pause-01/run-2026-11-26T03-46-47-112Z/report.json) · [667×375 修后](../test-results/help-01/run-2026-11-26T03-45-52-202Z/help-667-pause.png)
 
 ## 当前可试玩构建
 

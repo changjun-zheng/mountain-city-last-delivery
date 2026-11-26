@@ -260,3 +260,17 @@
     gap:8px;
   }
 }
+
+/* Keep the current device and both help actions in the short landscape viewport. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:540px) {
+  #exp-root .exp-instructions-panel .exp-instructions-keyboard { display:none; }
+  #exp-root #exp-instructions-panel .exp-instructions-panel {
+    width:min(580px,100%);
+    padding:16px 22px;
+  }
+  #exp-root .exp-instructions-panel dl { margin:8px 0 12px; }
+  #exp-root .exp-instructions-panel dt { margin-top:6px; }
+  #exp-root .exp-instructions-panel dd { line-height:1.45; }
+  #exp-root #exp-instructions-panel button { min-height:48px; }
+  #exp-root #exp-onboarding-replay { margin-bottom:8px; }
+}
