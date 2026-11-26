@@ -258,6 +258,31 @@ async function styleRoute(size,touch){
   await follow(page,target,touch);
   await interact(page,target);
   if(confirm)await press('exp-close');
+  if(target==='gate'){
+   await page.locator('#exp-gate-feedback').waitFor({state:'visible'});
+   const feedback=await page.locator('#exp-gate-feedback').evaluate(e=>{
+    const rect=node=>{const r=node.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};
+    const range=document.createRange();range.selectNodeContents(e.querySelector('span'));
+    return{box:rect(e),card:rect(document.querySelector('.exp-location')),nav:rect(document.querySelector('.exp-hud nav')),
+     span:rect(e.querySelector('span')),textLines:range.getClientRects().length,text:e.innerText,
+     role:e.getAttribute('role'),pointerEvents:getComputedStyle(e).pointerEvents};
+   });
+   assert.equal(feedback.role,'status');assert.equal(feedback.pointerEvents,'none');
+   assert.equal(feedback.text,'江纹栈门已开\n两端外阶与木作1F门，现在可以通行。');
+   assert.equal(await page.locator('#exp-auto-walk').isVisible(),true);
+   if(touch){
+    assert.ok(Math.abs(feedback.box.y-feedback.card.bottom-6)<1,JSON.stringify(feedback));
+    assert.ok(Math.abs(feedback.box.x-feedback.card.x)<1);
+    assert.equal(feedback.textLines,1);
+    assert.ok(feedback.span.right<=feedback.box.right-8);
+    assert.ok(feedback.box.bottom<size.height);
+    assert.ok(feedback.box.right<feedback.nav.x);
+   }else{
+    assert.ok(Math.abs(feedback.box.y-130)<1);
+    assert.ok(Math.abs(feedback.box.x+feedback.box.width/2-size.width/2)<1);
+   }
+   record(`NAV-01 ${size.width}x${size.height} gate feedback`,feedback);
+  }
   if(screen)await capture(screen);
  }
  await follow(page,'view',touch);
@@ -394,7 +419,11 @@ async function startChrome(){
  return chromium.connectOverCDP(endpoint,{noDefaults:true});
 }
 try{
- browser=await startChrome();const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
+ browser=await startChrome();
+ browser.on('disconnected',()=>report.timeline.push({event:'browser-disconnected',at:new Date().toISOString()}));
+ headlessProcess.on('exit',(code,signal)=>report.timeline.push({event:'chrome-exit',code,signal,at:new Date().toISOString()}));
+ browser.on('context',context=>{context.on('close',()=>report.timeline.push({event:'context-close',at:new Date().toISOString()}));context.on('page',page=>{page.on('close',()=>report.timeline.push({event:'page-close',at:new Date().toISOString()}));page.on('crash',()=>report.timeline.push({event:'page-crash',at:new Date().toISOString()}));});});
+ const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
  if(styleAcceptance){
   await styleRoute({width:1280,height:760},false);report.layers.desktopChrome='PASS';
   for(const size of [{width:844,height:390},{width:667,height:375}])await styleRoute(size,true);

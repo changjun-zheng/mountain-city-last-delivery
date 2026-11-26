@@ -153,3 +153,21 @@
   border-color:rgba(242,232,213,.22);
   border-left-color:#e8c35a;
 }
+/* Keep the desktop viewport anchor after nesting the status in the HUD. */
+#exp-root #exp-gate-feedback { position:fixed; }
+#exp-root #exp-gate-feedback span { display:inline; color:inherit; }
+@media (max-width:900px) and (max-height:540px) and (orientation:landscape) {
+  /* HUD height follows the location card, including its route action. */
+  #exp-root #exp-gate-feedback {
+    position:absolute;
+    top:calc(100% + 6px);
+    left:0;
+    transform:none;
+    width:238px;
+    max-width:100%;
+    padding:8px 10px;
+    font-size:15px;
+    line-height:1.5;
+  }
+  #exp-root #exp-gate-feedback span { font-size:11px; white-space:nowrap; }
+}

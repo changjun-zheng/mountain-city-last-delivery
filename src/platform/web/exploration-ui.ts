@@ -20,6 +20,7 @@ export const explorationUiMarkup=`
       <button id="exp-auto-walk" type="button" hidden>顺路前往</button>
     </div>
     <nav aria-label="旅程操作"><button id="exp-notes-toggle" type="button" aria-label="旅程记录"><svg class="exp-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V4Z"/><path d="M5 18a2 2 0 0 1 2-2h12"/><path d="M9 8h6M9 11h6"/></svg><span>旅程记录</span></button><button id="exp-menu-button" type="button" aria-label="暂停"><svg class="exp-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></button></nav>
+    <p id="exp-gate-feedback" role="status" hidden>江纹栈门已开<br><span>两端外阶与木作1F门，现在可以通行。</span></p>
   </header>
   <aside id="exp-onboarding" aria-label="开场指引" hidden><span class="exp-page-label" id="exp-onboarding-step"></span><h2 id="exp-onboarding-title"></h2><p id="exp-onboarding-text"></p><div><button id="exp-onboarding-help" type="button">操作说明</button><button id="exp-onboarding-skip" type="button">跳过教学</button></div></aside>
   <p id="exp-help">WASD／方向键行走　Shift 慢行　E／空格交互　Esc 暂停</p>
@@ -30,7 +31,6 @@ export const explorationUiMarkup=`
   <p id="exp-prompt" hidden><kbd id="exp-prompt-key">E</kbd><span id="exp-prompt-text"></span></p>
   <p id="exp-ferry-status" role="status" hidden></p>
   <p id="exp-memento-feedback" role="status"></p>
-  <p id="exp-gate-feedback" role="status" hidden>江纹栈门已开<br><span>两端外阶与木作1F门，现在可以通行。</span></p>
   <section id="exp-dialogue" class="exp-panel" role="dialog" aria-modal="true" aria-label="调查对话" hidden><img id="exp-memento-image" alt="原创纸质纪念图案" hidden/><figure id="exp-investigation" hidden><h2 id="exp-investigation-title"></h2><img id="exp-investigation-image" alt=""/><figcaption id="exp-investigation-caption"></figcaption></figure><p id="exp-dialogue-text"></p><div class="exp-dialogue-actions"><button id="exp-memento-cancel" type="button" hidden>先放回</button><button id="exp-close" type="button">收起 · E</button></div></section>
   <section id="exp-photo" class="exp-photo-overlay" role="dialog" aria-modal="true" aria-label="取景预览" hidden><div class="exp-panel exp-photo-panel"><h2 id="exp-photo-title"></h2><p id="exp-photo-requirement"></p><img id="exp-photo-image" alt="游戏内原创取景预览"/><p>确认画面后，点击「拍摄这一刻」；E／空格只返回探索，不会拍摄。</p><p id="exp-photo-feedback" role="status"></p><div class="exp-photo-actions"><button id="exp-shutter" type="button">拍摄这一刻</button><button id="exp-photo-menu" type="button">暂停</button><button id="exp-photo-close" type="button">返回探索 · E</button></div></div></section>
   <section id="exp-photo-card" class="exp-photo-overlay" role="dialog" aria-modal="true" aria-labelledby="exp-card-heading" hidden><div class="exp-panel exp-photo-panel exp-postcard exp-completion-card">
