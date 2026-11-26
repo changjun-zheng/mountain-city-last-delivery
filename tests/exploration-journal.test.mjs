@@ -67,7 +67,8 @@ test('SHORT S03 item and gate directions name the existing floors, without forci
  assert.match(at('cWood2Door',informed).snapshot.objective,/东侧楼梯上3F/);
  assert.match(at('cWood3Door',informed).snapshot.objective,/长屏风下端向左绕/);
  assert.match(at('cGuide2Door',equipped).snapshot.objective,/下1F出中街/);
- assert.match(at('cWood3Door',equipped).snapshot.objective,/木作2F出中街/);
+ assert.match(at('cWood3Door',equipped).snapshot.objective,/3F左侧楼梯下2F/);
+ assert.match(at('cWoodStair2Up',equipped).snapshot.objective,/2F右上临街门出中街.*江纹栈门/);
  assert.match(at('cArrival',equipped).snapshot.objective,/中街东侧栈门/);
 });
 test('SHORT S04 known route goes into notebook but undiscovered photo answers do not',()=>{

@@ -413,7 +413,9 @@ export class ExplorationRuntime {
     if(!has(P.unlocked)){
       if(map==='upper')return '线索与导扣已齐 · 经两端外阶到中街东侧栈门';
       if(map==='guide2')return '线索与导扣已齐 · 下1F出中街，向东找江纹栈门';
-      if(map==='workshop3'||map==='workshop')return '线索与导扣已齐 · 从木作2F出中街，向东找栈门';
+      if(map==='workshop3')return '从3F左侧楼梯下2F，再从临街门出中街';
+      if(map==='workshop2')return '从2F右上临街门出中街，再向东找江纹栈门';
+      if(map==='workshop')return '线索与导扣已齐 · 从木作2F出中街，向东找栈门';
       return '线索与导扣已齐 · 到中街东侧江纹栈门核对';
     }
     if(map==='riverfront')return has(P.completed)?'已找到江岸视野 · 再次取景，点击「拍摄这一刻」':'沿江岸步道找取景点，比较桥、江水与木楼';

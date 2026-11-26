@@ -14,8 +14,9 @@ import {chromium} from 'playwright-core';
 import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './browser-selection.mjs';
 
 const args=process.argv.slice(2);
-const modes=['--route-only','--load-baseline','--load-only','--help-only','--help-baseline','--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only','--viewport-only','--photo-frame-only','--photo-frame-baseline'];
+const modes=['--route02-only','--route02-mobile-only','--route-only','--load-baseline','--load-only','--help-only','--help-baseline','--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only','--viewport-only','--photo-frame-only','--photo-frame-baseline'];
 if(!args.includes('--production')||args.some(a=>a!=='--production'&&a!=='--panel-style'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
+const route02Acceptance=args.includes('--route02-only')||args.includes('--route02-mobile-only');
 const routeAcceptance=args.includes('--route-only');
 const loadAcceptance=args.includes('--load-only')||args.includes('--load-baseline');
 const helpAcceptance=args.includes('--help-only')||args.includes('--help-baseline');
@@ -29,7 +30,7 @@ const photoFrameBaseline=args.includes('--photo-frame-baseline');
 const photoFrameAcceptance=photoFrameBaseline||args.includes('--photo-frame-only');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results',routeAcceptance?'route-01':loadAcceptance?'load-01':helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',route02Acceptance?'route-02':routeAcceptance?'route-01':loadAcceptance?'load-01':helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
 const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
@@ -46,6 +47,7 @@ if(photoFrameAcceptance){report.task='PHOTO-UI-01';report.scope=photoFrameBaseli
 if(helpAcceptance){report.task='HELP-01';report.scope=args.includes('--help-baseline')?'ordinary-entry pre-fix geometry reproduction':'fresh title and pause help, device instructions and replay without archive change';}
 if(loadAcceptance){report.task='LOAD-01';report.scope='JS-started scene image latch and explicit 404, isolated contexts; fresh success and legal nonempty archive recovery';report.injectedErrors=[];report.preFixDefects=[];}
 if(routeAcceptance){report.task='ROUTE-01';report.scope='accepted-only legal cArrival fixture; manual explicit keyboard/CDP joystick route, no follow or runtime progress writes';}
+if(route02Acceptance){report.task='ROUTE-02';report.scope='equipped closed-gate cWood3Door fixture; explicit real keyboard/CDP steps to 2F, middle gate, east lower stair, return and reload; read-only viewport diagnostics enabled';}
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
 async function hashTree(path){for(const e of await readdir(path,{withFileTypes:true})){const p=join(path,e.name);if(e.isDirectory())await hashTree(p);else report.hashes[relative(process.cwd(),p).replaceAll('\\','/')]=await sha(p);}}
 await hashTree('src');
@@ -389,6 +391,33 @@ async function pausedAt(page,view,tokens,focus,baseline){
  await frames(page);const next=await state(page);assert.equal(next.tick,s.tick);
  if(baseline)for(const name of ['runtimeId','map','progress','tick'])assert.equal(s[name],baseline[name]);
  return s;
+}
+async function woodCue(page,id,size,name){
+ const evidence=await page.evaluate(id=>{
+  const box=e=>{const r=e.getBoundingClientRect();return{left:r.left,top:r.top,right:r.right,bottom:r.bottom};};
+  const view=JSON.parse(document.querySelector('#exp-stage').dataset.routeView);
+  return{label:view.labels[id],player:view.player,controls:['.exp-location','.exp-hud nav','#exp-stick','#exp-interact','#exp-prompt'].map(s=>document.querySelector(s)).filter(e=>e.getBoundingClientRect().height>0).map(e=>({id:e.id||e.className,box:box(e)}))};
+ },id);await shot(page,name);report.timeline.push({event:'ROUTE-02 real cue bounds',size,name,evidence});
+ const b=evidence.label.box;assert.ok(b.left>=4&&b.top>=4&&b.right<=size.width-4&&b.bottom<=size.height-4,JSON.stringify(evidence));
+ const separate=(a,c)=>a.right<=c.left||c.right<=a.left||a.bottom<=c.top||c.bottom<=a.top;
+ for(const c of evidence.controls)assert.ok(separate(b,c.box),JSON.stringify(evidence));assert.ok(separate(b,evidence.player),JSON.stringify(evidence));
+ assert.ok(Number.parseFloat(evidence.label.fontSize)>=20);return evidence;
+}
+async function route02Probe(){
+ const p=new InMemoryRunProgress('exp03b');p.completeGoal(P.accepted);p.completeGoal(P.clue);p.recordCollection(P.item);const save={...emptyExplorationSave(),safe:'cWood3Door',progress:p.snapshot};assert.ok(validateExplorationSave(save));
+ const sizes=args.includes('--route02-mobile-only')?[[{width:667,height:375},true]]:[[{width:1280,height:760},false],[{width:844,height:390},true]];
+ for(const [size,touch]of sizes){
+  const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1});
+  await page.addInitScript(raw=>{if(!localStorage.getItem('pokan.exp06a.save.v1'))localStorage.setItem('pokan.exp06a.save.v1',raw);},JSON.stringify(save));await page.goto(base+'?viewport-diagnostics=1');await loaded(page);const press=id=>touch?page.locator('#'+id).tap():keyboardActivate(page,id);await press('exp-begin');if(touch)await touchPort(page);await fitCanvas(page);
+  const start=await state(page);assert.match(await page.locator('#exp-objective').innerText(),/3F左侧楼梯下2F/);await shot(page,`${size.width}-wood3-entry`);
+  await walk(page,620,700);const far=await woodCue(page,'viewport-wood-down-sign',size,`${size.width}-wood3-stair-approach`);await walk(page,285,700);const near=await woodCue(page,'viewport-wood-down-sign',size,`${size.width}-wood3-stair-front`);assert.equal(near.label.text,'下2F · 工具整理');assert.match(await page.locator('#exp-prompt').innerText(),/下2F · 工具整理/);await interact(page,'workshop-down-2');
+  assert.equal((await state(page)).map,'workshop2');assert.match(await page.locator('#exp-objective').innerText(),/2F右上临街门出中街.*江纹栈门/);const arrival=await woodCue(page,'viewport-wood-street-sign',size,`${size.width}-wood2-arrival`);
+  await walk(page,1140,700);await walk(page,1140,430);const door=await woodCue(page,'viewport-wood-street-sign',size,`${size.width}-wood2-street-door`);assert.match(await page.locator('#exp-prompt').innerText(),/从2F出中街/);await interact(page,'workshop-middle-exit');assert.equal((await state(page)).map,'middle');assert.equal((await state(page)).safe,'cWoodH2');await shot(page,`${size.width}-middle-wood-front`);
+  await walk(page,1620,820);await walk(page,1930,820);await walk(page,1930,950);await shot(page,`${size.width}-gate-front`);const before=await state(page);assert.equal(before.unlocked,'false');await interact(page,'gate');assert.match(await page.locator('#exp-dialogue-text').innerText(),/水波纹与门扣吻合/);await shot(page,`${size.width}-gate-dialogue`);await press('exp-close');const open=await state(page);assert.equal(open.unlocked,'true');assert.equal(JSON.parse(open.progress).collections.filter(id=>id===P.item).length,1);await shot(page,`${size.width}-gate-open`);
+  await walk(page,2000,950);await walk(page,2000,1020);await interact(page,'middle-east-lower');const lower=await state(page);assert.equal(lower.map,'lower');assert.equal(lower.unlocked,'true');await shot(page,`${size.width}-east-lower-arrival`);await interact(page,'east-up');const back=await state(page);assert.equal(back.map,'middle');assert.equal(back.safe,'cMiddleDownEast');assert.equal(back.progress,open.progress);await shot(page,`${size.width}-east-return`);await restore(page,'cMiddleDownEast',touch);const restored=await state(page);assert.equal(restored.progress,open.progress);assert.equal(restored.unlocked,'true');assert.equal(restored.item,'true');assert.equal(JSON.parse(restored.progress).counts.rewards,0);await shot(page,`${size.width}-reload`);
+  record(`ROUTE-02 ${size.width} active-floor cues clear, gate opens once, east stair return and reload keep clasp`,{fixture:save,method:touch?'trusted CDP joystick and taps':'native keyboard',autoWalk:'NOT USED',diagnostics:'existing query-gated read-only scene objects and camera',far,near,arrival,door,start,open,lower,restored});await page.close();
+ }
+ report.layers.touchEmulation='PASS';if(!args.includes('--route02-mobile-only'))report.layers.desktopChrome='PASS';
 }
 async function routeProbe(){
  const p=new InMemoryRunProgress('exp03b');p.completeGoal(P.accepted);const save={...emptyExplorationSave(),safe:'cArrival',progress:p.snapshot};assert.ok(validateExplorationSave(save));
@@ -1205,7 +1234,8 @@ try{
  headlessProcess.on('exit',(code,signal)=>report.timeline.push({event:'chrome-exit',code,signal,at:new Date().toISOString()}));
  browser.on('context',context=>{context.on('close',()=>report.timeline.push({event:'context-close',at:new Date().toISOString()}));context.on('page',page=>{page.on('close',()=>report.timeline.push({event:'page-close',at:new Date().toISOString()}));page.on('crash',()=>report.timeline.push({event:'page-crash',at:new Date().toISOString()}));});});
  const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(routeAcceptance)await routeProbe();
+ if(route02Acceptance)await route02Probe();
+ else if(routeAcceptance)await routeProbe();
  else if(loadAcceptance)await loadProbe();
  else if(helpAcceptance)await helpProbe();
  else if(photoFrameAcceptance)await photoFrameProbe();

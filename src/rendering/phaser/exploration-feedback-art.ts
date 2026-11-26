@@ -21,10 +21,13 @@ export function drawRouteCues(scene:Phaser.Scene,layer:Phaser.GameObjects.Layer,
     const outsideGate=t.id==='middle-east-lower'||t.id==='middle-west-lower';
     const woodExit=t.id==='workshop-exit';
     // Offset edge signs from the bottom HUD and the moving barrier itself.
-    const plateX=t.x+(outsideGate?(t.x<1000?260:-260):woodExit?200:0);
-    const y=outsideGate?t.y-20:woodExit?t.y-55:Math.min(t.y+52,s.worldHeight-26);
-    const g=scene.add.graphics().setDepth(y+1);layer.add(g);
-    if(outsideGate||woodExit){g.lineStyle(2,paper,.7);g.lineBetween(t.x,t.y+12,plateX,y);}
+    const woodDown=t.id==='workshop-down-2',woodStreet=t.id==='workshop-middle-exit';
+    const localWood=woodDown||woodStreet;
+    const plateX=t.x+(woodDown?200:woodStreet?-40:outsideGate?(t.x<1000?260:-260):woodExit?200:0);
+    const y=woodDown?t.y-80:woodStreet?t.y+90:outsideGate?t.y-20:woodExit?t.y-55:Math.min(t.y+52,s.worldHeight-26);
+    const depth=localWood?1000:y+1;
+    const g=scene.add.graphics().setDepth(depth);layer.add(g);
+    if(outsideGate||woodExit||localWood){g.lineStyle(2,paper,.7);g.lineBetween(t.x,t.y+12,plateX,y);}
     g.fillStyle(ink,.96);g.fillRoundedRect(plateX-118,y-21,236,t.closed?66:42,4);
     g.lineStyle(2,t.closed?gold:0xaf806c);g.lineBetween(plateX-116,y-20,plateX+116,y-20);
     const x=plateX-98;
@@ -32,7 +35,8 @@ export function drawRouteCues(scene:Phaser.Scene,layer:Phaser.GameObjects.Layer,
     if(t.closed){g.strokeRoundedRect(x-9,y-3,18,15,2);g.beginPath();g.arc(x,y-3,7,Math.PI,0);g.strokePath();}
     else if(t.kind==='door'){g.strokeRect(x-8,y-12,16,26);g.lineBetween(x-8,y+14,x+12,y+14);g.fillStyle(gold);g.fillCircle(x+3,y+1,2);}
     else {const d=t.kind==='up'?-1:1;g.lineBetween(x,y-12,x,y+12);g.lineBetween(x,y+d*12,x-7,y+d*4);g.lineBetween(x,y+d*12,x+7,y+d*4);}
-    const label=scene.add.text(plateX+12,y,t.label,{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'18px',color:'#fae9d5'}).setOrigin(.5).setDepth(y+2);layer.add(label);
+    const label=scene.add.text(plateX+12,y,t.label,{fontFamily:'Microsoft YaHei, sans-serif',fontSize:localWood?'20px':'18px',color:'#fae9d5'}).setOrigin(.5).setDepth(depth+1);layer.add(label);
+    if(localWood)label.setName(woodDown?'viewport-wood-down-sign':'viewport-wood-street-sign').setData('viewportBounds',{x:plateX-118,y:y-21,width:236,height:42});
     if(t.closed){const detail=scene.add.text(plateX,y+30,t.detail,{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'15px',color:'#edc781'}).setOrigin(.5).setDepth(y+2);layer.add(detail);}
     // A narrow lit threshold draws attention without filling the walking surface.
     g.lineStyle(3,t.closed?gold:paper,.8);g.lineBetween(t.x-28,t.y+12,t.x+28,t.y+12);
