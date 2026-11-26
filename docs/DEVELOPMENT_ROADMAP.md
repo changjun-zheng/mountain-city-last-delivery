@@ -12,6 +12,8 @@
 >
 > [STYLE-UI-02 主线导航牌配色](#style-ui-02-route-sign-palette) 已通过技术复核。
 >
+> [NAV-02 栈门和取景台的路牌避让](#nav-02-interaction-sign-clearance) 已通过技术复核，三档空白档主线已在最终产物复跑。
+>
 > [ROUTE-01 从导览楼到木作楼的识路提示](#route-01-guide-to-workshop) 已通过技术复核。[STYLE-UI-01 城市插画风格的探索浮层](#style-ui-01-exploration-panels) 已通过技术复核。[LOAD-01 场景载入失败与恢复](#load-01-scene-startup-recovery) 已通过技术复核。[HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 待观感复核后定范围。
 
 <a id="photo-ui-01-landscape-framing"></a>
@@ -134,7 +136,21 @@
 
 实施及主窗口技术复核 PASS。木作楼阶口／临街门、中街江纹栈门、江岸取景台、返程和两岸渡船牌采用 A 的墨绿、暖纸色及姜黄边，视觉规则与下街入口一致。两份渲染源码有改动。构建、286/286 单测通过，三档木作专项 5 项、空白档主线 13 项、渡口专项 5 项通过。主窗口实看木作、关闭与已开栈门、取景台和可乘渡船图，核对四份报告各 201 个源码／测试、三份构建指纹及 4199 入口。667 常见门前站位仍有栈门牌和角色上身相叠，这是修前已有的布局问题。真机、负责人观感、最终场景美术仍待验收。[667 木作与栈门](../test-results/route-02/run-2026-11-26T14-00-20-571Z/report.json) · [桌面及 844](../test-results/route-02/run-2026-11-26T14-01-56-578Z/report.json) · [主线](../test-results/style-02a/run-2026-11-26T14-03-18-758Z/report.json) · [渡船](../test-results/exp-06a/run-2026-11-26T14-07-45-685Z/report.json) · [江岸导航牌](../test-results/exp-06a/run-2026-11-26T14-07-45-685Z/dock-844.png)
 
+<a id="nav-02-interaction-sign-clearance"></a>
+
+## 已实施 NAV-02 栈门和取景台的路牌避让
+
+状态为开发验证及主窗口技术复核 PASS，基线 `797230d`。修前 667×375 的栈门牌横过人物上身，固定取景牌在角色腿部前。两处均有向侧面调整的空间。[旧栈门站位](../test-results/route-02/run-2026-11-26T10-28-09-670Z/667-gate-front.png) · [换色后栈门站位](../test-results/route-02/run-2026-11-26T14-00-20-571Z/667-gate-front.png) · [修前取景站位](../test-results/style-02a/run-2026-11-26T14-03-18-758Z/667x375-view-open-world.png)
+
+把两张功能牌就地向旁侧让出玩家常见交互站位，保持软连接到实际门扣或取景台。让场景对象按脚底深度正常穿过，近处操作仍使用现有动作提示。沿用已复核的墨绿色板、状态文字和字号。仅调整两个场景的牌面位置、层级与必要的测量，场景重绘不进入本项。
+
+限定既有「项目开发」会话写源码及跑 Chrome。优先复用 ROUTE-02 与空白主线。用真实键盘或 CDP 触控验证 667×375、844×390、1280×760 的闭锁／开启栈门、取景站位、进入／返回取景及正常拍摄。记录牌面、人物、控件的实际位置，保留前后截图和现有开路／存档断言。必要时只增加查询参数启用的现有只读诊断。主窗口核对取景和锁形等关键内容、构建、全量单测及版本报告，再独立提交和推送。
+
+实施及主窗口技术复核 PASS。两张牌移向实物侧面，用低对比细线连回门扣和取景点。首轮开门牌仍压住左侧已开反馈约 6px，显示前的测量遗漏该提示，保留截图与视觉 FAIL。修后使用实际可见的反馈与「已开路」牌文作为检测时点，667×375 两者相隔 15.7px。桌面及两档横屏共有九组测量，通过闭锁、已开和取景前的牌／玩家／控件避让。构建、286/286 单测、木作与栈门 5 项、空白档主线 13 项通过。主窗口核对三份报告的各 201 个源码／测试和三个生产指纹及实际入口。移动与实体遮挡全图、真机及负责人观感仍待验收。[首轮反馈叠牌](../test-results/route-02/run-2026-11-26T14-24-00-544Z/667-gate-open.png) · [修后栈门](../test-results/route-02/run-2026-11-26T15-24-29-906Z/667-gate-open.png) · [修后取景](../test-results/style-02a/run-2026-11-26T15-28-53-011Z/667x375-view-open-world.png) · [三档新档主线](../test-results/style-02a/run-2026-11-26T15-28-53-011Z/report.json)
+
 ## 当前可试玩构建
+
+现行 NAV-02 版从空白档复跑桌面与两档横屏的开场、调查、开放江岸和拍照刷新。栈门及取景牌采用最后复核的侧向位置。[本地试玩](http://127.0.0.1:4199/) · [现行主线验证](../test-results/style-02a/run-2026-11-26T15-28-53-011Z/report.json)
 
 最新 STYLE-UI-02 构建已复跑三档新档主线、木作及渡口专项。原即时试玩入口使用此版。[本地试玩](http://127.0.0.1:4199/) · [新档主线](../test-results/style-02a/run-2026-11-26T14-03-18-758Z/report.json) · [渡口往返](../test-results/exp-06a/run-2026-11-26T14-07-45-685Z/report.json)
 

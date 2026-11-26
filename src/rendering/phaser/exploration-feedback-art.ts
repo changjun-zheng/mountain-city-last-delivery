@@ -50,9 +50,12 @@ export function drawGateFeedback(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
   if(s.map!=='middle')return;
   const t=EXP_TARGETS.find(t=>t.id==='gate')!;
   const panel=scene.add.graphics().setDepth(t.y+20),rails=scene.add.graphics().setDepth(1120);layer.add([panel,rails]);
-  const title=scene.add.text(t.x-70,t.y-74,s.unlocked?'江纹栈门 · 已开路':'江纹栈门 · 门扣比对',{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'19px',color:'#f2e8d5',backgroundColor:'#122224',padding:{x:12,y:7}}).setOrigin(.5).setDepth(t.y+21);layer.add(title);
-  const titleBounds=title.getBounds(),titleRule=scene.add.graphics().setDepth(t.y+22);layer.add(titleRule);
+  const titleX=t.x-200,titleY=t.y-74,titleDepth=titleY+20;
+  const title=scene.add.text(titleX,titleY,s.unlocked?'江纹栈门 · 已开路':'江纹栈门 · 门扣比对',{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'19px',color:'#f2e8d5',backgroundColor:'#122224',padding:{x:12,y:7}}).setOrigin(.5).setDepth(titleDepth).setName('viewport-gate-sign');layer.add(title);
+  const titleBounds=title.getBounds(),titleRule=scene.add.graphics().setDepth(titleDepth+1);layer.add(titleRule);
   titleRule.lineStyle(2,0xe8c35a).lineBetween(titleBounds.x+6,titleBounds.bottom-1,titleBounds.right-6,titleBounds.bottom-1);
+  const titleLink=scene.add.graphics().setDepth(-2);layer.add(titleLink);
+  titleLink.lineStyle(2,0x4f8a7e,.55).lineBetween(titleBounds.right+3,titleY,t.x-40,t.y-28);
   let previous=-1;
   return {update(tick:number,reducedMotion:boolean){
     const p=s.unlocked?gateOpeningFraction(startTick,tick,reducedMotion):0;

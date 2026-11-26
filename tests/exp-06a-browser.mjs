@@ -417,6 +417,11 @@ async function route03Probe(){
  }
  report.layers.touchEmulation='PASS';if(!args.includes('--route03-mobile-only'))report.layers.desktopChrome='PASS';
 }
+async function interactionSign(page,id,size,name){
+ const evidence=await page.evaluate(id=>{const view=JSON.parse(document.querySelector('#exp-stage').dataset.routeView),box=e=>{const r=e.getBoundingClientRect();return{left:r.left,top:r.top,right:r.right,bottom:r.bottom};};return{label:view.labels[id],player:view.player,controls:['.exp-location','.exp-hud nav','#exp-stick','#exp-interact','#exp-prompt','#exp-gate-feedback'].map(s=>document.querySelector(s)).filter(e=>e.getBoundingClientRect().height>0).map(e=>({id:e.id||e.className,box:box(e)}))};},id);
+ report.timeline.push({event:'NAV-02 actual sign/actor/control bounds',name,size,evidence});
+ const b=evidence.label.box;assert.ok(b.left>=4&&b.top>=4&&b.right<=size.width-4&&b.bottom<=size.height-4,JSON.stringify(evidence));const separate=(a,c)=>a.right<=c.left||c.right<=a.left||a.bottom<=c.top||c.bottom<=a.top;assert.ok(separate(b,evidence.player),JSON.stringify(evidence));for(const c of evidence.controls)assert.ok(separate(b,c.box),JSON.stringify(evidence));return evidence;
+}
 async function woodCue(page,id,size,name){
  const evidence=await page.evaluate(id=>{
   const box=e=>{const r=e.getBoundingClientRect();return{left:r.left,top:r.top,right:r.right,bottom:r.bottom};};
@@ -438,7 +443,7 @@ async function route02Probe(){
   await walk(page,620,700);const far=await woodCue(page,'viewport-wood-down-sign',size,`${size.width}-wood3-stair-approach`);await walk(page,285,700);const near=await woodCue(page,'viewport-wood-down-sign',size,`${size.width}-wood3-stair-front`);assert.equal(near.label.text,'下2F · 工具整理');assert.match(await page.locator('#exp-prompt').innerText(),/下2F · 工具整理/);await interact(page,'workshop-down-2');
   assert.equal((await state(page)).map,'workshop2');assert.match(await page.locator('#exp-objective').innerText(),/2F右上临街门出中街.*江纹栈门/);const arrival=await woodCue(page,'viewport-wood-street-sign',size,`${size.width}-wood2-arrival`);
   await walk(page,1140,700);await walk(page,1140,430);const door=await woodCue(page,'viewport-wood-street-sign',size,`${size.width}-wood2-street-door`);assert.match(await page.locator('#exp-prompt').innerText(),/从2F出中街/);await interact(page,'workshop-middle-exit');assert.equal((await state(page)).map,'middle');assert.equal((await state(page)).safe,'cWoodH2');await shot(page,`${size.width}-middle-wood-front`);
-  await walk(page,1620,820);await walk(page,1930,820);await walk(page,1930,950);await shot(page,`${size.width}-gate-front`);const before=await state(page);assert.equal(before.unlocked,'false');await interact(page,'gate');assert.match(await page.locator('#exp-dialogue-text').innerText(),/水波纹与门扣吻合/);await shot(page,`${size.width}-gate-dialogue`);await press('exp-close');const open=await state(page);assert.equal(open.unlocked,'true');assert.equal(JSON.parse(open.progress).collections.filter(id=>id===P.item).length,1);await shot(page,`${size.width}-gate-open`);
+  await walk(page,1620,820);await walk(page,1930,820);await walk(page,1930,950);await interactionSign(page,'viewport-gate-sign',size,'gate-closed');await shot(page,`${size.width}-gate-front`);const before=await state(page);assert.equal(before.unlocked,'false');await interact(page,'gate');assert.match(await page.locator('#exp-dialogue-text').innerText(),/水波纹与门扣吻合/);await shot(page,`${size.width}-gate-dialogue`);await press('exp-close');const open=await state(page);assert.equal(open.unlocked,'true');assert.equal(JSON.parse(open.progress).collections.filter(id=>id===P.item).length,1);await page.locator('#exp-gate-feedback').waitFor({state:'visible'});await wait(page,()=>JSON.parse(document.querySelector('#exp-stage').dataset.routeView??'{}').labels?.['viewport-gate-sign']?.text.includes('已开路'));await interactionSign(page,'viewport-gate-sign',size,'gate-open');await shot(page,`${size.width}-gate-open`);
   await walk(page,2000,950);await walk(page,2000,1020);await interact(page,'middle-east-lower');const lower=await state(page);assert.equal(lower.map,'lower');assert.equal(lower.unlocked,'true');await shot(page,`${size.width}-east-lower-arrival`);await interact(page,'east-up');const back=await state(page);assert.equal(back.map,'middle');assert.equal(back.safe,'cMiddleDownEast');assert.equal(back.progress,open.progress);await shot(page,`${size.width}-east-return`);await restore(page,'cMiddleDownEast',touch);const restored=await state(page);assert.equal(restored.progress,open.progress);assert.equal(restored.unlocked,'true');assert.equal(restored.item,'true');assert.equal(JSON.parse(restored.progress).counts.rewards,0);await shot(page,`${size.width}-reload`);
   record(`ROUTE-02 ${size.width} active-floor cues clear, gate opens once, east stair return and reload keep clasp`,{fixture:save,method:touch?'trusted CDP joystick and taps':'native keyboard',autoWalk:'NOT USED',diagnostics:'existing query-gated read-only scene objects and camera',far,near,arrival,door,start,open,lower,restored});await page.close();
  }
@@ -1026,7 +1031,7 @@ async function styleRoute(size,touch){
  const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1});
  const press=id=>page.locator(`#${id}`)[touch?'tap':'click']();
  const capture=name=>shot(page,`${size.width}x${size.height}-${name}`);
- await page.goto(base);await loaded(page);
+ await page.goto(base+'?viewport-diagnostics=1');await loaded(page);
  assert.equal((await state(page)).view,'title');
  assert.equal((await state(page)).hasJourney,'false');
  assert.equal((await state(page)).safe,'chapterStart');
@@ -1083,7 +1088,7 @@ async function styleRoute(size,touch){
   if(screen)await capture(screen);
  }
  await follow(page,'view',touch);
- assert.equal((await state(page)).target,'view');await capture('view-open-world');report.timeline.push({event:'PHOTO-UI-01 actual view before interaction',size,state:await state(page)});
+ assert.equal((await state(page)).target,'view');await interactionSign(page,'viewport-photo-sign',size,'photo-before-preview');await capture('view-open-world');report.timeline.push({event:'PHOTO-UI-01 actual view before interaction',size,state:await state(page)});
  await interact(page,'view');
  const frame=await photoFrame(page,size,'river','empty');record(`PHOTO-UI-01 ${size.width} full river illustration frame and 48px controls`,frame);
  await wait(page,()=>document.activeElement?.id==='exp-photo-close');

@@ -18,11 +18,12 @@ export function preloadFerryArt(scene: Phaser.Scene, failed: (error:Error)=>void
   for(const [name,url] of Object.entries(assets))scene.load.image(name,url);
 }
 
-function label(scene:Phaser.Scene,layer:Phaser.GameObjects.Layer,x:number,y:number,message:string,navigation=false) {
+function label(scene:Phaser.Scene,layer:Phaser.GameObjects.Layer,x:number,y:number,message:string,navigation=false,depth=y+8) {
   const plate=scene.add.text(x,y,message,{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'16px',color:navigation?'#f2e8d5':'#f4d7a7',
-    backgroundColor:navigation?'#122224e6':'#3e3038e6',padding:{x:9,y:5}}).setOrigin(.5).setDepth(y+8);
+    backgroundColor:navigation?'#122224e6':'#3e3038e6',padding:{x:9,y:5}}).setOrigin(.5).setDepth(depth);
   layer.add(plate);
-  if(navigation){const bounds=plate.getBounds(),rule=scene.add.graphics().setDepth(y+9);layer.add(rule);rule.lineStyle(2,0xe8c35a).lineBetween(bounds.x+6,bounds.bottom-1,bounds.right-6,bounds.bottom-1);}
+  if(navigation){const bounds=plate.getBounds(),rule=scene.add.graphics().setDepth(depth+1);layer.add(rule);rule.lineStyle(2,0xe8c35a).lineBetween(bounds.x+6,bounds.bottom-1,bounds.right-6,bounds.bottom-1);}
+  return plate;
 }
 
 export function drawFerryDistrict(scene: Phaser.Scene,layer:Phaser.GameObjects.Layer,s:ExplorationSnapshot) {
@@ -50,7 +51,11 @@ export function drawFerryDistrict(scene: Phaser.Scene,layer:Phaser.GameObjects.L
   label(scene,layer,2335,1438,'对岸 · 照水岭');
   const ascent=EXP_TARGETS.find(target=>target.id==='riverfront-up')!;
   label(scene,layer,ascent.x,ascent.y-54,'沿坡路回下街',true);
-  label(scene,layer,1929,997,'江岸取景台',true);
+  const view=EXP_TARGETS.find(target=>target.id==='view')!;
+  const viewY=view.y-53;
+  const viewSign=label(scene,layer,view.x-210,viewY,'江岸取景台',true,viewY+18).setName('viewport-photo-sign');
+  const viewBounds=viewSign.getBounds(),viewLink=scene.add.graphics().setDepth(-2);layer.add(viewLink);
+  viewLink.lineStyle(2,0x4f8a7e,.55).lineBetween(viewBounds.right+3,viewY,view.x,view.y);
 }
 
 export function createFerryView(scene:Phaser.Scene) {

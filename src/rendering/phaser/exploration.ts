@@ -342,7 +342,7 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
               }
               // Read-only screen evidence for the named world landmarks. Host
               // controls and all runtime movement/state stay outside this view.
-              if(routeDiagnostics&&['plaza','upper','middle','workshop2','workshop3'].includes(s.map)){
+              if(routeDiagnostics&&['plaza','upper','middle','workshop2','workshop3','riverfront'].includes(s.map)){
               const canvasBounds=scene.game.canvas.getBoundingClientRect();
               const screenBox=(r:{x:number;y:number;width:number;height:number})=>{
                 const sx=canvasBounds.width/camera.width,sy=canvasBounds.height/camera.height;
