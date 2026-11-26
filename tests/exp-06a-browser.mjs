@@ -240,11 +240,20 @@ async function follow(page,id,touch,activate){
  assert.equal((await state(page)).dialogue,'false');
 }
 
-async function completeTutorial(page,press){
+async function dialogueLabel(page,label,touch){
+ const expected=label+(touch?'':' · E'),button=page.locator('#exp-close');
+ assert.equal(await button.innerText(),expected);assert.equal(await button.textContent(),expected);
+ await page.locator('#exp-dialogue').getByRole('button',{name:expected,exact:true}).waitFor({state:'visible'});
+ const snapshot=await button.evaluate(e=>{const b=e.getBoundingClientRect();return{height:b.height,top:b.top,bottom:b.bottom,focus:document.activeElement.id,coarse:matchMedia('(pointer:coarse)').matches};});
+ assert.equal(snapshot.coarse,touch);assert.equal(snapshot.focus,'exp-close');assert.ok(snapshot.height>=48&&snapshot.top>=0&&snapshot.bottom<=page.viewportSize().height);
+ report.timeline.push({event:'UI-04 visible and accessible dialogue label',expected,touch,...snapshot});return{expected,...snapshot};
+}
+async function completeTutorial(page,press,touch=false){
  assert.equal((await state(page)).onboarding,'approach');
  assert.equal(await page.locator('#exp-auto-walk').isVisible(),false);
  await walk(page,900,875);
  await interact(page,'city-monument');
+ await dialogueLabel(page,'收起',touch);
  await press('exp-close');
  assert.equal((await state(page)).onboarding,'continue');
  await press('exp-onboarding-skip');
@@ -668,6 +677,7 @@ async function collectionRoute(size,touch){
   await interact(page,m.targetId);const inspected=await state(page);
   assert.equal(inspected.pending,m.targetId);assert.ok(inspected.mementoInspection.startsWith(inspected.runtimeId+':memento:'));assert.match(inspected.mementoInspection,/:memento:\d+$/);assert.equal(inspected.tokens,1);assert.ok((await page.locator('#exp-dialogue-text').innerText()).includes(m.name));
   assert.equal(await page.locator('#exp-memento-cancel').isVisible(),true);assert.match(await page.locator('#exp-close').innerText(),/收进纪念册/);
+  const collectLabel=await dialogueLabel(page,'收进纪念册',touch);
   await shot(page,`${size.width}-${m.id}-inspection`);await press('exp-memento-cancel');
   const cancelled=await state(page);for(const key of ['runtimeId','progress','observations','photographed','safe','revision'])assert.equal(cancelled[key],inspected[key]);
   assert.equal(cancelled.dialogue,'false');assert.equal(cancelled.pending,'');
@@ -677,9 +687,9 @@ async function collectionRoute(size,touch){
   assert.equal(JSON.parse(collected.mementos).length,expectedCount-1);assert.equal(collected.photographed,'false');
   assert.equal(p.counts.rewards,expectedCount===4?1:0);
   await interact(page,m.targetId);assert.equal((await state(page)).pending,'');assert.equal(await page.locator('#exp-memento-cancel').isVisible(),false);
-  assert.match(await page.locator('#exp-dialogue-text').innerText(),/已经收好/);await press('exp-close');
+  assert.match(await page.locator('#exp-dialogue-text').innerText(),/已经收好/);const ownedLabel=await dialogueLabel(page,'收起',touch);await shot(page,`${size.width}-${m.id}-owned-inspection`);await press('exp-close');
   assert.equal((await state(page)).progress,collected.progress);
-  record(`COLLECTION-01 ${size.width} ${m.id} physical approach, cancel unchanged, collect once and repeat without reward`,{fixture:'initial unlocked cGuideH2 only; subsequent route is real UI input',positions,inspected,cancelled,collected});
+  record(`COLLECTION-01 ${size.width} ${m.id} physical approach, cancel unchanged, collect once and repeat without reward`,{fixture:'initial unlocked cGuideH2 only; subsequent route is real UI input',positions,inspected,cancelled,collected,labels:{collect:collectLabel,owned:ownedLabel}});
  };
  await track('bookmark');await go('guide-middle-door');assert.equal((await state(page)).map,'guide');
  await collect(MEMENTOS[0],[[780,540],[780,470]]);
@@ -726,7 +736,7 @@ async function styleRoute(size,touch){
  await press('exp-intro-start');
  const started=Date.now();
  await capture('plaza');
- await completeTutorial(page,press);
+ await completeTutorial(page,press,touch);
 
  const steps=[
   ['city-to-entry','entry'],['visitor','visitor',true],['entry-to-core','upper'],
@@ -737,7 +747,10 @@ async function styleRoute(size,touch){
  for(const [target,screen,confirm] of steps){
   await follow(page,target,touch);
   await interact(page,target);
-  if(confirm)await press('exp-close');
+  if(confirm){
+   const labels={visitor:'接受委托',note:'记下导览',plaque:'带上导扣',gate:'转动导扣，开门'};
+   await dialogueLabel(page,labels[target],touch);await capture(target+'-dialogue');await press('exp-close');
+  }
   if(target==='gate'){
    await page.locator('#exp-gate-feedback').waitFor({state:'visible'});
    const feedback=await page.locator('#exp-gate-feedback').evaluate(e=>{

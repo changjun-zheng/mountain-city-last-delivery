@@ -2,14 +2,15 @@ import type {ExplorationSnapshot} from '../../core/exploration.ts';
 
 // A read-only view of information already committed by the shared runtime.
 // Directions repeat known NPC/guide information, not undiscovered photo answers.
-export function explorationDialogueAction(s:Pick<ExplorationSnapshot,'inspectingMemento'|'pending'|'accepted'|'clue'|'item'|'unlocked'>):string {
-  if(s.inspectingMemento&&s.pending)return '收进纪念册 · E';
-  if(s.pending==='accepted'&&!s.accepted)return '接受委托 · E';
-  if(s.pending==='clue'&&!s.clue)return '记下导览 · E';
-  if(s.pending==='item'&&!s.item)return '带上导扣 · E';
-  if(s.pending==='unlocked'&&!s.unlocked)return '转动导扣，开门 · E';
-  if(s.pending==='ferry-out'||s.pending==='ferry-back')return '上船 · E';
-  return '收起 · E';
+export function explorationDialogueAction(s:Pick<ExplorationSnapshot,'inspectingMemento'|'pending'|'accepted'|'clue'|'item'|'unlocked'>,{keyboardHint=true}:{keyboardHint?:boolean}={}):string {
+  const hint=keyboardHint?' · E':'';
+  if(s.inspectingMemento&&s.pending)return '收进纪念册'+hint;
+  if(s.pending==='accepted'&&!s.accepted)return '接受委托'+hint;
+  if(s.pending==='clue'&&!s.clue)return '记下导览'+hint;
+  if(s.pending==='item'&&!s.item)return '带上导扣'+hint;
+  if(s.pending==='unlocked'&&!s.unlocked)return '转动导扣，开门'+hint;
+  if(s.pending==='ferry-out'||s.pending==='ferry-back')return '上船'+hint;
+  return '收起'+hint;
 }
 export function projectExplorationJournal(s:ExplorationSnapshot) {
   const discoveries:{title:string;text:string}[]=[];

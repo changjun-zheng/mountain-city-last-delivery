@@ -32,6 +32,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
   const get=<T extends HTMLElement=HTMLElement>(id:string)=>root.querySelector<T>(`#${id}`)!;
   const cleanup:(()=>void|Promise<void>)[]=[];
   const phoneUpright=matchMedia('(pointer: coarse) and (orientation: portrait)');
+  const coarsePointer=matchMedia('(pointer: coarse)');
   const gateSound=createGateSound();
   cleanup.push(gateSound.dispose);
   let investigationKey='',gateFeedbackUntil=-1;
@@ -155,7 +156,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     mementoImage.hidden=!s.inspectingMemento;
     if(s.inspectingMemento){const url=mementoImageUrl(s.inspectingMemento);if(mementoImage.getAttribute('src')!==url)mementoImage.src=url;}else mementoImage.removeAttribute('src');
     const collecting=!!s.inspectingMemento&&!!s.pending;
-    get('exp-close').textContent=explorationDialogueAction(s);
+    get('exp-close').textContent=explorationDialogueAction(s,{keyboardHint:!coarsePointer.matches});
     get('exp-memento-cancel').hidden=!collecting;
     if(s.mementos.length>lastMementoCount){collectionFeedback=s.mementoTitle?`已获得试制称号：${s.mementoTitle}`:'已收进纪念册，可在旅程记录中查看。';feedbackUntil=performance.now()+4500;}
     lastMementoCount=s.mementos.length;

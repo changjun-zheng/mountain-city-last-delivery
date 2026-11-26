@@ -89,11 +89,16 @@ test('SHORT S05 finding a view still requires shutter and never claims photograp
 test('SHORT S06 confirmation labels describe pending action without changing commits or repeats',()=>{
  for(const [pending,label] of [['accepted','接受委托'],['clue','记下导览'],['item','带上导扣'],['unlocked','转动导扣，开门']]){
   assert.equal(explorationDialogueAction({...fresh,pending}),label+' · E');
+  assert.equal(explorationDialogueAction({...fresh,pending},{keyboardHint:false}),label);
   assert.equal(explorationDialogueAction({...fresh,pending,[pending]:true}),'收起 · E');
+  assert.equal(explorationDialogueAction({...fresh,pending,[pending]:true},{keyboardHint:false}),'收起');
  }
  assert.equal(explorationDialogueAction({...fresh,inspectingMemento:'bookmark',pending:'memento-bookmark'}),'收进纪念册 · E');
+ assert.equal(explorationDialogueAction({...fresh,inspectingMemento:'bookmark',pending:'memento-bookmark'},{keyboardHint:false}),'收进纪念册');
  assert.equal(explorationDialogueAction({...fresh,inspectingMemento:'bookmark'}),'收起 · E');
  assert.equal(explorationDialogueAction(fresh),'收起 · E');
+ assert.equal(explorationDialogueAction(fresh,{keyboardHint:false}),'收起');
+ for(const pending of ['ferry-out','ferry-back']){assert.equal(explorationDialogueAction({...fresh,pending}),'上船 · E');assert.equal(explorationDialogueAction({...fresh,pending},{keyboardHint:false}),'上船');}
  const r=at('cMiddleGate',equipped),before=JSON.stringify(r.save),revision=r.snapshot.revision;
  for(let i=0;i<50;i++){projectExplorationJournal(r.snapshot);explorationDialogueAction(r.snapshot);}
  assert.equal(JSON.stringify(r.save),before);assert.equal(r.snapshot.revision,revision);
