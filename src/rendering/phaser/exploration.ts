@@ -4,7 +4,7 @@ import {drawBuildingFloor} from './exploration-building-art';
 import {createFerryView,drawFerryDistrict,preloadFerryArt} from './exploration-ferry-art';
 import Phaser from 'phaser';
 import type { ExplorationRuntime, ExplorationSnapshot } from '../../core/exploration';
-import { EXP_MAPS, EXP_GATE, EXP_RIVER, EXP_TARGETS } from '../../core/exploration-content';
+import { EXP_MAPS, EXP_GATE, EXP_RIVER, EXP_TARGETS, EXP_SAFE } from '../../core/exploration-content';
 import { WEST_STREET_JOIN } from '../../core/exploration-c-routes';
 import { RIVER_PIER_X } from '../../core/exploration-ferry';
 import {PHOTO_SITES} from '../../core/exploration-photo';
@@ -13,6 +13,7 @@ import {MEMENTOS} from '../../core/exploration-mementos';
 import {drawMemento} from './exploration-memento-art';
 import {drawRouteCues,drawGateFeedback} from './exploration-feedback-art';
 import {createWeatherView,type ExplorationWeather} from './exploration-weather';
+import {PLACEHOLDER_HEIGHT} from './exploration-placeholder-actor';
 
 // Original procedural artwork for EXP-01. Coordinates are shared with the
 // limited content definition; no old side-view assets are used.
@@ -43,6 +44,9 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
             let gateStart:number|undefined;
             let gateFeedback:ReturnType<typeof drawGateFeedback>;
             const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
+            const shortTouch=matchMedia('(pointer: coarse) and (orientation: landscape) and (max-width:900px) and (max-height:540px)');
+            const routeDiagnostics=new URLSearchParams(location.search).get('viewport-diagnostics')==='1';
+            const lessonStartX=EXP_SAFE.chapterStart.x,lessonTargetX=EXP_TARGETS.find(t=>t.id==='city-monument')!.x;
             let seamBlend: Animation | undefined;
             const softenStreetSeam = () => {
               if (reducedMotion.matches) return;
@@ -279,8 +283,30 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
                 : 0;
               const lookDown = atLookout * Math.min(camera.height*.46, Math.max(0,1275-(normalY+camera.height)))+
                 atHarbour * Math.min(camera.height*.29,Math.max(0,s.worldHeight-(normalY+camera.height)));
-              camera.setScroll(Phaser.Math.Clamp(s.position.x-camera.width/2,0,Math.max(0,s.worldWidth-camera.width)),
-                Phaser.Math.Linear(normalY,desiredY,nearStairs)+lookDown);
+              // Locally frame the square's first lesson: keep the person left
+              // of the monument entrance, away from the lower-right touch key.
+              // Fade by position when leaving the square, not by dialogue state.
+              const plazaFrame=shortTouch.matches&&s.map==='plaza'
+                ?Phaser.Math.Clamp((1250-s.position.x)/350,0,1)*Phaser.Math.Clamp((1100-s.position.y)/200,0,1):0;
+              // The pill widens near the target. Ease the vertical framing as
+              // the player approaches, rather than pushing the initial spire up.
+              const plazaDown=.12+.03*Phaser.Math.Clamp((s.position.x-lessonStartX)/(lessonTargetX-lessonStartX),0,1);
+              camera.setScroll(Phaser.Math.Clamp(s.position.x-camera.width/2+plazaFrame*camera.width*.20,0,Math.max(0,s.worldWidth-camera.width)),
+                Phaser.Math.Linear(normalY,desiredY,nearStairs)+lookDown+plazaFrame*camera.height*plazaDown);
+              const guideBoard=map.list.find(o=>o.name==='viewport-guide-sign') as Phaser.GameObjects.Text|undefined;
+              if(guideBoard){
+                const home=guideBoard.getData('viewportHome');
+                guideBoard.setPosition(home.x-(shortTouch.matches?100:0),home.y+(shortTouch.matches?52:0));
+              }
+              const westBoard=map.list.find(o=>o.name==='viewport-west-sign') as Phaser.GameObjects.Text|undefined;
+              if(westBoard&&westSeam!==undefined){
+                const home=westBoard.getData('viewportHome');
+                // This finite roadside anchor has the same translated position
+                // in both views of the stair; it stays below the HUD on return.
+                westBoard.setPosition(home.x+(shortTouch.matches?160:0),shortTouch.matches
+                  ?Math.min(westSeam+100,Math.max(westSeam-240,camera.scrollY+240)):home.y);
+                westBoard.setText(shortTouch.matches?home.text.replace(/^[↓↑]/,s.map==='upper'?'↙':'↖'):home.text);
+              }
               showFerry(s.ferry,reducedMotion.matches);
               parent.dataset.wetness=String(showWeather(weather(),EXP_MAPS[s.map].outdoor&&!s.ferry,s.tick,reducedMotion.matches));
               parent.dataset.viewportWidth=String(camera.width);parent.dataset.viewportHeight=String(camera.height);
@@ -304,6 +330,24 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
                   }
                 }
               }
+              // Read-only screen evidence for the named world landmarks. Host
+              // controls and all runtime movement/state stay outside this view.
+              if(routeDiagnostics&&['plaza','upper','middle'].includes(s.map)){
+              const canvasBounds=scene.game.canvas.getBoundingClientRect();
+              const screenBox=(r:{x:number;y:number;width:number;height:number})=>{
+                const sx=canvasBounds.width/camera.width,sy=canvasBounds.height/camera.height;
+                const left=canvasBounds.left+(r.x-camera.scrollX)*sx,top=canvasBounds.top+(r.y-camera.scrollY)*sy;
+                return{left,top,width:r.width*sx,height:r.height*sy,right:left+r.width*sx,bottom:top+r.height*sy};
+              };
+              const worldLabels:Record<string,unknown>={};
+              for(const object of map.list){
+                if(!object.name.startsWith('viewport-'))continue;
+                const shape=object.getData('viewportBounds')??(object as Phaser.GameObjects.Text).getBounds();
+                const label=object as Phaser.GameObjects.Text;
+                worldLabels[object.name]={box:screenBox(shape),world:{x:shape.x,y:shape.y,width:shape.width,height:shape.height},text:label.text,fontSize:label.style?.fontSize,home:object.getData('viewportHome')};
+              }
+              parent.dataset.routeView=JSON.stringify({map:s.map,shortTouch:shortTouch.matches,player:screenBox({x:s.position.x-27,y:s.position.y-PLACEHOLDER_HEIGHT-3,width:54,height:PLACEHOLDER_HEIGHT+12}),ring:ring.visible?screenBox(ring.getBounds()):null,hint:hint.visible?{box:screenBox(hint.getBounds()),text:hint.text}:null,labels:worldLabels});
+              }else delete parent.dataset.routeView;
               parent.dataset.mapObjects=String(mapObjects);
               sampled();
             };

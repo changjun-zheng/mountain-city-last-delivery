@@ -168,7 +168,8 @@ function drawStreetStairs(scene: Phaser.Scene, layer: Phaser.GameObjects.Layer, 
   if (x===WEST_STREET_JOIN.x) {
     const sign = scene.add.text(x,upper?top-24:bottom+22,upper?'↓ 西外阶 · 沿坡下中街':'↑ 西外阶 · 沿坡回上街',{
       fontFamily:'Microsoft YaHei, sans-serif',fontSize:'16px',color:'#f7e5cc',backgroundColor:'#3e303a',padding:{x:8,y:4},
-    }).setOrigin(.5).setDepth(-3);
+    }).setOrigin(.5).setDepth(-3).setName('viewport-west-sign');
+    sign.setData('viewportHome',{x:sign.x,y:sign.y,text:sign.text});
     layer.add(sign);
   }
 }
@@ -521,7 +522,8 @@ export function drawStorybookSample(scene: Phaser.Scene, layer: Phaser.GameObjec
       const sprite = scene.add.image(house.x+house.w/2,bottom,key('props'),frame).setOrigin(.5,1).setDepth(bottom);
       sprite.setScale((house.w+58)/sprite.width); layer.add(sprite); occludes(sprite,house);
       if (house.kind) {
-        label(house.x+house.w/2,bottom-112,house.kind==='guide'?'临江导览 · 临街 2F':'木作楼 · 临街 3F',16,bottom+1);
+        const board=label(house.x+house.w/2,bottom-112,house.kind==='guide'?'临江导览 · 临街 2F':'木作楼 · 临街 3F',16,bottom+1);
+        if(house.kind==='guide')board.setName('viewport-guide-sign').setData('viewportHome',{x:board.x,y:board.y,text:board.text});
         const threshold=g(-60); threshold.fillStyle(0xf2ddb3); threshold.fillRoundedRect(house.x+house.w/2-40,bottom+2,80,12,3);
       }
     }

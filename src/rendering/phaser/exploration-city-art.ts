@@ -280,6 +280,7 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     g.fillStyle(0xf0ead2,0.85);for(let i=0;i<3;i++)g.fillRect(cx-19+i*15,topY+40,9,22);
     // clock turret above the shaft, kept small so the silhouette stays a spire
     const ct=topY-50;
+    g.setName('viewport-monument-body').setData('viewportBounds',{x:r.x,y:ct,width:r.w,height:r.y+r.h+35-ct});
     g.fillStyle(0xb5b09b);g.fillRect(cx-28,ct,56,50);
     g.fillStyle(0x8f8a75);g.fillRect(cx+24,ct,4,50);
     g.fillStyle(0x6f6a58);g.fillRect(cx-28,ct,56,5);
@@ -287,7 +288,7 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     g.lineStyle(2,0x8d856a);g.strokeCircle(cx,ct+26,14);
     g.fillStyle(0x5d6a6b);g.fillCircle(cx,ct+26,2);
     g.lineStyle(2,0x5a6a6a);g.lineBetween(cx,ct+26,cx+8,ct+19);g.lineBetween(cx,ct+26,cx-5,ct+20);
-    label(cx,cy+r.h/2+24,'解\n放\n碑',15,'#596c6d',961);
+    label(cx,cy+r.h/2+24,'解\n放\n碑',15,'#596c6d',961).setName('viewport-monument-name');
     for(const [lx,ly] of [[570,990],[920,990],[570,790],[930,790],[1180,620],[1510,620],[2200,620],[2820,760]]){const l=scene.add.graphics().setDepth(ly);layer.add(l);l.fillStyle(0x4c5b5b);l.fillRect(lx-6,ly-6,12,11);l.fillStyle(0x8b9a95);l.fillRect(lx-6,ly-6,12,2);l.fillStyle(0xffd58b);l.fillCircle(lx,ly-1,3);}
     label(660,1225,'解放碑广场',15,'#f2e8d5',950).setAlpha(.7);label(2130,739,'商业步行街',14,'#f2e8d5',950).setAlpha(.7);label(2970,976,'街巷向东 · 沧白路入口',12,'#f2e8d5',950).setAlpha(.6);link(3120,900,'前往沧白路');
     // Lighting pass: cool wash across the whole map, then every lamp as a warm

@@ -14,16 +14,17 @@ import {chromium} from 'playwright-core';
 import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './browser-selection.mjs';
 
 const args=process.argv.slice(2);
-const modes=['--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only'];
+const modes=['--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only','--viewport-only'];
 if(!args.includes('--production')||args.some(a=>a!=='--production'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
 const styleAcceptance=args.includes('--style-02a');
 const resizeAcceptance=args.includes('--resize-only');
 const pauseAcceptance=args.includes('--pause-only')||args.includes('--pause-multitouch-only');
 const saveAcceptance=args.includes('--save-only');
 const collectionAcceptance=args.includes('--collection-only');
+const viewportAcceptance=args.includes('--viewport-only');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results',collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
 const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
@@ -35,6 +36,7 @@ if(resizeAcceptance){report.task='RESIZE-01';report.scope='dynamic-canvas-and-he
 if(pauseAcceptance){report.task='PAUSE-01';report.scope=args.includes('--pause-multitouch-only')?'additional held-stick plus second-finger menu diagnostic':'nested-pause-journal-help-title; fresh starts and separately labelled river photo fixture';}
 if(saveAcceptance){report.task='SAVE-01';report.scope='isolated archive corruption, storage faults and explicit restart; fixture injection separate from real UI input';}
 if(collectionAcceptance){report.task='COLLECTION-01';report.scope='three optional souvenir routes using journal navigation and physical keyboard/CDP joystick; legal unlocked fixture only at start';}
+if(viewportAcceptance){report.task='VIEWPORT-01';report.scope='fresh title/lesson/visitor to upper guide, short-landscape west-stair return; screenshot and screen-boundary review';}
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
 async function hashTree(path){for(const e of await readdir(path,{withFileTypes:true})){const p=join(path,e.name);if(e.isDirectory())await hashTree(p);else report.hashes[relative(process.cwd(),p).replaceAll('\\','/')]=await sha(p);}}
 await hashTree('src');
@@ -718,6 +720,85 @@ async function collectionProbe(){
  report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
 }
 
+async function viewportProbe(){
+ const violations=[];
+ const spawns=[];
+ const diagnosticUrl=new URL(base);diagnosticUrl.searchParams.set('viewport-diagnostics','1');
+ report.viewportDiagnostics={enabledUrl:diagnosticUrl.href,ordinaryUrl:base,ordinaryScope:'fresh-start framing smoke only; full route uses diagnostics'};
+ const gap=8;
+ const inspect=async(page,size,phase,roles)=>{
+  await fitCanvas(page);await frames(page,2);
+  const evidence=await page.evaluate(()=>{
+   const stage=document.querySelector('#exp-stage'),root=document.querySelector('#exp-root');
+   const controls=['.exp-location','.exp-hud nav','#exp-stick','#exp-interact','#exp-onboarding','#exp-prompt'].map(selector=>{
+    const e=root.querySelector(selector),b=e.getBoundingClientRect();return{selector,left:b.left,right:b.right,top:b.top,bottom:b.bottom,width:b.width,height:b.height};
+   }).filter(b=>b.width>0&&b.height>0);
+   return{url:location.href,view:JSON.parse(stage.dataset.routeView),controls,cameraX:Number(stage.dataset.cameraX),cameraY:Number(stage.dataset.cameraY),cameraWidth:Number(stage.dataset.viewportWidth),cameraHeight:Number(stage.dataset.viewportHeight),position:{x:Number(root.dataset.x),y:Number(root.dataset.y)}};
+  });
+  const boxes={player:evidence.view.player,ring:evidence.view.ring,hint:evidence.view.hint?.box,...Object.fromEntries(Object.entries(evidence.view.labels).map(([name,v])=>[name,v.box]))};
+  const failures=[];
+  for(const name of roles){
+   const b=boxes[name];if(!b){failures.push(name+' missing');continue;}
+   if(b.left<gap||b.top<gap||b.right>size.width-gap||b.bottom>size.height-gap)failures.push(name+' outside 8px viewport margin');
+   for(const c of evidence.controls)if(!(b.right+gap<=c.left||c.right+gap<=b.left||b.bottom+gap<=c.top||c.bottom+gap<=b.top))failures.push(name+' within 8px of '+c.selector);
+  }
+  for(const [name,label] of Object.entries(evidence.view.labels)){
+   if(name==='viewport-guide-sign'||name==='viewport-west-sign')assert.equal(label.fontSize,'16px');
+   if(!evidence.view.shortTouch&&label.home){assert.equal(label.world.x+label.world.width/2,label.home.x);assert.ok(Math.abs(label.world.y+label.world.height/2-label.home.y)<.01);}
+  }
+  report.timeline.push({event:'VIEWPORT-01 screen criteria',size,phase,gap,roles,failures,evidence});
+  await shot(page,`${size.width}-${phase}`);
+  violations.push(...failures.map(reason=>({size,phase,reason})));
+  return evidence;
+ };
+ for(const [size,touch] of [[{width:1280,height:760},false],[{width:667,height:375},true],[{width:844,height:390},true]]){
+  const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1}),press=archivePress(page,touch);
+  await page.goto(diagnosticUrl.href);await loaded(page);assert.equal((await state(page)).hasJourney,'false');await press('exp-begin');await settleIntro(page);await press('exp-intro-start');if(touch)await touchPort(page);
+  const spawn=await inspect(page,size,'plaza-spawn',['player','ring','hint','viewport-monument-body','viewport-monument-name']);
+  spawns.push({size,touch,spawn});
+  if(!touch){assert.equal(spawn.cameraX,0);assert.ok(Math.abs(spawn.cameraY-(790-spawn.cameraHeight*.58))<.01);}
+  await walk(page,900,875);await inspect(page,size,'plaza-approach',['player','ring','viewport-monument-body','viewport-monument-name']);
+  await interact(page,'city-monument');await dialogueLabel(page,'收起',touch);await press('exp-close');assert.equal((await state(page)).onboarding,'continue');await press('exp-onboarding-skip');
+  await follow(page,'city-to-entry',touch,press);await interact(page,'city-to-entry');await follow(page,'visitor',touch,press);await interact(page,'visitor');await press('exp-close');
+  await follow(page,'entry-to-core',touch,press);await interact(page,'entry-to-core');
+  const beforeStairs=await state(page);assert.equal(beforeStairs.map,'upper');assert.equal(beforeStairs.unlocked,'false');
+  const upper=await inspect(page,size,'upper-entry',['player','viewport-guide-sign','viewport-west-sign']);
+  if(!touch){assert.equal(upper.cameraX,0);assert.ok(Math.abs(upper.cameraY-(690-upper.cameraHeight*.58))<.01);}
+  const crossings=[];
+  if(touch){
+   await walk(page,250,690);await walk(page,250,920);await inspect(page,size,'west-upper-approach',['player','viewport-west-sign']);
+   for(const [direction,map] of [[1,'middle'],[-1,'upper']]){
+    const b=await page.locator('#exp-stick').boundingBox(),center={x:b.x+b.width/2,y:b.y+b.height/2},raw=await rawTouch(page,77);
+    await page.evaluate(()=>window.__viewportCross=[]);await raw.start(center);await raw.move({...center,y:center.y+direction*32});
+    try{await wait(page,map=>{
+     const d=document.querySelector('#exp-root').dataset,g=document.querySelector('#exp-stage').dataset;
+     window.__viewportCross.push({map:d.map,x:Number(d.x),y:Number(d.y),cameraX:Number(g.cameraX),cameraY:Number(g.cameraY)});return d.map===map;
+    },map);}finally{await raw.end();}
+    await wait(page,()=>[...document.querySelectorAll('#exp-stage > div')].every(e=>!e.style.backgroundImage));
+    const samples=await page.evaluate(()=>window.__viewportCross),lastOld=samples.filter(s=>s.map!==map).at(-1),firstNew=samples.find(s=>s.map===map);
+    assert.ok(lastOld&&firstNew);assert.ok(Math.abs(firstNew.x-lastOld.x)<5);
+    assert.ok(Math.abs((firstNew.y-(map==='middle'?410:990))-(lastOld.y-(map==='middle'?990:410)))<15);
+    assert.ok(Math.abs((firstNew.y-firstNew.cameraY)-(lastOld.y-lastOld.cameraY))<8);
+    const s=await state(page);assert.equal(s.runtimeId,beforeStairs.runtimeId);assert.equal(s.progress,beforeStairs.progress);assert.equal(s.unlocked,'false');
+    crossings.push({direction,map,samples,state:s});await inspect(page,size,map==='middle'?'west-middle-landing':'west-upper-return',['player','viewport-west-sign']);
+   }
+  }
+  await follow(page,'guide-door',touch,press);await inspect(page,size,'guide-approach',['player','viewport-guide-sign']);await interact(page,'guide-door');assert.equal((await state(page)).map,'guide2');
+  await shot(page,`${size.width}-guide2-active-entry`);
+  record(`VIEWPORT-01 ${size.width} fresh lesson/visitor/upper guide interactions and ${touch?'same-bank west stairs round-trip':'unchanged desktop camera and sign anchors'}`,{fixture:'fresh empty storage; native keyboard/CDP joystick and journal navigation; no state writes',spawn,upper,crossings});await page.close();
+ }
+ report.viewportViolations=violations;assert.deepEqual(violations,[]);
+ for(const {size,touch,spawn} of spawns){
+  const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1}),press=archivePress(page,touch);
+  await page.goto(base);await loaded(page);await press('exp-begin');await settleIntro(page);await press('exp-intro-start');await fitCanvas(page);await frames(page,2);
+  assert.equal(await page.locator('#exp-stage').getAttribute('data-route-view'),null);
+  const s=await state(page);assert.equal(s.x,spawn.position.x);assert.equal(s.y,spawn.position.y);assert.ok(Math.abs(s.cameraX-spawn.cameraX)<.01);assert.ok(Math.abs(s.cameraY-spawn.cameraY)<.01);
+  await shot(page,`${size.width}-ordinary-entry-no-diagnostics`);
+  record(`VIEWPORT-01 ${size.width} ordinary entry has matching spawn framing and no diagnostic JSON`,{url:page.url(),scope:'startup smoke only; other route checks use diagnostic query',state:s});await page.close();
+ }
+ report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
+}
+
 async function styleRoute(size,touch){
  const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1});
  const press=id=>page.locator(`#${id}`)[touch?'tap':'click']();
@@ -953,7 +1034,8 @@ try{
  headlessProcess.on('exit',(code,signal)=>report.timeline.push({event:'chrome-exit',code,signal,at:new Date().toISOString()}));
  browser.on('context',context=>{context.on('close',()=>report.timeline.push({event:'context-close',at:new Date().toISOString()}));context.on('page',page=>{page.on('close',()=>report.timeline.push({event:'page-close',at:new Date().toISOString()}));page.on('crash',()=>report.timeline.push({event:'page-crash',at:new Date().toISOString()}));});});
  const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(collectionAcceptance)await collectionProbe();
+ if(viewportAcceptance)await viewportProbe();
+ else if(collectionAcceptance)await collectionProbe();
  else if(saveAcceptance)await saveProbe();
  else if(args.includes('--pause-multitouch-only')){for(const size of [{width:844,height:390},{width:667,height:375}])await pauseSecondaryTouch(size);report.layers.touchEmulation='PASS';}
  else if(pauseAcceptance)await pauseProbe();
