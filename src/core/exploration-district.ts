@@ -14,6 +14,6 @@ export const DISTRICT_SAFE = Object.freeze({
   riverArrival:{map:'riverfront',x:350,y:650},riverView:{map:'riverfront',x:1910,y:1050},
 } as const);
 export const DISTRICT_TARGETS:readonly ExplorationTarget[] = Object.freeze([
-  {id:'riverfront-down',map:'lower',x:1950,y:1090,label:'沿阶道前往江湾渡口',destination:'riverArrival',locked:true},
+  {id:'riverfront-down',map:'lower',x:1950,y:1090,label:'沿江石阶到渡口',destination:'riverArrival',locked:true},
   {id:'riverfront-up',map:'riverfront',x:310,y:650,label:'沿阶道返回下层街巷',destination:'cLowerRiver',locked:true},
 ]);

@@ -81,6 +81,9 @@ test('SHORT S04 known route goes into notebook but undiscovered photo answers do
  assert.match(projectExplorationJournal(at('cMiddleGate',opened).snapshot).discoveries.at(-1).text,/木作1F门/);
 });
 test('SHORT S05 finding a view still requires shutter and never claims photographed completion',()=>{
+ assert.match(at('cLowerEast',opened).snapshot.objective,/下街东南端「沿江石阶」.*江岸/);
+ assert.match(at('cTeaRoom',opened).snapshot.objective,/先出茶歇回下街.*沿江石阶/);
+ assert.match(at('cLanternRoom',opened).snapshot.objective,/先出灯笼铺回下街.*沿江石阶/);
  const view=at('riverView',{...opened,completed:true}).snapshot;
  assert.match(view.objective,/拍摄这一刻/);assert.equal(view.photographed,false);
  assert.equal(projectExplorationJournal(view).quest.status,'进行中');

@@ -419,7 +419,9 @@ export class ExplorationRuntime {
       return '线索与导扣已齐 · 到中街东侧江纹栈门核对';
     }
     if(map==='riverfront')return has(P.completed)?'已找到江岸视野 · 再次取景，点击「拍摄这一刻」':'沿江岸步道找取景点，比较桥、江水与木楼';
-    if(map==='lower'||map==='tea'||map==='lantern')return '比较下街取景视野，也可沿东侧阶道去江岸';
+    if(map==='lower')return '到下街东南端「沿江石阶」，下到江岸比较取景';
+    if(map==='tea')return '先出茶歇回下街，再到东南端「沿江石阶」下江岸取景';
+    if(map==='lantern')return '先出灯笼铺回下街，再到东南端「沿江石阶」下江岸取景';
     return '下街通路已开 · 经外阶或木作1F下行，寻找取景点';
   }
   // Session-only teaching: never grants progress or adds fields to the save.
