@@ -4,7 +4,7 @@
 
 > 截止口径（2026-11-25）：官方 **2026-12-06**；12月10日目标已撤回。内部封版建议12-03，12-04完成材料与投稿。见[截止时间更正](DECISIONS.md#deadline-corrected-20261125)。
 >
-> [HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 待观感复核后定范围。
+> [LOAD-01 场景载入失败与恢复](#load-01-scene-startup-recovery) 已通过技术复核。[HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 待观感复核后定范围。
 
 <a id="photo-ui-01-landscape-framing"></a>
 
@@ -42,11 +42,23 @@
 
 实施与主窗口技术复核 PASS。667×375 与 844×390 的触控说明打开可见标题、摇杆与旅程内容，桌面键位从触屏阅读顺序移出。「知道了」和广场可用时的「重看广场教学」完整显示，各至少 48px。三档验证标题、暂停各自返回焦点及重看后可走动，同一运行实例、进度和存档原字节保持，桌面原键位可查。构建、286/286 单测、帮助专项 10 项与同版本暂停回归 18 项通过。专项报告的顶层设备字段保留 NOT RUN，实际三档操作见逐项记录，同构建暂停报告的桌面和触控模拟字段均 PASS。主窗口核对 201 个源码／测试、三个生产指纹及两档截图。真机及观感仍 NOT RUN。[基线](../test-results/help-01/run-2026-11-26T03-43-26-769Z/report.json) · [帮助专项](../test-results/help-01/run-2026-11-26T03-45-52-202Z/report.json) · [暂停回归](../test-results/pause-01/run-2026-11-26T03-46-47-112Z/report.json) · [667×375 修后](../test-results/help-01/run-2026-11-26T03-45-52-202Z/help-667-pause.png)
 
+<a id="load-01-scene-startup-recovery"></a>
+
+## 已实施 LOAD-01 场景载入失败与恢复
+
+状态为开发验证及主窗口技术复核 PASS。只读复核确认 Phaser 场景加载有真实的图片失败回调。现有失败提示可能被标题遮住，异步场景销毁也需用生产浏览器验证。以已执行页面脚本后的场景载入阶段为本项范围。
+
+在品牌 Chrome 定向暂扣当前构建的一张必需 WebP（优先从真实请求解析 ridge-landing 文件），观测加载层、开始按钮和场景就绪边界，放行后用实际键盘或触控开局。另用本地测试拦截对该图片返回 404，确认错误可见可读、能获焦、旧控制失效、加载层退出，场景最终清理。解除拦截后正常刷新继续，用合法非空的隔离存档对比原字节和实际恢复。错误注入、自然成功、恢复分开记，不用生产测试开关。
+
+桌面 1280×760 与手机短横屏至少 667×375。仅在实测复现时修正现有错误展示或场景销毁；保留素材、首帧就绪合同、进度和原服务。保留修前修后、报告、全量单测、构建和保护指纹，由既有开发会话独占写入，主窗口复核后独立提交及推送。
+
+实施与主窗口技术复核 PASS。桌面 1280×760 和 667×375 触控均暂扣真实必需图片，标题保持禁用、Tick 冻结，放行后能开局并实际移动。另注入一次 404，错误提示可见且获焦，原标题和控制退出，场景彻底清理。取消故障注入后刷新，从合法非空隔离档继续，原存档字节保持。Phaser 失败与正常退出共用同一幂等清理。构建、286/286 单测、LOAD 专项 5 项及正常生命周期／旋转回归 8 项通过。主窗口核对两份报告的 201 个源码／测试、三个生产指纹和实际入口。修前两份 FAIL 和故障注入日志保留，真实网络或手机体验仍 NOT RUN。[LOAD 报告](../test-results/load-01/run-2026-11-26T05-14-54-823Z/report.json) · [旋转回归](../test-results/resize-01/run-2026-11-26T05-15-26-829Z/report.json) · [修前 FAIL](../test-results/load-01/run-2026-11-26T05-07-30-829Z/report.json) · [横屏错误提示](../test-results/load-01/run-2026-11-26T05-14-54-823Z/load-667-error.png)
+
 ## 当前可试玩构建
 
-代码发布记录（2026-11-26）：按验收快照将 STYLE-02A 至 PHOTO-UI-01 拆为 11 个任务提交，与既有 HUD 提交一次快进同步到 GitHub main，远端已核对至 `ea6f4b4`。本地 `test-results/` 保留浏览器报告和历史失败。后续每项技术复核通过后独立提交和推送。
+代码发布记录（2026-11-26）：按验收快照将 STYLE-02A 至 PHOTO-UI-01 拆为 11 个任务提交，与既有 HUD 提交一次快进同步到 GitHub main，远端已核对至 `ea6f4b4`。本地 `test-results/` 保留浏览器报告和历史失败。后续各项复核后独立提交和推送，HELP-01 已对上远端 `a9e481b`。
 
-现行构建包含短横屏地标／路标和取景画框修复，普通入口为 [本地试玩](http://127.0.0.1:4199/)。同组产物的 1280×760 键盘、844×390 与 667×375 横屏触控已从空白档走完开场、委托、调查开路、拍照、完成卡与刷新；两档错误取景专项确认照片和奖励保持零。构建、286/286 单测、Chrome 最新两套共 16 项通过。地标和阶口的三档路线测量及普通入口核对在上一单项的生产构建完成。[现行主线](../test-results/style-02a/run-2026-11-26T02-51-08-616Z/report.json) · [现行取景专项](../test-results/photo-ui-01/run-2026-11-26T02-48-48-862Z/report.json) · [地标／阶口回归](../test-results/viewport-01/run-2026-11-26T02-27-47-537Z/report.json)
+本轮在短横屏地标／路标和取景画框的主线基线上补充帮助与加载恢复，普通入口为 [本地试玩](http://127.0.0.1:4199/)。该主线基线的 1280×760 键盘、844×390 与 667×375 横屏触控已从空白档走完开场、委托、调查开路、拍照、完成卡与刷新；两档错误取景专项确认照片和奖励保持零。构建、286/286 单测、该基线 Chrome 两套共 16 项通过。地标和阶口的三档路线测量及普通入口核对在上一单项的生产构建完成。[现行主线](../test-results/style-02a/run-2026-11-26T02-51-08-616Z/report.json) · [现行取景专项](../test-results/photo-ui-01/run-2026-11-26T02-48-48-862Z/report.json) · [地标／阶口回归](../test-results/viewport-01/run-2026-11-26T02-27-47-537Z/report.json)
 
 此前构建程序与界面回归 PASS。普通 H5 入口为 [本地试玩](http://127.0.0.1:4199/)。同一生产构建在桌面和 844×390、667×375 横屏触控模拟中，从空白档完成开场、游客委托、调查开路、江岸取景、完成卡及刷新续玩。选做的真实路线和档案恢复另以合法开放档单列。主窗口另用同一构建验证桌面寻路取消、慢走与快走、未拍摄不渡江，以及两档触控的渡船往返、暂停、照水岭、雨雾和刷新。三套报告对应同一组 201 个源码／测试和 3 个生产入口／资源指纹，浏览器错误为 0。构建与 286/286 单测通过。[空白档主线](../test-results/style-02a/run-2026-11-26T01-36-29-014Z/report.json) · [选做路线](../test-results/collection-01/run-2026-11-26T01-34-55-462Z/report.json) · [主窗口渡口回归](../test-results/exp-06a/run-2026-11-26T01-43-37-865Z/report.json)
 

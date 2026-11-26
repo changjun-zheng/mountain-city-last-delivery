@@ -25,6 +25,15 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
   let mapObjects = 0;
   let resizeObserver: ResizeObserver | undefined;
   let seamOverlay: HTMLDivElement | undefined;
+  const destroy = async () => {
+    if(disposed)return;
+    disposed=true;
+    resizeObserver?.disconnect();
+    seamOverlay?.remove();
+    parent.dataset.resizeObservers='0';
+    await new Promise<void>(done=>{if(!game){done();return;}game.events.once(Phaser.Core.Events.DESTROY,done);game.destroy(true);game.loop.wake();});
+    parent.dataset.mapObjects='0';
+  };
   await new Promise<void>((resolve, reject) => {
     game = new Phaser.Game({
       parent, type: Phaser.CANVAS, width: 1100, height: 650, backgroundColor: '#244a59', banner: false,
@@ -33,6 +42,7 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
       scene: {
         preload(this: Phaser.Scene) { preloadStorybook(this, reject); preloadFerryArt(this,reject); },
         create(this: Phaser.Scene) {
+          if(disposed)return;
           try {
             const scene = this;
             let map = scene.add.layer();
@@ -374,16 +384,11 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
         },
       },
     });
-  }).catch(error=>{ resizeObserver?.disconnect();seamOverlay?.remove();game?.destroy(true);throw error; });
-  return { destroy: async () => {
-    if(disposed)return;
-    disposed=true;
-    resizeObserver?.disconnect();
-    seamOverlay?.remove();
-    parent.dataset.resizeObservers='0';
-    await new Promise<void>(done=>{if(!game){done();return;}game.events.once(Phaser.Core.Events.DESTROY,done);game.destroy(true);game.loop.wake();});
-    parent.dataset.mapObjects='0';
-  } };
+  }).catch(async error=>{
+    await destroy();
+    throw error;
+  });
+  return { destroy };
 }
 
 function actor(scene: Phaser.Scene, coat: number, skin: number): Phaser.GameObjects.Container {

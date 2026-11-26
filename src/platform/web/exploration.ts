@@ -494,6 +494,12 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     return {dispose};
   }catch(error){
     get('exp-loading').hidden=true;
-    await dispose();get('exp-error').hidden=false;get('exp-error').textContent='探索小样启动失败，请刷新重试。';throw error;
+    await dispose();
+    const errorPanel=get('exp-error');
+    for(const child of Array.from(root.children))if(child instanceof HTMLElement&&child!==errorPanel)child.hidden=true;
+    errorPanel.inert=false;errorPanel.hidden=false;errorPanel.tabIndex=-1;
+    errorPanel.textContent='探索小样启动失败，请刷新重试。';
+    root.dataset.view='error';errorPanel.focus({preventScroll:true});
+    throw error;
   }
 }

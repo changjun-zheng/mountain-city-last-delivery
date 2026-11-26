@@ -274,3 +274,17 @@
   #exp-root #exp-instructions-panel button { min-height:48px; }
   #exp-root #exp-onboarding-replay { margin-bottom:8px; }
 }
+
+#exp-root #exp-error {
+  inset:0;
+  z-index:10;
+  display:grid;
+  place-content:center;
+  margin:0;
+  padding:24px;
+  color:var(--exp-paper);
+  background:#122224;
+  text-align:center;
+  font-size:18px;
+  line-height:1.6;
+}
