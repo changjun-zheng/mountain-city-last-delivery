@@ -58,6 +58,8 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
   let mementoGesture:{id:string;pointerId:number;released:boolean}|undefined;
   let dialogueGeneration=0,lastDialogue='';
   let dialogueCloseGesture:{generation:number;pointerId:number;released:boolean}|undefined;
+  let menuTouchGesture:number|undefined,consumedMenuPointer:number|undefined;
+  const clearMenuTouch=()=>{menuTouchGesture=undefined;consumedMenuPointer=undefined;};
   let lastMementoCount=0,feedbackUntil=0;
   let collectionFeedback='';
   let lastCardOpen=false;
@@ -219,6 +221,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
   };
   const setView=(view:View,open:boolean,{preserveCard=false}:{preserveCard?:boolean}={})=>{
     if(!runtime||disposed)return;
+    clearMenuTouch();
     input?.clear();shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;dialogueCloseGesture=undefined;
     if(open&&!tokens[view])tokens[view]=runtime.lifecycle.acquire(owners[view],Symbol(view));
     if(open){runtime.closeDialogue(false);runtime.closePhotoPreview(false);if(!preserveCard)runtime.closePhotoCard();}
@@ -284,6 +287,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
   const dispose=async()=>{
     if(disposed)return;
     disposed=true;
+    clearMenuTouch();
     shutterGesture=undefined;
     photoCloseGesture=undefined;
     mementoGesture=undefined;
@@ -325,6 +329,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     let focusBeforeRotation:HTMLElement|undefined;
     const orient=()=>{
       if(!runtime||phoneUpright.matches===!!orientationToken)return;
+      clearMenuTouch();
       input?.clear();
       shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;dialogueCloseGesture=undefined;
       if(phoneUpright.matches){
@@ -350,7 +355,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     cleanup.push(()=>{if(runtime&&orientationToken)runtime.lifecycle.release(orientationOwner,orientationToken);});
     orient();
     root.dataset.inputBindings='1';root.dataset.hostBindings='1';
-    const visibility=bindVisibilityPause(runtime.lifecycle,()=>{input?.clear();if(document.visibilityState==='hidden'){gateSound.stop();runtime?.closeDialogue(false);runtime?.closePhotoPreview(false);runtime?.closePhotoCard();}update();});cleanup.push(visibility);
+    const visibility=bindVisibilityPause(runtime.lifecycle,()=>{clearMenuTouch();input?.clear();if(document.visibilityState==='hidden'){gateSound.stop();runtime?.closeDialogue(false);runtime?.closePhotoPreview(false);runtime?.closePhotoCard();}update();});cleanup.push(visibility);
     const collectButton=get<HTMLButtonElement>('exp-close');
     collectButton.addEventListener('pointerdown',event=>{
       const s=runtime?.snapshot,id=s?.mementoInspectionId;
@@ -373,7 +378,30 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
       close();
     },{signal:abort.signal});
     on('exp-memento-cancel',()=>{input?.clear();mementoGesture=undefined;runtime?.closeDialogue(false);update();});
-    on('exp-menu-button',()=>setMenu(!views.menu));on('exp-resume',()=>setMenu(false));
+    const menuButton=get<HTMLButtonElement>('exp-menu-button');
+    const onMenuButton=(event:PointerEvent)=>{
+      const r=menuButton.getBoundingClientRect();
+      return menuButton.contains(event.target as Node)&&event.clientX>=r.left&&event.clientX<=r.right&&event.clientY>=r.top&&event.clientY<=r.bottom;
+    };
+    // Chrome may omit click for the second finger while a joystick touch is held.
+    // Only that finger's complete gesture gets this extra path; normal click stays.
+    menuButton.addEventListener('pointerdown',event=>{
+      clearMenuTouch();
+      if(event.pointerType==='touch'&&!event.isPrimary&&onMenuButton(event))menuTouchGesture=event.pointerId;
+    },{signal:abort.signal});
+    menuButton.addEventListener('pointerup',event=>{
+      if(menuTouchGesture!==event.pointerId)return;
+      menuTouchGesture=undefined;
+      if(event.pointerType!=='touch'||event.isPrimary||!onMenuButton(event))return;
+      setMenu(!views.menu);consumedMenuPointer=event.pointerId;
+    },{signal:abort.signal});
+    menuButton.addEventListener('pointercancel',clearMenuTouch,{signal:abort.signal});
+    menuButton.addEventListener('lostpointercapture',event=>{if(menuTouchGesture===event.pointerId)menuTouchGesture=undefined;},{signal:abort.signal});
+    menuButton.addEventListener('click',event=>{
+      if(event.detail!==0&&event instanceof PointerEvent&&event.pointerId===consumedMenuPointer){consumedMenuPointer=undefined;return;}
+      clearMenuTouch();setMenu(!views.menu);
+    },{signal:abort.signal});
+    on('exp-resume',()=>setMenu(false));
     on('exp-weather',()=>{
       weather=weather==='dusk'?'rain':'dusk';
       get('exp-weather').textContent=weather==='rain'?'天气 · 小雨':'天气 · 夕照';
@@ -440,8 +468,8 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     on('exp-restart',()=>confirm('play'));on('exp-title-restart',()=>confirm('title'));
     on('exp-cancel-restart',cancelRestart);
     on('exp-confirm-restart',()=>{if(storage?.restart())location.reload();else update();});
-    window.addEventListener('resize',()=>{shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;dialogueCloseGesture=undefined;update();},{signal:abort.signal});
-    window.addEventListener('blur',()=>{shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;dialogueCloseGesture=undefined;},{signal:abort.signal});
+    window.addEventListener('resize',()=>{clearMenuTouch();shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;dialogueCloseGesture=undefined;update();},{signal:abort.signal});
+    window.addEventListener('blur',()=>{clearMenuTouch();shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;dialogueCloseGesture=undefined;},{signal:abort.signal});
     root.addEventListener('keydown',event=>{
       if(event.code!=='Tab')return;
       if(orientationToken){event.preventDefault();return;}

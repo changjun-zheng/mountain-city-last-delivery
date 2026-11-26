@@ -12,13 +12,14 @@ import {chromium} from 'playwright-core';
 import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './browser-selection.mjs';
 
 const args=process.argv.slice(2);
-const modes=['--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only'];
+const modes=['--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only'];
 if(!args.includes('--production')||args.some(a=>a!=='--production'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
 const styleAcceptance=args.includes('--style-02a');
 const resizeAcceptance=args.includes('--resize-only');
+const pauseAcceptance=args.includes('--pause-only')||args.includes('--pause-multitouch-only');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results',resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
 const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
@@ -27,6 +28,7 @@ const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'
   limitations:['True Android Chrome and iOS Safari were not available.','The completion card closes the existing Demo route; it does not prove a full 30-45 minute chapter.','Final art, culture review and real-device H5 acceptance remain separate.']};
 const record=(name,details={})=>{report.checks.push({name,status:'PASS',...details});console.log('PASS',name);};
 if(resizeAcceptance){report.task='RESIZE-01';report.scope='dynamic-canvas-and-held-touch-rotation; fresh-start plus separately labelled river fixture';}
+if(pauseAcceptance){report.task='PAUSE-01';report.scope=args.includes('--pause-multitouch-only')?'additional held-stick plus second-finger menu diagnostic':'nested-pause-journal-help-title; fresh starts and separately labelled river photo fixture';}
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
 async function hashTree(path){for(const e of await readdir(path,{withFileTypes:true})){const p=join(path,e.name);if(e.isDirectory())await hashTree(p);else report.hashes[relative(process.cwd(),p).replaceAll('\\','/')]=await sha(p);}}
 await hashTree('src');
@@ -100,7 +102,7 @@ async function newPage(options={}){
     EventTarget.prototype.addEventListener=function(type,listener,options){if(options?.signal)window.__expSignals.push({type,signal:options.signal});return originalAdd.call(this,type,listener,options);};
     Storage.prototype.setItem=function(key,value){window.__storageMutations.push({key,at:performance.now()});return originalSet.call(this,key,value);};
     document.addEventListener('visibilitychange',()=>window.__visibility.push({state:document.visibilityState,focus:document.hasFocus(),at:performance.now()}));
-    for(const type of ['pointerdown','pointerup','pointercancel','gotpointercapture','lostpointercapture','click'])document.addEventListener(type,event=>window.__pointerEvents.push({type,pointerId:event.pointerId,target:event.target.id,trusted:event.isTrusted}),true);
+    for(const type of ['pointerdown','pointerup','pointercancel','gotpointercapture','lostpointercapture','click'])document.addEventListener(type,event=>window.__pointerEvents.push({type,pointerId:event.pointerId,target:event.target.id,button:event.target.closest?.('button')?.id,x:event.clientX,y:event.clientY,isPrimary:event.isPrimary,trusted:event.isTrusted}),true);
   });
   return page;
 }
@@ -344,6 +346,157 @@ async function resizeProbe(){
  report.layers.touchEmulation='PASS';
 }
 
+async function settleIntro(page){
+ await page.locator('.exp-intro-story').evaluate(async e=>{await Promise.all(e.getAnimations().map(a=>a.finished.catch(()=>{})));});
+ await frames(page,2);
+}
+async function keyboardActivate(page,id){
+ for(let i=0;i<30;i++){
+  if(await page.evaluate(id=>document.activeElement.id===id,id)){await page.keyboard.press('Enter');return;}
+  await page.keyboard.press('Tab');
+ }
+ throw Error('Keyboard could not reach '+id);
+}
+async function pausedAt(page,view,tokens,focus,baseline){
+ const s=await state(page);assert.equal(s.view,view);assert.equal(s.tokens,tokens);assert.equal(s.paused,'true');
+ if(focus)assert.equal(await page.evaluate(()=>document.activeElement.id),focus);
+ await frames(page);const next=await state(page);assert.equal(next.tick,s.tick);
+ if(baseline)for(const name of ['runtimeId','map','progress','tick'])assert.equal(s[name],baseline[name]);
+ return s;
+}
+async function pauseRoute(size,touch,withHeldMenu=false){
+ const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1});
+ let held;
+ const cdp=touch?await page.context().newCDPSession(page):undefined;
+ const point=(id,p)=>({id,...p,radiusX:5,radiusY:5,force:1});
+ const dispatch=async(type,points)=>{report.timeline.push({event:'pause-cdp-touch',type,points});await cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points});};
+ const press=async id=>{
+  if(!touch)return keyboardActivate(page,id);
+  if(!held)return page.locator('#'+id).tap();
+  const b=await page.locator('#'+id).boundingBox(),p=point(92,{x:b.x+b.width/2,y:b.y+b.height/2});
+  report.timeline.push({event:'secondary-touch-hit',id,box:b,point:p,hit:await page.evaluate(({x,y})=>document.elementFromPoint(x,y)?.closest('button')?.id,p)});
+  await dispatch('touchStart',[held,p]);await dispatch('touchEnd',[p]);await frames(page,2);
+ };
+ await page.goto(base);await loaded(page);await fitCanvas(page);
+ const initial=await state(page);
+ await press('exp-instructions');await pausedAt(page,'help',2,'exp-instructions-close',initial);
+ await shot(page,`pause-${size.width}-title-help`);await press('exp-instructions-close');
+ await pausedAt(page,'title',1,'exp-instructions',initial);
+ await press('exp-begin');await settleIntro(page);await shot(page,`pause-${size.width}-intro-settled`);
+ await press('exp-intro-start');await press('exp-onboarding-skip');
+ const start=await state(page);
+ if(touch){
+  const b=await page.locator('#exp-stick').boundingBox(),center=point(91,{x:b.x+b.width/2,y:b.y+b.height/2});held={...center,x:center.x+32};
+  await dispatch('touchStart',[center]);await dispatch('touchMove',[held]);
+ }else await page.keyboard.down('KeyD');
+ await wait(page,x=>Number(document.querySelector('#exp-root').dataset.x)>x+18,start.x);
+ if(touch&&!withHeldMenu){await dispatch('touchEnd',[]);held=undefined;}
+ if(touch)await press('exp-menu-button');else await page.keyboard.press('Escape');
+ const parent=await pausedAt(page,'menu',1,'exp-resume');assertEmptyInput(await rotationState(page));
+ if(touch&&withHeldMenu){await dispatch('touchEnd',[]);held=undefined;await pausedAt(page,'menu',1,'exp-resume',parent);}
+ const ownerCounts=[1];
+ for(const [open,view,close] of [['exp-menu-journal','journal','exp-notes-close'],['exp-menu-help','help','exp-instructions-close']]){
+  await press(open);await pausedAt(page,view,2,close,parent);ownerCounts.push(2);
+  await shot(page,`pause-${size.width}-${view}`);
+  if(touch&&view==='journal'){
+   await page.setViewportSize({width:size.height,height:size.width});await assertRotationLock(page,3);ownerCounts.push(3);
+   await shot(page,`pause-${size.width}-journal-portrait`);await page.setViewportSize(size);await fitCanvas(page);
+   await pausedAt(page,view,2,close,parent);ownerCounts.push(2);
+  }
+  if(!touch)await page.keyboard.down('KeyD'); // Repeated held key cannot restart movement in a child.
+  await frames(page);assert.equal((await state(page)).tick,parent.tick);
+  if(!touch&&view==='journal')await page.keyboard.press('Escape');else await press(close);
+  await pausedAt(page,'menu',1,open,parent);ownerCounts.push(1);
+ }
+ await shot(page,`pause-${size.width}-returned-parent`);await press('exp-resume');ownerCounts.push(0);
+ const resumed=await state(page);assert.equal(resumed.tokens,0);assert.equal(resumed.view,'play');
+ if(touch&&held){await dispatch('touchMove',[held]);await dispatch('touchEnd',[]);held=undefined;}else if(!touch){await page.keyboard.down('KeyD');await page.keyboard.up('KeyD');}
+ await frames(page);const tail=await state(page);assert.equal(tail.x,resumed.x);assert.equal(tail.y,resumed.y);assertEmptyInput(await rotationState(page));
+ if(touch)await touchPort(page);
+ await axis(page,'x',tail.x+25);assert.ok((await state(page)).tick>parent.tick);
+ await press('exp-menu-button');const beforeTitle=await state(page);await press('exp-title');
+ await pausedAt(page,'title',1,'exp-begin');
+ assert.equal((await state(page)).runtimeId,beforeTitle.runtimeId);assert.equal((await state(page)).progress,beforeTitle.progress);
+ await press('exp-begin');const continued=await state(page);assert.equal(continued.view,'play');assert.equal(continued.tokens,0);
+ assert.equal(continued.runtimeId,beforeTitle.runtimeId);assert.equal(continued.progress,beforeTitle.progress);
+ assert.equal(await page.evaluate(()=>document.activeElement.id),'exp-root');
+ await shot(page,`pause-${size.width}-continued`);
+ record(`PAUSE-01 ${size.width} title help, nested journal/help, input clear and title continuation`,{fixture:'fresh empty storage; normal title/intro start',parent,ownerCounts,continued,pointerEvents:touch?await page.evaluate(()=>window.__pointerEvents):undefined});
+ if(touch&&!withHeldMenu){
+  const raw=await rawTouch(page,95),b=await page.locator('#exp-stick').boundingBox(),center={x:b.x+b.width/2,y:b.y+b.height/2},drag={x:center.x+32,y:center.y},initial=await state(page);
+  await raw.start(center);await raw.move(drag);await wait(page,x=>Number(document.querySelector('#exp-root').dataset.x)>x+18,initial.x);
+  await page.keyboard.press('Escape');await keyboardActivate(page,'exp-menu-journal');const child=await pausedAt(page,'journal',2,'exp-notes-close');
+  await page.keyboard.press('Escape');await pausedAt(page,'menu',1,'exp-menu-journal',child);await keyboardActivate(page,'exp-resume');
+  const resumed=await state(page);await raw.move({...drag,x:drag.x+12});await raw.end();await frames(page);
+  const tail=await state(page);assert.equal(tail.x,resumed.x);assert.equal(tail.y,resumed.y);assertEmptyInput(await rotationState(page));
+  await axis(page,'x',tail.x+25);
+  record(`PAUSE-01 ${size.width} retained touch tail after nested panel is inert; new gesture moves`,{fixture:'additional mixed-input diagnostic on same fresh journey; native keyboard switches panels while CDP joystick remains held',child,resumed,tail});
+ }
+ await page.close();
+}
+async function pausePhoto(size,touch){
+ const page=await currentPage(fixture('riverView'),size,touch);
+ const press=id=>touch?page.locator('#'+id).tap():keyboardActivate(page,id);
+ await interact(page,'view');await press('exp-photo-close');await frames(page);assert.equal((await state(page)).completed,'true');
+ const baseline=await state(page);await interact(page,'view');await press('exp-photo-menu');
+ const menu=await pausedAt(page,'menu',1,'exp-resume');assert.equal(menu.preview,'');assert.equal(menu.photographed,'false');assert.equal(menu.progress,baseline.progress);
+ await shot(page,`photo-${size.width}-pause-without-preview`);await press('exp-resume');assert.equal((await state(page)).preview,'');
+ await interact(page,'view');await press('exp-shutter');const captured=await state(page);
+ assert.equal(captured.cardOpen,'true');assert.equal(captured.tokens,1);assert.equal(captured.photographed,'true');assert.equal(JSON.parse(captured.progress).counts.rewards,1);
+ assert.equal(await page.evaluate(()=>document.activeElement.id),'exp-card-close');await shot(page,`photo-${size.width}-completion`);
+ await press('exp-card-close');assert.equal((await state(page)).view,'play');assert.equal((await state(page)).tokens,0);
+ await interact(page,'view');await press('exp-shutter');assert.equal((await state(page)).progress,captured.progress);
+ await press('exp-card-title');await pausedAt(page,'title',1,'exp-begin');assert.equal((await state(page)).progress,captured.progress);
+ await press('exp-begin');assert.equal((await state(page)).runtimeId,captured.runtimeId);assert.equal((await state(page)).progress,captured.progress);assert.equal((await state(page)).tokens,0);
+ await shot(page,`photo-${size.width}-continued`);
+ record(`PAUSE-01 ${size.width} preview to pause cancels without photo, new shutter, completion continue/title and reward idempotency`,{fixture:'legal inline riverView accepted/clue/item/unlocked save; normal discovery return before baseline; not fresh route',baseline,menu,captured});await page.close();
+}
+async function pauseSecondaryTouch(size){
+ const page=await newPage({viewport:size,isMobile:true,hasTouch:true,deviceScaleFactor:1});await page.goto(base);await loaded(page);await freshPlay(page,true);
+ const cdp=await page.context().newCDPSession(page),events=[];
+ const point=(id,x,y)=>({id,x,y,radiusX:5,radiusY:5,force:1});
+ const send=async(type,points)=>{events.push({type,points});await cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points});};
+ const b=await page.locator('#exp-stick').boundingBox(),center=point(91,b.x+b.width/2,b.y+b.height/2),hold={...center,x:center.x+32};
+ const m=await page.locator('#exp-menu-button').boundingBox(),button=point(92,m.x+m.width/2,m.y+m.height/2),outside={...button,x:button.x-90};
+ const hit=await page.evaluate(p=>({id:document.elementFromPoint(p.x,p.y)?.closest('button')?.id}),button);assert.equal(hit.id,'exp-menu-button');
+ const start=async()=>{const s=await state(page);await send('touchStart',[center]);await send('touchMove',[hold]);await wait(page,x=>Number(document.querySelector('#exp-root').dataset.x)>x+12,s.x);await send('touchStart',[hold,button]);};
+ await start();await send('touchMove',[hold,outside]);await send('touchEnd',[outside]);await frames(page);assert.equal((await state(page)).view,'play');assert.equal((await state(page)).tokens,0);await send('touchEnd',[]);
+ await start();await send('touchCancel',[]);await frames(page);assert.equal((await state(page)).view,'play');assert.equal((await state(page)).tokens,0);
+ await start();await page.setViewportSize({width:size.height,height:size.width});await assertRotationLock(page,1);await page.setViewportSize(size);await fitCanvas(page);await send('touchEnd',[button]);await send('touchEnd',[]);await frames(page);assert.equal((await state(page)).view,'play');assert.equal((await state(page)).tokens,0);
+ await start();await shot(page,`secondary-${size.width}-two-fingers-down`);await send('touchEnd',[button]);
+  const menu=await pausedAt(page,'menu',1,'exp-resume');await send('touchEnd',[]);await pausedAt(page,'menu',1,'exp-resume',menu);
+ assertEmptyInput(await rotationState(page));await shot(page,`secondary-${size.width}-menu-once`);
+ const pointers=await page.evaluate(()=>window.__pointerEvents);
+ const releases=pointers.filter(e=>e.type==='pointerup'&&e.button==='exp-menu-button'&&e.isPrimary===false);
+ assert.ok(releases.some(e=>e.trusted&&e.x===button.x&&e.y===button.y));
+  // CDP rejects releasing an already-ended touch. Separately inject duplicate UI
+  // events only to test the host guard; real opening above remains trusted CDP.
+  await page.evaluate(({id,x,y})=>{
+   const button=document.querySelector('#exp-menu-button'),init={bubbles:true,pointerType:'touch',isPrimary:false,pointerId:id,clientX:x,clientY:y};
+   button.dispatchEvent(new PointerEvent('pointerup',init));
+   button.dispatchEvent(new PointerEvent('click',{...init,detail:1}));
+  },{id:releases.at(-1).pointerId,x:button.x,y:button.y});
+  await pausedAt(page,'menu',1,'exp-resume',menu);
+ await page.locator('#exp-resume').tap();assert.equal((await state(page)).tokens,0);await touchPort(page);await axis(page,'x',(await state(page)).x+25);
+  record(`PAUSE-01 ${size.width} secondary touch pauses once; outside, cancel, rotation and repeated release are inert`,{fixture:'fresh normal title/intro; CDP simultaneous joystick and pause finger',duplicateEventLayer:'Supplementary synthetic pointerup and late click on same ended pointer; CDP forbids a second native touchEnd',menuBounds:m,button,hit,events,pointers,menu});await page.close();
+}
+async function pauseMouse(){
+ const page=await newPage({viewport:{width:1280,height:760}});await page.goto(base);await loaded(page);await freshPlay(page,false);
+ await page.locator('#exp-menu-button').click();const parent=await pausedAt(page,'menu',1,'exp-resume');
+ await page.locator('#exp-menu-help').click();await pausedAt(page,'help',2,'exp-instructions-close',parent);
+ await page.locator('#exp-instructions-close').click();await pausedAt(page,'menu',1,'exp-menu-help',parent);
+ await page.locator('#exp-resume').click();assert.equal((await state(page)).tokens,0);
+ record('PAUSE-01 original mouse click menu and nested help path retained');await page.close();
+}
+async function pauseProbe(){
+ for(const [size,touch] of [[{width:1280,height:760},false],[{width:844,height:390},true],[{width:667,height:375},true]]){
+  await pauseRoute(size,touch);await pausePhoto(size,touch);
+ }
+ await pauseMouse();
+ for(const size of [{width:844,height:390},{width:667,height:375}])await pauseSecondaryTouch(size);
+ report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
+}
+
 async function styleRoute(size,touch){
  const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1});
  const press=id=>page.locator(`#${id}`)[touch?'tap':'click']();
@@ -358,7 +511,7 @@ async function styleRoute(size,touch){
  await press('exp-begin');
  assert.equal((await state(page)).view,'intro');
  assert.match(await page.locator('#exp-intro').innerText(),/沧白路栏边/);
- await capture('intro');
+ await settleIntro(page);await capture('intro');
  await press('exp-intro-start');
  const started=Date.now();
  await capture('plaza');
@@ -576,7 +729,9 @@ try{
  headlessProcess.on('exit',(code,signal)=>report.timeline.push({event:'chrome-exit',code,signal,at:new Date().toISOString()}));
  browser.on('context',context=>{context.on('close',()=>report.timeline.push({event:'context-close',at:new Date().toISOString()}));context.on('page',page=>{page.on('close',()=>report.timeline.push({event:'page-close',at:new Date().toISOString()}));page.on('crash',()=>report.timeline.push({event:'page-crash',at:new Date().toISOString()}));});});
  const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(resizeAcceptance)await resizeProbe();
+ if(args.includes('--pause-multitouch-only')){for(const size of [{width:844,height:390},{width:667,height:375}])await pauseSecondaryTouch(size);report.layers.touchEmulation='PASS';}
+ else if(pauseAcceptance)await pauseProbe();
+ else if(resizeAcceptance)await resizeProbe();
  else if(styleAcceptance){
   await styleRoute({width:1280,height:760},false);report.layers.desktopChrome='PASS';
   for(const size of [{width:844,height:390},{width:667,height:375}])await styleRoute(size,true);
