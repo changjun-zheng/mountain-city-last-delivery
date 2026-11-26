@@ -1,4 +1,5 @@
-/* Title scene. Local dusk palette, separate from the in-game paper panels. */
+/* STYLE-02A title and intro. A palette: ink, cream, yellow, teal.
+   The street itself is inline SVG (exploration-title-art.ts), not a photo. */
 @font-face {
   font-family:"Pokan Title";
   src:url('./assets/pokan-title.woff') format("woff");
@@ -8,33 +9,135 @@
   unicode-range:U+4E4B,U+574E,U+5761,U+95F4;
 }
 
+/* ---------- Real loading: shown from boot until the scene is mounted ---------- */
+#exp-root .exp-loading {
+  position:absolute;
+  inset:0;
+  z-index:9;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:18px;
+  padding:24px;
+  background:
+    radial-gradient(ellipse at 62% 58%,#e9a65d1a 0%,transparent 52%),
+    radial-gradient(ellipse at 24% 18%,#4f8a7e1f 0%,transparent 46%),
+    #0b1718;
+  color:#f2e8d5;
+  transition:opacity 280ms ease-out;
+}
+#exp-root .exp-loading[hidden] { display:none; }
+#exp-root .exp-loading.is-done { opacity:0; pointer-events:none; }
+#exp-root .exp-loading-kicker {
+  font:400 clamp(38px,7vw,58px)/1 "Pokan Title", KaiTi, STKaiti, "Songti SC", serif;
+  letter-spacing:.1em;
+  color:#f2e8d5;
+}
+#exp-root .exp-loading-route {
+  position:relative;
+  width:min(300px,68vw);
+  height:2px;
+  margin-top:4px;
+  background:linear-gradient(90deg,#f2e8d533,#f2e8d566,#f2e8d533);
+}
+#exp-root .exp-loading-route i {
+  position:absolute;
+  top:50%;
+  width:7px; height:7px;
+  translate:0 -50%;
+  border:1px solid #e8c35a;
+  border-radius:50%;
+  background:#0b1718;
+}
+#exp-root .exp-loading-route i:nth-of-type(1) { left:0; }
+#exp-root .exp-loading-route i:nth-of-type(2) { left:50%; translate:-50% -50%; }
+#exp-root .exp-loading-route i:nth-of-type(3) { right:0; }
+#exp-root .exp-loading-dot {
+  position:absolute;
+  top:50%;
+  left:0;
+  width:9px; height:9px;
+  margin-top:-4.5px;
+  border-radius:50%;
+  background:#f2e8d5;
+  box-shadow:0 0 12px #f2e8d599;
+  animation:exp-loading-dot 2.2s cubic-bezier(.58,0,.42,1) infinite;
+}
+#exp-root .exp-loading p {
+  margin:2px 0 0;
+  color:#9ed4c8;
+  font:600 12px/1.4 var(--ui-sans, 'Microsoft YaHei', 'PingFang SC', sans-serif);
+  letter-spacing:.3em;
+  text-indent:.3em;
+}
+#exp-root .exp-loading-bar {
+  width:min(220px,54vw);
+  height:3px;
+  overflow:hidden;
+  background:#f2e8d51f;
+  border-radius:999px;
+}
+#exp-root .exp-loading-bar span {
+  display:block;
+  width:38%; height:100%;
+  background:linear-gradient(90deg,#4f8a7e,#e8c35a);
+  border-radius:999px;
+  animation:exp-loading-sweep 1.35s ease-in-out infinite;
+}
+@keyframes exp-loading-dot {
+  0% { left:0; opacity:0; }
+  12% { opacity:1; }
+  88% { opacity:1; }
+  100% { left:calc(100% - 9px); opacity:0; }
+}
+@keyframes exp-loading-sweep {
+  0% { transform:translateX(-110%); }
+  100% { transform:translateX(300%); }
+}
+
+/* ---------- Title ---------- */
 #exp-root[data-view="title"] { touch-action:pan-y; }
 #exp-root .exp-title-screen {
-  --title-paper:#fff0d5;
-  --title-muted:#d5c2b2;
-  --title-ember:#f7b87c;
-  --title-frame:#a65e40;
+  --title-paper:#f2e8d5;
+  --title-muted:#d8cbb6;
+  --title-yellow:#e8c35a;
+  --title-teal:#4f8a7e;
+  --title-line:rgba(242,232,213,.2);
   position:absolute;
   inset:0;
   z-index:5;
   display:grid;
   grid-template-columns:minmax(430px, 47%) 1fr;
-  background:
-    linear-gradient(90deg,#211b28f7 0%,#211b28eb 25%,#211b2892 43%,#231d290e 68%),
-    url('./assets/title-hongyadong.jpg') 60% center / cover no-repeat #211b28;
+  overflow:hidden;
+  background:#0b1718;
+}
+#exp-root .exp-title-art {
+  position:absolute;
+  inset:0;
+  z-index:0;
+  overflow:hidden;
+  background:#0b1718;
+}
+#exp-root .exp-title-art svg {
+  display:block;
+  width:100%;
+  height:100%;
 }
 #exp-root .exp-title-screen::after {
   content:"";
   position:absolute;
   inset:0;
+  z-index:1;
   pointer-events:none;
-  z-index:0;
-  background:radial-gradient(ellipse at 82% 66%,#ffe1a02c 0%,transparent 49%);
-  animation:title-lights 14s ease-in-out infinite alternate;
+  background:
+    linear-gradient(90deg,#0b1718f7 0%,#0b1718ee 24%,#0b1718b4 42%,#0b171824 68%,transparent 82%),
+    linear-gradient(180deg,transparent 55%,#0b17188f 100%);
+  animation:title-lights 16s ease-in-out infinite alternate;
 }
 #exp-root .exp-title-copy {
   position:relative;
-  z-index:1;
+  z-index:2;
   min-width:0;
   min-height:0;
   display:flex;
@@ -51,34 +154,37 @@
   content:"";
   width:61px;
   height:1px;
-  background:linear-gradient(90deg,#e9a268,#e9a26800);
+  background:linear-gradient(90deg,#e8c35a99,#e8c35a00);
   animation:title-wick-on 740ms ease-out both;
 }
-#exp-root .exp-title-lantern {
+#exp-root .exp-title-mark {
   position:relative;
-  width:24px;
-  height:22px;
+  width:20px;
+  height:20px;
   margin-inline:3px;
-  border:1px solid #ffbd7b;
-  border-radius:40%;
-  background:repeating-linear-gradient(90deg,#b95432 0 1px,#de7546 1px 4px);
-  box-shadow:inset 0 2px 4px #ffe0a48a,0 0 16px #fa854895;
-  animation:title-lantern-on 900ms ease-out both;
-  transform-origin:center -10px;
+  border:1.5px solid var(--title-yellow);
+  border-radius:50%;
+  background:#0b17188c;
+  box-shadow:0 0 14px #e8c35a4d;
+  animation:title-mark-in 760ms ease-out both;
 }
-#exp-root .exp-title-lantern::before,
-#exp-root .exp-title-lantern::after {
+#exp-root .exp-title-mark::before {
+  content:"";
+  position:absolute;
+  inset:6px;
+  border-radius:50%;
+  background:var(--title-yellow);
+}
+#exp-root .exp-title-mark::after {
   content:"";
   position:absolute;
   left:50%;
-  width:8px;
-  height:4px;
+  bottom:-10px;
+  width:1px;
+  height:8px;
   translate:-50% 0;
-  border-radius:1px;
-  background:#e9a866;
+  background:#e8c35a80;
 }
-#exp-root .exp-title-lantern::before { top:-3px; box-shadow:0 -4px 0 -1px #ad806c; }
-#exp-root .exp-title-lantern::after { bottom:-4px; width:5px; height:6px; }
 #exp-root #exp-title-name {
   display:flex;
   flex-wrap:nowrap;
@@ -90,7 +196,7 @@
   font:400 clamp(65px,7.6vw,122px)/1.08 "Pokan Title", KaiTi, STKaiti, "Kaiti SC", "Songti SC", serif;
   letter-spacing:-.026em;
   color:var(--title-paper);
-  text-shadow:0 3px 2px #291b28,0 0 .24em #ffa96534;
+  text-shadow:0 3px 2px #08110f,0 0 .3em #f8d5961f;
   white-space:nowrap;
 }
 #exp-root #exp-title-name span { display:block; animation:title-ink-in 760ms cubic-bezier(.23,.54,.19,1) both; }
@@ -98,20 +204,20 @@
 #exp-root .exp-title-description { margin:0; color:var(--title-muted); font-size:16px; line-height:1.6; }
 #exp-root .exp-title-actions {
   display:grid;
-  gap:6px;
+  gap:8px;
   width:min(100%,347px);
   margin:32px 0 15px;
 }
 #exp-root #exp-title-screen #exp-begin {
   position:relative;
   width:100%;
-  min-height:58px;
+  min-height:60px;
   padding:13px 48px 13px 19px;
-  border:1px solid #e59b69;
-  border-radius:4px;
-  background:linear-gradient(103deg,#a85537 0%,#82402e 76%,#78392e 100%);
-  box-shadow:inset 0 0 0 3px #6e352b55,0 4px 15px #1b141d80;
-  color:#fff3dc;
+  border:1px solid #f0d88f;
+  border-radius:5px;
+  background:linear-gradient(180deg,#f0cf74 0%,#e3ba4e 72%,#d9ad3f 100%);
+  box-shadow:inset 0 1px 0 #fff7d480,0 5px 16px #06100f66;
+  color:#132224;
   font-size:18px;
   font-weight:700;
   text-align:left;
@@ -124,16 +230,22 @@
   right:21px;
   width:9px;
   height:9px;
-  border-top:2px solid #fff3dc;
-  border-right:2px solid #fff3dc;
+  border-top:2px solid #132224;
+  border-right:2px solid #132224;
   transform:translateY(-50%) rotate(45deg);
   transition:translate 160ms;
 }
-#exp-root #exp-title-screen button:focus-visible { outline:2px solid #ffcf97; outline-offset:4px; }
+#exp-root #exp-title-screen #exp-begin:disabled {
+  opacity:.5;
+  cursor:progress;
+  box-shadow:none;
+  transform:none;
+}
+#exp-root #exp-title-screen button:focus-visible { outline:2px solid #f0d88f; outline-offset:4px; }
 @media (hover:hover) {
   #exp-root #exp-title-screen #exp-begin:hover {
-    border-color:#ffcd92;
-    box-shadow:inset 0 0 0 3px #963f3044,0 4px 17px #dfa27635;
+    border-color:#fff0b8;
+    box-shadow:inset 0 1px 0 #fff7d4a0,0 6px 20px #06100f80;
     transform:translateY(-1px);
   }
   #exp-root #exp-title-screen #exp-begin:hover::after { translate:3px 0; }
@@ -141,21 +253,25 @@
 #exp-root #exp-title-screen #exp-begin:active { transform:translateY(1px); }
 #exp-root .exp-title-secondary {
   display:grid;
-  grid-template-columns:1fr 1fr;
-  border-bottom:1px solid #cea58d3b;
+  grid-template-columns:1fr;
+  border-top:1px solid var(--title-line);
 }
 #exp-root #exp-title-screen .exp-title-secondary button {
+  display:flex;
+  align-items:center;
   min-height:46px;
-  padding:8px 10px;
-  border:1px solid transparent;
-  border-radius:3px;
+  padding:8px 4px;
+  border:0;
+  border-bottom:1px solid var(--title-line);
+  border-radius:0;
   background:transparent;
   box-shadow:none;
-  color:#e6cfb9;
+  color:#d8cbb6;
   font-size:14px;
+  text-align:left;
+  transition:background-color 160ms,color 160ms;
 }
-#exp-root #exp-title-screen .exp-title-secondary button + button { border-left-color:#cea58d3b; }
-#exp-root #exp-title-screen .exp-title-secondary button:hover { background:#f7b87c13; color:#fff0d5; }
+#exp-root #exp-title-screen .exp-title-secondary button:hover { background:#f2e8d50f; color:#f2e8d5; }
 #exp-root #exp-title-status,#exp-root #exp-archive-notice {
   max-width:353px;
   margin:0;
@@ -166,13 +282,13 @@
 #exp-root #exp-archive-notice {
   margin-top:8px;
   padding-left:9px;
-  border-left:2px solid var(--title-frame);
-  color:#ffdbad;
+  border-left:2px solid var(--title-yellow);
+  color:#f0d79a;
 }
-@keyframes title-lantern-on {
-  0% { opacity:.4; transform:rotate(-7deg); box-shadow:inset 0 1px 3px #ffe0a425; }
-  55% { opacity:1; transform:rotate(3deg); }
-  100% { opacity:1; transform:rotate(0); }
+@keyframes title-mark-in {
+  0% { opacity:0; transform:scale(.6); }
+  60% { opacity:1; transform:scale(1.12); }
+  100% { opacity:1; transform:scale(1); }
 }
 @keyframes title-wick-on {
   from { transform:scaleX(.25); transform-origin:left; opacity:.35; }
@@ -182,8 +298,9 @@
   from { transform:translateY(8px); opacity:0; clip-path:inset(-12% 100% -12% -12%); }
   to { transform:translateY(0); opacity:1; clip-path:inset(-12% -12% -12% -12%); }
 }
-@keyframes title-lights { from { opacity:.28; } to { opacity:.86; } }
+@keyframes title-lights { from { opacity:.86; } to { opacity:1; } }
 
+/* ---------- Intro ---------- */
 #exp-root[data-view="intro"] { touch-action:pan-y; }
 #exp-root .exp-intro {
   position:absolute;
@@ -191,51 +308,89 @@
   z-index:6;
   display:grid;
   align-items:center;
+  overflow:auto;
   padding:max(24px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right))
     max(24px,env(safe-area-inset-bottom)) max(clamp(24px,8vw,120px),env(safe-area-inset-left));
-  overflow:auto;
+  background:#0b1718;
+  color:#f2e8d5;
+}
+#exp-root .exp-intro-art {
+  position:absolute;
+  inset:0;
+  z-index:0;
+  overflow:hidden;
+}
+#exp-root .exp-intro-art svg { display:block; width:100%; height:100%; }
+#exp-root .exp-intro::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:1;
+  pointer-events:none;
   background:
-    linear-gradient(92deg,#261e27 4%,#261e27ef 36%,#261e2784 62%,#261e2740 100%),
-    url('./assets/title-hongyadong.jpg') 66% center / cover no-repeat #261e27;
-  color:#fae9d5;
+    linear-gradient(92deg,#0b1718 4%,#0b1718f2 36%,#0b1718a6 62%,#0b171840 100%),
+    linear-gradient(180deg,#0b171800 58%,#0b171880 100%);
 }
 #exp-root .exp-intro-story {
+  position:relative;
+  z-index:2;
   max-width:455px;
   animation:title-ink-in 510ms ease-out both;
 }
 #exp-root .exp-intro-story h2 {
   margin:0 0 15px;
-  color:#ffe3b7;
+  color:#f2e8d5;
   font:700 clamp(32px,5vw,54px)/1.15 KaiTi, STKaiti, "Microsoft YaHei", serif;
 }
 #exp-root .exp-intro-story p {
   margin:0 0 13px;
+  color:#d8cbb6;
   line-height:1.8;
   font-size:clamp(14px,1.55vw,18px);
   text-wrap:pretty;
 }
-#exp-root p.exp-intro-goal { padding-left:12px; border-left:2px solid #d19063; color:#ffd2a0; }
+#exp-root p.exp-intro-goal { padding-left:12px; border-left:2px solid #e8c35a; color:#f0d79a; }
 #exp-root .exp-intro-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:22px; }
-#exp-root #exp-intro-back { background:#342931; color:#f4d9be; }
-#exp-root #exp-intro-back:hover { background:#503a3c; }
-#exp-root .exp-intro button:focus-visible { outline-color:#ffcf97; }
+#exp-root #exp-intro-start {
+  min-height:52px;
+  padding:0 22px;
+  border:1px solid #f0d88f;
+  border-radius:5px;
+  background:linear-gradient(180deg,#f0cf74,#d9ad3f);
+  color:#132224;
+  font-size:16px;
+  font-weight:700;
+}
+#exp-root #exp-intro-start:hover { background:linear-gradient(180deg,#f7dc8e,#e3ba4e); }
+#exp-root #exp-intro-back {
+  min-height:52px;
+  padding:0 18px;
+  border:1px solid #f2e8d53d;
+  border-radius:5px;
+  background:transparent;
+  color:#d8cbb6;
+}
+#exp-root #exp-intro-back:hover { background:#f2e8d50f; color:#f2e8d5; }
+#exp-root .exp-intro button:focus-visible { outline-color:#f0d88f; }
 @media (orientation:landscape) and (max-height:550px) {
   #exp-root .exp-title-screen { grid-template-columns:minmax(320px,49%) 1fr; }
   #exp-root .exp-title-copy { padding-block:max(13px,env(safe-area-inset-top)) max(13px,env(safe-area-inset-bottom)); }
   #exp-root .exp-title-ornament { height:28px; }
-  #exp-root .exp-title-lantern { transform:scale(.8); }
   #exp-root #exp-title-name { font-size:clamp(47px,12vh,67px); margin:4px 0 8px; }
   #exp-root .exp-title-description { font-size:14px; }
   #exp-root .exp-title-actions { margin:16px 0 9px; }
   #exp-root #exp-title-screen #exp-begin { min-height:48px; padding-block:8px; font-size:16px; }
+  #exp-root #exp-title-screen .exp-title-secondary button { min-height:48px; padding-block:2px; font-size:12px; }
   #exp-root #exp-title-status,#exp-root #exp-archive-notice { font-size:12px; }
 }
 @media (orientation:portrait) and (pointer:fine) {
   #exp-root .exp-title-screen {
     grid-template-columns:1fr;
+  }
+  #exp-root .exp-title-screen::after {
     background:
-      linear-gradient(180deg,#251e2c12 8%,#251e2c1a 26%,#251e2cbf 57%,#251e2cfa 86%),
-      url('./assets/title-hongyadong.jpg') 68% center / cover no-repeat #211b28;
+      linear-gradient(180deg,#0b171812 8%,#0b17181a 26%,#0b1718bf 57%,#0b1718fa 86%),
+      linear-gradient(90deg,#0b1718a8 0%,transparent 70%);
   }
   #exp-root .exp-title-copy {
     --title-side:clamp(21px,7vw,48px);
@@ -246,9 +401,15 @@
   #exp-root #exp-title-name { font-size:clamp(47px,16vw,82px); margin:3px 0 10px; }
   #exp-root .exp-title-description { font-size:14px; }
   #exp-root .exp-title-actions { margin-top:22px; }
+  #exp-root .exp-intro::before {
+    background:
+      linear-gradient(180deg,#0b171800 6%,#0b1718b8 52%,#0b1718f7 88%),
+      linear-gradient(90deg,#0b17189c 0%,transparent 72%);
+  }
 }
 @media (prefers-reduced-motion:reduce) {
   #exp-root #exp-title-screen #exp-begin,
   #exp-root #exp-title-screen #exp-begin::after { transform:none; translate:none; }
   #exp-root #exp-title-screen #exp-begin::after { transform:translateY(-50%) rotate(45deg); }
+  #exp-root .exp-loading-dot { animation:none; left:48%; opacity:1; }
 }

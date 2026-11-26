@@ -1,0 +1,155 @@
+/* STYLE-02A theme overrides: A palette on the UI-01 structure.
+   Layout, sizes and touch targets stay untouched; only colour, border and
+   emphasis are re-pointed at ink / cream / yellow / teal. The paper journal
+   keeps its structure; its heavy brown accents are re-tinted. */
+#exp-root {
+  --ui-ink:#122224; --ui-plum:#142628;
+  --ui-paper:#f2e8d5; --ui-paper-2:#e3d5bd;
+  --ui-text:#26312f; --ui-muted:#6b7772;
+  --ui-ember:#e8c35a; --ui-ember-2:#4f8a7e;
+  --ui-gold:#e8c35a; --ui-jade:#4f8a7e;
+  --ui-yellow:#e8c35a; --ui-teal:#4f8a7e;
+  --ui-line:rgba(18,34,36,.24);
+}
+
+/* ---------- HUD card and top-right controls ---------- */
+#exp-root .exp-location {
+  color:#f2e8d5;
+  background:linear-gradient(180deg,rgba(20,38,40,.96),rgba(18,34,36,.9));
+  border:1px solid rgba(242,232,213,.2);
+  border-left:3px solid var(--ui-yellow, #e8c35a);
+  box-shadow:0 12px 30px rgba(4,12,12,.46);
+}
+#exp-root #exp-place { color:#9ed4c8; }
+#exp-root #exp-objective { color:#f2e8d5; }
+#exp-root #exp-save { color:#9faea4; }
+#exp-root #exp-save::before { background:#4f8a7e; box-shadow:0 0 8px #4f8a7e; }
+#exp-root #exp-auto-walk {
+  color:#f2e8d5;
+  background:rgba(26,46,48,.94);
+  border-color:rgba(242,232,213,.28);
+}
+#exp-root #exp-auto-walk:hover:not(:disabled) { background:#23403f; }
+#exp-root .exp-hud nav button {
+  color:#f2e8d5;
+  background:rgba(20,38,40,.92);
+  border-color:rgba(242,232,213,.24);
+  box-shadow:0 10px 24px rgba(4,12,12,.4);
+}
+#exp-root .exp-hud nav button:hover:not(:disabled) { background:#23403f; }
+
+/* ---------- Onboarding: paper note, yellow rule, teal help ---------- */
+#exp-root #exp-onboarding {
+  border-left-color:#e8c35a;
+  border-top-color:rgba(232,195,90,.3);
+  border-right-color:rgba(232,195,90,.3);
+  border-bottom-color:rgba(232,195,90,.3);
+  box-shadow:0 16px 40px rgba(4,12,12,.46);
+}
+#exp-root #exp-onboarding .exp-page-label { color:#7c8a80; }
+#exp-root #exp-onboarding p { color:#33413d; }
+#exp-root #exp-onboarding button#exp-onboarding-skip {
+  color:#122224;
+  background:linear-gradient(180deg,#f0cf74,#d9ad3f);
+  border-color:#c39b3c;
+}
+#exp-root #exp-onboarding button#exp-onboarding-skip:hover:not(:disabled) {
+  background:linear-gradient(180deg,#f7dc8e,#e3ba4e);
+}
+#exp-root #exp-onboarding button#exp-onboarding-help { color:#5c6b64; }
+
+/* ---------- Interaction prompt, stick and interact button ---------- */
+#exp-root #exp-prompt {
+  color:#26312f;
+  background:linear-gradient(180deg,#f7edd8,#efe0c2);
+  border-color:#c9b98f;
+}
+#exp-root #exp-prompt kbd {
+  color:#f2e8d5;
+  background:#1a2e30;
+}
+#exp-root #exp-stick {
+  background:rgba(18,34,36,.42);
+  border-color:rgba(242,232,213,.52);
+}
+#exp-root #exp-knob {
+  background:rgba(242,232,213,.8);
+}
+#exp-root #exp-interact {
+  color:#122224;
+  background:rgba(232,195,90,.94);
+  border-color:rgba(242,232,213,.7);
+}
+#exp-root #exp-interact:disabled {
+  color:#c8d3cf;
+  background:rgba(20,38,40,.92);
+  border-color:rgba(242,232,213,.3);
+}
+
+/* ---------- Pause panel: one yellow primary, ink rule ---------- */
+#exp-root .exp-menu-panel {
+  border-left-color:#1a2e30;
+  box-shadow:0 30px 80px rgba(4,12,12,.62);
+}
+#exp-root .exp-menu-panel .exp-page-label { color:#7c8a80; }
+#exp-root #exp-resume {
+  color:#122224;
+  background:linear-gradient(180deg,#f0cf74,#d9ad3f);
+  border-color:#c39b3c;
+}
+#exp-root #exp-resume:hover:not(:disabled) { background:linear-gradient(180deg,#f7dc8e,#e3ba4e); }
+#exp-root #exp-menu-save::before { background:#4f8a7e; }
+#exp-root #exp-restart { color:#4f6a62; }
+#exp-root #exp-restart:hover:not(:disabled) { color:#2f4a43; }
+
+/* ---------- Journal: keep the paper book, retire the brown wood accents ---------- */
+#exp-root .exp-journal-book {
+  border-left-color:#1a2e30;
+  box-shadow:0 30px 80px rgba(4,12,12,.62),inset 0 0 0 1px rgba(255,255,255,.28);
+}
+#exp-root .exp-journal-book::before {
+  background:linear-gradient(180deg,#e8c35a,#c39b3c);
+}
+#exp-root .exp-journal-book .exp-page-label,
+#exp-root .exp-status-label { color:#7c8a80; }
+#exp-root .exp-track-options button[aria-pressed="true"] {
+  color:#f2e8d5;
+  background:linear-gradient(180deg,#4f8a7e,#3d6f66);
+  border-color:#35605a;
+}
+#exp-root .exp-journal-pages article { border-left-color:rgba(79,138,126,.6); }
+#exp-root .exp-journal-card button {
+  color:#f2e8d5;
+  background:#3d6f66;
+  border-color:#35605a;
+}
+#exp-root #exp-memento-award { border-left-color:#e8c35a; }
+#exp-root .exp-completion-actions button:not(.exp-primary) {
+  color:#f2e8d5;
+  background:#1a2e30;
+  border-color:#35605a;
+}
+#exp-root .exp-completion-actions button:not(.exp-primary):hover { background:#23403f; }
+#exp-root .exp-completion-card .exp-completion-actions .exp-primary {
+  color:#122224;
+  background:linear-gradient(180deg,#f0cf74,#d9ad3f);
+  border-color:#c39b3c;
+}
+#exp-root .exp-completion-card .exp-completion-actions .exp-primary:hover { background:linear-gradient(180deg,#f7dc8e,#e3ba4e); }
+#exp-root .exp-completion-stamp { border-color:#b0503c; color:#a8452f; }
+
+/* ---------- Dialogue and status toasts ---------- */
+#exp-root #exp-dialogue {
+  background:#f2e8d5;
+  border-color:#c9b98f;
+  border-left-color:#4f8a7e;
+  color:#26312f;
+}
+#exp-root #exp-memento-feedback,
+#exp-root #exp-gate-feedback,
+#exp-root #exp-ferry-status {
+  color:#f2e8d5;
+  background:rgba(18,34,36,.95);
+  border-color:rgba(242,232,213,.22);
+  border-left-color:#e8c35a;
+}

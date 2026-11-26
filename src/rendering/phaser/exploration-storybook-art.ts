@@ -4,6 +4,7 @@ import type { ExplorationSnapshot } from '../../core/exploration';
 import { UPPER_EAST_STAIR_X, UPPER_STAIR_END_Y, UPPER_STAIR_LANDING_Y, UPPER_STAIR_RAIL_HALF_WIDTH,
   UPPER_SHOP_DISPLAYS, UPPER_STREET_EDGE_Y, WEST_STREET_JOIN } from '../../core/exploration-c-routes';
 import { celMaterial, prepareCelMaterials, type CelMaterial } from './exploration-cel-materials';
+import { createPlaceholderActor, posePlaceholderActor, PLACEHOLDER_HEIGHT } from './exploration-placeholder-actor';
 import propsUrl from './assets/cel-v1/props.webp';
 import travellerUrl from './assets/cel-v1/traveller.webp';
 import briskUrl from './assets/cel-v1/traveller-brisk.webp';
@@ -17,7 +18,7 @@ const prefix = 'cel-v1-';
 const key = (name: string) => prefix + name;
 const assets = { props:propsUrl, traveller:travellerUrl, brisk:briskUrl, residents:residentsUrl,
   residentsAtRest:residentsAtRestUrl, riverCity:riverCityUrl };
-const travellerHeight = 84;
+const travellerHeight = PLACEHOLDER_HEIGHT;
 export const isStorybookSample = (map: string): boolean => map === 'upper' || map === 'guide2';
 
 export function preloadStorybook(scene: Phaser.Scene, failed: (error: Error) => void): void {
@@ -33,31 +34,11 @@ export function createStorybookActor(scene: Phaser.Scene): Phaser.GameObjects.Co
     const texture = scene.textures.get(key(name));
     for (const [frame, [x,y,w,h]] of Object.entries(entries)) if (!texture.has(frame)) texture.add(frame, 0, x, y, w, h);
   }
-  const cast = scene.add.ellipse(-8,2,43,13,0x372b3d,.22).setRotation(-.13);
-  const shadow = scene.add.ellipse(0,0,23,7,0x32262f,.48);
-  const sprite = scene.add.image(0, 0, key('traveller'), '0').setOrigin(.5, 1);
-  const body = scene.add.container(0, 0, [cast, shadow, sprite]);
-  body.setData('sprite', sprite);
-  return body;
+  return createPlaceholderActor(scene);
 }
 
 export function faceStorybookActor(body: Phaser.GameObjects.Container, fx: number, fy: number, stride: number | undefined, gait:'slow'|'brisk'): void {
-  // Retain the current axis during nearly diagonal travel. Small joystick
-  // shifts around the diagonal should not flash front and side poses.
-  const previous = Number(body.getData('direction') ?? 0);
-  const horizontal = previous >= 2 ? Math.abs(fx) * 1.2 >= Math.abs(fy) : Math.abs(fx) > Math.abs(fy) * 1.2;
-  const dir = horizontal ? (fx < 0 ? 2 : 3) : (fy < 0 ? 1 : 0);
-  body.setData('direction', dir);
-  const brisk = gait==='brisk';
-  const phase = stride === undefined ? 0 : stride / (brisk?30:24) * Math.PI;
-  const lifted = stride !== undefined && Math.abs(Math.sin(phase)) > .42;
-  const texture = key(lifted&&brisk?'brisk':'traveller');
-  const offset = lifted && (!brisk || Math.sin(phase)<0) ? 4 : 0;
-  const frame = String(dir+offset);
-  const sprite = body.getData('sprite') as Phaser.GameObjects.Image;
-  if (sprite.texture.key!==texture || sprite.frame.name!==frame) sprite.setTexture(texture,frame);
-  sprite.setScale(travellerHeight / sprite.frame.realHeight);
-  sprite.setY(lifted ? (gait==='brisk'?-2.7:-1.3)*Math.abs(Math.sin(phase)) : 0);
+  posePlaceholderActor(body, fx, fy, stride, gait);
 }
 
 type Occluder = Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite;

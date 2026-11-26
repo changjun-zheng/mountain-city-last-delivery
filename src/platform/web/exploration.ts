@@ -14,6 +14,7 @@ import './exploration-ui.css';
 import './exploration-storybook.css';
 import './exploration-title.css';
 import './exploration-ui-v2.css';
+import './exploration-style-a.css';
 import {mementoImageUrl} from '../../rendering/phaser/exploration-memento-art';
 import {committedGateOpening,investigationView} from '../../rendering/exploration-feedback';
 import {createGateSound} from './exploration-gate-sound';
@@ -47,6 +48,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
   const owners:Record<View,symbol>={title:Symbol('title'),intro:Symbol('intro'),menu:Symbol('menu'),journal:Symbol('journal'),help:Symbol('instructions'),confirm:Symbol('confirm')};
   const tokens:Partial<Record<View,PauseToken>>={};
   let started=!showTitle,hasJourney=false;
+  let sceneReady=false;
   let loadStatus='';
   let savedRevision=-1;
   let shownPhoto:PhotoSiteId|undefined;
@@ -174,9 +176,13 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
       notesSignature=signature;
     }
     for(const [view,id]of Object.entries({title:'exp-title-screen',intro:'exp-intro',menu:'exp-menu',journal:'exp-notes',help:'exp-instructions-panel',confirm:'exp-confirm'}))get(id).hidden=!views[view as View];
-    const beginButton=get('exp-begin');
+    const beginButton=get<HTMLButtonElement>('exp-begin');
     const beginLabel=hasJourney?'继续旅程':'开始冒险';
     if(beginButton.textContent!==beginLabel)beginButton.textContent=beginLabel;
+    // The scene mounts behind the title. Begin only becomes actionable once the
+    // real scene/resources are mounted, so the button never promises a no-op.
+    beginButton.disabled=!sceneReady;
+    root.dataset.sceneReady=String(sceneReady);
     const titleStatus=get('exp-title-status');
     const status=loadStatus!=='尚未保存'&&loadStatus.includes('未保存')
       ?loadStatus+'。可先试走；明确重新开始才会覆盖当前试玩记录。'
@@ -220,6 +226,11 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     views[view]=open;update();
   };
   const focus=(id:string)=>get(id).focus({preventScroll:true});
+  const hideLoading=()=>{
+    const loading=get('exp-loading');
+    loading.classList.add('is-done');
+    window.setTimeout(()=>{if(!disposed)loading.hidden=true;},300);
+  };
   const setMenu=(open:boolean)=>{setView('menu',open);focus(open?'exp-resume':'exp-menu-button');};
   const setJournal=(open:boolean)=>{setView('journal',open);focus(open?'exp-notes-close':views.menu?'exp-menu-journal':'exp-notes-toggle');};
   const startJourney=(from:'title'|'intro')=>{
@@ -286,6 +297,8 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     get('exp-investigation-image').removeAttribute('src');get('exp-gate-feedback').hidden=true;
     for(const img of Array.from(root.querySelectorAll('#exp-memento-list img, #exp-memento-image')))img.removeAttribute('src');
     root.dataset.disposed='true';root.dataset.tokens='0';root.dataset.hostBindings='0';
+    // Backstop: a bfcache restore must never sit under the loading veil.
+    get('exp-loading').hidden=true;
   };
   try {
     // Access can itself throw (private/blocked storage). Keep an explicit failure port.
@@ -323,12 +336,14 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
         orientationToken=undefined;
       }
       orientationNotice.hidden=!orientationToken;
-      for(const element of orientationContent)element.inert=!!orientationToken;
+      // The title screen also stays inert until the scene is ready, so its buttons
+      // cannot be Tab-reached and fired while the loading veil is still up.
+      for(const element of orientationContent)element.inert=!!orientationToken||(element.id==='exp-title-screen'&&!sceneReady);
       update();
       if(orientationToken)orientationNotice.focus({preventScroll:true});
       else if(focusBeforeRotation?.isConnected&&root.contains(focusBeforeRotation)&&focusBeforeRotation.getClientRects().length){
         focusBeforeRotation.focus({preventScroll:true});
-      }else if(views.title)focus('exp-begin');
+      }else if(views.title&&sceneReady)focus('exp-begin');
       else root.focus({preventScroll:true});
     };
     phoneUpright.addEventListener('change',orient,{signal:abort.signal});
@@ -439,11 +454,16 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     },{signal:abort.signal});
     window.addEventListener('pagehide',()=>{void dispose();},{once:true,signal:abort.signal});
     const scene=await mountExplorationScene(get('exp-stage'),runtime,update,()=>weather);
-    if(disposed){await scene.destroy();return {dispose};}
+    if(disposed){get('exp-loading').hidden=true;await scene.destroy();return {dispose};}
     cleanup.push(scene.destroy);
-    update();root.dataset.ready='true';if(showTitle&&!orientationToken)focus('exp-begin');
+    sceneReady=true;
+    // The title stays inert (no Tab into its buttons) until the scene can act on them.
+    get('exp-title-screen').removeAttribute('inert');
+    update();root.dataset.ready='true';hideLoading();
+    if(showTitle&&!orientationToken)focus('exp-begin');
     return {dispose};
   }catch(error){
+    get('exp-loading').hidden=true;
     await dispose();get('exp-error').hidden=false;get('exp-error').textContent='探索小样启动失败，请刷新重试。';throw error;
   }
 }

@@ -4,8 +4,8 @@ import {PROLOGUE_INFILL,PROLOGUE_MONUMENT} from '../../core/exploration-prologue
 import {drawTopDownBuilding, drawTopDownRoom} from './exploration-topdown-art';
 import {stoneTiles, lightPool} from './exploration-paint';
 import {ambient, glowLayer, pool, halo, doorSpill} from './exploration-lighting';
-import {shopFront,type ShopKind} from './exploration-shopfront';
-import {hangingBoard, lantern, stall, parkedCar, passerby, streetTree, utilityPole, wire, lampPost, bench, kiosk, planter, crateStack, stoneStool, bicycle, laundryPole} from './exploration-street-deco';
+import {modernShopFront,type ModernShopKind} from './exploration-modern-shopfront';
+import {hangingBoard, stall, parkedCar, passerby, streetTree, utilityPole, wire, lampPost, bench, kiosk, planter, crateStack, stoneStool, bicycle, laundryPole} from './exploration-street-deco';
 
 // Original modular trial art, informed only by the archived A-01 silhouette and
 // warm night palette. The PNG is neither altered nor loaded as a map texture.
@@ -15,7 +15,7 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
   const poly=(g:Phaser.GameObjects.Graphics,p:number[],c:number)=>{g.fillStyle(c);g.fillPoints(p.reduce<Phaser.Math.Vector2[]>((a,_,i)=>{if(i%2===0)a.push(new Phaser.Math.Vector2(p[i],p[i+1]));return a;},[]),true);};
   const label=(x:number,y:number,t:string,size=19,color='#ffe4ad',depth=1600)=>{const o=scene.add.text(x,y,t,{fontFamily:'KaiTi, STKaiti, Microsoft YaHei, serif',fontSize:`${size}px`,color,align:'center'}).setOrigin(.5).setDepth(depth);layer.add(o);return o;};
   // Which shopfront each building wears. Anything not listed keeps the plain box.
-  const shopKindOf=(name:string):ShopKind|null=>{
+  const shopKindOf=(name:string):ModernShopKind|null=>{
     if(name==='城市书店')return 'books';
     if(name==='游客服务')return 'service';
     if(name==='城市商廊')return 'arcade';
@@ -30,8 +30,8 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     const g=scene.add.graphics().setDepth(b.y+b.h);layer.add(g);
     if(PROLOGUE_INFILL.includes(b)){
       drawTopDownBuilding(g,b,{
-        roof:0x556063,ridge:0x323d40,wall:0x323d45,eave:0xc9c0a8,ground:0x98a49e,
-        door:0xe8d0a4,facade:0xcbba98,facadeLine:0x8a7f66,fhCap:92,fhRatio:0.5,
+        roof:0x39504f,ridge:0x1f3233,wall:0x253537,eave:0xcdbfa0,ground:0x79857e,
+        door:0xf0d49a,facade:0xc9b995,facadeLine:0x87795f,fhCap:92,fhRatio:0.5,
       });
       return;
     }
@@ -44,23 +44,23 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     const kind=shopKindOf(b.name);
     // Plan view only: footprint equals the blocker, roof plane on top, doorway notch below.
     drawTopDownBuilding(g,b,{
-      roof:b.kind==='service'?0x7c8a86:0x556063,
-      ridge:0x323d40,
-      wall:0x323d45,
-      eave:0xc9c0a8,
-      ground:0x98a49e,
-      door:b.kind==='service'?0xffe2a0:0xf2dcb0,
+      roof:b.kind==='service'?0x4f6f6b:0x39504f,
+      ridge:0x1f3233,
+      wall:0x253537,
+      eave:0xcdbfa0,
+      ground:0x79857e,
+      door:b.kind==='service'?0xffdda0:0xf0d9a8,
       doorInset:b.kind==='service'?72:58,
-      facade:0xdccaa6,
-      facadeLine:0x8a7f66,
+      facade:0xd3c2a0,
+      facadeLine:0x87795f,
       fhCap,fhRatio,
       skipWindows:kind!==null,
     });
     if(kind){
-      shopFront(g,b,wallTop,fh,kind);
-      label(b.x+b.w/2,wallTop+10,b.name,15,'#f4e8c6',b.y+b.h+1);
+      modernShopFront(g,b,wallTop,fh,kind);
+      label(b.x+b.w/2,wallTop+11,b.name,16,'#f2e8d5',b.y+b.h+1);
     }else{
-      label(b.x+b.w/2,b.y+b.h*0.63,b.name,18,'#fff0c5',b.y+b.h+1);
+      label(b.x+b.w/2,b.y+b.h*0.63,b.name,18,'#f7ecd2',b.y+b.h+1);
     }
   };
   const link=(x:number,y:number,name:string)=>{const g=scene.add.graphics().setDepth(y-1);layer.add(g);rect(g,x-48,y-17,96,34,0xb7bda7);g.lineStyle(3,0x5e7475);g.strokeRect(x-48,y-17,96,34);g.lineBetween(x-30,y,x+28,y);g.lineBetween(x+28,y,x+17,y-9);label(x,y-42,name,17,'#f1ddb0',1600);};
@@ -83,7 +83,7 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     pool(gl,440,392,200,124,0xffb964,0.22);pool(gl,548,548,118,46,0xffc47a,0.16);
     return;
   }
-  rect(base,0,0,m.width,m.height,0x294a60);
+  rect(base,0,0,m.width,m.height,0x1a2e30);
   if(id==='plaza'){
     // Far blocks read as distant roofs, not as a row of facades on the horizon.
     // Skyline in three receding bands: pale far towers, a mid band, then the near
@@ -101,43 +101,68 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
         }
       }
     };
-    sky(180,0x7b8ea0,38,86,152,112,0);
-    sky(180,0x5d7285,56,120,120,104,44);
-    sky(180,0x475d70,78,170,94,86,68);
+    // Dusk sky: a warm low band behind the far blocks, cooling as it rises.
+    base.fillStyle(0xe9a65d,0.1);base.fillRect(0,64,3300,116);
+    base.fillStyle(0xd98a4f,0.07);base.fillRect(0,116,3300,64);
+    base.fillStyle(0x203637,0.18);base.fillRect(0,0,3300,64);
+    sky(180,0x6f8283,38,86,152,112,0);
+    sky(180,0x4c6160,56,120,120,104,44);
+    sky(180,0x374b4d,78,170,94,86,68);
     // Haze over the far edge so the skyline sits behind the square instead of on it.
-    base.fillStyle(0x2a4b5c,0.07);base.fillRect(60,0,3180,180);
+    base.fillStyle(0x2a3f3e,0.09);base.fillRect(60,0,3180,180);
     // A low tree belt along the foot of the skyline: the far city meets the square
     // through greenery rather than a straight seam.
     for(let x=-20;x<3400;x+=26){
       const t=Math.abs(Math.sin(x*0.19));
-      base.fillStyle(0x30524a,0.8);
+      base.fillStyle(0x2f4f45,0.8);
       base.fillEllipse(x,181-t*6,44,24+t*16);
     }
-    const b=m.bounds;rect(base,b.x,b.y,b.w,b.h,0x9ba1a1);
-    stoneTiles(base,b.x,b.y,b.w,b.h,0x9ba1a1,0xb1b7b6,0x757b7c,110,55);
+    const b=m.bounds;rect(base,b.x,b.y,b.w,b.h,0x868779);
+    stoneTiles(base,b.x,b.y,b.w,b.h,0x868779,0x9fa08f,0x64665a,110,55);
     // Paving broken into big slabs: joints every 320px read as a laid square rather
     // than one poured surface, and they give the walk scale.
-    for(let x=b.x+300;x<b.x+b.w;x+=320){base.fillStyle(0x7d7868,0.4);base.fillRect(x,b.y,3,b.h);base.fillStyle(0xc9c3b2,0.26);base.fillRect(x+3,b.y,1,b.h);}
-    for(let y=b.y+300;y<b.y+b.h;y+=320){base.fillStyle(0x7d7868,0.4);base.fillRect(b.x,y,b.w,3);base.fillStyle(0xc9c3b2,0.26);base.fillRect(b.x,y+3,b.w,1);}
-    base.fillStyle(0xc2bda6);base.fillEllipse(740,905,320,320);
-    for(let i=1;i<=4;i++){base.lineStyle(1,0x8a8578,0.45);base.strokeEllipse(740,905,320*i/4,320*i/4);}
-    for(let a=0;a<20;a++){const t=a/20*Math.PI*2+0.08;base.lineStyle(1,0x8a8578,0.3);base.lineBetween(740+Math.cos(t)*84,905+Math.sin(t)*84,740+Math.cos(t)*158,905+Math.sin(t)*158);}
-    base.lineStyle(3,0x7d7868);base.strokeEllipse(740,905,320,320);
-    base.lineStyle(6,0x7d7868,0.4);base.strokeEllipse(740,905,406,406);
-    stoneTiles(base,1050,595,2180,120,0xb8b39b,0xc9c4ab,0x8d9184,80,40);base.lineStyle(2,0x8d9184,0.8);base.strokeRect(1050,595,2180,120);
-    for(let x=1090;x<3200;x+=160){base.lineStyle(1,0x9a9d8e,.45);base.lineBetween(x,600,x,712);}
+    for(let x=b.x+300;x<b.x+b.w;x+=320){base.fillStyle(0x6f7266,0.4);base.fillRect(x,b.y,3,b.h);base.fillStyle(0xbfbca9,0.24);base.fillRect(x+3,b.y,1,b.h);}
+    for(let y=b.y+300;y<b.y+b.h;y+=320){base.fillStyle(0x6f7266,0.4);base.fillRect(b.x,y,b.w,3);base.fillStyle(0xbfbca9,0.24);base.fillRect(b.x,y+3,b.w,1);}
+    base.fillStyle(0xc0b89c);base.fillEllipse(740,905,320,320);
+    for(let i=1;i<=4;i++){base.lineStyle(1,0x7d7a6c,0.45);base.strokeEllipse(740,905,320*i/4,320*i/4);}
+    for(let a=0;a<20;a++){const t=a/20*Math.PI*2+0.08;base.lineStyle(1,0x7d7a6c,0.3);base.lineBetween(740+Math.cos(t)*84,905+Math.sin(t)*84,740+Math.cos(t)*158,905+Math.sin(t)*158);}
+    base.lineStyle(3,0x6f7266);base.strokeEllipse(740,905,320,320);
+    base.lineStyle(6,0x6f7266,0.4);base.strokeEllipse(740,905,406,406);
+    stoneTiles(base,1050,595,2180,120,0xada78e,0xc0b99c,0x7c806f,80,40);base.lineStyle(2,0x7c806f,0.8);base.strokeRect(1050,595,2180,120);
+    for(let x=1090;x<3200;x+=160){base.lineStyle(1,0x8b8e7e,.45);base.lineBetween(x,600,x,712);}
     // The ground behind the frontage is a back court, not more pavement: sink it
     // so the gaps between blocks read as alleys rather than grey holes.
-    base.fillStyle(0x77807f, 0.3);
+    base.fillStyle(0x5f6a64, 0.3);
     base.fillRect(60, 180, 3180, 402);
-    base.fillStyle(0x77807f, 0.24);
+    base.fillStyle(0x5f6a64, 0.24);
     base.fillRect(60, 978, 3180, 282);
-    rect(base,2830,595,380,700,0xa4a795);
+    // The back lane band is ground, not a wall: y 430..498 sits inside the
+    // walkable bounds, so nothing here may read as a solid. A darker slab strip
+    // with transverse joints and a shallow drain channel keeps the alley tone
+    // and stops the top of the frame reading as one empty grey field.
+    base.fillStyle(0x46564f, 0.5);
+    base.fillRect(60, 430, 3180, 68);
+    base.fillStyle(0x364743, 0.6);
+    base.fillRect(60, 458, 3180, 6);
+    base.fillStyle(0x5c6c62, 0.5);
+    base.fillRect(60, 456, 3180, 2);
+    base.fillStyle(0x6f7c6e, 0.3);
+    base.fillRect(60, 430, 3180, 2);
+    base.fillStyle(0x203233, 0.35);
+    base.fillRect(60, 496, 3180, 2);
+    for(let x=90;x<3220;x+=178){
+      base.fillStyle(0x33443f, 0.45);
+      base.fillRect(x, 432, 2, 64);
+      base.fillStyle(0x66756a, 0.22);
+      base.fillRect(x+2, 432, 1, 64);
+    }
+    rect(base,2830,595,380,700,0x8f9384);
     m.buildings.forEach(modern);
     const deco=(y:number,fn:(gg:Phaser.GameObjects.Graphics)=>void)=>{const gg=scene.add.graphics().setDepth(y);layer.add(gg);fn(gg);};
     deco(560,g=>{hangingBoard(g,1660,470,26,86,0x2f4a4c);hangingBoard(g,2280,470,26,86,0x5a3630);hangingBoard(g,2870,440,24,78,0x3c4a36);});
-    deco(534,g=>{lantern(g,1878,538,10);lantern(g,1952,538,10);lantern(g,2524,538,10);lantern(g,2652,538,10);lantern(g,3004,500,9);lantern(g,3068,500,9);});
-    deco(700,g=>{stall(g,1760,650,150,90,0xb4433a);stall(g,2760,655,140,88,0x336f68);});
+    // No red lantern rows: the A direction lights the street with shop windows,
+    // lamps and the signboards rather than festival decoration.
+    deco(700,g=>{stall(g,1760,650,150,90,0xc4553d);stall(g,2760,655,140,88,0x3f7268);});
     deco(660,g=>{parkedCar(g,2040,668,0xc9a93f);});
     deco(690,g=>{passerby(g,1996,700,0x4a5f7a);passerby(g,2240,652,0x7a4a4a);passerby(g,2680,706,0x4f6a4a);passerby(g,2340,712,0x6a5a7a);passerby(g,2470,672,0x8a6a3a);});
     deco(780,g=>{streetTree(g,1640,772,1.1);streetTree(g,2980,780,1);});
@@ -264,15 +289,14 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     g.lineStyle(2,0x5a6a6a);g.lineBetween(cx,ct+26,cx+8,ct+19);g.lineBetween(cx,ct+26,cx-5,ct+20);
     label(cx,cy+r.h/2+24,'解\n放\n碑',15,'#596c6d',961);
     for(const [lx,ly] of [[570,990],[920,990],[570,790],[930,790],[1180,620],[1510,620],[2200,620],[2820,760]]){const l=scene.add.graphics().setDepth(ly);layer.add(l);l.fillStyle(0x4c5b5b);l.fillRect(lx-6,ly-6,12,11);l.fillStyle(0x8b9a95);l.fillRect(lx-6,ly-6,12,2);l.fillStyle(0xffd58b);l.fillCircle(lx,ly-1,3);}
-    label(660,1225,'解放碑广场',15,'#e2cfa6',950).setAlpha(.62);label(2130,739,'商业步行街',14,'#e2cfa6',950).setAlpha(.62);label(2970,976,'街巷向东 · 沧白路入口',12,'#e2cfa6',950).setAlpha(.55);link(3120,900,'前往沧白路');
+    label(660,1225,'解放碑广场',15,'#f2e8d5',950).setAlpha(.7);label(2130,739,'商业步行街',14,'#f2e8d5',950).setAlpha(.7);label(2970,976,'街巷向东 · 沧白路入口',12,'#f2e8d5',950).setAlpha(.6);link(3120,900,'前往沧白路');
     // Lighting pass: cool wash across the whole map, then every lamp as a warm
     // additive pool. Offsets are measured from the lamp's foot, not its head.
-    ambient(scene,layer,m.width,m.height);
+    ambient(scene,layer,m.width,m.height,{base:0x0b2223,alpha:0.07,haze:0x2f4646,hazeAlpha:0.2});
     const gl=glowLayer(scene,layer);
-    for(const lx of [1878,1952,2524,2652,3004,3068]){halo(gl,lx,538,30,0xffb765,0.2);pool(gl,lx,594,78,24,0xffbc72,0.26);}
-    for(const lx of [1740,2360,2920]){halo(gl,lx,660,34,0xffd79a,0.22);pool(gl,lx,716,112,30,0xffc27a,0.3);}
-    for(const b of m.buildings) doorSpill(gl,b.x+b.w/2,b.y+b.h,64,0xffc47a,0.28);
-    for(const [lx,ly] of [[570,990],[920,990],[570,790],[930,790],[1180,620],[1510,620],[2200,620],[2820,760]]) pool(gl,lx,ly+5,42,21,0xffd79a,0.16);
+    for(const lx of [1740,2360,2920]){halo(gl,lx,660,38,0xffd79a,0.26);pool(gl,lx,716,124,32,0xffc27a,0.34);}
+    for(const b of m.buildings) doorSpill(gl,b.x+b.w/2,b.y+b.h,74,0xffc47a,0.34);
+    for(const [lx,ly] of [[570,990],[920,990],[570,790],[930,790],[1180,620],[1510,620],[2200,620],[2820,760]]) pool(gl,lx,ly+5,48,23,0xffd79a,0.2);
   }else{
     // Drop-facing platform: a blocked river/cliff strip and miniature lower
     // stilted facades convey height rather than another walkable timber court.

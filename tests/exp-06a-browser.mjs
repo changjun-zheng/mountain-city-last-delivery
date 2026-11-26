@@ -12,15 +12,17 @@ import {chromium} from 'playwright-core';
 import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './browser-selection.mjs';
 
 const args=process.argv.slice(2);
-if(!args.includes('--production')||args.some(a=>a!=='--production'&&a!=='--probe-only'&&a!=='--spatial-only'&&a!=='--spatial-lower-only'&&a!=='--journey-only'&&!a.startsWith('--browser=')))throw new Error('Use --production --browser=chrome');
+const modes=['--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a'];
+if(!args.includes('--production')||args.some(a=>a!=='--production'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
+const styleAcceptance=args.includes('--style-02a');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results/exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
-const report={task:args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
+const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
   browser:{...selection},layers:{desktopChrome:'NOT RUN',touchEmulation:'NOT RUN',androidChrome:'NOT RUN',iosSafari:'NOT RUN',directionReview:'NOT RUN'},
-  checks:[],timeline:[],screenshots:[],pageErrors:[],networkErrors:[],cleanup:{},hashes:{},protectedHashes:{},actualDist:{},historicalFailures:[],
+  checks:[],timeline:[],screenshots:[],pageErrors:[],consoleErrors:[],networkErrors:[],cleanup:{},hashes:{},protectedHashes:{},actualDist:{},historicalFailures:[],
   limitations:['True Android Chrome and iOS Safari were not available.','The completion card closes the existing Demo route; it does not prove a full 30-45 minute chapter.','Final art, culture review and real-device H5 acceptance remain separate.']};
 const record=(name,details={})=>{report.checks.push({name,status:'PASS',...details});console.log('PASS',name);};
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
@@ -73,6 +75,7 @@ async function loaded(page){await wait(page,()=>document.querySelector('#exp-roo
 async function newPage(options={}){
   const context=await browser.newContext(options);contexts.push(context);const page=await context.newPage();active=page;
   page.on('pageerror',error=>report.pageErrors.push(String(error)));
+  page.on('console',message=>{if(message.type()==='error')report.consoleErrors.push(message.text());});
   page.on('requestfailed',request=>report.networkErrors.push({url:request.url(),error:request.failure()}));
   page.on('response',response=>{if(response.status()>=400)report.networkErrors.push({url:response.url(),status:response.status()});});
   await page.addInitScript(()=>{
@@ -214,6 +217,89 @@ async function follow(page,id,touch){
  assert.equal((await state(page)).dialogue,'false');
 }
 
+async function completeTutorial(page,press){
+ assert.equal((await state(page)).onboarding,'approach');
+ assert.equal(await page.locator('#exp-auto-walk').isVisible(),false);
+ await walk(page,900,875);
+ await interact(page,'city-monument');
+ await press('exp-close');
+ assert.equal((await state(page)).onboarding,'continue');
+ await press('exp-onboarding-skip');
+ assert.equal((await state(page)).onboarding,'done');
+}
+
+async function styleRoute(size,touch){
+ const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1});
+ const press=id=>page.locator(`#${id}`)[touch?'tap':'click']();
+ const capture=name=>shot(page,`${size.width}x${size.height}-${name}`);
+ await page.goto(base);await loaded(page);
+ assert.equal((await state(page)).view,'title');
+ assert.equal((await state(page)).hasJourney,'false');
+ assert.equal((await state(page)).safe,'chapterStart');
+ assert.match(await page.locator('#exp-begin').innerText(),/开始冒险/);
+ if(touch)await touchPort(page);
+ await capture('title');
+ await press('exp-begin');
+ assert.equal((await state(page)).view,'intro');
+ assert.match(await page.locator('#exp-intro').innerText(),/沧白路栏边/);
+ await capture('intro');
+ await press('exp-intro-start');
+ const started=Date.now();
+ await capture('plaza');
+ await completeTutorial(page,press);
+
+ const steps=[
+  ['city-to-entry','entry'],['visitor','visitor',true],['entry-to-core','upper'],
+  ['guide-door','guide-room'],['note','guide-note',true],['guide-upper-exit'],
+  ['workshop-upper-door','workshop-room'],['plaque','plaque',true],['workshop-upper-exit'],
+  ['east-down','middle'],['gate','gate',true],['middle-east-lower','lower'],['riverfront-down','river'],
+ ];
+ for(const [target,screen,confirm] of steps){
+  await follow(page,target,touch);
+  await interact(page,target);
+  if(confirm)await press('exp-close');
+  if(screen)await capture(screen);
+ }
+ await follow(page,'view',touch);
+ await interact(page,'view');
+ await capture('photo-preview');
+ await press('exp-shutter');
+ const completed=await state(page);
+ assert.equal(completed.cardOpen,'true');
+ assert.equal(completed.photographed,'true');
+ assert.equal(completed.safe,'riverView');
+ assert.equal(JSON.parse(completed.progress).counts.rewards,1);
+ const scriptedDurationMs=Date.now()-started;
+ const completionLayout=await page.locator('#exp-photo-card').evaluate(card=>{
+  const box=selector=>{
+   const {top,bottom,height}=card.querySelector(selector).getBoundingClientRect();
+   return {top,bottom,height};
+  };
+  return {image:box('#exp-card-image'),footer:box('.exp-completion-footer'),note:box('.exp-completion-footer small'),panel:box('.exp-completion-card'),
+   buttons:['#exp-card-close','#exp-card-title','#exp-card-restart'].map(box)};
+ });
+ assert.ok(completionLayout.image.height>=100&&completionLayout.image.top>=0&&
+  completionLayout.image.bottom<=completionLayout.footer.top,JSON.stringify(completionLayout));
+ assert.ok(completionLayout.note.bottom<=completionLayout.panel.bottom,JSON.stringify(completionLayout));
+ for(const button of completionLayout.buttons)assert.ok(button.height>=48&&button.bottom<=completionLayout.panel.bottom,JSON.stringify(button));
+ await capture('completion');
+ await press('exp-card-title');
+ assert.equal((await state(page)).view,'title');
+ await press('exp-begin');
+ assert.equal((await state(page)).view,'play');
+ assert.equal((await state(page)).runtimeId,completed.runtimeId);
+ await restore(page,'riverView',touch);
+ const resumed=await state(page);
+ assert.equal(resumed.view,'play');
+ assert.equal(resumed.photographed,'true');
+ assert.notEqual(resumed.runtimeId,completed.runtimeId);
+ await capture('resumed');
+ record(`${size.width}x${size.height} fresh tutorial, guided commission, photo, title and reload`,{
+  device:touch?'Chrome touch emulation':'desktop Chrome keyboard',scriptedDurationMs,newPlayerDuration:'NOT RUN',completionLayout,
+ });
+ await page.close();
+}
+
 async function rideAcross(page,width,touch){
  const press=async id=>page.locator(`#${id}`)[touch?'tap':'click']();
  await follow(page,'ferry-out',touch);
@@ -253,6 +339,7 @@ async function journeyProbe(){
  await page.goto(base);await loaded(page);await shot(page,'title');
  await page.locator('#exp-begin').click();await shot(page,'intro');
  await page.locator('#exp-intro-start').click();
+ await completeTutorial(page,id=>page.locator(`#${id}`).click());
  await page.locator('#exp-auto-walk').click();
  await wait(page,()=>document.querySelector('#exp-root').dataset.autoWalk==='true');
  await page.keyboard.down('ShiftLeft');await page.keyboard.down('KeyD');
@@ -261,7 +348,6 @@ async function journeyProbe(){
  await page.keyboard.up('ShiftLeft');
  await wait(page,()=>document.querySelector('#exp-stage').dataset.gait==='brisk');
  await page.keyboard.up('KeyD');
- await follow(page,'city-monument',false);await interact(page,'city-monument');await closeDialogue(page);
  await page.locator('#exp-notes-toggle').click();
  assert.equal(await page.locator('#exp-track-sketch').isDisabled(),true);
  await shot(page,'journal');
@@ -309,12 +395,17 @@ async function startChrome(){
 }
 try{
  browser=await startChrome();const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(args.includes('--journey-only'))await journeyProbe();
+ if(styleAcceptance){
+  await styleRoute({width:1280,height:760},false);report.layers.desktopChrome='PASS';
+  for(const size of [{width:844,height:390},{width:667,height:375}])await styleRoute(size,true);
+  report.layers.touchEmulation='PASS';
+ }
+ else if(args.includes('--journey-only'))await journeyProbe();
  else if(args.includes('--spatial-lower-only'))await spatialLower();
  else if(args.includes('--spatial-only'))await spatialFirst();
  else if(args.includes('--probe-only')){await touchBuildings();await dialogueProbe();await photoCloseProbe();await nativeFloorHidden();report.mainRoute='NOT RUN';}
  else{const page=await newPage({viewport:{width:1280,height:760}});await mainRoute(page);}
- assert.deepEqual(report.pageErrors,[]);assert.deepEqual(report.networkErrors,[]);record('C06 zero unexpected page/network errors and current execution fingerprints');
+ assert.deepEqual(report.pageErrors,[]);assert.deepEqual(report.consoleErrors,[]);assert.deepEqual(report.networkErrors,[]);record('C06 zero unexpected page, console or network errors and current execution fingerprints');
 }catch(error){report.failure={message:String(error),stack:error.stack};console.error(error);if(active&&!active.isClosed()){try{await shot(active,'FAIL');report.failureState=await state(active);report.failurePointerEvents=await active.evaluate(()=>window.__pointerEvents??[]);}catch(e){report.evidenceError=String(e);}}}
 finally{
  for(const c of contexts){try{await c.close();}catch(e){report.cleanup.contextError=String(e);}}report.cleanup.contexts=report.cleanup.contextError?'FAIL':'PASS';

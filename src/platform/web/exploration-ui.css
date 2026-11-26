@@ -229,3 +229,25 @@
   #exp-root .exp-completion-actions { display:grid; grid-template-columns:1fr; }
   #exp-root .exp-completion-actions button { width:100%; }
 }
+
+@media(orientation:landscape) and (min-width:600px) and (max-height:540px) {
+  #exp-root .exp-completion-heading .exp-page-label { display:none; }
+  #exp-root .exp-completion-layout {
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    align-items:center;
+    padding-block:6px;
+  }
+  #exp-root .exp-completion-art { text-align:center; }
+  #exp-root .exp-completion-art img {
+    width:auto;
+    max-width:100%;
+    max-height:34dvh;
+    margin:0 auto;
+  }
+  #exp-root .exp-completion-footer { position:static; padding-block:8px; }
+  #exp-root .exp-completion-actions {
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:8px;
+  }
+}

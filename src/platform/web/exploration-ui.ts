@@ -2,9 +2,16 @@ import {projectExplorationJournal} from './exploration-journal.ts';
 import type {ExplorationSnapshot} from '../../core/exploration.ts';
 import {mementoImageUrl} from '../../rendering/phaser/exploration-memento-art';
 import {MEMENTO_COMPLETION} from '../../core/exploration-mementos';
+import {titleStreetSvg} from './exploration-title-art.ts';
 
 export const explorationUiMarkup=`
   <div id="exp-stage" role="img" aria-label="山城街区与可行走的室内"></div>
+  <div id="exp-loading" class="exp-loading" role="status" aria-live="polite">
+    <span class="exp-loading-kicker">坎坡之间</span>
+    <div class="exp-loading-route" aria-hidden="true"><span class="exp-loading-dot"></span><i></i><i></i><i></i></div>
+    <p>正在铺路</p>
+    <div class="exp-loading-bar" aria-hidden="true"><span></span></div>
+  </div>
   <header class="exp-hud">
     <div class="exp-location">
       <strong id="exp-place"></strong>
@@ -31,13 +38,14 @@ export const explorationUiMarkup=`
     <div class="exp-completion-layout"><figure class="exp-completion-art"><img id="exp-card-image" alt="桥、江水与木楼同框的游戏内夜景纪念卡"/><figcaption>桥、江水与木楼，留在同一幅画里。</figcaption></figure><section class="exp-completion-summary" aria-label="旅程收获"><p>桥连着两岸，木楼留着灯。你找到的这一刻，已经留在旅程里。</p><dl class="exp-completion-facts"><div><dt>已收旅行纪念</dt><dd id="exp-card-memento-count">0/3 · 全部选做</dd></div><div><dt>旅程称号</dt><dd id="exp-card-memento-title">尚未获得 · 选做奖励</dd></div></dl><p class="exp-completion-optional">无需返回游客处交付。纸质纪念物全部选做。</p></section></div>
     <footer class="exp-completion-footer"><div class="exp-photo-actions exp-completion-actions"><button id="exp-card-close" class="exp-primary" type="button">继续探索</button><button id="exp-card-title" type="button">返回标题</button><button id="exp-card-restart" type="button">重新开始</button></div><small>照水岭已开放，从江岸东侧渡口乘船。</small></footer>
   </div></section>
-  <section id="exp-title-screen" class="exp-title-screen" role="dialog" aria-modal="true" aria-labelledby="exp-title-name" hidden>
+  <section id="exp-title-screen" class="exp-title-screen" role="dialog" aria-modal="true" aria-labelledby="exp-title-name" inert hidden>
+    <div class="exp-title-art">${titleStreetSvg('title')}</div>
     <div class="exp-title-copy"><div class="exp-title-content">
-      <div class="exp-title-ornament" aria-hidden="true"><span class="exp-title-lantern"></span></div>
+      <div class="exp-title-ornament" aria-hidden="true"><span class="exp-title-mark"></span></div>
       <h1 id="exp-title-name" aria-label="坎坡之间"><span>坎坡</span><span>之间</span></h1>
       <p class="exp-title-description">一路下坡，去看江边亮灯。</p>
       <div class="exp-title-actions">
-        <button id="exp-begin" class="exp-primary" type="button">开始冒险</button>
+        <button id="exp-begin" class="exp-primary" type="button" disabled>开始冒险</button>
         <div class="exp-title-secondary"><button id="exp-instructions" type="button">操作说明</button><button id="exp-title-restart" type="button">重新开始</button></div>
       </div>
       <p id="exp-title-status" role="status"></p>
@@ -45,6 +53,7 @@ export const explorationUiMarkup=`
     </div></div>
   </section>
   <section id="exp-intro" class="exp-intro" role="dialog" aria-modal="true" aria-labelledby="exp-intro-heading" hidden>
+    <div class="exp-intro-art">${titleStreetSvg('intro')}</div>
     <div class="exp-intro-story">
       <h2 id="exp-intro-heading">灯亮之前</h2>
       <p>你在天擦黑时到了山城。下头是江，上头的街还在收摊。一个来拍夜景的人托你在沧白路碰头，他想把今晚的灯寄给远方的家人。</p>
