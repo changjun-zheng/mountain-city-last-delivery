@@ -11,6 +11,7 @@ export interface ExplorationStoragePort { getItem(key: string): string | null; s
 export class ExplorationStorage {
   #blocked = false;
   status = '尚未保存';
+  restartError = '';
   notice = '';
   readonly port: ExplorationStoragePort;
   constructor(port: ExplorationStoragePort) { this.port=port; }
@@ -54,9 +55,10 @@ export class ExplorationStorage {
     } catch { this.status = '本次未保存，仍可继续游玩'; }
   }
   restart(): boolean {
+    this.restartError = '';
     try {
       this.port.setItem(EXP_STORAGE_KEY,JSON.stringify(emptyExplorationSave()));
       this.#blocked = false; this.status = '已开始新旅程'; return true;
-    } catch { this.status = '无法写入新局，本次未重新开始'; return false; }
+    } catch { this.restartError = '无法写入新局，本次未重新开始'; return false; }
   }
 }

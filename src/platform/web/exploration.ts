@@ -190,7 +190,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
       ?loadStatus+'。可先试走；明确重新开始才会覆盖当前试玩记录。'
       :started?'当前旅程保留在本页，继续探索。':hasJourney?'上次的发现已保留，从安全地点继续。':'从解放碑出发，沿街巷自由探索。';
     if(titleStatus.textContent!==status)titleStatus.textContent=status;
-    get('exp-restart-status').textContent=storage?.status.includes('无法写入')?storage.status:'';
+    get('exp-restart-status').textContent=storage?.restartError??'';
     get('exp-archive-notice').hidden=!storage?.notice;
     root.dataset.view=views.confirm?'confirm':views.help?'help':views.journal?'journal':views.menu?'menu':views.title?'title':views.intro?'intro':s.cardOpen?'completion':'play';
     root.dataset.uiOwners=JSON.stringify(Object.keys(tokens));
@@ -221,6 +221,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
   };
   const setView=(view:View,open:boolean,{preserveCard=false}:{preserveCard?:boolean}={})=>{
     if(!runtime||disposed)return;
+    if(view==='confirm'&&storage)storage.restartError='';
     clearMenuTouch();
     input?.clear();shutterGesture=undefined;photoCloseGesture=undefined;mementoGesture=undefined;dialogueCloseGesture=undefined;
     if(open&&!tokens[view])tokens[view]=runtime.lifecycle.acquire(owners[view],Symbol(view));

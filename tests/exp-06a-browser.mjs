@@ -1,6 +1,7 @@
 import {InMemoryRunProgress,EXP02A_PROGRESS_CONTENT as P,EXP02B_PROGRESS_CONTENT as Q} from '../src/core/progress.ts';
 import {PHOTO_METADATA} from '../src/core/exploration-photo.ts';
-import {emptyExplorationSave} from '../src/core/exploration.ts';
+import {emptyExplorationSave,validateExplorationSave,migrateExp05ASave,migrateExp05BSave} from '../src/core/exploration.ts';
+import {EXP05A_CONTENT_VERSION,EXP05B_CONTENT_VERSION} from '../src/core/exploration-content.ts';
 import {runBrowserFloorRoute} from './exploration-floor-routes.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
@@ -12,14 +13,15 @@ import {chromium} from 'playwright-core';
 import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './browser-selection.mjs';
 
 const args=process.argv.slice(2);
-const modes=['--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only'];
+const modes=['--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only'];
 if(!args.includes('--production')||args.some(a=>a!=='--production'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
 const styleAcceptance=args.includes('--style-02a');
 const resizeAcceptance=args.includes('--resize-only');
 const pauseAcceptance=args.includes('--pause-only')||args.includes('--pause-multitouch-only');
+const saveAcceptance=args.includes('--save-only');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results',pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
 const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
@@ -29,6 +31,7 @@ const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'
 const record=(name,details={})=>{report.checks.push({name,status:'PASS',...details});console.log('PASS',name);};
 if(resizeAcceptance){report.task='RESIZE-01';report.scope='dynamic-canvas-and-held-touch-rotation; fresh-start plus separately labelled river fixture';}
 if(pauseAcceptance){report.task='PAUSE-01';report.scope=args.includes('--pause-multitouch-only')?'additional held-stick plus second-finger menu diagnostic':'nested-pause-journal-help-title; fresh starts and separately labelled river photo fixture';}
+if(saveAcceptance){report.task='SAVE-01';report.scope='isolated archive corruption, storage faults and explicit restart; fixture injection separate from real UI input';}
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
 async function hashTree(path){for(const e of await readdir(path,{withFileTypes:true})){const p=join(path,e.name);if(e.isDirectory())await hashTree(p);else report.hashes[relative(process.cwd(),p).replaceAll('\\','/')]=await sha(p);}}
 await hashTree('src');
@@ -497,6 +500,122 @@ async function pauseProbe(){
  report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
 }
 
+const ARCHIVE_CURRENT='pokan.exp06a.save.v1',ARCHIVE_05B='pokan.exp05b.save.v1',ARCHIVE_05A='pokan.exp05a.save.v1',ARCHIVE_OTHER='save01.unrelated';
+function archiveFixture(current){
+ const oldB={...fixture('guideDoor'),contentVersion:EXP05B_CONTENT_VERSION},oldA={...fixture('guideDoor'),contentVersion:EXP05A_CONTENT_VERSION};
+ assert.ok(migrateExp05BSave(oldB));assert.ok(migrateExp05ASave(oldA));
+ return{[ARCHIVE_CURRENT]:current,[ARCHIVE_05B]:JSON.stringify(oldB,null,2),[ARCHIVE_05A]:JSON.stringify(oldA),
+  'pokan.exp01.save.v1':'historical courtyard bytes\r\nretain', [ARCHIVE_OTHER]:'unrelated bytes · 保留\n'};
+}
+async function archivePage(records,fault,touch=false){
+ const page=await newPage({viewport:touch?{width:667,height:375}:{width:1280,height:760},isMobile:touch,hasTouch:touch,deviceScaleFactor:1});
+ await page.addInitScript(({records,fault,sentinel,current})=>{
+  const storage=window.localStorage,get=Storage.prototype.getItem,set=Storage.prototype.setItem;
+  if(get.call(storage,sentinel)===null)for(const [key,value] of Object.entries(records))if(value!==null)set.call(storage,key,value);
+  window.__archiveReads=[];window.__archiveWrites=[];window.__archiveGetterThrows=0;
+  window.__archiveSnapshot=()=>Object.fromEntries(Object.keys(records).map(key=>[key,get.call(storage,key)]));
+  Storage.prototype.getItem=function(key){if(this===storage)window.__archiveReads.push(key);return get.call(this,key);};
+  Storage.prototype.setItem=function(key,value){
+   const entry={key,value,outcome:'attempt'};if(this===storage)window.__archiveWrites.push(entry);
+   if(this===storage&&fault==='write'&&key===current){entry.outcome='injected-rejection';throw new DOMException('SAVE-01 current-key write injection','QuotaExceededError');}
+   const result=set.call(this,key,value);entry.outcome='saved';return result;
+  };
+  if(fault==='getter')Object.defineProperty(window,'localStorage',{configurable:true,get(){window.__archiveGetterThrows++;throw new DOMException('SAVE-01 getter injection','SecurityError');}});
+ },{records,fault,sentinel:ARCHIVE_OTHER,current:ARCHIVE_CURRENT});
+ await page.goto(base);await loaded(page);await fitCanvas(page);if(touch)await touchPort(page);return page;
+}
+const archiveBytes=page=>page.evaluate(()=>window.__archiveSnapshot());
+const archiveLogs=page=>page.evaluate(()=>({reads:window.__archiveReads,writes:window.__archiveWrites,getterThrows:window.__archiveGetterThrows}));
+const archivePress=(page,touch)=>id=>touch?page.locator('#'+id).tap():keyboardActivate(page,id);
+async function archiveFreshJourney(page,touch){
+ const press=archivePress(page,touch);await press('exp-begin');await settleIntro(page);await press('exp-intro-start');await press('exp-onboarding-skip');
+ const before=await state(page);await follow(page,'city-to-entry',touch);await interact(page,'city-to-entry');
+ await follow(page,'visitor',touch);await interact(page,'visitor');await press('exp-close');
+ const after=await state(page);assert.ok(Number(after.revision)>Number(before.revision));assert.notEqual(after.safe,before.safe);assert.equal(after.accepted,'true');assert.equal(after.clue,'false');return{before,after};
+}
+async function archiveBlocked(kind,touch){
+ const records=archiveFixture(kind==='json'?'{broken-current-json':kind==='future'?JSON.stringify({...emptyExplorationSave(),schemaVersion:999}):null);
+ if(kind==='history')records[ARCHIVE_05B]=JSON.stringify({...JSON.parse(records[ARCHIVE_05B]),safe:'not-a-valid-historical-safe'});
+ const page=await archivePage(records,undefined,touch),initial=await state(page),bytes=await archiveBytes(page);
+ assert.equal(initial.hasJourney,'false');assert.equal(initial.accepted,'false');assert.equal(initial.safe,'chapterStart');
+ assert.match(await page.locator('#exp-title-status').innerText(),/未保存.*原.*保留/);
+ await shot(page,`blocked-${kind}-title`);
+ const journey=await archiveFreshJourney(page,touch);
+ assert.match(await page.locator('#exp-save').innerText(),/本次未保存/);
+ assert.deepEqual(await archiveBytes(page),bytes);
+ const logs=await archiveLogs(page);assert.deepEqual(logs.writes,[]);
+ assert.deepEqual(logs.reads,kind==='history'?[ARCHIVE_CURRENT,ARCHIVE_05B]:[ARCHIVE_CURRENT]);
+ await shot(page,`blocked-${kind}-after-real-save-boundaries`);
+ record(`SAVE-01 ${kind} blocks fallback and preserves bytes after real map/discovery save boundaries`,{fixture:'isolated initial raw records; older 05B/05A fixtures prevalidated in Node; actual UI keyboard/touch route',touch,records,initial,journey,logs,bytes});await page.close();
+}
+async function archiveFailedConfirm(page,touch,source,name){
+ const press=archivePress(page,touch),baseline=await state(page);
+ await press(source==='title'?'exp-title-restart':'exp-restart');
+ assert.equal((await state(page)).view,'confirm');assert.equal(await page.evaluate(()=>document.activeElement.id),'exp-cancel-restart');
+ await press('exp-confirm-restart');await frames(page);
+ const failed=await state(page);assert.equal(failed.view,'confirm');assert.equal(failed.tokens,2);
+ for(const key of ['runtimeId','progress','safe','photographed','revision'])assert.equal(failed[key],baseline[key]);
+ assert.match(await page.locator('#exp-restart-status').innerText(),/无法写入新局.*未重新开始/);
+ await shot(page,`${name}-${source}-restart-rejected`);await press('exp-cancel-restart');
+ assert.equal((await state(page)).view,source==='title'?'title':'menu');
+ assert.equal(await page.evaluate(()=>document.activeElement.id),source==='title'?'exp-title-restart':'exp-restart');
+ assert.equal(await page.locator('#exp-restart-status').textContent(),'');
+ return{baseline,failed};
+}
+async function archiveFault(fault,touch){
+ const value=fixture('riverView',true);assert.ok(validateExplorationSave(value));
+ const records=archiveFixture(JSON.stringify(value,null,2)),page=await archivePage(records,fault,touch),bytes=await archiveBytes(page),press=archivePress(page,touch);
+ const initial=await state(page);
+ if(fault==='getter'){assert.equal(initial.hasJourney,'false');assert.match(await page.locator('#exp-title-status').innerText(),/不可读取/);}
+ else{assert.equal(initial.hasJourney,'true');assert.equal(initial.photographed,'true');assert.equal(initial.progress,JSON.stringify(value.progress));}
+ const titleFailure=await archiveFailedConfirm(page,touch,'title',fault);
+ let journey;
+ if(fault==='getter')journey=await archiveFreshJourney(page,touch);
+ else{
+  await press('exp-begin');const before=await state(page);await interact(page,'view');await press('exp-photo-close');
+  const after=await state(page);assert.ok(Number(after.revision)>Number(before.revision));journey={before,after};
+ }
+ assert.match(await page.locator('#exp-save').innerText(),/本次未保存/);
+ await press('exp-menu-button');const gameFailure=await archiveFailedConfirm(page,touch,'play',fault);
+ assert.match(await page.locator('#exp-menu-save').innerText(),/本次未保存/);
+ assert.deepEqual(await archiveBytes(page),bytes);
+ const logs=await archiveLogs(page);
+ if(fault==='getter'){assert.ok(logs.getterThrows>0);assert.deepEqual(logs.reads,[]);assert.deepEqual(logs.writes,[]);}
+ else{assert.ok(logs.writes.length>=3);assert.ok(logs.writes.every(e=>e.key===ARCHIVE_CURRENT&&e.outcome==='injected-rejection'));}
+ await press('exp-resume');assert.equal((await state(page)).tokens,0);assert.match(await page.locator('#exp-save').innerText(),/本次未保存/);
+ record(`SAVE-01 ${fault} injection keeps play usable and title/game restart failure in confirmation without archive loss`,{faultLayer:'isolated harness injection; not real browser permissions or quota acceptance',touch,records,initial,titleFailure,journey,gameFailure,logs,bytes});await page.close();
+}
+async function archiveRestart(source,touch){
+ const value=fixture('riverView',true);assert.ok(validateExplorationSave(value));
+ const records=archiveFixture(JSON.stringify(value,null,2)),page=await archivePage(records,undefined,touch),press=archivePress(page,touch);
+ if(source==='play'){await press('exp-begin');await press('exp-menu-button');}
+ const baseline=await state(page),bytes=await archiveBytes(page),opener=source==='title'?'exp-title-restart':'exp-restart';
+ await press(opener);assert.equal((await state(page)).view,'confirm');assert.equal(await page.evaluate(()=>document.activeElement.id),'exp-cancel-restart');
+ if(touch)await press('exp-cancel-restart');else await page.keyboard.press('Escape');
+ assert.equal((await state(page)).view,source==='title'?'title':'menu');assert.equal(await page.evaluate(()=>document.activeElement.id),opener);
+ assert.equal((await state(page)).runtimeId,baseline.runtimeId);assert.equal((await state(page)).progress,baseline.progress);assert.deepEqual(await archiveBytes(page),bytes);
+ await shot(page,`restart-${touch?'touch':'keyboard'}-${source}-cancel`);
+ await press(opener);await Promise.all([page.waitForEvent('domcontentloaded'),press('exp-confirm-restart')]);await loaded(page);
+ const fresh=await state(page),after=await archiveBytes(page),empty=emptyExplorationSave();
+ assert.notEqual(fresh.runtimeId,baseline.runtimeId);assert.equal(fresh.safe,'chapterStart');assert.equal(fresh.map,'plaza');assert.equal(fresh.progress,JSON.stringify(empty.progress));assert.equal(fresh.photographed,'false');
+ assert.deepEqual(JSON.parse(after[ARCHIVE_CURRENT]),empty);assert.deepEqual(Object.keys(JSON.parse(after[ARCHIVE_CURRENT])).sort(),Object.keys(empty).sort());
+ for(const key of Object.keys(records).filter(k=>k!==ARCHIVE_CURRENT))assert.equal(after[key],bytes[key]);
+ assert.deepEqual((await archiveLogs(page)).reads,[ARCHIVE_CURRENT]);
+ await page.reload();await loaded(page);const refreshed=await state(page);assert.equal(refreshed.safe,'chapterStart');assert.equal(refreshed.progress,JSON.stringify(empty.progress));assert.deepEqual(await archiveBytes(page),after);assert.deepEqual((await archiveLogs(page)).reads,[ARCHIVE_CURRENT]);
+ await shot(page,`restart-${touch?'touch':'keyboard'}-${source}-fresh-reloaded`);
+ await press('exp-begin');assert.equal((await state(page)).view,'play');assert.equal((await state(page)).photographed,'false');assert.equal((await state(page)).progress,JSON.stringify(empty.progress));
+ if(touch)await touchPort(page);await axis(page,'x',(await state(page)).x+15);
+ const final=await archiveBytes(page);for(const key of Object.keys(records).filter(k=>k!==ARCHIVE_CURRENT))assert.equal(final[key],bytes[key]);
+ assert.ok((await archiveLogs(page)).writes.every(e=>e.key===ARCHIVE_CURRENT&&e.outcome==='saved'));
+ record(`SAVE-01 ${touch?'touch':'keyboard'} ${source} nonempty restart cancel focus, confirm only current and reload does not remigrate`,{fixture:'isolated valid nonempty photographed current save plus valid historical records and unrelated bytes; no runtime mutation',baseline,bytes,fresh,refreshed,after,final,logs:await archiveLogs(page)});await page.close();
+}
+async function saveProbe(){
+ await archiveBlocked('json',false);await archiveBlocked('future',true);await archiveBlocked('history',false);
+ await archiveFault('getter',false);await archiveFault('write',true);
+ for(const touch of [false,true])for(const source of ['title','play'])await archiveRestart(source,touch);
+ report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
+}
+
 async function styleRoute(size,touch){
  const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1});
  const press=id=>page.locator(`#${id}`)[touch?'tap':'click']();
@@ -729,7 +848,8 @@ try{
  headlessProcess.on('exit',(code,signal)=>report.timeline.push({event:'chrome-exit',code,signal,at:new Date().toISOString()}));
  browser.on('context',context=>{context.on('close',()=>report.timeline.push({event:'context-close',at:new Date().toISOString()}));context.on('page',page=>{page.on('close',()=>report.timeline.push({event:'page-close',at:new Date().toISOString()}));page.on('crash',()=>report.timeline.push({event:'page-crash',at:new Date().toISOString()}));});});
  const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(args.includes('--pause-multitouch-only')){for(const size of [{width:844,height:390},{width:667,height:375}])await pauseSecondaryTouch(size);report.layers.touchEmulation='PASS';}
+ if(saveAcceptance)await saveProbe();
+ else if(args.includes('--pause-multitouch-only')){for(const size of [{width:844,height:390},{width:667,height:375}])await pauseSecondaryTouch(size);report.layers.touchEmulation='PASS';}
  else if(pauseAcceptance)await pauseProbe();
  else if(resizeAcceptance)await resizeProbe();
  else if(styleAcceptance){
