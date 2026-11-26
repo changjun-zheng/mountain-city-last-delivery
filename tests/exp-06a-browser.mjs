@@ -2,6 +2,7 @@ import {InMemoryRunProgress,EXP02A_PROGRESS_CONTENT as P,EXP02B_PROGRESS_CONTENT
 import {PHOTO_METADATA} from '../src/core/exploration-photo.ts';
 import {emptyExplorationSave,validateExplorationSave,migrateExp05ASave,migrateExp05BSave} from '../src/core/exploration.ts';
 import {EXP05A_CONTENT_VERSION,EXP05B_CONTENT_VERSION} from '../src/core/exploration-content.ts';
+import {MEMENTOS,MEMENTO_COMPLETION} from '../src/core/exploration-mementos.ts';
 import {runBrowserFloorRoute} from './exploration-floor-routes.mjs';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
@@ -13,15 +14,16 @@ import {chromium} from 'playwright-core';
 import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './browser-selection.mjs';
 
 const args=process.argv.slice(2);
-const modes=['--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only'];
+const modes=['--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only'];
 if(!args.includes('--production')||args.some(a=>a!=='--production'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
 const styleAcceptance=args.includes('--style-02a');
 const resizeAcceptance=args.includes('--resize-only');
 const pauseAcceptance=args.includes('--pause-only')||args.includes('--pause-multitouch-only');
 const saveAcceptance=args.includes('--save-only');
+const collectionAcceptance=args.includes('--collection-only');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results',saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
 const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
@@ -32,6 +34,7 @@ const record=(name,details={})=>{report.checks.push({name,status:'PASS',...detai
 if(resizeAcceptance){report.task='RESIZE-01';report.scope='dynamic-canvas-and-held-touch-rotation; fresh-start plus separately labelled river fixture';}
 if(pauseAcceptance){report.task='PAUSE-01';report.scope=args.includes('--pause-multitouch-only')?'additional held-stick plus second-finger menu diagnostic':'nested-pause-journal-help-title; fresh starts and separately labelled river photo fixture';}
 if(saveAcceptance){report.task='SAVE-01';report.scope='isolated archive corruption, storage faults and explicit restart; fixture injection separate from real UI input';}
+if(collectionAcceptance){report.task='COLLECTION-01';report.scope='three optional souvenir routes using journal navigation and physical keyboard/CDP joystick; legal unlocked fixture only at start';}
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
 async function hashTree(path){for(const e of await readdir(path,{withFileTypes:true})){const p=join(path,e.name);if(e.isDirectory())await hashTree(p);else report.hashes[relative(process.cwd(),p).replaceAll('\\','/')]=await sha(p);}}
 await hashTree('src');
@@ -227,11 +230,11 @@ async function mainRoute(page){
  await rideAcross(page,1280,false);
 }
 
-async function follow(page,id,touch){
+async function follow(page,id,touch,activate){
  const before=await state(page);
  assert.equal(before.routeTarget,id);
  if(before.target!==id || Number(before.routePoints)>0){
-  await page.locator('#exp-auto-walk')[touch?'tap':'click']();
+  if(activate)await activate('exp-auto-walk');else await page.locator('#exp-auto-walk')[touch?'tap':'click']();
   await wait(page,id=>{const s=document.querySelector('#exp-root').dataset;return s.target===id&&s.autoWalk==='false';},id);
  }
  assert.equal((await state(page)).dialogue,'false');
@@ -645,6 +648,66 @@ async function saveProbe(){
  report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
 }
 
+async function collectionRoute(size,touch){
+ const save=fixture('cGuideH2',false);assert.ok(validateExplorationSave(save));assert.equal(save.progress.counts.collections,1);assert.equal(save.progress.counts.rewards,0);assert.equal(save.photo,null);
+ const page=await currentPage(save,size,touch),press=archivePress(page,touch);await fitCanvas(page);
+ const start=await state(page);assert.deepEqual(JSON.parse(start.mementos),[]);assert.equal(start.photographed,'false');
+ const track=async id=>{await press('exp-notes-toggle');assert.equal(await page.locator('#exp-track-'+id).isDisabled(),false);await press('exp-track-'+id);assert.equal((await state(page)).trackedTask,id);};
+ const go=async id=>{await follow(page,id,touch,press);const before=await state(page);await interact(page,id);report.timeline.push({event:'COLLECTION-01 active doorway/stair',target:id,before,after:await state(page)});};
+ const journal=async name=>{
+  await press('exp-notes-toggle');const s=await state(page);
+  for(const m of MEMENTOS)assert.equal(await page.locator('#exp-track-'+m.id).isDisabled(),JSON.parse(s.mementos).includes(m.id));
+  assert.equal(await page.locator('#exp-memento-list article').count(),JSON.parse(s.mementos).length);
+  await shot(page,`${size.width}-${name}-journal`);return s;
+ };
+ let expectedCount=1;
+ const collect=async(m,positions)=>{
+  assert.equal((await state(page)).routeTarget,m.targetId);
+  for(const [x,y] of positions)await walk(page,x,y);
+  await follow(page,m.targetId,touch,press);await shot(page,`${size.width}-${m.id}-room`);
+  await interact(page,m.targetId);const inspected=await state(page);
+  assert.equal(inspected.pending,m.targetId);assert.ok(inspected.mementoInspection.startsWith(inspected.runtimeId+':memento:'));assert.match(inspected.mementoInspection,/:memento:\d+$/);assert.equal(inspected.tokens,1);assert.ok((await page.locator('#exp-dialogue-text').innerText()).includes(m.name));
+  assert.equal(await page.locator('#exp-memento-cancel').isVisible(),true);assert.match(await page.locator('#exp-close').innerText(),/收进纪念册/);
+  await shot(page,`${size.width}-${m.id}-inspection`);await press('exp-memento-cancel');
+  const cancelled=await state(page);for(const key of ['runtimeId','progress','observations','photographed','safe','revision'])assert.equal(cancelled[key],inspected[key]);
+  assert.equal(cancelled.dialogue,'false');assert.equal(cancelled.pending,'');
+  await interact(page,m.targetId);assert.notEqual((await state(page)).mementoInspection,inspected.mementoInspection);
+  await press('exp-close');const collected=await state(page),p=JSON.parse(collected.progress);expectedCount++;
+  assert.equal(p.counts.collections,expectedCount);assert.equal(p.collections.filter(id=>id===m.collectionId).length,1);
+  assert.equal(JSON.parse(collected.mementos).length,expectedCount-1);assert.equal(collected.photographed,'false');
+  assert.equal(p.counts.rewards,expectedCount===4?1:0);
+  await interact(page,m.targetId);assert.equal((await state(page)).pending,'');assert.equal(await page.locator('#exp-memento-cancel').isVisible(),false);
+  assert.match(await page.locator('#exp-dialogue-text').innerText(),/已经收好/);await press('exp-close');
+  assert.equal((await state(page)).progress,collected.progress);
+  record(`COLLECTION-01 ${size.width} ${m.id} physical approach, cancel unchanged, collect once and repeat without reward`,{fixture:'initial unlocked cGuideH2 only; subsequent route is real UI input',positions,inspected,cancelled,collected});
+ };
+ await track('bookmark');await go('guide-middle-door');assert.equal((await state(page)).map,'guide');
+ await collect(MEMENTOS[0],[[780,540],[780,470]]);
+ const first=await journal('first-owned');await press('exp-notes-close');await restore(page,first.safe,touch);
+ const firstRestored=await state(page);assert.notEqual(firstRestored.runtimeId,first.runtimeId);assert.equal(firstRestored.progress,first.progress);assert.deepEqual(JSON.parse(firstRestored.mementos),['bookmark']);assert.equal(firstRestored.trackedTask,'main');
+ record(`COLLECTION-01 ${size.width} first souvenir refresh restores collection and resets tracking to main`,{before:first,after:firstRestored});
+ await track('sketch');await go('guide-exit');const stair=(await state(page)).routeTarget;assert.ok(['middle-west-lower','middle-east-lower'].includes(stair));
+ await go(stair);assert.equal((await state(page)).map,'lower');await go('tea-door');assert.equal((await state(page)).map,'tea');
+ await collect(MEMENTOS[1],[[300,540],[300,520]]);
+ await track('postcard');await go('tea-exit');await go('lantern-door');assert.equal((await state(page)).map,'lantern');
+ await collect(MEMENTOS[2],[[650,650],[650,400],[850,400]]);
+ const all=await journal('all-owned'),progress=JSON.parse(all.progress);
+ assert.equal(progress.counts.collections,4);assert.deepEqual(new Set(progress.collections),new Set([P.item,...MEMENTOS.map(m=>m.collectionId)]));
+ assert.equal(progress.goals.filter(id=>id===MEMENTO_COMPLETION.goal).length,1);assert.deepEqual(progress.rewards,[MEMENTO_COMPLETION.reward]);assert.equal(all.mementoTitle,MEMENTO_COMPLETION.title);
+ assert.match(await page.locator('#exp-memento-count').innerText(),/3\/3/);assert.equal(await page.locator('#exp-memento-award h3').textContent(),MEMENTO_COMPLETION.title);
+ await page.locator('#exp-memento-award').scrollIntoViewIfNeeded();await shot(page,`${size.width}-unique-title`);
+ await press('exp-track-none');assert.equal((await state(page)).trackedTask,'none');assert.equal((await state(page)).routeTarget,'');assert.equal((await state(page)).routePoints,'0');assert.equal(await page.locator('#exp-auto-walk').isVisible(),false);
+ await restore(page,all.safe,touch);const final=await state(page);assert.equal(final.progress,all.progress);assert.equal(final.trackedTask,'main');assert.deepEqual(JSON.parse(final.mementos),MEMENTOS.map(m=>m.id));assert.equal(final.photographed,'false');
+ const archive=await page.evaluate(()=>JSON.parse(localStorage.getItem('pokan.exp06a.save.v1')));assert.equal(archive.photo,null);assert.deepEqual(archive.observedSites,[]);assert.ok(validateExplorationSave(archive));
+ await journal('reloaded-all-owned');await page.locator('#exp-memento-award').scrollIntoViewIfNeeded();await shot(page,`${size.width}-reloaded-unique-title`);await press('exp-track-none');
+ assert.equal((await state(page)).routeTarget,'');assert.equal((await state(page)).routePoints,'0');
+ record(`COLLECTION-01 ${size.width} all three restore, four total collections, unique title/reward, no photo and free exploration clears route`,{start,stair,all,final,archive,inputLayer:touch?'Chrome CDP joystick plus touch journal navigation':'native keyboard plus journal navigation'});await page.close();
+}
+async function collectionProbe(){
+ for(const [size,touch] of [[{width:1280,height:760},false],[{width:844,height:390},true],[{width:667,height:375},true]])await collectionRoute(size,touch);
+ report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
+}
+
 async function styleRoute(size,touch){
  const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1});
  const press=id=>page.locator(`#${id}`)[touch?'tap':'click']();
@@ -877,7 +940,8 @@ try{
  headlessProcess.on('exit',(code,signal)=>report.timeline.push({event:'chrome-exit',code,signal,at:new Date().toISOString()}));
  browser.on('context',context=>{context.on('close',()=>report.timeline.push({event:'context-close',at:new Date().toISOString()}));context.on('page',page=>{page.on('close',()=>report.timeline.push({event:'page-close',at:new Date().toISOString()}));page.on('crash',()=>report.timeline.push({event:'page-crash',at:new Date().toISOString()}));});});
  const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(saveAcceptance)await saveProbe();
+ if(collectionAcceptance)await collectionProbe();
+ else if(saveAcceptance)await saveProbe();
  else if(args.includes('--pause-multitouch-only')){for(const size of [{width:844,height:390},{width:667,height:375}])await pauseSecondaryTouch(size);report.layers.touchEmulation='PASS';}
  else if(pauseAcceptance)await pauseProbe();
  else if(resizeAcceptance)await resizeProbe();
