@@ -14,6 +14,8 @@
 >
 > [NAV-02 栈门和取景台的路牌避让](#nav-02-interaction-sign-clearance) 已通过技术复核，三档空白档主线已在最终产物复跑。
 >
+> [FERRY-RESUME-01 渡船途中恢复验收](#ferry-resume-01) 已补验。
+>
 > [ROUTE-01 从导览楼到木作楼的识路提示](#route-01-guide-to-workshop) 已通过技术复核。[STYLE-UI-01 城市插画风格的探索浮层](#style-ui-01-exploration-panels) 已通过技术复核。[LOAD-01 场景载入失败与恢复](#load-01-scene-startup-recovery) 已通过技术复核。[HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 待观感复核后定范围。
 
 <a id="photo-ui-01-landscape-framing"></a>
@@ -433,6 +435,17 @@
 开发验证 PASS。生产构建与单测 286/286 通过。Chrome 158 从空白档走完开场、夜景委托、渡江、古树台、返程和刷新恢复；844×390、667×375 横屏触控模拟通过寻路过程中手动接管、乘船往返、雨雾切换和读档。两个浏览器报告均无页面或资源错误。独立上街试玩用键盘连续下西外阶、回上街，往返保持同一横向落脚点。[桌面完整流程](../test-results/exp-06a/run-2026-11-24T16-35-05-421Z/report.json) · [桌面与横屏专项](../test-results/exp-06a/run-2026-11-24T16-33-31-453Z/report.json) · [西外阶往返](../test-results/river-journey-01/2026-11-24T16-38-43-883Z/report.json)。
 
 画面复查确认码头、木船和照水岭坡脚同属一套夕照配色，下街人物、门和台阶可辨。西外阶仍由两个视图接合，短暂叠影与部分旧街巷材质接缝在截图中可见。真实手机、负责人观感、Work 独立评审为 NOT RUN。更大地图与重庆特色交通仍待继续设计。[渡口截图](../test-results/exp-06a/run-2026-11-24T16-33-31-453Z/dock-844.png) · [照水岭雨景](../test-results/exp-06a/run-2026-11-24T16-33-31-453Z/rain-844.png)。
+
+<a id="ferry-resume-01"></a>
+
+### FERRY-RESUME-01 渡船途中恢复验收
+
+状态为技术复核 PASS。当时生产源码为 `7b74b62`。由既有测试会话准备独立脚本，主窗口核对后执行。使用隔离合法已拍照档，各自只在第一次导航种档。1280×760 桌面使用键盘走近、菜单真实点击，667×375 横屏使用可信 CDP 摇杆与触摸。分两次登船，在航程实际开始后验证两条恢复路径。
+
+- 暂停并返回标题时，运行实例、进度、航程比例和存档字节保持。继续旅程只触发一次实际到岸。
+- 航行中刷新会创建新运行实例并回到档案的原岸安全点。照片、奖励与原进度保留。刷新不会再次补种夹具或自动开船。玩家重新主动登船后实际到岸一次。
+
+四项浏览器检查 PASS，无页面、控制台、网络错误。主窗口核对报告 SHA-256、351 个文件、13 项实际 HTTP 字节指纹，以及测试浏览器和临时服务清理。未涉及源码变更。真机及陌生玩家体验仍待进行。[报告](../test-results/ferry-resume-01/run-2026-11-26T15-38-03-950Z/report.json) · [航行中](../test-results/ferry-resume-01/run-2026-11-26T15-38-03-950Z/touch-667-reload-underway.png) · [刷新后](../test-results/ferry-resume-01/run-2026-11-26T15-38-03-950Z/touch-667-reload-reloaded-title.png)
 
 <a id="foothill-opening-01"></a>
 
