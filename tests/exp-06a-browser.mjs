@@ -15,7 +15,8 @@ import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './
 
 const args=process.argv.slice(2);
 const modes=['--route03-only','--route03-mobile-only','--route02-only','--route02-mobile-only','--route-only','--load-baseline','--load-only','--help-only','--help-baseline','--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only','--viewport-only','--photo-frame-only','--photo-frame-baseline'];
-if(!args.includes('--production')||args.some(a=>a!=='--production'&&a!=='--panel-style'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
+if(!args.includes('--production')||args.some(a=>a!=='--production'&&a!=='--panel-style'&&a!=='--wayfind'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
+const wayfindAcceptance=args.includes('--wayfind');
 const route03Acceptance=args.includes('--route03-only')||args.includes('--route03-mobile-only');
 const route02Acceptance=args.includes('--route02-only')||args.includes('--route02-mobile-only');
 const routeAcceptance=args.includes('--route-only');
@@ -31,7 +32,7 @@ const photoFrameBaseline=args.includes('--photo-frame-baseline');
 const photoFrameAcceptance=photoFrameBaseline||args.includes('--photo-frame-only');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results',route03Acceptance?'route-03':route02Acceptance?'route-02':routeAcceptance?'route-01':loadAcceptance?'load-01':helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',wayfindAcceptance?'wayfind-01':route03Acceptance?'route-03':route02Acceptance?'route-02':routeAcceptance?'route-01':loadAcceptance?'load-01':helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
 const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
@@ -50,6 +51,7 @@ if(loadAcceptance){report.task='LOAD-01';report.scope='JS-started scene image la
 if(routeAcceptance){report.task='ROUTE-01';report.scope='accepted-only legal cArrival fixture; manual explicit keyboard/CDP joystick route, no follow or runtime progress writes';}
 if(route02Acceptance){report.task='ROUTE-02';report.scope='equipped closed-gate cWood3Door fixture; explicit real keyboard/CDP steps to 2F, middle gate, east lower stair, return and reload; read-only viewport diagnostics enabled';}
 if(route03Acceptance){report.task='ROUTE-03';report.scope='legal open-gate unphotographed middle-east fixture; real input down east stairs, southeast riverside stairs, riverfront and return; ordinary entry';}
+if(wayfindAcceptance){assert.ok(route03Acceptance,'Use --wayfind with a ROUTE-03 mode');report.task='WAYFIND-01';report.scope='ordinary production entry; ROUTE-03 real east landing/riverside route plus held-input water blocker; drawing only';}
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
 async function hashTree(path){for(const e of await readdir(path,{withFileTypes:true})){const p=join(path,e.name);if(e.isDirectory())await hashTree(p);else report.hashes[relative(process.cwd(),p).replaceAll('\\','/')]=await sha(p);}}
 await hashTree('src');
@@ -401,7 +403,14 @@ async function route03Probe(){
   const page=await currentPage(save,size,touch);await fitCanvas(page);const initial=await state(page);
   assert.equal(initial.map,'middle');assert.equal(initial.unlocked,'true');assert.equal(initial.photographed,'false');
   await interact(page,'middle-east-lower');const landed=await state(page);assert.equal(landed.map,'lower');assert.equal(landed.target,'east-up');assert.match(await page.locator('#exp-objective').innerText(),/下街东南端「沿江石阶」.*江岸/);assert.match(await page.locator('#exp-prompt').innerText(),/沿东阶返回中街/);await shot(page,`${size.width}-lower-east-arrival`);
-  await walk(page,2000,950);await shot(page,`${size.width}-lower-southeast-approach`);await walk(page,2000,1050);await walk(page,1950,1050);assert.equal((await state(page)).target,'riverfront-down');assert.equal((await page.locator('#exp-prompt').innerText()).replace(/^E\s*/,''),'沿江石阶到渡口');await shot(page,`${size.width}-riverside-stairs-front`);await interact(page,'riverfront-down');
+  await walk(page,2000,950);await shot(page,`${size.width}-lower-southeast-approach`);await walk(page,2000,1050);await walk(page,1950,1050);assert.equal((await state(page)).target,'riverfront-down');assert.equal((await page.locator('#exp-prompt').innerText()).replace(/^E\s*/,''),'沿江石阶到渡口');await shot(page,`${size.width}-riverside-stairs-front`);
+  if(wayfindAcceptance){
+   if(touch){const raw=await rawTouch(page,63),b=await page.locator('#exp-stick').boundingBox(),c={x:b.x+b.width/2,y:b.y+b.height/2};await raw.start(c);await raw.move({...c,y:c.y+32});await page.waitForTimeout(1000);await raw.end();}
+   else{await page.keyboard.down('KeyS');await page.waitForTimeout(1000);await page.keyboard.up('KeyS');}
+   const blocked=await state(page);assert.equal(blocked.map,'lower');assert.ok(blocked.y<=1148.01&&blocked.y>=1145,JSON.stringify(blocked));assert.equal(blocked.photographed,'false');assert.equal(blocked.progress,initial.progress);await shot(page,`${size.width}-dry-landing-water-blocked`);
+   record(`WAYFIND-01 ${size.width} real held input stops on dry bank at continuous water blocker`,{blocked,method:touch?'trusted CDP held joystick':'native held KeyS'});await walk(page,1950,1050);
+  }
+  await interact(page,'riverfront-down');
   const river=await state(page);assert.equal(river.map,'riverfront');assert.equal(river.safe,'riverArrival');assert.equal(river.photographed,'false');assert.equal(river.preview,'');assert.equal(river.progress,initial.progress);await shot(page,`${size.width}-riverfront-arrival`);
   await interact(page,'riverfront-up');assert.equal((await state(page)).map,'lower');assert.equal((await state(page)).safe,'cLowerRiver');await shot(page,`${size.width}-lower-return`);await walk(page,2000,1050);await walk(page,2000,650);assert.equal((await state(page)).target,'east-up');await shot(page,`${size.width}-east-stair-return`);await interact(page,'east-up');assert.equal((await state(page)).map,'middle');await restore(page,'cMiddleDownEast',touch);const restored=await state(page);assert.equal(restored.progress,initial.progress);assert.equal(restored.photographed,'false');assert.equal(restored.unlocked,'true');assert.equal(JSON.parse(restored.progress).counts.rewards,0);await shot(page,`${size.width}-middle-reloaded`);
   record(`ROUTE-03 ${size.width} east landing distinguishes return stair; named riverside stair reaches riverfront and returns/reloads without photo`,{fixture:save,method:touch?'trusted CDP joystick and taps':'native keyboard',autoWalk:'NOT USED',initial,landed,river,restored});await page.close();

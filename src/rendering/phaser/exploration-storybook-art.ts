@@ -275,9 +275,11 @@ type StorybookWater = { graphics: Phaser.GameObjects.Graphics; left:number; righ
 export function drawLowerStreet(scene:Phaser.Scene,layer:Phaser.GameObjects.Layer):void {
   const m=EXP_MAPS.lower;
   const graphics=(depth:number)=>{const object=scene.add.graphics().setDepth(depth);layer.add(object);return object;};
-  const sign=(x:number,y:number,text:string,depth=y+12)=>{
-    layer.add(scene.add.text(x,y,text,{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'16px',color:'#fae9d5',
-      backgroundColor:'#302631',padding:{x:8,y:5}}).setOrigin(.5).setDepth(depth));
+  const sign=(x:number,y:number,text:string,depth=y+12,navigation=false)=>{
+    const plate=scene.add.text(x,y,text,{fontFamily:'Microsoft YaHei, sans-serif',fontSize:navigation?'18px':'16px',color:navigation?'#f2e8d5':'#fae9d5',
+      backgroundColor:navigation?'#122224':'#302631',padding:{x:8,y:5}}).setOrigin(.5).setDepth(depth);
+    layer.add(plate);
+    if(navigation){const b=plate.getBounds();graphics(depth+1).lineStyle(2,0xe8c35a).lineBetween(b.x+6,b.bottom-1,b.right-6,b.bottom-1);}
   };
   const prop=(frame:string,x:number,y:number,width:number)=>{
     const sprite=scene.add.image(x,y,key('props'),frame).setOrigin(.5,1).setDepth(y);
@@ -334,7 +336,29 @@ export function drawLowerStreet(scene:Phaser.Scene,layer:Phaser.GameObjects.Laye
     }
     steps.lineStyle(4,0x67504c).lineBetween(x-52,572,x-67+offset*10,669);
     steps.lineBetween(x+49,572,x+69+offset*10,669);
-    sign(x,676,offset<0?'↑ 西阶回中街':'↑ 东阶回中街',-1);
+    sign(x,676,offset<0?'↑ 西阶回中街':'↑ 东阶回中街',-1,true);
+  }
+  // The existing exit descends onto a dry landing that turns along this bank.
+  // Every tread stays landward of y=1156; the continuous water blocker is unchanged.
+  const exit=EXP_TARGETS.find(t=>t.id==='riverfront-down')!;
+  const top=exit.y-78,left=exit.x-64,landingY=exit.y+6;
+  const stairShadow=graphics(-69);
+  stairShadow.fillStyle(0x493744,.35).fillRoundedRect(left-6,top-4,144,94,3);
+  layer.add(celMaterial(scene,'street',left,landingY,236,52,-68).setTilePosition(left,landingY-231));
+  graphics(-67).fillStyle(0xa77863,.2).fillRect(left,landingY,236,52);
+  const riverSteps=graphics(-65);
+  for(let row=0;row<7;row++){
+    const x=exit.x-52-row*2,y=top+row*12,w=104+row*4;
+    riverSteps.fillStyle(0x81717b).fillRect(x,y,w,8);
+    riverSteps.fillStyle(0x55454e).fillRect(x,y+8,w,4);
+    riverSteps.fillStyle(0xb19782).fillRect(x+3,y+1,w-6,1);
+    riverSteps.lineStyle(1,0x67545d).lineBetween(x+w*.45,y+2,x+w*.45,y+7);
+  }
+  riverSteps.lineStyle(1,0xb19782,.6).lineBetween(left,landingY+2,left+232,landingY+2);
+  // A small right turn on the landing leads along dry stone, never into water.
+  for(const x of [exit.x+80,exit.x+112]){
+    riverSteps.lineStyle(3,0xd2bd91).lineBetween(x,landingY+22,x+8,landingY+28);
+    riverSteps.lineBetween(x+8,landingY+28,x,landingY+34);
   }
   const river=graphics(-92);
   river.fillStyle(0x345962).fillRect(0,1160,m.width,140);
@@ -347,7 +371,12 @@ export function drawLowerStreet(scene:Phaser.Scene,layer:Phaser.GameObjects.Laye
     coping.fillStyle(0x6a4d46).fillRect(x,1139,9,23);
     coping.fillStyle(0xc2a182).fillRect(x-2,1137,13,4);
   }
-  sign(1950,1132,'↓ 沿江石阶到渡口',-1);
+  // Reface only the existing coping's vertical face below the landing.
+  const landingWall=graphics(1163);
+  landingWall.fillStyle(0x62565e).fillRect(left,1158,236,24);
+  landingWall.fillStyle(0xa59386).fillRect(left,1156,236,5);
+  for(let x=left+24;x<left+236;x+=42){landingWall.lineStyle(2,0x493d47).lineBetween(x,1163,x,1181);}
+  sign(exit.x-150,exit.y+8,'↓ 沿江石阶到渡口',-1,true);
   sign(1350,1079,'檐下取景',-1);
 }
 

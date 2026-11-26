@@ -8,6 +8,8 @@
 >
 > [ROUTE-03 下街至江岸的沿江石阶](#route-03-lower-to-riverfront) 已通过技术复核。
 >
+> [WAYFIND-01 下街沿江阶口和路标](#wayfind-01-riverside-landing) 已通过技术复核，现行构建的三档空白档主线已复跑。
+>
 > [ROUTE-01 从导览楼到木作楼的识路提示](#route-01-guide-to-workshop) 已通过技术复核。[STYLE-UI-01 城市插画风格的探索浮层](#style-ui-01-exploration-panels) 已通过技术复核。[LOAD-01 场景载入失败与恢复](#load-01-scene-startup-recovery) 已通过技术复核。[HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 待观感复核后定范围。
 
 <a id="photo-ui-01-landscape-framing"></a>
@@ -108,7 +110,21 @@
 
 实施及主窗口技术复核 PASS。下街任务点明东南端，茶歇及灯笼铺先提示出门回下街，近处操作与现场牌均称「沿江石阶到渡口」。桌面及 667×375、844×390 横屏从合法已开门档，用真实键盘／CDP 触控经过东阶、沿江石阶、江岸和原路返程；刷新仍保持开门及导扣，照片、观察、奖励均无增加。构建、286/286 单测和五项 Chrome 检查通过，错误为零。主窗口复看两档石阶处和桌面江岸到达画面，独立核对 201 个源码／测试与三个产物指纹及实际 4199 入口。茶歇及灯笼铺仅以单测验文案，真机和负责人体验仍 NOT RUN。[667 报告](../test-results/route-03/run-2026-11-26T10-39-30-212Z/report.json) · [桌面及 844 报告](../test-results/route-03/run-2026-11-26T10-40-39-194Z/report.json) · [东阶落地](../test-results/route-03/run-2026-11-26T10-39-30-212Z/667-lower-east-arrival.png) · [沿江出口](../test-results/route-03/run-2026-11-26T10-40-39-194Z/844-riverside-stairs-front.png)
 
+<a id="wayfind-01-riverside-landing"></a>
+
+## 已实施 WAYFIND-01 下街沿江阶口和路标
+
+状态为开发验证及主窗口技术复核 PASS，基线 `fb476ee`。ROUTE-03 已让玩家走到正确出口。修后两档的门前画面仍是一片平铺石地，只有「沿江石阶到渡口」的牌和交互圈。基线 `drawLowerStreet` 绘制两座回程阶，沿江出口只有标牌。江岸的着陆点在陆侧石道上，跨江由之后的渡船完成。[667 阶口](../test-results/route-03/run-2026-11-26T10-39-30-212Z/667-riverside-stairs-front.png) · [844 阶口](../test-results/route-03/run-2026-11-26T10-40-39-194Z/844-riverside-stairs-front.png) · [江岸落地](../test-results/route-03/run-2026-11-26T10-40-39-194Z/1280-riverfront-arrival.png)
+
+在既有下街沿江出口画出街面接入、可辨踏面与立面、顺岸的陆地落脚台。踏步借用现有灰石阴影与暖边，靠下侧矮墙承托，阶梯朝向能读出高差和沿岸去向。保留现有岸线、阻水碰撞和江岸落点。只统一同屏相关路线牌的 A 配色，使用墨绿底、暖纸字和现有姜黄强调；标牌保持在实际去向旁。保持原有交互、方向、悬停提示、玩法和保存。全街区及江岸的美术重绘仍归 STYLE-02B。
+
+仅现有开发会话独占源码和 Chrome。用 ROUTE-03 的合法隔离档和真实键盘／CDP 触控完成 667×375、844×390、桌面下街东阶到沿江阶口再入江岸与返程。记录同站位前后截图及代表性接近视角。现场牌不能盖住人物和主要踏面，石阶末端可辨陆面，水边没有走出碰撞的路径。保留构建、全量单测、最终 Chrome 报告及当前产物指纹。主窗口复核地图、碰撞、路标位置和截图后独立提交与推送。
+
+实施及主窗口技术复核 PASS。沿江出口画出灰紫石阶、低亮暖边、顺岸落脚台和岸墙。落脚台使用街面同尺度、同相位的石板，三张下街导航牌用 A 色板。主窗口拒绝首轮青蓝踏面与深色矩形平台的拼接观感，改材质并修复被背景遮住的姜黄边，保留早期截图与视觉 FAIL。三档专项共八项通过，实际按住向下停在岸线，江岸往返和刷新仍可用。四份核心地形、通路、保存及行为相关差异为空，源码改动集中在下街绘制。构建、286/286 单测通过，主窗口实看三档关键画面并核对两份专项的各 201 个源码／测试、三个构建指纹和普通入口。独立复跑最新构建三档空白档主线，调查、开闸、拍摄、完成卡和刷新均通过，共 13 项，浏览器错误为零。真机、首次玩家和最终美术仍 NOT RUN。[667 专项](../test-results/wayfind-01/run-2026-11-26T10-55-20-519Z/report.json) · [桌面及 844 专项](../test-results/wayfind-01/run-2026-11-26T10-57-12-160Z/report.json) · [修后阶口](../test-results/wayfind-01/run-2026-11-26T10-57-12-160Z/844-riverside-stairs-front.png) · [首轮画面](../test-results/wayfind-01/run-2026-11-26T10-49-43-147Z/667-riverside-stairs-front.png) · [空白档主线](../test-results/style-02a/run-2026-11-26T11-00-03-449Z/report.json)
+
 ## 当前可试玩构建
+
+现行构建包含 ROUTE-02、ROUTE-03 与 WAYFIND-01 的下行、开闸、江岸承托和路标修订。桌面 1280×760 与 667×375、844×390 横屏从空白档走完开场至拍照、完成卡与刷新，另以合法隔离档实走木作与中街、下街与江岸。真机、负责人观感与新玩家 6—8 分钟仍未验收。[本地试玩](http://127.0.0.1:4199/) · [最新三档主线](../test-results/style-02a/run-2026-11-26T11-00-03-449Z/report.json)
 
 代码发布记录（2026-11-26）：按验收快照将 STYLE-02A 至 PHOTO-UI-01 拆为 11 个任务提交，与既有 HUD 提交一次快进同步到 GitHub main，远端已核对至 `ea6f4b4`。本地 `test-results/` 保留浏览器报告和历史失败。后续各项复核后独立提交和推送，HELP-01 已对上远端 `a9e481b`。
 
