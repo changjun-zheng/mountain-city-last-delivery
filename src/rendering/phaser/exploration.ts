@@ -301,8 +301,12 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
               // The pill widens near the target. Ease the vertical framing as
               // the player approaches, rather than pushing the initial spire up.
               const plazaDown=.12+.03*Phaser.Math.Clamp((s.position.x-lessonStartX)/(lessonTargetX-lessonStartX),0,1);
-              camera.setScroll(Phaser.Math.Clamp(s.position.x-camera.width/2+plazaFrame*camera.width*.20,0,Math.max(0,s.worldWidth-camera.width)),
-                Phaser.Math.Linear(normalY,desiredY,nearStairs)+lookDown+plazaFrame*camera.height*plazaDown);
+              const riverDistance=s.map==='riverfront'?Math.hypot(s.position.x-PHOTO_SITES.river.x,s.position.y-PHOTO_SITES.river.y):Infinity;
+              const riverFrame=1-Phaser.Math.SmoothStep(riverDistance,120,320);
+              const baseX=Phaser.Math.Clamp(s.position.x-camera.width/2+plazaFrame*camera.width*.20,0,Math.max(0,s.worldWidth-camera.width));
+              const baseY=Phaser.Math.Linear(normalY,desiredY,nearStairs)+lookDown+plazaFrame*camera.height*plazaDown;
+              camera.setScroll(Phaser.Math.Linear(baseX,Phaser.Math.Clamp(s.position.x-camera.width/2-165,0,Math.max(0,s.worldWidth-camera.width)),riverFrame),
+                Phaser.Math.Linear(baseY,Phaser.Math.Clamp(s.position.y-108,0,Math.max(0,s.worldHeight-camera.height)),riverFrame));
               const guideBoard=map.list.find(o=>o.name==='viewport-guide-sign') as Phaser.GameObjects.Text|undefined;
               if(guideBoard){
                 const home=guideBoard.getData('viewportHome');

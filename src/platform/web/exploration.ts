@@ -8,6 +8,7 @@ import { runtimeUuidProvider } from './runtime-uuid';
 import type { PauseToken } from '../../core/lifecycle';
 import {PHOTO_SITES,type PhotoSiteId} from '../../core/exploration-photo';
 import {explorationPhotoSvg} from '../../rendering/phaser/exploration-photo-art';
+import riverPhotoUrl from '../../rendering/phaser/assets/city-v1/river-photo.webp';
 import {explorationUiMarkup,renderExplorationJournal} from './exploration-ui';
 import {explorationDialogueAction} from './exploration-journal';
 import './exploration-ui.css';
@@ -19,6 +20,8 @@ import {mementoImageUrl} from '../../rendering/phaser/exploration-memento-art';
 import {committedGateOpening,investigationView} from '../../rendering/exploration-feedback';
 import {createGateSound} from './exploration-gate-sound';
 import type {ExplorationWeather} from '../../rendering/phaser/exploration-weather';
+
+const photoSource=(site:PhotoSiteId)=>site==='river'?riverPhotoUrl:`data:image/svg+xml;charset=utf-8,${encodeURIComponent(explorationPhotoSvg(site))}`;
 
 export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}) {
   const artSample=new URLSearchParams(location.search).get('sample')==='storybook';
@@ -169,7 +172,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     if(s.photoPreview){
       const site=PHOTO_SITES[s.photoPreview.siteId];get('exp-photo-title').textContent=site.name;
       get('exp-photo-requirement').textContent=s.accepted?'游客希望：桥、江水与木楼同框':'尚未听完游客的取景要求';
-      if(shownPhoto!==site.id){get<HTMLImageElement>('exp-photo-image').src=`data:image/svg+xml;charset=utf-8,${encodeURIComponent(explorationPhotoSvg(site.id))}`;shownPhoto=site.id;}
+      if(shownPhoto!==site.id){get<HTMLImageElement>('exp-photo-image').src=photoSource(site.id);shownPhoto=site.id;}
       get('exp-photo-feedback').textContent=s.photoPreview.feedback;
       get('exp-shutter').dataset.previewId=s.photoPreview.id;
     }
@@ -458,7 +461,7 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
       root.focus({preventScroll:true});
       update();
     });
-    get<HTMLImageElement>('exp-card-image').src=`data:image/svg+xml;charset=utf-8,${encodeURIComponent(explorationPhotoSvg('river'))}`;
+    get<HTMLImageElement>('exp-card-image').src=photoSource('river');
     on('exp-begin',begin);on('exp-title',returnTitle);
     on('exp-intro-start',()=>startJourney('intro'));on('exp-intro-back',returnTitle);
     const instructions=()=>{setView('help',true);focus('exp-instructions-close');};

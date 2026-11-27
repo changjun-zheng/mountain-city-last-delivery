@@ -1,0 +1,168 @@
+{
+  "task": "STYLE-02B",
+  "status": "Integrated and technically reviewed across desktop and two landscape touch-emulation sizes; owner art review pending.",
+  "method": "Built-in image generation from a neutral coordinate diagram, followed by coordinate registration and WebP encoding",
+  "geometry": "reference/generated/style-02b/river-geometry.png",
+  "styleReference": "docs/assets/style-reset-v1/play-mobile.png",
+  "illustrations": [
+    {
+      "original": "riverfront-original.png",
+      "prompt": "Generate a new original illustration using the FIRST input as a strict tracing template for a playable 2D modern Chinese hillside city riverfront map, with the SECOND input as an A-style rendering reference only. Preserve the complete first image composition, including the relative vertical proportions. Match each main silhouette almost pixel-for-pixel. Do not introduce decorative details that would suggest new collision. One full-frame image with approximately 26:15 landscape ratio. Equal crop top and bottom. No inset and no border. No people, boats, letters, labels, symbols, branding, or sky.\n\nTHE MOST IMPORTANT ALIGNMENT: trace the long gray embankment strip in the diagram exactly; its top is at 71.7 percent of the image height and its bottom only around 74 percent. The tan promenade remains traversable all the way to that cap. No large vertical quay wall eating the promenade. The only gap in the cap is the diagram's precise dock platform x81.1 to 86.5 percent of width, rising to the shore at y71 percent and extending down to y81.3 percent, unmistakably solid dry side-railed steps and landing. The main building's front base ends at y47.4 percent in the same footprint x35.9 to 72.2 percent. The smaller right shelter ends at y39.2 percent, x77.4 to 94.1 percent. The small low tree planter base at x22–28 percent ends at y58 percent. Preserve clear walkable space around these obstacles. Do not merge the foreground approach into vertical water. Draw gentle variation on the stone promenade with low-contrast slab joints and a few broad ambient pools of light.\n\nART: original contemporary architectural illustration for a polished 2D exploration game, elevated oblique viewing angle, fine intentional edges, roof tops and front facades, grounded shadows, sophisticated shape design with discrete flat ceramic/concrete/metal color planes and limited texture. No photorealistic grain, 3D-render lighting or detailed specular wetness. Soft teal bluehour ambient, selectively amber-lit large geometric windows. Compact present-day stucco and concrete hillside flats form the upper backdrop behind trees and simple retaining walls. In the large rectangle draw a warm-window community hall with a flat pent-roof and framed modern glass, no upturned lines. Right block is a straight-edged steel and glass ferry waiting shed. Match the style and soft palette of the second input without drawing its HUD or copying a layout. Authentic regional retaining terraces and everyday architecture; no ancient roofs or temple motifs.\n\nIn the bottom only draw the continuing river scene from that same oblique elevated angle, no change of perspective, no extra sky view. The far shore is a continuous rocky and vegetated terrace in the lowest sixth with a distant contemporary cable-stayed bridge crossing a wide inlet between two solid abutments. Follow the diagram's bridge angle. Bridge tower sits around x62 percent and y79–86 percent, deck centered at y84 percent, and BOTH ends naturally run onto dry distant shore with continuous roads. To the right at x69–76 percent, show two small restored riverside wooden workspaces with flat roof edges on slender legs integrated with the masonry terrace. Use the same contemporary graphic style. Water continues under the bridge and between the playable dock and far shore. Simple broad water ripples reflecting some amber accents. The bridge, stilt workspaces, river and pier should read clearly within the game camera. Keep ample blue water and clear space immediately in front of the dock opening.",
+      "originalPixels": [
+        1651,
+        953
+      ],
+      "renderAsset": "src/rendering/phaser/assets/city-v1/riverfront.webp",
+      "worldPixels": [
+        2600,
+        1500
+      ],
+      "registration": {
+        "inputToWorldX": [
+          [
+            0,
+            0
+          ],
+          [
+            105,
+            167
+          ],
+          [
+            353,
+            578
+          ],
+          [
+            449,
+            724
+          ],
+          [
+            579,
+            934
+          ],
+          [
+            1187,
+            1878
+          ],
+          [
+            1254,
+            2012
+          ],
+          [
+            1320,
+            2108
+          ],
+          [
+            1426,
+            2250
+          ],
+          [
+            1551,
+            2447
+          ],
+          [
+            1651,
+            2600
+          ]
+        ],
+        "inputToWorldY": [
+          [
+            0,
+            0
+          ],
+          [
+            213,
+            350
+          ],
+          [
+            355,
+            588
+          ],
+          [
+            425,
+            711
+          ],
+          [
+            531,
+            872
+          ],
+          [
+            666,
+            1076
+          ],
+          [
+            691,
+            1112
+          ],
+          [
+            773,
+            1220
+          ],
+          [
+            953,
+            1500
+          ]
+        ]
+      },
+      "capture": {
+        "sourceWorldRect": [
+          1170,
+          900,
+          1080,
+          600
+        ],
+        "pixels": [
+          900,
+          500
+        ],
+        "renderAsset": "src/rendering/phaser/assets/city-v1/river-photo.webp"
+      }
+    },
+    {
+      "original": "ferry-original.png",
+      "prompt": "Create one isolated transparent-background sprite of an original small contemporary passenger ferry boat for a modern Chinese riverside exploration game. Softly shaded 2D modern architectural illustration, simple plane-based graphic coloring, muted warm ivory hull, deep petrol green hull stripe and straight dark charcoal metal roof, one neat row of four warm amber glowing glass passenger windows, a low modern bow and a modest rail. Exact near-side view with a slight elevated angle, visible flat roof plane, no dramatic perspective or foreshortening, bow pointing to the right so the sprite can be flipped in game. Strong elongated readable proportion approximately 3.5 to 1 from left tip to right tip relative to height, sitting with the keel level. Small everyday civic river transport for a fictional contemporary Chongqing-inspired city at blue hour. Crisp details readable at an in-game display of about 185 × 55 pixels. Shape stays entirely inside the frame with transparent margin. Single boat, no wake, no water, no platform, no reflections outside the hull, no people, no letters, no logos, no ancient or ornate cabin or curved temple roof. Truly transparent background.",
+      "renderAsset": "src/rendering/phaser/assets/city-v1/ferry.webp",
+      "pixels": [
+        560,
+        187
+      ],
+      "alpha": "preserved"
+    }
+  ],
+  "sha256": {
+    "reference/generated/style-02b/river-geometry.png": "18bd86bf274b503e130d2a9a838e8db6d8432f1be8941b18668ccc58fa242c2c",
+    "reference/generated/style-02b/riverfront-original.png": "988724fe035f41b7682bff87afc26d71528268e78e5de720e562faa3430b25ee",
+    "reference/generated/style-02b/ferry-original.png": "5a213865bc163332141bd5ad45f1aa87306f56212d6aefe656d460b8e3e330e4",
+    "src/rendering/phaser/assets/city-v1/riverfront.webp": "dbf8bab16f920847d5e6454a86375c5d6d64f7d6d5bf0362ad7e6a9a987be776",
+    "src/rendering/phaser/assets/city-v1/river-photo.webp": "f2b53d3b142eb716f4241f3f8ad2a406ae1e8cedcfcd2b1ce7185bdb688d77d8",
+    "src/rendering/phaser/assets/city-v1/ferry.webp": "4d17dc2a3c67c3e5a315959d1e735c5b8344802f99659e9c46ba7a2270ed55d2"
+  },
+  "reviewReferencesAfterGeneration": [
+    {
+      "title": "重庆市住房和城乡建设委员会 两江汇滨江步道",
+      "source": "https://zfcxjw.cq.gov.cn/zwxx_166/zwyw/202512/t20251209_15221671_jlb.html",
+      "media": "https://zfcxjw.cq.gov.cn/zwxx_166/zwyw/202512/W020251208333400998261.png",
+      "localReviewFile": "test-results/style-02b/official-reference/chaotianmen-waterfront.png",
+      "sha256": "338439a4289f3c7b854e071022965a90a2696a3073865b158abe22d99d3006b0",
+      "review": "用实景台阶、挡墙、亲水步道和现代城市背景校验可行的同岸高差与落脚关系。"
+    },
+    {
+      "title": "重庆市规划和自然资源局 重庆传统风貌区地图",
+      "source": "https://ghzrzyj.cq.gov.cn/bsfw_186/dtfw/mzyt/202605/t20260515_15680989.html",
+      "media": "https://ghzrzyj.cq.gov.cn/bsfw_186/dtfw/mzyt/202605/P020260515652452262058.jpg",
+      "localReviewFile": "test-results/style-02b/official-reference/chongqing-traditional-townscape-map.jpg",
+      "sha256": "be79e66720dc98088b2d96c63dd9521cacd1aa58489c8362cde56b0b8faa6e28",
+      "review": "用于后续选取有确切地域来源的风貌和活化内容。"
+    },
+    {
+      "title": "Eastward 官方媒体包",
+      "source": "https://eastwardgame.com/media/",
+      "review": "观察街巷纵深、生活设施的用途和近远尺度组织。"
+    },
+    {
+      "title": "TOEM 开发者商店页",
+      "source": "https://store.steampowered.com/app/1307580/TOEM/",
+      "review": "比较摄影委托和观察环境的关系。"
+    }
+  ],
+  "originalStorage": "The source PNG files are archived locally under reference/generated/style-02b, following the repository ignore rule. The runtime WebP files and this provenance record are tracked."
+}

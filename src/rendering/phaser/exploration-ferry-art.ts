@@ -3,8 +3,8 @@ import type {ExplorationSnapshot} from '../../core/exploration';
 import {RIVER_PIER_X} from '../../core/exploration-ferry';
 import {EXP_MAPS, EXP_TARGETS} from '../../core/exploration-content';
 import ridgeUrl from './assets/cel-v1/ridge-landing.webp';
-import harbourUrl from './assets/cel-v1/bay-harbour.webp';
-import ferryUrl from './assets/cel-v1/ferry.webp';
+import harbourUrl from './assets/city-v1/riverfront.webp';
+import ferryUrl from './assets/city-v1/ferry.webp';
 
 const ridgeTexture = 'ferry-ridge-landing';
 const harbourTexture = 'ferry-bay-harbour';
@@ -39,18 +39,18 @@ export function drawFerryDistrict(scene: Phaser.Scene,layer:Phaser.GameObjects.L
     return;
   }
 
-  layer.setData('storybookWater',{graphics:glints,left:100,right:2070,top:1155,bottom:1360});
-  const boat=scene.add.image(RIVER_PIER_X+55,1269,ferryTexture).setOrigin(.5,.87).setDisplaySize(185,58).setDepth(1270);
+  layer.setData('storybookWater',{graphics:glints,left:100,right:2070,top:1130,bottom:1175});
+  const boat=scene.add.image(RIVER_PIER_X+55,1269,ferryTexture).setOrigin(.5,.87).setDisplaySize(185,185*187/560).setDepth(1270);
   layer.add(boat);
   if(!s.photographed){
     const rope=scene.add.graphics().setDepth(1268);
     rope.lineStyle(2,0xbb9668,.8).lineBetween(RIVER_PIER_X+32,1219,boat.x-71,1264);
     layer.add(rope);
   }
-  label(scene,layer,RIVER_PIER_X+80,1030,s.photographed?'照水岭渡船 · 可乘':'照水岭渡船',true);
+  label(scene,layer,RIVER_PIER_X-90,1030,s.photographed?'照水岭渡船 · 可乘':'照水岭渡船',true);
   label(scene,layer,2335,1438,'对岸 · 照水岭');
   const ascent=EXP_TARGETS.find(target=>target.id==='riverfront-up')!;
-  label(scene,layer,ascent.x,ascent.y-54,'沿坡路回下街',true);
+  label(scene,layer,ascent.x-100,ascent.y-54,'沿坡路回下街',true);
   const view=EXP_TARGETS.find(target=>target.id==='view')!;
   const viewY=view.y-53;
   const viewSign=label(scene,layer,view.x-210,viewY,'江岸取景台',true,viewY+18).setName('viewport-photo-sign');
@@ -74,7 +74,7 @@ export function createFerryView(scene:Phaser.Scene) {
     const drift=reducedMotion?0:Math.sin(progress*29)*2;
     const x=Phaser.Math.Linear(.852,.743,t)*width,y=Phaser.Math.Linear(.61,.93,t)*height+drift;
     const size=Math.min(width*.18,210);
-    ferry.setPosition(x,y).setDisplaySize(size,size*175/560).setFlipX(forward);
+    ferry.setPosition(x,y).setDisplaySize(size,size*187/560).setFlipX(forward);
     wake.clear();
     wake.fillStyle(0x163540,.53).fillEllipse(x,y+4,size*.89,14);
     if(!reducedMotion){

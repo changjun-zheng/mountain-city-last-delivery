@@ -2,7 +2,7 @@
 
 - 版本：STYLE-01 样张 R2，2026-11-27 同步全项目视觉方向
 - 状态：现代山城都市插画为全项目已确认方向，样张和实际场景资产按版本验收。
-- 实施状态：STYLE-02A 已落地标题、HUD、解放碑广场出生街区与主角临时占位。STYLE-02B 第一段为江岸实景、取景和纪念图，旧画面改绘的候选已退稿。
+- 实施状态：STYLE-02A 已落地标题、HUD、解放碑广场出生街区与主角临时占位。STYLE-02B 已接入原创江岸实景、取景和纪念图，完成首段技术复核。全路线与负责人实际观感按版本验收。
 - 适用范围：标题、HUD、场景、主角与 NPC、道具、取景及纪念图。[现行决策](../../DECISIONS.md#modern-city-illustration-20261127)
 - 样张入口：`review.html`；可重复渲染：`node mock/render.mjs`
 - 标题字体：`src/platform/web/assets/pokan-title.woff`（Ma Shan Zheng 四字子集，OFL），样张内复制于 `mock/assets/`
