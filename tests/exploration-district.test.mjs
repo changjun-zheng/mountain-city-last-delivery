@@ -10,6 +10,48 @@ import { FERRY_SAFE } from '../src/core/exploration-ferry.ts';
 import {coreDriver as driver} from './exploration-floor-routes.mjs';
 function fullProgress(){const p=new InMemoryRunProgress('exp02a');p.completeGoal(P.accepted);p.completeGoal(P.clue);p.recordCollection(P.item);p.completeGoal(P.unlocked);return p.snapshot;}
 
+test('STORY-01 storage-door information follows discovered clue and actual clasp ownership without committing anything',()=>{
+ for(const [clue,item] of [[false,false],[true,false],[false,true],[true,true]]){
+  const p=new InMemoryRunProgress('exp03b');
+  if(clue||item)p.completeGoal(P.accepted);
+  if(clue)p.completeGoal(P.clue);
+  if(item)p.recordCollection(P.item);
+  const save={...emptyExplorationSave(),safe:'cUpperWest',progress:p.snapshot};assert.ok(validateExplorationSave(save));
+  const d=driver(save);d.target('wrong-gate');const before=d.r.save,revision=d.r.snapshot.revision;
+  for(const close of [false,true,true]){
+   d.interact('wrong-gate');const s=d.r.snapshot;
+   assert.match(s.dialogue,/三角山纹/);assert.match(s.dialogue,/杂物/);assert.equal(s.pending,undefined);
+   if(item){assert.match(s.dialogue,/两道水波.*不匹配/);assert.match(s.dialogue,/导扣仍留在身上/);}
+   else if(clue){assert.match(s.dialogue,/江纹栈门在中街/);assert.doesNotMatch(s.dialogue,/身上|导扣仍|导扣.*保留/);}
+   else assert.doesNotMatch(s.dialogue,/江纹|导扣|水波/);
+   assert.deepEqual(d.r.save,before);d.r.closeDialogue(close);assert.deepEqual(d.r.save,before);
+   assert.equal(d.r.snapshot.revision,revision);assert.equal(d.r.snapshot.unlocked,false);assert.equal(d.r.lifecycle.pauseCount,0);
+  }
+ }
+});
+
+test('STORY-01 real middle gate still requires accepted request, clue and clasp, and confirmation',()=>{
+ const gate=EXP_TARGETS.find(t=>t.id==='gate');assert.equal(gate.map,'middle');assert.equal(gate.locked,undefined);
+ assert.equal(EXP_TARGETS.find(t=>t.id==='wrong-gate').map,'upper');
+ for(const [accepted,clue,item] of [[false,false,false],[true,false,false],[true,true,false],[true,false,true],[true,true,true]]){
+  const p=new InMemoryRunProgress('exp03b');if(accepted)p.completeGoal(P.accepted);if(clue)p.completeGoal(P.clue);if(item)p.recordCollection(P.item);
+  const save={...emptyExplorationSave(),safe:'cUpperWest',progress:p.snapshot};assert.ok(validateExplorationSave(save));
+  const d=driver(save);d.use('east-down');d.target('gate');const before=d.r.save;
+  d.interact('gate');assert.equal(d.r.snapshot.pending,accepted&&clue&&item?'unlocked':undefined);d.r.closeDialogue(false);assert.deepEqual(d.r.save,before);
+  d.interact('gate');d.r.closeDialogue();assert.equal(d.r.snapshot.unlocked,accepted&&clue&&item);
+  assert.deepEqual(d.r.snapshot.progress.collections,before.progress.collections);
+ }
+});
+
+test('STORY-01 collecting clasp before reading the display keeps the same truthful storage-door reply',()=>{
+ const p=new InMemoryRunProgress('exp03b');p.completeGoal(P.accepted);
+ const d=driver({...emptyExplorationSave(),safe:'cWoodH3',progress:p.snapshot});
+ d.use('workshop-upper-door');d.use('plaque');d.r.closeDialogue();d.use('workshop-upper-exit');d.use('wrong-gate');
+ const reply=d.r.snapshot.dialogue;assert.match(reply,/导扣仍留在身上/);assert.equal(d.r.snapshot.clue,false);d.r.closeDialogue();
+ d.use('guide-door');d.use('note');d.r.closeDialogue();d.use('guide-upper-exit');d.use('wrong-gate');
+ assert.equal(d.r.snapshot.dialogue,reply);assert.equal(d.r.snapshot.item,true);assert.equal(d.r.snapshot.clue,true);assert.equal(d.r.snapshot.unlocked,false);
+});
+
 // EXP-06A explicitly replaces old C geometry/door expectations. Historical
 // safe values remain frozen; cancellation, items and route ownership are kept.
 test('EXP-02A A1 current bounded C and five useful paired building doorways, all foot anchors clear',()=>{

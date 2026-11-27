@@ -224,7 +224,11 @@ export class ExplorationRuntime {
       case 'plaque':
         this.#say(this.#progress.snapshot.collections.includes(P.item)?'江纹导扣已带在身上。两道水波还清楚地刻在木面上。':'木架上放着一枚可借的江纹导扣，刻有两道水波。\n确认后带走导扣，再与沿途门扣比对；它不会因试错消失。', 'item'); break;
       case 'wrong-gate':
-        this.#say('杂物门刻着三角山纹，与水波导扣不同。这不是通往低处江景的路，导扣仍保留。'); break;
+        this.#say(this.#progress.snapshot.collections.includes(P.item)?
+          '杂物门刻着三角山纹，与身上江纹导扣的两道水波不匹配。这里存放街巷杂物，导扣仍留在身上。':
+          this.#progress.verifyGoal(P.clue)?
+          '杂物门刻着三角山纹，用来存放街巷杂物。展柜导览标出的江纹栈门在中街，这是两条不同的路线。':
+          '门板上刻着三角山纹，是用来存放街巷杂物的门。'); break;
       case 'street-sign':
         this.#say('岔口路牌：上街临导览2F与木作3F；两端外阶和导览楼都能到中街。中街市集可穿行，下街仍有江纹封道。'); break;
       case 'tea-observe':
