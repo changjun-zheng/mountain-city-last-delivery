@@ -230,7 +230,8 @@ export class ExplorationRuntime {
           '杂物门刻着三角山纹，用来存放街巷杂物。展柜导览标出的江纹栈门在中街，这是两条不同的路线。':
           '门板上刻着三角山纹，是用来存放街巷杂物的门。'); break;
       case 'street-sign':
-        this.#say('岔口路牌：上街临导览2F与木作3F；两端外阶和导览楼都能到中街。中街市集可穿行，下街仍有江纹封道。'); break;
+        this.#say('岔口路牌：上街临导览2F与木作3F；两端外阶和导览楼都能到中街。中街市集可穿行，'+
+          (this.#progress.verifyGoal(P.unlocked)?'下街已开放，可从中街经两端外阶下行，或从木作1F出下街。':'下街仍有江纹封道。')); break;
       case 'tea-observe':
         this.#say('竹椅沿窗摆着，桌面留着茶壶的水印。这里适合歇脚，但屋檐挡住了桥面。\n这只是街区生活陈设，不影响寻找取景点。'); break;
       case 'window':

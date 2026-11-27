@@ -10,6 +10,25 @@ import { FERRY_SAFE } from '../src/core/exploration-ferry.ts';
 import {coreDriver as driver} from './exploration-floor-routes.mjs';
 function fullProgress(){const p=new InMemoryRunProgress('exp02a');p.completeGoal(P.accepted);p.completeGoal(P.clue);p.recordCollection(P.item);p.completeGoal(P.unlocked);return p.snapshot;}
 
+test('STORY-02 upper street sign follows the real gate and never changes progress when inspected',()=>{
+ const p=new InMemoryRunProgress('exp03b');p.completeGoal(P.accepted);p.completeGoal(P.clue);p.recordCollection(P.item);
+ const save={...emptyExplorationSave(),safe:'cGuideH3',progress:p.snapshot};assert.ok(validateExplorationSave(save));const d=driver(save);
+ const prefix='岔口路牌：上街临导览2F与木作3F；两端外阶和导览楼都能到中街。中街市集可穿行，';
+ const inspect=open=>{
+  d.target('street-sign');const before=d.r.save,revision=d.r.snapshot.revision;
+  for(const confirm of [false,true]){
+   d.interact('street-sign');const s=d.r.snapshot;assert.ok(s.dialogue.startsWith(prefix));assert.equal(s.pending,undefined);
+   if(open){assert.match(s.dialogue,/下街已开放.*两端外阶.*木作1F/);assert.doesNotMatch(s.dialogue,/下街仍有江纹封道/);}
+   else assert.equal(s.dialogue,prefix+'下街仍有江纹封道。');
+   assert.deepEqual(d.r.save,before);d.r.closeDialogue(confirm);assert.deepEqual(d.r.save,before);assert.equal(d.r.snapshot.revision,revision);assert.equal(d.r.lifecycle.pauseCount,0);
+  }
+ };
+ inspect(false);d.use('east-down');d.use('gate');d.r.closeDialogue(false);assert.equal(d.r.snapshot.unlocked,false);
+ d.use('gate');d.r.closeDialogue();assert.equal(d.r.snapshot.unlocked,true);const opened=d.r.snapshot.progress;
+ d.use('middle-east-upper');inspect(true);assert.deepEqual(d.r.snapshot.progress,opened);
+ d.use('east-down');d.use('middle-east-lower');assert.equal(d.r.snapshot.map,'lower');assert.equal(d.r.snapshot.item,true);assert.deepEqual(d.r.snapshot.progress,opened);assert.ok(validateExplorationSave(d.r.save));
+});
+
 test('STORY-01 storage-door information follows discovered clue and actual clasp ownership without committing anything',()=>{
  for(const [clue,item] of [[false,false],[true,false],[false,true],[true,true]]){
   const p=new InMemoryRunProgress('exp03b');

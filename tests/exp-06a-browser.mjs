@@ -15,7 +15,9 @@ import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './
 
 const args=process.argv.slice(2);
 const modes=['--route03-only','--route03-mobile-only','--route02-only','--route02-mobile-only','--route-only','--load-baseline','--load-only','--help-only','--help-baseline','--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only','--viewport-only','--photo-frame-only','--photo-frame-baseline'];
+modes.push('--street-sign-only');
 if(!args.includes('--production')||args.some(a=>a!=='--production'&&a!=='--panel-style'&&a!=='--wayfind'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
+const streetSignAcceptance=args.includes('--street-sign-only');
 const wayfindAcceptance=args.includes('--wayfind');
 const route03Acceptance=args.includes('--route03-only')||args.includes('--route03-mobile-only');
 const route02Acceptance=args.includes('--route02-only')||args.includes('--route02-mobile-only');
@@ -32,7 +34,7 @@ const photoFrameBaseline=args.includes('--photo-frame-baseline');
 const photoFrameAcceptance=photoFrameBaseline||args.includes('--photo-frame-only');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results',wayfindAcceptance?'wayfind-01':route03Acceptance?'route-03':route02Acceptance?'route-02':routeAcceptance?'route-01':loadAcceptance?'load-01':helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',streetSignAcceptance?'story-02':wayfindAcceptance?'wayfind-01':route03Acceptance?'route-03':route02Acceptance?'route-02':routeAcceptance?'route-01':loadAcceptance?'load-01':helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
 const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
@@ -50,6 +52,7 @@ if(helpAcceptance){report.task='HELP-01';report.scope=args.includes('--help-base
 if(loadAcceptance){report.task='LOAD-01';report.scope='JS-started scene image latch and explicit 404, isolated contexts; fresh success and legal nonempty archive recovery';report.injectedErrors=[];report.preFixDefects=[];}
 if(routeAcceptance){report.task='ROUTE-01';report.scope='accepted-only legal cArrival fixture; manual explicit keyboard/CDP joystick route, no follow or runtime progress writes';}
 if(route02Acceptance){report.task='ROUTE-02';report.scope='equipped closed-gate cWood3Door fixture; explicit real keyboard/CDP steps to 2F, middle gate, east lower stair, return and reload; read-only viewport diagnostics enabled';}
+if(streetSignAcceptance){report.task='STORY-02';report.scope='ordinary production entry; legal equipped but closed cGuideH3 fixture; native keyboard / trusted CDP joystick, no follow or runtime writes; upper sign, real gate confirmation, upper sign, lower and reload, upper sign again';}
 if(route03Acceptance){report.task='ROUTE-03';report.scope='legal open-gate unphotographed middle-east fixture; real input down east stairs, southeast riverside stairs, riverfront and return; ordinary entry';}
 if(wayfindAcceptance){assert.ok(route03Acceptance,'Use --wayfind with a ROUTE-03 mode');report.task='WAYFIND-01';report.scope='ordinary production entry; ROUTE-03 real east landing/riverside route plus held-input water blocker; drawing only';}
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
@@ -396,6 +399,46 @@ async function pausedAt(page,view,tokens,focus,baseline){
  if(baseline)for(const name of ['runtimeId','map','progress','tick'])assert.equal(s[name],baseline[name]);
  return s;
 }
+async function streetSignProbe(){
+ const p=new InMemoryRunProgress('exp03b');p.completeGoal(P.accepted);p.completeGoal(P.clue);p.recordCollection(P.item);
+ const save={...emptyExplorationSave(),safe:'cGuideH3',progress:p.snapshot};assert.ok(validateExplorationSave(save));
+ const prefix='岔口路牌：上街临导览2F与木作3F；两端外阶和导览楼都能到中街。中街市集可穿行，';
+ for(const [size,touch]of [[{width:1280,height:760},false],[{width:667,height:375},true]]){
+  const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1});
+  await page.addInitScript(({key,save})=>{if(localStorage.getItem(key)===null)localStorage.setItem(key,JSON.stringify(save));},{key:'pokan.exp06a.save.v1',save});
+  const press=id=>touch?page.locator('#'+id).tap():keyboardActivate(page,id);
+  await page.goto(base);await loaded(page);await press('exp-begin');if(touch)await touchPort(page);await fitCanvas(page);
+  const initial=await state(page);assert.equal(initial.safe,'cGuideH3');assert.equal(initial.unlocked,'false');await shot(page,`${size.width}-start`);
+  const inspect=async(open,phase)=>{
+   await walk(page,1100,650);const before=await state(page),rawBefore=await page.evaluate(()=>localStorage.getItem('pokan.exp06a.save.v1'));
+   assert.equal(before.target,'street-sign');assert.equal(before.autoWalk,'false');await interact(page,'street-sign');
+   await wait(page,()=>document.activeElement?.id==='exp-close');const text=await page.locator('#exp-dialogue-text').innerText();
+   assert.ok(text.startsWith(prefix));if(open){assert.match(text,/下街已开放.*两端外阶.*木作1F/);assert.doesNotMatch(text,/下街仍有江纹封道/);}else assert.equal(text,prefix+'下街仍有江纹封道。');
+   const during=await state(page);assert.equal(during.pending,'');assert.equal(during.progress,before.progress);await shot(page,`${size.width}-sign-${phase}`);
+   await press('exp-close');await page.locator('#exp-dialogue').waitFor({state:'hidden'});const after=await state(page);
+   assert.equal(after.progress,before.progress);assert.equal(after.revision,before.revision);assert.equal(after.tokens,0);assert.equal(after.item,'true');
+   assert.equal(await page.evaluate(()=>localStorage.getItem('pokan.exp06a.save.v1')),rawBefore);
+   return {before,during,after,text,archiveUnchanged:true};
+  };
+  const closed=await inspect(false,'closed');
+  await walk(page,2000,650);await walk(page,2000,950);await interact(page,'east-down');assert.equal((await state(page)).map,'middle');
+  await walk(page,2000,950);await walk(page,1930,950);await shot(page,`${size.width}-gate-front`);await interact(page,'gate');
+  assert.equal((await state(page)).pending,'unlocked');await shot(page,`${size.width}-gate-confirm`);await press('exp-close');await wait(page,()=>document.querySelector('#exp-root').dataset.unlocked==='true');
+  const opened=await state(page);assert.equal(opened.item,'true');assert.deepEqual(JSON.parse(opened.progress).collections,JSON.parse(initial.progress).collections);assert.equal(JSON.parse(opened.progress).counts.rewards,0);await shot(page,`${size.width}-gate-open`);
+  const returnUpper=async()=>{await walk(page,2000,950);await walk(page,2000,450);await interact(page,'middle-east-upper');assert.equal((await state(page)).map,'upper');await walk(page,2000,650);};
+  await returnUpper();const open=await inspect(true,'open');assert.equal(open.after.progress,opened.progress);
+  await walk(page,2000,650);await walk(page,2000,950);await interact(page,'east-down');await walk(page,2000,1020);await interact(page,'middle-east-lower');
+  const lower=await state(page);assert.equal(lower.map,'lower');assert.equal(lower.safe,'cLowerEast');assert.equal(lower.progress,opened.progress);await shot(page,`${size.width}-lower`);
+  const archiveBeforeReload=await page.evaluate(()=>localStorage.getItem('pokan.exp06a.save.v1'));await restore(page,'cLowerEast',touch);
+  const restored=await state(page);assert.equal(restored.unlocked,'true');assert.equal(restored.item,'true');assert.equal(restored.progress,opened.progress);assert.equal(await page.evaluate(()=>localStorage.getItem('pokan.exp06a.save.v1')),archiveBeforeReload);await shot(page,`${size.width}-lower-reloaded`);
+  await interact(page,'east-up');await returnUpper();const reloaded=await inspect(true,'after-reload');assert.equal(reloaded.text,open.text);assert.equal(reloaded.after.progress,opened.progress);
+  const pointers=await page.evaluate(()=>window.__pointerEvents??[]);if(touch){assert.ok(pointers.some(e=>e.trusted&&e.target==='exp-stick'));assert.ok(pointers.some(e=>e.trusted&&e.type==='click'&&e.button==='exp-close'));}
+  record(`STORY-02 ${size.width} closed/open/reloaded sign agrees with real gate, lower is reachable and clasp/inspection archive remain intact`,{fixture:save,method:touch?'trusted CDP joystick and touch controls':'native keyboard and focused Enter buttons',closed,opened,open,lower,restored,reloaded,trustedPointerEvents:touch?pointers.filter(e=>e.trusted).length:'NOT USED'});
+  await page.close();
+ }
+ report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
+}
+
 async function route03Probe(){
  const save=fixture('cMiddleDownEast');assert.ok(validateExplorationSave(save));
  const sizes=args.includes('--route03-mobile-only')?[[{width:667,height:375},true]]:[[{width:844,height:390},true],[{width:1280,height:760},false]];
@@ -1264,7 +1307,8 @@ try{
  headlessProcess.on('exit',(code,signal)=>report.timeline.push({event:'chrome-exit',code,signal,at:new Date().toISOString()}));
  browser.on('context',context=>{context.on('close',()=>report.timeline.push({event:'context-close',at:new Date().toISOString()}));context.on('page',page=>{page.on('close',()=>report.timeline.push({event:'page-close',at:new Date().toISOString()}));page.on('crash',()=>report.timeline.push({event:'page-crash',at:new Date().toISOString()}));});});
  const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(route03Acceptance)await route03Probe();
+ if(streetSignAcceptance)await streetSignProbe();
+ else if(route03Acceptance)await route03Probe();
  else if(route02Acceptance)await route02Probe();
  else if(routeAcceptance)await routeProbe();
  else if(loadAcceptance)await loadProbe();

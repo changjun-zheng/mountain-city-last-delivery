@@ -20,6 +20,8 @@
 >
 > [STORY-01 上街山纹杂物门的调查信息](#story-01-storage-door)已通过技术复核。
 >
+> [STORY-02 上街路牌与下街开放状态同步](#story-02-street-sign)已通过技术复核。
+>
 > [ROUTE-01 从导览楼到木作楼的识路提示](#route-01-guide-to-workshop) 已通过技术复核。[STYLE-UI-01 城市插画风格的探索浮层](#style-ui-01-exploration-panels) 已通过技术复核。[LOAD-01 场景载入失败与恢复](#load-01-scene-startup-recovery) 已通过技术复核。[HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 首段范围与素材状态见上方。
 
 <a id="story-01-storage-door"></a>
@@ -31,6 +33,16 @@
 按现有状态呈现调查内容。尚未看过纹样展柜也未持有导扣时，只描述三角山纹和杂物门用途。已读展柜但未持有时，可对照江纹路线，保留未拿到道具的事实。确实持有时，说明纹样不匹配及导扣仍在身上。沿用原调查关闭与互动方式，门保持原状，调查不新增线索、不修改收藏或开路状态。只修这一处对白及其回归覆盖。
 
 构建、289/289 单测和四组桌面 Chrome 实走 PASS。隔离测试从合法 `cUpperWest` 安全档按键走到杂物门，覆盖初见、已读未持有、已读且持有、先持有后看展柜。每组均验证调查、取消、正常收起与刷新，进度、收藏、开路和原档案字节一致，浏览器错误为零。真栈门的委托、展柜线索、导扣和确认条件由核心回归覆盖。主窗口检查对白截图、184 项输入以及 3 项产物指纹与源码范围。历史 Chrome 首轮因暂停面板断言与更新时序不一致记 FAIL，修正测试等待后重新通过。横屏触屏、本项真机与负责人体验 NOT RUN。[专项交付](../test-results/story-01/delivery.json) · [最终报告](../test-results/story-01/run-2026-11-27T17-48-59-147Z/report.json) · [首轮 Chrome FAIL](../test-results/story-01/run-2026-11-27T17-48-06-942Z/report.json)
+
+<a id="story-02-street-sign"></a>
+
+## STORY-02 上街路牌与下街开放状态同步
+
+开发验证及主窗口技术复核 PASS。「代码实现与测试」会话只读核对了上街、中街和木作楼原提示。基线 `1d02d5d` 的上街 `street-sign` 在真栈门开通后仍明确显示「下街仍有江纹封道」，与地图和目标提示矛盾。中街回望和木作楼层牌描述的是联动及楼层关系，现有通行条件也正确。
+
+只更正上街路牌调查的末段。开闸前保留当前封道说明，开闸后明确下街通路已经开放，并指出外阶或木作 1F；上街到中街的既有方向保持。调查沿用普通查看语义，不写任务、物品或保存进度。
+
+构建和 290/290 单测 PASS。品牌 Chrome 桌面键盘与 667×375 可信触控从隔离的合法 `cGuideH3` 安全档开始，实际走到路牌、确认开闸、复看上街路牌、下到下街、刷新并再次回看。开闸后的路牌明确从中街外阶下行或从木作 1F 出下街，刷新后与实际通行仍一致。调查期间导扣、进度及档案字节一致，浏览器错误为零。主窗口核对现场截图、204 项输入、3 项产物及 4199 服务。首轮浏览器数字令牌与字符串比较错误记 FAIL，修正测试后通过。真机、负责人体验 NOT RUN。[最终报告](../test-results/story-02/run-2026-11-27T17-58-20-871Z/report.json) · [开闸后横屏](../test-results/story-02/run-2026-11-27T17-58-20-871Z/667-sign-open.png) · [首次 FAIL](../test-results/story-02/run-2026-11-27T17-57-29-858Z/report.json)
 
 <a id="photo-ui-01-landscape-framing"></a>
 
