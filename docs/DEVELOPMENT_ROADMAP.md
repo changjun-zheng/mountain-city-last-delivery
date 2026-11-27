@@ -22,6 +22,8 @@
 >
 > [STORY-02 上街路牌与下街开放状态同步](#story-02-street-sign)已通过技术复核。
 >
+> [ART-01 木作楼 3F 至 2F 的室内画面](#art-01-workshop-interior)为本轮已复核项。
+>
 > [ROUTE-01 从导览楼到木作楼的识路提示](#route-01-guide-to-workshop) 已通过技术复核。[STYLE-UI-01 城市插画风格的探索浮层](#style-ui-01-exploration-panels) 已通过技术复核。[LOAD-01 场景载入失败与恢复](#load-01-scene-startup-recovery) 已通过技术复核。[HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 首段范围与素材状态见上方。
 
 <a id="story-01-storage-door"></a>
@@ -43,6 +45,20 @@
 只更正上街路牌调查的末段。开闸前保留当前封道说明，开闸后明确下街通路已经开放，并指出外阶或木作 1F；上街到中街的既有方向保持。调查沿用普通查看语义，不写任务、物品或保存进度。
 
 构建和 290/290 单测 PASS。品牌 Chrome 桌面键盘与 667×375 可信触控从隔离的合法 `cGuideH3` 安全档开始，实际走到路牌、确认开闸、复看上街路牌、下到下街、刷新并再次回看。开闸后的路牌明确从中街外阶下行或从木作 1F 出下街，刷新后与实际通行仍一致。调查期间导扣、进度及档案字节一致，浏览器错误为零。主窗口核对现场截图、204 项输入、3 项产物及 4199 服务。首轮浏览器数字令牌与字符串比较错误记 FAIL，修正测试后通过。真机、负责人体验 NOT RUN。[最终报告](../test-results/story-02/run-2026-11-27T17-58-20-871Z/report.json) · [开闸后横屏](../test-results/story-02/run-2026-11-27T17-58-20-871Z/667-sign-open.png) · [首次 FAIL](../test-results/story-02/run-2026-11-27T17-57-29-858Z/report.json)
+
+<a id="art-01-workshop-interior"></a>
+
+## 已实施 ART-01 木作楼 3F 至 2F 的室内画面
+
+修前主窗口与「杂活」会话检查了现有实走图和绘制。木作 2F 和 3F 使用同一平铺木纹及棕色碰撞矩形；2F 的滑条状阶口在人物旁没有可见高度，3F 屏风下端与绕行提示也缺少物体联系。[2F 现状](../test-results/route-02/run-2026-11-26T15-27-03-999Z/1280-wood2-arrival.png) · [3F 现状](../test-results/route-02/run-2026-11-26T15-27-03-999Z/844-wood3-stair-approach.png)
+
+沿 3F 门扣柜、屏风、下 2F 楼梯和 2F 临街门这一段，使用已确认现代都市插画色板呈现当代木作空间。把现有占地画成有可见台面／侧面／落脚阴影的工具柜、工作台和分隔屏风，保持通道与人物比例。上下阶由踏面、立面、扶手、落脚处和光影区分。让屏风端头的底座或收边能提示实际绕行侧。临街门仍在原位置，画出清楚的墙槛与门口关系。利用 Phaser 现有绘制和可对齐的几何实现，物件保持现有可走边界；现行碰撞、交互、安全点、角色、楼层、存档和相邻地图原样沿用。
+
+同站位比较 1280×760 和横屏 844×390、667×375 的画面。覆盖从 3F 门口绕屏风取得导扣、下 2F、返回 3F 及出中街，验证挡住的位置与可见实体一致、无遮挡关键提示、落点和导扣保持。尽量复用生产 Chrome 路线工具。保留最终报告、构建及单测、对照图，技术与负责人体验分别记录。
+
+开发验证及主窗口功能技术复核 PASS。三档 Google Chrome 覆盖桌面 1280×760 键盘和 844×390、667×375 横屏可信触控。使用隔离的合法 3F 安全档，从门口实走验证屏风阻挡、绕端取导扣且只计一次、双向上下楼、由 2F 出中街和刷新恢复，并复核 2F 到 1F 往返。构建与全量单测 290/290 PASS，页面、控制台及网络错误为零。主窗口复核 207 项输入及产物指纹，并确认原 4199 服务返回的 HTML、JS、CSS 与报告一致。
+
+同站位图可辨 3F 屏风端头、柜体及 2F 门槛。修正首版临街标记覆盖角色的问题后重新运行了三档路线。修前两次失败分别为站位超出交互范围、脚本尝试点击正确禁用的按钮。真机、负责人观感和完整首章体验 NOT RUN。[最终报告](../test-results/art-01/run-2026-11-27T22-16-47-683Z/report.json) · [3F 屏风与绕行](../test-results/art-01/run-2026-11-27T22-16-47-683Z/667-3f-screen-end.png) · [2F 临街门](../test-results/art-01/run-2026-11-27T22-16-47-683Z/667-2f-street-door.png) · [首次 FAIL](../test-results/art-01/run-2026-11-27T18-09-31-479Z/report.json) · [第二次 FAIL](../test-results/art-01/run-2026-11-27T22-10-27-768Z/report.json)
 
 <a id="photo-ui-01-landscape-framing"></a>
 

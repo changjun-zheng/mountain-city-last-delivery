@@ -28,7 +28,8 @@ export function drawRouteCues(scene:Phaser.Scene,layer:Phaser.GameObjects.Layer,
     const y=woodDown?t.y-80:woodStreet?t.y+90:outsideGate?t.y-20:woodExit?t.y-55:Math.min(t.y+52,s.worldHeight-26);
     const depth=localWood?1000:y+1;
     const g=scene.add.graphics().setDepth(depth);layer.add(g);
-    if(outsideGate||woodExit||localWood){g.lineStyle(2,paper,.7);g.lineBetween(t.x,t.y+12,plateX,y);}
+    if(woodStreet){const link=scene.add.graphics().setDepth(-4);layer.add(link);link.lineStyle(2,paper,.7);link.lineBetween(t.x+20,t.y+20,plateX,y);}
+    if(outsideGate||woodExit||woodDown){g.lineStyle(2,paper,.7);g.lineBetween(t.x,t.y+12,plateX,y);}
     g.fillStyle(ink,.96);g.fillRoundedRect(plateX-118,y-21,236,t.closed?66:42,4);
     g.lineStyle(2,gold);g.lineBetween(plateX-116,y-20,plateX+116,y-20);
     const x=plateX-98;
@@ -40,7 +41,7 @@ export function drawRouteCues(scene:Phaser.Scene,layer:Phaser.GameObjects.Layer,
     if(localWood)label.setName(woodDown?'viewport-wood-down-sign':'viewport-wood-street-sign').setData('viewportBounds',{x:plateX-118,y:y-21,width:236,height:42});
     if(t.closed){const detail=scene.add.text(plateX,y+30,t.detail,{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'15px',color:'#e8c35a'}).setOrigin(.5).setDepth(y+2);layer.add(detail);}
     // A narrow lit threshold draws attention without filling the walking surface.
-    g.lineStyle(3,t.closed?gold:paper,.8);g.lineBetween(t.x-28,t.y+12,t.x+28,t.y+12);
+    if(!woodStreet){g.lineStyle(3,t.closed?gold:paper,.8);g.lineBetween(t.x-28,t.y+12,t.x+28,t.y+12);}
   }
 }
 

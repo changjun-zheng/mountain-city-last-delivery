@@ -80,6 +80,8 @@ export function drawCExploration(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
       g.lineStyle(3,0x322d26);g.lineBetween(t.x-34,t.y-30,t.x-34,t.y+28);g.lineBetween(t.x+34,t.y-30,t.x+34,t.y+28);
       g.strokeRect(t.x-30,t.y-24,60,48);
     }
+    // The workshop east doorway is drawn flush with its wall by drawBuildingFloor.
+    else if(t.id==='workshop-middle-exit')continue;
     else if(!['guide-up','guide-down','workshop-up-2','workshop-down-1','workshop-up-3','workshop-down-2'].includes(t.id)){
       // Doorway is a notch on the ground line, not a panel painted on a facade.
       box(g,t.x-32,t.y-6,64,14,0x293c3c);

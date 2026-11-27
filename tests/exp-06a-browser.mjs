@@ -16,8 +16,10 @@ import {identifyBrowser,parseBrowserSelection,resolveBrowserExecutable} from './
 const args=process.argv.slice(2);
 const modes=['--route03-only','--route03-mobile-only','--route02-only','--route02-mobile-only','--route-only','--load-baseline','--load-only','--help-only','--help-baseline','--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only','--viewport-only','--photo-frame-only','--photo-frame-baseline'];
 modes.push('--street-sign-only');
+modes.push('--workshop-art-only');
 if(!args.includes('--production')||args.some(a=>a!=='--production'&&a!=='--panel-style'&&a!=='--wayfind'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
 const streetSignAcceptance=args.includes('--street-sign-only');
+const workshopArtAcceptance=args.includes('--workshop-art-only');
 const wayfindAcceptance=args.includes('--wayfind');
 const route03Acceptance=args.includes('--route03-only')||args.includes('--route03-mobile-only');
 const route02Acceptance=args.includes('--route02-only')||args.includes('--route02-mobile-only');
@@ -34,7 +36,7 @@ const photoFrameBaseline=args.includes('--photo-frame-baseline');
 const photoFrameAcceptance=photoFrameBaseline||args.includes('--photo-frame-only');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results',streetSignAcceptance?'story-02':wayfindAcceptance?'wayfind-01':route03Acceptance?'route-03':route02Acceptance?'route-02':routeAcceptance?'route-01':loadAcceptance?'load-01':helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',workshopArtAcceptance?'art-01':streetSignAcceptance?'story-02':wayfindAcceptance?'wayfind-01':route03Acceptance?'route-03':route02Acceptance?'route-02':routeAcceptance?'route-01':loadAcceptance?'load-01':helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
 const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
@@ -53,6 +55,7 @@ if(loadAcceptance){report.task='LOAD-01';report.scope='JS-started scene image la
 if(routeAcceptance){report.task='ROUTE-01';report.scope='accepted-only legal cArrival fixture; manual explicit keyboard/CDP joystick route, no follow or runtime progress writes';}
 if(route02Acceptance){report.task='ROUTE-02';report.scope='equipped closed-gate cWood3Door fixture; explicit real keyboard/CDP steps to 2F, middle gate, east lower stair, return and reload; read-only viewport diagnostics enabled';}
 if(streetSignAcceptance){report.task='STORY-02';report.scope='ordinary production entry; legal equipped but closed cGuideH3 fixture; native keyboard / trusted CDP joystick, no follow or runtime writes; upper sign, real gate confirmation, upper sign, lower and reload, upper sign again';}
+if(workshopArtAcceptance){report.task='ART-01';report.scope='ordinary production entry; legal cWood3Door clue/no-clasp fixture; same-standpoint workshop 3F/2F route with native keyboard or trusted CDP, real screen/table collisions, pickup, stair return, middle exit and reload; visual quality reviewed separately';}
 if(route03Acceptance){report.task='ROUTE-03';report.scope='legal open-gate unphotographed middle-east fixture; real input down east stairs, southeast riverside stairs, riverfront and return; ordinary entry';}
 if(wayfindAcceptance){assert.ok(route03Acceptance,'Use --wayfind with a ROUTE-03 mode');report.task='WAYFIND-01';report.scope='ordinary production entry; ROUTE-03 real east landing/riverside route plus held-input water blocker; drawing only';}
 const sha=async path=>createHash('sha256').update(await readFile(path)).digest('hex');
@@ -399,6 +402,39 @@ async function pausedAt(page,view,tokens,focus,baseline){
  if(baseline)for(const name of ['runtimeId','map','progress','tick'])assert.equal(s[name],baseline[name]);
  return s;
 }
+async function workshopArtProbe(){
+ const p=new InMemoryRunProgress('exp03b');p.completeGoal(P.accepted);p.completeGoal(P.clue);
+ const save={...emptyExplorationSave(),safe:'cWood3Door',progress:p.snapshot};assert.ok(validateExplorationSave(save));
+ for(const [size,touch]of [[{width:667,height:375},true],[{width:844,height:390},true],[{width:1280,height:760},false]]){
+  const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1});
+  await page.addInitScript(({key,save})=>{if(localStorage.getItem(key)===null)localStorage.setItem(key,JSON.stringify(save));},{key:'pokan.exp06a.save.v1',save});
+  const press=id=>touch?page.locator('#'+id).tap():keyboardActivate(page,id);
+  await page.goto(base);await loaded(page);await press('exp-begin');if(touch)await touchPort(page);await fitCanvas(page);
+  const start=await state(page);assert.equal(start.map,'workshop3');assert.equal(start.item,'false');await shot(page,`${size.width}-3f-door`);
+  const hold=async(dx,dy,ms)=>{
+   if(touch){const raw=await rawTouch(page,95),b=await page.locator('#exp-stick').boundingBox(),c={x:b.x+b.width/2,y:b.y+b.height/2};await raw.start(c);await raw.move({x:c.x+dx*32,y:c.y+dy*32});await page.waitForTimeout(ms);await raw.end();}
+   else{const key=dx>0?'KeyD':dx<0?'KeyA':dy>0?'KeyS':'KeyW';await page.keyboard.down(key);await page.waitForTimeout(ms);await page.keyboard.up(key);}
+  };
+  await walk(page,1080,350);await interact(page,'building-wrong-box');await press('exp-close');assert.equal((await state(page)).progress,start.progress);
+  await walk(page,1080,650);await walk(page,680,650);await walk(page,684,415);const rejected=await state(page);
+  assert.ok(Math.hypot(rejected.x-742,rejected.y-415)<=64);assert.notEqual(rejected.target,'plaque');assert.equal(await page.locator('#exp-interact').isDisabled(),true);if(!touch)await key(page,'KeyE');assert.equal((await state(page)).dialogue,'false');assert.equal((await state(page)).progress,start.progress);
+  await hold(1,0,400);const thinBlock=await state(page);assert.ok(thinBlock.x<=688.1&&thinBlock.x>=684,JSON.stringify(thinBlock));await shot(page,`${size.width}-3f-screen-blocked`);
+  await walk(page,688,520);await walk(page,770,520);await walk(page,770,455);await shot(page,`${size.width}-3f-cabinet-before`);await interact(page,'plaque');await press('exp-close');
+  const collected=await state(page);assert.equal(collected.item,'true');assert.equal(JSON.parse(collected.progress).counts.collections,1);assert.equal(JSON.parse(collected.progress).counts.rewards,0);await shot(page,`${size.width}-3f-cabinet-after`);
+  await interact(page,'plaque');await press('exp-close');assert.equal((await state(page)).progress,collected.progress);
+  await walk(page,840,455);await hold(1,0,400);const longBlock=await state(page);assert.ok(longBlock.x<=888.1&&longBlock.x>=884,JSON.stringify(longBlock));await shot(page,`${size.width}-3f-long-screen-blocked`);
+  await walk(page,840,650);await shot(page,`${size.width}-3f-screen-end`);await walk(page,620,700);await shot(page,`${size.width}-3f-stair-approach`);await walk(page,250,700);await shot(page,`${size.width}-3f-stair-front`);await interact(page,'workshop-down-2');
+  const arrival=await state(page);assert.equal(arrival.map,'workshop2');assert.equal(arrival.safe,'cWoodStair2Up');assert.equal(arrival.progress,collected.progress);await shot(page,`${size.width}-2f-east-arrival`);
+  await walk(page,900,700);await walk(page,900,630);await hold(0,-1,400);const tableBlock=await state(page);assert.ok(tableBlock.y>=601.9&&tableBlock.y<=606,JSON.stringify(tableBlock));await shot(page,`${size.width}-2f-table-blocked`);
+  await walk(page,1080,700);await shot(page,`${size.width}-2f-upstairs`);await interact(page,'workshop-up-3');assert.equal((await state(page)).map,'workshop3');assert.equal((await state(page)).progress,collected.progress);await shot(page,`${size.width}-3f-return`);await interact(page,'workshop-down-2');
+  await walk(page,1140,700);await walk(page,1140,430);await shot(page,`${size.width}-2f-street-door`);await interact(page,'workshop-middle-exit');assert.equal((await state(page)).map,'middle');await shot(page,`${size.width}-middle-exit`);await restore(page,'cWoodH2',touch);assert.equal((await state(page)).progress,collected.progress);assert.equal((await state(page)).item,'true');
+  await interact(page,'workshop-middle-door');await walk(page,1140,700);await walk(page,250,700);await shot(page,`${size.width}-2f-west-stairs`);await interact(page,'workshop-down-1');assert.equal((await state(page)).map,'workshop');await shot(page,`${size.width}-1f-regression`);await interact(page,'workshop-up-2');assert.equal((await state(page)).map,'workshop2');assert.equal((await state(page)).progress,collected.progress);
+  record(`ART-01 ${size.width} true screen/table blocks, around-end pickup once, 3F/2F and 1F paired stairs, street exit and reload preserve clasp`,{fixture:save,method:touch?'trusted CDP joystick and taps':'native keyboard and focused controls',start,rejected,thinBlock,longBlock,collected,arrival,tableBlock,final:await state(page),autoWalk:'NOT USED',visualReview:'Separate screenshots; functional PASS is not visual approval'});
+  await page.close();
+ }
+ report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
+}
+
 async function streetSignProbe(){
  const p=new InMemoryRunProgress('exp03b');p.completeGoal(P.accepted);p.completeGoal(P.clue);p.recordCollection(P.item);
  const save={...emptyExplorationSave(),safe:'cGuideH3',progress:p.snapshot};assert.ok(validateExplorationSave(save));
@@ -1307,7 +1343,8 @@ try{
  headlessProcess.on('exit',(code,signal)=>report.timeline.push({event:'chrome-exit',code,signal,at:new Date().toISOString()}));
  browser.on('context',context=>{context.on('close',()=>report.timeline.push({event:'context-close',at:new Date().toISOString()}));context.on('page',page=>{page.on('close',()=>report.timeline.push({event:'page-close',at:new Date().toISOString()}));page.on('crash',()=>report.timeline.push({event:'page-crash',at:new Date().toISOString()}));});});
  const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(streetSignAcceptance)await streetSignProbe();
+ if(workshopArtAcceptance)await workshopArtProbe();
+ else if(streetSignAcceptance)await streetSignProbe();
  else if(route03Acceptance)await route03Probe();
  else if(route02Acceptance)await route02Probe();
  else if(routeAcceptance)await routeProbe();
