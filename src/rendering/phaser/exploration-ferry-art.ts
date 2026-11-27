@@ -50,6 +50,34 @@ export function drawFerryDistrict(scene: Phaser.Scene,layer:Phaser.GameObjects.L
   label(scene,layer,RIVER_PIER_X-90,1030,s.photographed?'照水岭渡船 · 可乘':'照水岭渡船',true);
   label(scene,layer,2335,1438,'对岸 · 照水岭');
   const ascent=EXP_TARGETS.find(target=>target.id==='riverfront-up')!;
+  // The return stair rises toward the existing west bank wall. Its open lower
+  // landing joins riverArrival on dry ground; nothing extends toward the water.
+  const returnStair=scene.add.graphics().setDepth(-85);layer.add(returnStair);
+  const footX=ascent.x,footY=ascent.y;
+  returnStair.fillStyle(0x536b65,.2).fillPoints([
+    {x:178,y:620},{x:312,y:650},{x:367,y:690},{x:218,y:663}],true);
+  returnStair.fillStyle(0xb9b2a1).fillPoints([
+    {x:footX-20,y:footY-18},{x:footX+73,y:footY-10},
+    {x:footX+73,y:footY+38},{x:footX-12,y:footY+23}],true);
+  returnStair.lineStyle(1,0x8c9588,.5).lineBetween(footX+30,footY-12,footX+30,footY+28);
+  for(let step=6;step>=0;step--){
+    const x=footX-step*16,y=footY-step*6;
+    // Broad cross-flight treads, with an exposed right-facing riser. The
+    // handrail sits outside this walking strip instead of hiding its steps.
+    returnStair.fillStyle(step%2?0xb4af9f:0xbeb7a6).fillPoints([
+      {x:x-16,y:y-36},{x:x,y:y-30},{x:x,y:y+30},{x:x-16,y:y+24}],true);
+    returnStair.fillStyle(0x758477).fillPoints([
+      {x:x,y:y-30},{x:x+4,y:y-27},{x:x+4,y:y+33},{x:x,y:y+30}],true);
+    returnStair.lineStyle(1,0xd4cbb5,.8).lineBetween(x,y-30,x,y+30);
+  }
+  // The far cheek and handrail meet the wall; the near side exposes the flight.
+  returnStair.fillStyle(0x78867b).fillPoints([
+    {x:177,y:571},{x:311,y:613},{x:311,y:625},{x:177,y:586}],true);
+  returnStair.lineStyle(4,0xc4beac).lineBetween(179,571,313,613);
+  returnStair.lineStyle(3,0x526c64).lineBetween(184,560,313,602);
+  for(const [x,y] of [[184,560],[247,581],[313,602]]){
+    returnStair.lineBetween(x,y,x,y+13);
+  }
   label(scene,layer,ascent.x-100,ascent.y-54,'沿坡路回下街',true);
   const view=EXP_TARGETS.find(target=>target.id==='view')!;
   const viewY=view.y-53;

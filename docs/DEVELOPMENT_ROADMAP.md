@@ -22,7 +22,9 @@
 >
 > [STORY-02 上街路牌与下街开放状态同步](#story-02-street-sign)已通过技术复核。
 >
-> [ART-01 木作楼 3F 至 2F 的室内画面](#art-01-workshop-interior)为本轮已复核项。
+> [ART-01 木作楼 3F 至 2F 的室内画面](#art-01-workshop-interior)已通过技术复核。
+>
+> [ART-02 下街石阶与江岸落地衔接](#art-02-river-stair)已通过技术复核。
 >
 > [ROUTE-01 从导览楼到木作楼的识路提示](#route-01-guide-to-workshop) 已通过技术复核。[STYLE-UI-01 城市插画风格的探索浮层](#style-ui-01-exploration-panels) 已通过技术复核。[LOAD-01 场景载入失败与恢复](#load-01-scene-startup-recovery) 已通过技术复核。[HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 首段范围与素材状态见上方。
 
@@ -59,6 +61,18 @@
 开发验证及主窗口功能技术复核 PASS。三档 Google Chrome 覆盖桌面 1280×760 键盘和 844×390、667×375 横屏可信触控。使用隔离的合法 3F 安全档，从门口实走验证屏风阻挡、绕端取导扣且只计一次、双向上下楼、由 2F 出中街和刷新恢复，并复核 2F 到 1F 往返。构建与全量单测 290/290 PASS，页面、控制台及网络错误为零。主窗口复核 207 项输入及产物指纹，并确认原 4199 服务返回的 HTML、JS、CSS 与报告一致。
 
 同站位图可辨 3F 屏风端头、柜体及 2F 门槛。修正首版临街标记覆盖角色的问题后重新运行了三档路线。修前两次失败分别为站位超出交互范围、脚本尝试点击正确禁用的按钮。真机、负责人观感和完整首章体验 NOT RUN。[最终报告](../test-results/art-01/run-2026-11-27T22-16-47-683Z/report.json) · [3F 屏风与绕行](../test-results/art-01/run-2026-11-27T22-16-47-683Z/667-3f-screen-end.png) · [2F 临街门](../test-results/art-01/run-2026-11-27T22-16-47-683Z/667-2f-street-door.png) · [首次 FAIL](../test-results/art-01/run-2026-11-27T18-09-31-479Z/report.json) · [第二次 FAIL](../test-results/art-01/run-2026-11-27T22-10-27-768Z/report.json)
+
+<a id="art-02-river-stair"></a>
+
+## 已实施 ART-02 下街石阶与江岸落地衔接
+
+修前从下街东南端进入江岸时，大块紫灰石砖和孤立阶梯切换为浅色铺地，江岸回程点只有浮动提示，玩家难以把两端认作同一条岸线通路。[下街修前](../test-results/route-03/run-2026-11-27T17-30-17-402Z/844-riverside-stairs-front.png) · [江岸修前](../test-results/route-03/run-2026-11-27T17-30-17-402Z/844-riverfront-arrival.png)
+
+以现有江岸插画作为铺地、材质和光色依据。重绘东南阶口局部铺地及岸墙接缝，使转角和阶梯连到干地，并在江岸回程点用同样的石材、扶手或连续墙身形成可辨认的入口。把层差表现贴合两侧实际脚点和阶向。上落点、阻水线、出入口、人物、江岸母图、渡船、取景、进度和存档保留现行规则。工作范围只含这一段双向过渡。
+
+复用 ROUTE-03 与 WAYFIND-01 两个生产 Chrome 模式，覆盖 1280×760 键盘及 844×390、667×375 横屏可信触控。验证下街东阶至江岸、干岸阻水、回下街和刷新，留两个方向的同站位截图。构建和全量单测通过后检查实际 4199 产物指纹，并分别记录真机和负责人观感。
+
+开发验证及主窗口功能技术复核 PASS。初版 667 路线通过，但分段石材边缘仍显拼贴，复核后收成与岸墙连续的平台，并修清江岸回程阶的踏面与立面。最终构建、290/290 单测、1280×760 键盘及 844×390、667×375 横屏可信触控通过。隔离已开闸档验证实际走到下街阶口、长按停在干岸、进入江岸、返回下街和刷新。进度与取景状态保持，页面、控制台和网络错误为零。主窗口核对两份报告各 207 项输入及产物指纹，4199 返回的 HTML、JS、CSS 与最终构建一致。旧街其余区域的材质差异仍可见，真机和负责人观感 NOT RUN。[667 报告](../test-results/wayfind-01/run-2026-11-27T22-30-51-051Z/report.json) · [844 与桌面报告](../test-results/wayfind-01/run-2026-11-27T22-32-14-401Z/report.json) · [下街阶口](../test-results/wayfind-01/run-2026-11-27T22-30-51-051Z/667-riverside-stairs-front.png) · [江岸回程阶](../test-results/wayfind-01/run-2026-11-27T22-30-51-051Z/667-riverfront-arrival.png) · [首版拼贴边](../test-results/wayfind-01/run-2026-11-27T22-28-48-846Z/667-riverside-stairs-front.png)
 
 <a id="photo-ui-01-landscape-framing"></a>
 

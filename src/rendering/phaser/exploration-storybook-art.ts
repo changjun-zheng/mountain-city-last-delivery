@@ -342,22 +342,48 @@ export function drawLowerStreet(scene:Phaser.Scene,layer:Phaser.GameObjects.Laye
   // Every tread stays landward of y=1156; the continuous water blocker is unchanged.
   const exit=EXP_TARGETS.find(t=>t.id==='riverfront-down')!;
   const top=exit.y-78,left=exit.x-64,landingY=exit.y+6;
-  const stairShadow=graphics(-69);
-  stairShadow.fillStyle(0x493744,.35).fillRoundedRect(left-6,top-4,144,94,3);
-  layer.add(celMaterial(scene,'street',left,landingY,236,52,-68).setTilePosition(left,landingY-231));
-  graphics(-67).fillStyle(0xa77863,.2).fillRect(left,landingY,236,52);
+  // A continuous stone apron meets the bank coping. Its chamfered street
+  // edge is a shallow curb, so the change of paving reads as one built landing.
+  const apron=graphics(-69);
+  apron.fillStyle(0xa39f92).fillPoints([
+    {x:1725,y:1004},{x:1840,y:976},{x:2140,y:976},
+    {x:2140,y:1156},{x:1725,y:1156}],true);
+  apron.lineStyle(1,0x7e8179,.4);
+  for(let row=0;row<6;row++){
+    const y=976+row*30,start=y<1004?1840-(y-976)*115/28:1725;
+    if(row>0)apron.lineBetween(start,y,2140,y);
+    for(let x=1745+(row%2)*52;x<2140;x+=104){
+      if(x>start+3)apron.lineBetween(x,y+2,x,y+28);
+    }
+  }
+  apron.lineStyle(5,0xbab29f).beginPath().moveTo(1725,1154)
+    .lineTo(1725,1004).lineTo(1840,976).lineTo(2140,976).lineTo(2140,1154).strokePath();
+  apron.lineStyle(2,0x6f7b73,.55).beginPath().moveTo(1721,1154)
+    .lineTo(1721,1002).lineTo(1839,972).lineTo(2143,972).strokePath();
+  const stairShadow=graphics(-68);
+  stairShadow.fillStyle(0x42534f,.22).fillRoundedRect(left-7,top-3,145,91,3);
   const riverSteps=graphics(-65);
+  riverSteps.fillStyle(0xb5afa0).fillRect(left,landingY,236,58);
+  riverSteps.lineStyle(1,0x7e8179,.5);
+  for(let x=left+42;x<left+236;x+=70)riverSteps.lineBetween(x,landingY+3,x,1154);
+  riverSteps.lineBetween(left,landingY+29,left+236,landingY+29);
   for(let row=0;row<7;row++){
     const x=exit.x-52-row*2,y=top+row*12,w=104+row*4;
-    riverSteps.fillStyle(0x81717b).fillRect(x,y,w,8);
-    riverSteps.fillStyle(0x55454e).fillRect(x,y+8,w,4);
-    riverSteps.fillStyle(0xb19782).fillRect(x+3,y+1,w-6,1);
-    riverSteps.lineStyle(1,0x67545d).lineBetween(x+w*.45,y+2,x+w*.45,y+7);
+    riverSteps.fillStyle(row%2===0?0xbab4a5:0xb4af9f).fillRect(x,y,w,8);
+    riverSteps.fillStyle(0x7b8278).fillRect(x,y+8,w,4);
+    riverSteps.fillStyle(0xd0c5ac,.6).fillRect(x+2,y,w-4,1);
+    riverSteps.lineStyle(1,0x8d9286,.5).lineBetween(x+w*.45,y+2,x+w*.45,y+7);
   }
-  riverSteps.lineStyle(1,0xb19782,.6).lineBetween(left,landingY+2,left+232,landingY+2);
-  // A small right turn on the landing leads along dry stone, never into water.
+  // Low cheeks end at the landing, leaving its turn and the exit footpoint open.
+  for(const side of [-1,1]){
+    const x=exit.x+side*65;
+    riverSteps.fillStyle(0x788379).fillPoints([{x:x-5,y:top-5},{x:x+5,y:top-5},
+      {x:x+side*10+5,y:landingY-2},{x:x+side*10-5,y:landingY-2}],true);
+    riverSteps.lineStyle(3,0xc4beac).lineBetween(x,top-6,x+side*10,landingY-5);
+  }
+  // Only the turn receives a restrained direction mark; the treads are stone.
   for(const x of [exit.x+80,exit.x+112]){
-    riverSteps.lineStyle(3,0xd2bd91).lineBetween(x,landingY+22,x+8,landingY+28);
+    riverSteps.lineStyle(2,0xd2bd91).lineBetween(x,landingY+22,x+8,landingY+28);
     riverSteps.lineBetween(x+8,landingY+28,x,landingY+34);
   }
   const river=graphics(-92);
@@ -373,9 +399,9 @@ export function drawLowerStreet(scene:Phaser.Scene,layer:Phaser.GameObjects.Laye
   }
   // Reface only the existing coping's vertical face below the landing.
   const landingWall=graphics(1163);
-  landingWall.fillStyle(0x62565e).fillRect(left,1158,236,24);
-  landingWall.fillStyle(0xa59386).fillRect(left,1156,236,5);
-  for(let x=left+24;x<left+236;x+=42){landingWall.lineStyle(2,0x493d47).lineBetween(x,1163,x,1181);}
+  landingWall.fillStyle(0x7d877e).fillRect(left-18,1158,272,24);
+  landingWall.fillStyle(0xbab4a4).fillRect(left-18,1156,272,5);
+  for(let x=left+24;x<left+250;x+=68){landingWall.lineStyle(1,0x586b64,.6).lineBetween(x,1163,x,1181);}
   sign(exit.x-150,exit.y+8,'↓ 沿江石阶到渡口',-1,true);
   sign(1350,1079,'檐下取景',-1);
 }
