@@ -308,6 +308,10 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
               // Finite, position-only look-down at the actual B overlook. No zoom change.
               const entryDistance=s.map==='entry'?Math.hypot(s.position.x-entryLookout.x,s.position.y-entryLookout.y):Infinity;
               const entryFrame=1-Phaser.Math.SmoothStep(entryDistance,80,240);
+              if(s.map==='entry'){
+                const entryBoard=map.list.find(o=>o.name==='viewport-entry-overlook-sign') as Phaser.GameObjects.Text|undefined;
+                entryBoard?.setVisible(entryFrame>0).setAlpha(entryFrame);
+              }
               const baseX=Phaser.Math.Clamp(s.position.x-camera.width/2+plazaFrame*camera.width*.20,0,Math.max(0,s.worldWidth-camera.width));
               const baseY=Phaser.Math.Linear(normalY,desiredY,nearStairs)+lookDown+plazaFrame*camera.height*plazaDown;
               camera.setScroll(Phaser.Math.Linear(baseX,Phaser.Math.Clamp(s.position.x-camera.width/2-165,0,Math.max(0,s.worldWidth-camera.width)),riverFrame),
@@ -352,7 +356,7 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
               }
               // Read-only screen evidence for the named world landmarks. Host
               // controls and all runtime movement/state stay outside this view.
-              if(routeDiagnostics&&['plaza','upper','middle','workshop2','workshop3','riverfront'].includes(s.map)){
+              if(routeDiagnostics&&['entry','plaza','upper','middle','workshop2','workshop3','riverfront'].includes(s.map)){
               const canvasBounds=scene.game.canvas.getBoundingClientRect();
               const screenBox=(r:{x:number;y:number;width:number;height:number})=>{
                 const sx=canvasBounds.width/camera.width,sy=canvasBounds.height/camera.height;
@@ -364,7 +368,7 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
                 if(!object.name.startsWith('viewport-'))continue;
                 const shape=object.getData('viewportBounds')??(object as Phaser.GameObjects.Text).getBounds();
                 const label=object as Phaser.GameObjects.Text;
-                worldLabels[object.name]={box:screenBox(shape),world:{x:shape.x,y:shape.y,width:shape.width,height:shape.height},text:label.text,fontSize:label.style?.fontSize,home:object.getData('viewportHome')};
+                worldLabels[object.name]={box:screenBox(shape),world:{x:shape.x,y:shape.y,width:shape.width,height:shape.height},text:label.text,fontSize:label.style?.fontSize,home:object.getData('viewportHome'),...(object.name==='viewport-entry-overlook-sign'?{visible:label.visible,alpha:label.alpha}:{})};
               }
               parent.dataset.routeView=JSON.stringify({map:s.map,shortTouch:shortTouch.matches,player:screenBox({x:s.position.x-27,y:s.position.y-PLACEHOLDER_HEIGHT-3,width:54,height:PLACEHOLDER_HEIGHT+12}),ring:ring.visible?screenBox(ring.getBounds()):null,hint:hint.visible?{box:screenBox(hint.getBounds()),text:hint.text}:null,labels:worldLabels});
               }else delete parent.dataset.routeView;

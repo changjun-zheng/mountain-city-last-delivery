@@ -407,7 +407,7 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     label(1080,670,'沧白路 · 高处入口',24);
     navigation(140,850,'← 返回解放碑',-1,340,930);navigation(440,810,'年轻游客 · 沿街向东 →',1);
     navigation(2040,780,'东侧门廊 · 进入上街 →',1,1830,828);
-    const overlookPlate=scene.add.text(1420,924,'下方街屋 · 沿岸步道与江桥',{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'16px',color:'#f2e8d5',backgroundColor:'#63776b',padding:{x:8,y:5}}).setOrigin(.5).setDepth(982);layer.add(overlookPlate);
+    const overlookPlate=scene.add.text(1420,924,'下方街屋 · 沿岸步道与江桥',{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'16px',color:'#f2e8d5',backgroundColor:'#63776b',padding:{x:8,y:5}}).setOrigin(.5).setDepth(982).setName('viewport-entry-overlook-sign');layer.add(overlookPlate);
     ambient(scene,layer,m.width,m.height);
   }
 }

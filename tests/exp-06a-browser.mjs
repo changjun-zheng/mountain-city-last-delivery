@@ -19,7 +19,9 @@ modes.push('--street-sign-only');
 modes.push('--workshop-art-only');
 modes.push('--start-only');
 modes.push('--entry-art-only');
+modes.push('--entry-caption-only');
 if(!args.includes('--production')||args.some(a=>a!=='--production'&&a!=='--panel-style'&&a!=='--wayfind'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
+const entryCaptionAcceptance=args.includes('--entry-caption-only');
 const entryArtAcceptance=args.includes('--entry-art-only');
 const startAcceptance=args.includes('--start-only');
 const streetSignAcceptance=args.includes('--street-sign-only');
@@ -40,7 +42,7 @@ const photoFrameBaseline=args.includes('--photo-frame-baseline');
 const photoFrameAcceptance=photoFrameBaseline||args.includes('--photo-frame-only');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results',entryArtAcceptance?'art-03':startAcceptance?'start-01':workshopArtAcceptance?'art-01':streetSignAcceptance?'story-02':wayfindAcceptance?'wayfind-01':route03Acceptance?'route-03':route02Acceptance?'route-02':routeAcceptance?'route-01':loadAcceptance?'load-01':helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',entryCaptionAcceptance?'art-03-caption':entryArtAcceptance?'art-03':startAcceptance?'start-01':workshopArtAcceptance?'art-01':streetSignAcceptance?'story-02':wayfindAcceptance?'wayfind-01':route03Acceptance?'route-03':route02Acceptance?'route-02':routeAcceptance?'route-01':loadAcceptance?'load-01':helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
 const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
@@ -48,6 +50,7 @@ const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'
   checks:[],timeline:[],screenshots:[],pageErrors:[],consoleErrors:[],networkErrors:[],cleanup:{},hashes:{},protectedHashes:{},actualDist:{},historicalFailures:[],
   limitations:['True Android Chrome and iOS Safari were not available.','The completion card closes the existing Demo route; it does not prove a full 30-45 minute chapter.','Final art, culture review and real-device H5 acceptance remain separate.']};
 const record=(name,details={})=>{report.checks.push({name,status:'PASS',...details});console.log('PASS',name);};
+if(entryCaptionAcceptance){report.task='ART-03-CAPTION';report.scope='667 fresh keyboard/CDP route; gated actual label alpha diagnostics and ordinary entry smoke; published terrain untouched';}
 if(entryArtAcceptance){report.task='ART-03';report.scope='fresh opening to entry overlook, original rail blocker, east porch upper round-trip and refresh; no seeded storage or auto-follow';}
 if(startAcceptance){report.task='START-01';report.scope='empty isolated archive; opening lesson to visitor acceptance, map round-trip and reload; native keyboard/CDP touch, no auto-follow';}
 if(resizeAcceptance){report.task='RESIZE-01';report.scope='dynamic-canvas-and-held-touch-rotation; fresh-start plus separately labelled river fixture';}
@@ -987,6 +990,23 @@ async function collectionProbe(){
  report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
 }
 
+async function entryCaptionProbe(){
+ const page=await newPage({viewport:{width:667,height:375},isMobile:true,hasTouch:true,deviceScaleFactor:1}),press=archivePress(page,true),url=new URL(base);url.searchParams.set('viewport-diagnostics','1');
+ await page.goto(url.href);await loaded(page);assert.equal((await state(page)).hasJourney,'false');await press('exp-begin');await settleIntro(page);await press('exp-intro-start');await press('exp-onboarding-skip');await touchPort(page);
+ await walk(page,1250,790);await walk(page,1250,650);await walk(page,3120,650);await walk(page,3120,900);await interact(page,'city-to-entry');await walk(page,1100,850);await walk(page,1100,800);await interact(page,'visitor');await press('exp-close');const progress=(await state(page)).progress;
+ const plate=async name=>{await frames(page,2);const actual=await page.locator('#exp-stage').evaluate(e=>JSON.parse(e.dataset.routeView).labels['viewport-entry-overlook-sign']);await shot(page,'667-'+name);report.timeline.push({event:'actual caption object',name,actual,state:await state(page)});return actual;};
+ await walk(page,1180,800);await walk(page,1180,920);const near=await plate('near-visible');assert.equal(near.visible,true);assert.equal(near.alpha,1);
+ await page.evaluate(()=>{window.__entrySamples=[];window.__entrySampling=true;const sample=()=>{if(!window.__entrySampling)return;const g=document.querySelector('#exp-stage'),d=document.querySelector('#exp-root').dataset,v=JSON.parse(g.dataset.routeView||'null'),p=v?.labels['viewport-entry-overlook-sign'];if(d.map==='entry'&&p)window.__entrySamples.push({x:Number(d.x),y:Number(d.y),cameraY:Number(g.dataset.cameraY),alpha:p.alpha,visible:p.visible});requestAnimationFrame(sample);};sample();});
+ await walk(page,2040,920);await walk(page,2040,780);const far=await plate('porch-hidden');assert.equal(far.visible,false);assert.equal(far.alpha,0);
+ await walk(page,1180,780);await walk(page,1180,920);const again=await plate('near-return-visible');assert.equal(again.visible,true);assert.equal(again.alpha,1);assert.equal((await state(page)).progress,progress);
+ const samples=await page.evaluate(()=>{window.__entrySampling=false;return window.__entrySamples;});assert.ok(samples.some(s=>s.alpha>0&&s.alpha<1));let maxAlphaStep=0,maxCameraStep=0;
+ for(let i=1;i<samples.length;i++){maxAlphaStep=Math.max(maxAlphaStep,Math.abs(samples[i].alpha-samples[i-1].alpha));maxCameraStep=Math.max(maxCameraStep,Math.abs(samples[i].cameraY-samples[i-1].cameraY));}assert.ok(maxAlphaStep<.2,'caption fades continuously during real movement');assert.ok(maxCameraStep<25,'local framing has no large per-frame jump');
+ record('ART-03-CAPTION 667 actual label visible near, absent at porch, fades on exit/reentry without progress changes',{fixture:'ordinary fresh archive; diagnostics query reads actual Phaser text object, no runtime writes',near,far,again,maxAlphaStep,maxCameraStep,samples});
+ await page.goto(base);await loaded(page);await press('exp-begin');await touchPort(page);assert.equal(await page.locator('#exp-stage').getAttribute('data-route-view'),null);
+ await walk(page,1180,850);await walk(page,1180,920);await shot(page,'667-ordinary-near');await walk(page,2040,920);await walk(page,2040,780);await shot(page,'667-ordinary-porch');assert.equal((await state(page)).progress,progress);assert.equal(await page.locator('#exp-stage').getAttribute('data-route-view'),null);
+ record('ART-03-CAPTION ordinary 667 production entry matches screenshots without diagnostic JSON',{scope:'ordinary near and far screenshots, preserved accepted archive'});await page.close();report.layers.touchEmulation='PASS';
+}
+
 async function entryArtProbe(){
  for(const [size,touch] of [[{width:667,height:375},true],[{width:844,height:390},true],[{width:1280,height:760},false]]){
   const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1}),press=archivePress(page,touch);
@@ -1415,7 +1435,8 @@ try{
  headlessProcess.on('exit',(code,signal)=>report.timeline.push({event:'chrome-exit',code,signal,at:new Date().toISOString()}));
  browser.on('context',context=>{context.on('close',()=>report.timeline.push({event:'context-close',at:new Date().toISOString()}));context.on('page',page=>{page.on('close',()=>report.timeline.push({event:'page-close',at:new Date().toISOString()}));page.on('crash',()=>report.timeline.push({event:'page-crash',at:new Date().toISOString()}));});});
  const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(entryArtAcceptance)await entryArtProbe();
+ if(entryCaptionAcceptance)await entryCaptionProbe();
+ else if(entryArtAcceptance)await entryArtProbe();
  else if(startAcceptance)await startProbe();
  else if(workshopArtAcceptance)await workshopArtProbe();
  else if(streetSignAcceptance)await streetSignProbe();
