@@ -207,7 +207,7 @@ export class ExplorationRuntime {
     }
     switch (target.id) {
       case 'city-monument':
-        this.#say('浅色柱体、钟面与分层基座立在广场中央。围着基座能回到步行街，东侧街巷通向沧白路。这里只观察外观，不进入碑体。'+(this.#onboardingStep==='approach'?'\n松开交互键，再按 E 或点击「收起」，完成第一次调查。':''));break;
+        this.#say('浅色柱体、钟面与分层基座立在广场中央。围着基座能回到步行街，东侧街巷通向沧白路。这里只观察外观，不进入碑体。'+(this.#onboardingStep==='approach'?'\n松开交互，再确认「收起」，完成第一次调查。':''));break;
       case 'city-sign':this.#say('方向牌：沿东侧过渡街巷前往沧白路高处入口；回望西侧是解放碑广场。街面是游戏化改编，不是现实精确步行导航。');break;
       case 'service-guide':this.#say('先在街面自由行走，靠近门口或导览牌，再主动交互。松开后可再次操作。\n沿商业步行街向东，经街巷到沧白路入口，那里能俯看木楼群。小店调查可跳过，不需要购买或收集。');break;
       case 'entry-view':this.#say('栏杆下是层叠的木楼，江桥在更远处。东侧门廊连到上层街区，西侧街巷可回解放碑。先听听身旁游客想找什么。');break;
@@ -388,12 +388,12 @@ export class ExplorationRuntime {
     if(has(Q.photographed))return map==='riverfront'?'照水岭已开放 · 从东侧渡口乘船过江':'委托已完成 · 旅程记录可重看纪念卡，无需返程交付';
     if(!has(P.accepted)){
       if(map==='plaza'&&this.#onboardingStep==='approach'){
-        return '第一步：沿广场浅色路到纪念碑右侧，靠近后按 E／交互';
+        return '沿浅色路到纪念碑右侧';
       }
-      if(map==='plaza'&&this.#onboardingStep==='continue')return '第一次调查完成 · 向右沿街巷到沧白路，与游客交谈';
-      if(map==='plaza')return '沿步行街向东（右侧），前往沧白路入口';
+      if(map==='plaza'&&this.#onboardingStep==='continue')return '沿街向右走到沧白路巷口';
+      if(map==='plaza')return '沿步行街向右，前往沧白路';
       if(map==='service')return '从店门返回步行街，再向东前往沧白路';
-      if(map==='entry')return '在入口栏杆旁，与年轻游客交谈';
+      if(map==='entry')return '向右沿街，到东侧栏杆找游客';
       if(map==='upper')return '沿西口返回沧白路入口找游客';
       if(map==='middle')return '经两端外阶回上街，再沿西口找沧白路游客';
       if(map==='guide2'||map==='workshop3')return '从本层门口回上街，再沿西口找沧白路游客';
@@ -401,7 +401,7 @@ export class ExplorationRuntime {
       return '先出楼回中街，经外阶回上街，去西口找游客';
     }
     if(map==='plaza'||map==='service')return '回到步行街向东走，经沧白路进入上街';
-    if(map==='entry')return '沿东侧门廊进入上街，继续游客的取景委托';
+    if(map==='entry')return '从东侧门廊进入上街';
     if(!has(P.clue)){
       if(map==='guide2')return '到2F东侧纹样展柜前，阅读导览';
       if(map==='guide')return '从1F东侧楼梯上2F，查看纹样展柜';

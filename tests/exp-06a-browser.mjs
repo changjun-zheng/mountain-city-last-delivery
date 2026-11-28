@@ -17,7 +17,9 @@ const args=process.argv.slice(2);
 const modes=['--route03-only','--route03-mobile-only','--route02-only','--route02-mobile-only','--route-only','--load-baseline','--load-only','--help-only','--help-baseline','--probe-only','--spatial-only','--spatial-lower-only','--journey-only','--style-02a','--resize-only','--pause-only','--pause-multitouch-only','--save-only','--collection-only','--viewport-only','--photo-frame-only','--photo-frame-baseline'];
 modes.push('--street-sign-only');
 modes.push('--workshop-art-only');
+modes.push('--start-only');
 if(!args.includes('--production')||args.some(a=>a!=='--production'&&a!=='--panel-style'&&a!=='--wayfind'&&!modes.includes(a)&&!a.startsWith('--browser='))||args.filter(a=>modes.includes(a)).length>1)throw new Error('Use --production --browser=chrome with at most one mode');
+const startAcceptance=args.includes('--start-only');
 const streetSignAcceptance=args.includes('--street-sign-only');
 const workshopArtAcceptance=args.includes('--workshop-art-only');
 const wayfindAcceptance=args.includes('--wayfind');
@@ -36,7 +38,7 @@ const photoFrameBaseline=args.includes('--photo-frame-baseline');
 const photoFrameAcceptance=photoFrameBaseline||args.includes('--photo-frame-only');
 const selection=resolveBrowserExecutable(parseBrowserSelection(args));
 assert.equal(selection.id,'chrome');
-const dir=resolve('test-results',workshopArtAcceptance?'art-01':streetSignAcceptance?'story-02':wayfindAcceptance?'wayfind-01':route03Acceptance?'route-03':route02Acceptance?'route-02':routeAcceptance?'route-01':loadAcceptance?'load-01':helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
+const dir=resolve('test-results',startAcceptance?'start-01':workshopArtAcceptance?'art-01':streetSignAcceptance?'story-02':wayfindAcceptance?'wayfind-01':route03Acceptance?'route-03':route02Acceptance?'route-02':routeAcceptance?'route-01':loadAcceptance?'load-01':helpAcceptance?'help-01':photoFrameAcceptance?'photo-ui-01':viewportAcceptance?'viewport-01':collectionAcceptance?'collection-01':saveAcceptance?'save-01':pauseAcceptance?'pause-01':resizeAcceptance?'resize-01':styleAcceptance?'style-02a':'exp-06a',`run-${new Date().toISOString().replace(/[:.]/g,'-')}`);
 await mkdir(dir,{recursive:true});
 const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'RIVER-JOURNEY-01':'EXP-06A',scope:styleAcceptance?'fresh-guided-A-to-D-keyboard-and-landscape-touch':args.includes('--journey-only')?'fresh-opening-and-ferry-keyboard-touch':args.includes('--spatial-lower-only')?'spatial-H1-fixture-look':args.includes('--spatial-only')?'spatial-first-look-keyboard':args.includes('--probe-only')?'c-district-touch-native-and-owned-gestures':'c-district-fresh-A-to-D-keyboard',startedAt:new Date().toISOString(),
   command:[process.execPath,...process.argv.slice(1)],head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),
@@ -44,6 +46,7 @@ const report={task:styleAcceptance?'STYLE-02A':args.includes('--journey-only')?'
   checks:[],timeline:[],screenshots:[],pageErrors:[],consoleErrors:[],networkErrors:[],cleanup:{},hashes:{},protectedHashes:{},actualDist:{},historicalFailures:[],
   limitations:['True Android Chrome and iOS Safari were not available.','The completion card closes the existing Demo route; it does not prove a full 30-45 minute chapter.','Final art, culture review and real-device H5 acceptance remain separate.']};
 const record=(name,details={})=>{report.checks.push({name,status:'PASS',...details});console.log('PASS',name);};
+if(startAcceptance){report.task='START-01';report.scope='empty isolated archive; opening lesson to visitor acceptance, map round-trip and reload; native keyboard/CDP touch, no auto-follow';}
 if(resizeAcceptance){report.task='RESIZE-01';report.scope='dynamic-canvas-and-held-touch-rotation; fresh-start plus separately labelled river fixture';}
 if(pauseAcceptance){report.task='PAUSE-01';report.scope=args.includes('--pause-multitouch-only')?'additional held-stick plus second-finger menu diagnostic':'nested-pause-journal-help-title; fresh starts and separately labelled river photo fixture';}
 if(saveAcceptance){report.task='SAVE-01';report.scope='isolated archive corruption, storage faults and explicit restart; fixture injection separate from real UI input';}
@@ -981,6 +984,50 @@ async function collectionProbe(){
  report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
 }
 
+async function startProbe(){
+ for(const [size,touch] of [[{width:667,height:375},true],[{width:844,height:390},true],[{width:1280,height:760},false]]){
+  const page=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1}),press=archivePress(page,touch);
+  await page.goto(base);await loaded(page);assert.equal((await state(page)).hasJourney,'false');
+  await shot(page,`${size.width}-title`);await press('exp-begin');await settleIntro(page);await shot(page,`${size.width}-intro`);await press('exp-intro-start');if(touch)await touchPort(page);
+  const blank=(await state(page)).progress;
+  const capture=async phase=>{
+   await frames(page,2);const evidence=await page.evaluate(()=>{
+    const box=e=>{const b=e.getBoundingClientRect();return{x:b.x,y:b.y,right:b.right,bottom:b.bottom,width:b.width,height:b.height};};
+    const goal=document.querySelector('#exp-objective'),card=document.querySelector('#exp-onboarding'),title=card.querySelector('h2');
+    const range=document.createRange();range.selectNodeContents(title);const goalRange=document.createRange();goalRange.selectNodeContents(goal);
+    return{goal:{text:goal.textContent,lines:goalRange.getClientRects().length,visible:!!goal.getClientRects().length&&getComputedStyle(goal).visibility!=='hidden',box:box(goal)},card:{visible:!card.hidden,box:box(card),title:title.textContent,lines:range.getClientRects().length,clipped:title.scrollWidth>title.clientWidth},place:box(document.querySelector('.exp-location')),stick:box(document.querySelector('#exp-stick')),interact:box(document.querySelector('#exp-interact')),state:{...document.querySelector('#exp-root').dataset}};
+   });await shot(page,`${size.width}-${phase}`);report.timeline.push({event:'START-01 screen',phase,size,evidence});
+   assert.equal(evidence.goal.visible,true);if(touch&&['plaza','entry'].includes(evidence.state.map)){assert.equal(evidence.goal.lines,1,'short landscape main goal remains one line');}
+   if(touch&&evidence.card.visible){assert.equal(evidence.card.lines,1);assert.equal(evidence.card.clipped,false);const a=evidence.card.box,b=evidence.place;assert.ok(a.x>=b.right+4||a.y>=b.bottom+4||a.bottom+4<=b.y);assert.ok(a.right<=size.width&&a.bottom<=size.height);}
+   return evidence;
+  };
+  await capture('plaza');await walk(page,900,875);await interact(page,'city-monument');await capture('monument-dialogue');
+  assert.equal((await state(page)).progress,blank);await press('exp-close');
+  const closed=await capture('after-investigation');assert.equal(closed.goal.visible,true,'main goal must remain readable during onboarding');assert.match(closed.goal.text,/沧白路/);
+  if(touch){assert.equal(closed.card.lines,1);assert.equal(closed.card.clipped,false);assert.doesNotMatch(closed.card.title,/WASD|E|空格/);}
+  await press('exp-onboarding-skip');assert.equal((await state(page)).onboarding,'done');assert.equal((await state(page)).progress,blank);
+  const skipped=await capture('lesson-dismissed');assert.equal(skipped.goal.visible,true);
+  await walk(page,1250,790);await walk(page,1250,650);await walk(page,3120,650);await walk(page,3120,900);await capture('alley-front');await interact(page,'city-to-entry');
+  assert.equal((await state(page)).map,'entry');assert.equal((await state(page)).accepted,'false');
+  const arrival=await capture('entry-arrival');assert.match(arrival.goal.text,/东侧栏杆/);
+  await walk(page,140,850);await interact(page,'entry-to-city');assert.equal((await state(page)).map,'plaza');assert.equal((await state(page)).progress,blank);
+  await walk(page,3120,900);await interact(page,'city-to-entry');await walk(page,1100,850);await walk(page,1100,800);await interact(page,'visitor');await dialogueLabel(page,'接受委托',touch);
+  const offered=await capture('request-offered');assert.equal(offered.state.accepted,'false');assert.equal(offered.state.progress,blank);
+  if(touch)await press('exp-menu-button');else await key(page,'Escape');assert.equal((await state(page)).accepted,'false');await press('exp-resume');assert.equal((await state(page)).dialogue,'false');
+  await interact(page,'visitor');assert.equal((await state(page)).accepted,'false');await press('exp-close');
+  const accepted=await capture('request-accepted');assert.equal(accepted.state.accepted,'true');assert.match(accepted.goal.text,/东侧门廊/);
+  await restore(page,accepted.state.safe,touch);const reloaded=await capture('accepted-reloaded');assert.equal(reloaded.goal.text,accepted.goal.text);if(touch)await touchPort(page);
+  await walk(page,2040,800);await walk(page,2040,780);await capture('east-porch');await interact(page,'entry-to-core');
+  assert.equal((await state(page)).map,'upper');assert.match(await page.locator('#exp-objective').innerText(),/导览楼2F/);assert.equal((await state(page)).progress,accepted.state.progress);await capture('upper-arrival');
+  record(`START-01 ${size.width} new opening, investigation, persistent goal, actual alley round-trip, explicit request, reload and upper entry`,{fixture:'new context with no seeded storage; all route movement native keyboard or CDP joystick; no auto-follow',closed,arrival,offered,accepted,reloaded});await page.close();
+  const skipPage=await newPage({viewport:size,isMobile:touch,hasTouch:touch,deviceScaleFactor:1}),skipPress=archivePress(skipPage,touch);
+  await skipPage.goto(base);await loaded(skipPage);await skipPress('exp-begin');await settleIntro(skipPage);await skipPress('exp-intro-start');await skipPress('exp-onboarding-skip');
+  const skip=await state(skipPage);assert.equal(skip.onboarding,'done');assert.equal(skip.accepted,'false');assert.equal(skip.progress,blank);assert.match(await skipPage.locator('#exp-objective').innerText(),/沧白路/);await shot(skipPage,`${size.width}-skip-before-investigation`);await skipPage.close();
+  record(`START-01 ${size.width} skip before investigation retains main route without accepting request`,{state:skip});
+ }
+ report.layers.desktopChrome='PASS';report.layers.touchEmulation='PASS';
+}
+
 async function viewportProbe(){
  const violations=[];
  const spawns=[];
@@ -1343,7 +1390,8 @@ try{
  headlessProcess.on('exit',(code,signal)=>report.timeline.push({event:'chrome-exit',code,signal,at:new Date().toISOString()}));
  browser.on('context',context=>{context.on('close',()=>report.timeline.push({event:'context-close',at:new Date().toISOString()}));context.on('page',page=>{page.on('close',()=>report.timeline.push({event:'page-close',at:new Date().toISOString()}));page.on('crash',()=>report.timeline.push({event:'page-crash',at:new Date().toISOString()}));});});
  const identityPage=await newPage();const identity=await identityPage.context().newCDPSession(identityPage);report.browser.actual=identifyBrowser(await identity.send('Browser.getVersion'));await identityPage.close();
- if(workshopArtAcceptance)await workshopArtProbe();
+ if(startAcceptance)await startProbe();
+ else if(workshopArtAcceptance)await workshopArtProbe();
  else if(streetSignAcceptance)await streetSignProbe();
  else if(route03Acceptance)await route03Probe();
  else if(route02Acceptance)await route02Probe();

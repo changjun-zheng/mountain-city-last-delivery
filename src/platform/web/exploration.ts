@@ -123,8 +123,13 @@ export async function launchExploration({showTitle=true}:{showTitle?:boolean}={}
     get('exp-onboarding').hidden=!teaching||uiOpen||!!s.dialogue||!!s.photoPreview;
     const approaching=s.onboarding==='approach',nearMonument=s.target?.id==='city-monument';
     get('exp-onboarding-step').textContent=approaching?'初到广场 · 1 / 2':'学会调查 · 2 / 2';
-    get('exp-onboarding-title').textContent=approaching?(nearMonument?'试着调查眼前的纪念碑':'先去纪念碑边看看'):'去街巷另一头认识一位游客';
-    get('exp-onboarding-text').textContent=approaching?(nearMonument?'按 E／空格，或点右下「交互」。读完后松开，再按一次确认收起。':'用 WASD／方向键或左下摇杆，向右走到金色标记处。这里可以试一次观察与交互。'):'沿右侧街面向东走，经街巷到沧白路。游客有一张想寄出的夜景照片，靠近后交谈。';
+    get('exp-onboarding-title').textContent=coarsePointer.matches
+      ?approaching?(nearMonument?'点右下「交互」调查':'推摇杆，靠近纪念碑'):'调查完成，继续向右走'
+      :approaching?(nearMonument?'按 E／空格调查纪念碑':'用方向键靠近纪念碑'):'调查完成，继续向右走';
+    get('exp-onboarding-text').textContent=approaching?(nearMonument
+      ?coarsePointer.matches?'点右下「交互」。读完后松开，再点「收起」。':'按 E／空格调查。读完后松开，再按一次确认收起。'
+      :coarsePointer.matches?'推左下摇杆，向右走到金色标记处。':'用 WASD／方向键向右走到金色标记处。')
+      :'沿右侧街面向东走，经街巷到沧白路。游客有一张想寄出的夜景照片，靠近后交谈。';
     get('exp-onboarding-skip').textContent=approaching?'跳过教学':'知道了';
     get('exp-onboarding-replay').hidden=views.title||s.map!=='plaza'||s.accepted;
     const crossWest = s.target?.id===WEST_STREET_JOIN.down || s.target?.id===WEST_STREET_JOIN.up;

@@ -43,7 +43,7 @@ function at(safe,flags={}){
 const equipped={accepted:true,clue:true,item:true},opened={...equipped,unlocked:true};
 test('SHORT S01 new and pre-quest guidance uses reachable return floors without disclosing puzzle answers',()=>{
  const start=at('chapterStart');assert.match(start.snapshot.objective,/纪念碑右侧/);
- start.skipOnboarding();assert.match(start.snapshot.objective,/向东（右侧）/);
+ start.skipOnboarding();assert.match(start.snapshot.objective,/向右/);
  assert.match(at('serviceRoom').snapshot.objective,/返回步行街/);
  assert.match(at('cGuideH3').snapshot.objective,/西口返回沧白路入口/);
  assert.match(at('cGuide1Door').snapshot.objective,/出楼回中街/);

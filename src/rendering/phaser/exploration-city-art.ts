@@ -64,6 +64,17 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     }
   };
   const link=(x:number,y:number,name:string)=>{const g=scene.add.graphics().setDepth(y-1);layer.add(g);rect(g,x-48,y-17,96,34,0xb7bda7);g.lineStyle(3,0x5e7475);g.strokeRect(x-48,y-17,96,34);g.lineBetween(x-30,y,x+28,y);g.lineBetween(x+28,y,x+17,y-9);label(x,y-42,name,17,'#f1ddb0',1600);};
+  const navigation=(x:number,y:number,name:string,direction:number,plateX=x,plateY=y-62)=>{
+    const g=scene.add.graphics().setDepth(-2);layer.add(g);
+    g.lineStyle(2,0xe8c35a,.7).strokeRoundedRect(x-38,y-13,76,26,7);
+    g.lineBetween(x-22*direction,y,x+22*direction,y);
+    g.lineBetween(x+22*direction,y,x+13*direction,y-7);
+    g.lineBetween(x+22*direction,y,x+13*direction,y+7);
+    if(plateX!==x)g.lineStyle(1,0x4f8a7e,.7).lineBetween(x,y+15,plateX,plateY-18);
+    const plate=scene.add.text(plateX,plateY,name,{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'17px',color:'#f2e8d5',backgroundColor:'#122224',padding:{x:9,y:6}}).setOrigin(.5).setDepth(-1);layer.add(plate);
+    const b=plate.getBounds();g.lineStyle(2,0xe8c35a).lineBetween(b.x+5,b.bottom-1,b.right-5,b.bottom-1);
+  };
+
   if(id==='service'){
     rect(base,0,0,1100,650,0x284d59);const b=m.bounds;
     // Shop floor as a plan: wall band with thickness, doorway notch, till as a footprint.
@@ -290,7 +301,7 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     g.lineStyle(2,0x5a6a6a);g.lineBetween(cx,ct+26,cx+8,ct+19);g.lineBetween(cx,ct+26,cx-5,ct+20);
     label(cx,cy+r.h/2+24,'解\n放\n碑',15,'#596c6d',961).setName('viewport-monument-name');
     for(const [lx,ly] of [[570,990],[920,990],[570,790],[930,790],[1180,620],[1510,620],[2200,620],[2820,760]]){const l=scene.add.graphics().setDepth(ly);layer.add(l);l.fillStyle(0x4c5b5b);l.fillRect(lx-6,ly-6,12,11);l.fillStyle(0x8b9a95);l.fillRect(lx-6,ly-6,12,2);l.fillStyle(0xffd58b);l.fillCircle(lx,ly-1,3);}
-    label(660,1225,'解放碑广场',15,'#f2e8d5',950).setAlpha(.7);label(2130,739,'商业步行街',14,'#f2e8d5',950).setAlpha(.7);label(2970,976,'街巷向东 · 沧白路入口',12,'#f2e8d5',950).setAlpha(.6);link(3120,900,'前往沧白路');
+    label(660,1225,'解放碑广场',15,'#f2e8d5',950).setAlpha(.7);label(2130,739,'商业步行街',14,'#f2e8d5',950).setAlpha(.7);navigation(3120,900,'沧白路巷口 →',1,3000,800);
     // Lighting pass: cool wash across the whole map, then every lamp as a warm
     // additive pool. Offsets are measured from the lamp's foot, not its head.
     ambient(scene,layer,m.width,m.height,{base:0x0b2223,alpha:0.07,haze:0x2f4646,hazeAlpha:0.2});
@@ -313,7 +324,7 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     rect(base,60,700,2080,180,0xb5b6a0);m.buildings.forEach(modern);
     const rail=scene.add.graphics().setDepth(981);layer.add(rail);rect(rail,60,953,2080,7,0xb7ae8d);rect(rail,60,980,2080,8,0x536a69);for(let x=60;x<2140;x+=40)rect(rail,x,956,6,30,0x536a69);
     const visitor=EXP_TARGETS.find(t=>t.id==='visitor')!;const actor=makeVisitor();actor.setPosition(visitor.x,visitor.y).setDepth(visitor.y);layer.add(actor);label(visitor.x,visitor.y-61,'年轻游客',17,'#ffe4ad',1600);
-    label(1080,670,'沧白路 · 高处入口',24);label(1180,902,'栏杆下是木楼与江桥',17);link(140,850,'返回解放碑');link(2040,780,'进入上层街区');
+    label(1080,670,'沧白路 · 高处入口',24);label(1180,902,'栏杆下是木楼与江桥',17);navigation(140,850,'← 返回解放碑',-1,340,930);navigation(440,810,'年轻游客 · 沿街向东 →',1);link(2040,780,'进入上层街区');
     ambient(scene,layer,m.width,m.height);
   }
 }

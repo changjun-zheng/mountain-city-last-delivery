@@ -39,19 +39,19 @@ test('PLAYABILITY-02 only the three authorized plaza footprints change; historic
 });
 test('PLAYABILITY-02 first minute teaches walk-interact-confirm without adding saved progress',()=>{
  const d=driver(emptyExplorationSave());
- assert.match(d.r.snapshot.objective,/沿广场浅色路/);
+ assert.match(d.r.snapshot.objective,/沿浅色路/);
  const before=d.r.snapshot.progress;
  d.to(900,900);
  assert.equal(d.r.snapshot.target?.id,'city-monument');
- assert.match(d.r.snapshot.objective,/按 E/);
+ assert.match(d.r.snapshot.objective,/纪念碑右侧/);
  d.interact('city-monument');
- assert.match(d.r.snapshot.dialogue,/按 E 或点击「收起」/);
+ assert.match(d.r.snapshot.dialogue,/再确认「收起」/);
  assert.equal(d.r.snapshot.onboarding,'approach');
  d.close(false);
  assert.equal(d.r.snapshot.onboarding,'approach');
  d.interact('city-monument');
  d.close();
- assert.match(d.r.snapshot.objective,/第一次调查完成/);
+ assert.match(d.r.snapshot.objective,/沧白路巷口/);
  assert.deepEqual(d.r.snapshot.progress,before);
  d.r.skipOnboarding();assert.equal(d.r.snapshot.onboarding,'done');
  d.r.replayOnboarding();assert.equal(d.r.snapshot.onboarding,'approach');

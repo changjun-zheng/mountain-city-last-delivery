@@ -53,6 +53,11 @@
   color:#fff3dc;
   font:600 15px/1.45 var(--ui-sans);
 }
+/* START-01: the location card owns the persistent goal; lesson is operation only. */
+#exp-root[data-onboarding]:not([data-onboarding="done"]) #exp-objective {
+  display:block;
+  visibility:visible;
+}
 #exp-root #exp-save {
   display:flex;
   align-items:center;
@@ -585,8 +590,9 @@
   #exp-root #exp-onboarding {
     top:calc(max(12px,env(safe-area-inset-top)) + 62px);
     bottom:auto;
-    left:50%;
-    transform:translateX(-50%);
+    left:auto;
+    right:max(12px,env(safe-area-inset-right));
+    transform:none;
     width:auto;
     max-width:min(430px,calc(100vw - 24px));
     padding:7px 10px 7px 12px;

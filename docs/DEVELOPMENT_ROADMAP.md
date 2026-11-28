@@ -26,7 +26,21 @@
 >
 > [ART-02 下街石阶与江岸落地衔接](#art-02-river-stair)已通过技术复核。
 >
+> [START-01 开场到第一份委托](#start-01-first-request)已通过技术复核。
+>
 > [ROUTE-01 从导览楼到木作楼的识路提示](#route-01-guide-to-workshop) 已通过技术复核。[STYLE-UI-01 城市插画风格的探索浮层](#style-ui-01-exploration-panels) 已通过技术复核。[LOAD-01 场景载入失败与恢复](#load-01-scene-startup-recovery) 已通过技术复核。[HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 首段范围与素材状态见上方。
+
+<a id="start-01-first-request"></a>
+
+## 已实施 START-01 开场到第一份委托
+
+基线 `c9abb19`。667×375 实走图里，广场的教学卡承担了主目标。打开纪念碑调查后卡片收起，HUD 只剩地点。抵达沧白路时，屏内显眼的是返程标记，等待交谈的游客在画面外。新玩家需要从观察纪念碑顺畅转向找游客，并认出走过巷口后的前进方向。[广场](../test-results/style-02a/run-2026-11-27T17-12-48-361Z/667x375-plaza.png) · [沧白路入口](../test-results/style-02a/run-2026-11-27T17-12-48-361Z/667x375-entry.png)
+
+用现有地点卡给出始终可读的短目标。教学卡负责当下操作，调查收起后的提示指出沧白路巷口。手机横屏的目标和操作文案用触控语言，教学保持单行小卡。按实际地图更新目标，入沧白路后指向东侧沿街栏杆。巷口和沧白路落点复用墨绿、暖纸、姜黄的导航牌语言，标清前进方向，保留返程可辨识度。跟走沿用现行线路及教学时的显示规则。沿用主动调查、接单和地图切换，保持既有剧情、存档及角色比例。
+
+开发验证和主窗口技术复核 PASS。构建、290/290 单测及 Google Chrome 7 项专项通过。1280×760 键盘、667×375 与 844×390 横屏可信触控从普通入口空白档实走开场、纪念碑、巷口往返、游客及东侧门廊到上街。覆盖跳过教学、取消委托不推进、接受后目标立即更新及刷新恢复。调查时主目标仍可读，短横屏的前进与返程标识清楚。主窗口查看三档截图，核对 204 项输入和 3 项产物的指纹及 4199 实际返回的文件，页面、控制台与网络错误均为零。
+
+修前主目标隐藏记 FAIL。首轮修后图中窄屏目标换行及巷口牌贴近角色，最终缩短目标并左上移标牌；首跑桌面以 Tab 触发对话外的暂停按钮失败，改用既有 Escape 路径后复跑通过。近距离走到游客站位时仍可见人物相叠，沧白路的下层岸线与街面美术也需单独处理。真机与负责人体验 NOT RUN。[最终报告](../test-results/start-01/run-2026-11-28T03-15-12-815Z/report.json) · [调查时目标](../test-results/start-01/run-2026-11-28T03-15-12-815Z/667-monument-dialogue.png) · [入沧白路](../test-results/start-01/run-2026-11-28T03-15-12-815Z/667-entry-arrival.png) · [修前报告](../test-results/start-01/run-2026-11-28T03-10-33-817Z/report.json) · [首版巷口](../test-results/start-01/run-2026-11-28T03-12-19-075Z/667-alley-front.png)
 
 <a id="story-01-storage-door"></a>
 
