@@ -15,6 +15,8 @@ import {drawRouteCues,drawGateFeedback} from './exploration-feedback-art';
 import {createWeatherView,type ExplorationWeather} from './exploration-weather';
 import {PLACEHOLDER_HEIGHT} from './exploration-placeholder-actor';
 
+const entryLookout=EXP_TARGETS.find(target=>target.id==='entry-view')!;
+
 // Original procedural artwork for EXP-01. Coordinates are shared with the
 // limited content definition; no old side-view assets are used.
 const C = { ink: 0x243d48, river: 0x356b78, stone: 0x718e8b, wood: 0x724838, light: 0xffd487, roof: 0x344d55 };
@@ -303,10 +305,14 @@ export async function mountExplorationScene(parent: HTMLElement, runtime: Explor
               const plazaDown=.12+.03*Phaser.Math.Clamp((s.position.x-lessonStartX)/(lessonTargetX-lessonStartX),0,1);
               const riverDistance=s.map==='riverfront'?Math.hypot(s.position.x-PHOTO_SITES.river.x,s.position.y-PHOTO_SITES.river.y):Infinity;
               const riverFrame=1-Phaser.Math.SmoothStep(riverDistance,120,320);
+              // Finite, position-only look-down at the actual B overlook. No zoom change.
+              const entryDistance=s.map==='entry'?Math.hypot(s.position.x-entryLookout.x,s.position.y-entryLookout.y):Infinity;
+              const entryFrame=1-Phaser.Math.SmoothStep(entryDistance,80,240);
               const baseX=Phaser.Math.Clamp(s.position.x-camera.width/2+plazaFrame*camera.width*.20,0,Math.max(0,s.worldWidth-camera.width));
               const baseY=Phaser.Math.Linear(normalY,desiredY,nearStairs)+lookDown+plazaFrame*camera.height*plazaDown;
               camera.setScroll(Phaser.Math.Linear(baseX,Phaser.Math.Clamp(s.position.x-camera.width/2-165,0,Math.max(0,s.worldWidth-camera.width)),riverFrame),
-                Phaser.Math.Linear(baseY,Phaser.Math.Clamp(s.position.y-108,0,Math.max(0,s.worldHeight-camera.height)),riverFrame));
+                Phaser.Math.Linear(Phaser.Math.Linear(baseY,Phaser.Math.Clamp(s.position.y-camera.height*.28,0,Math.max(0,s.worldHeight-camera.height)),entryFrame),
+                  Phaser.Math.Clamp(s.position.y-108,0,Math.max(0,s.worldHeight-camera.height)),riverFrame));
               const guideBoard=map.list.find(o=>o.name==='viewport-guide-sign') as Phaser.GameObjects.Text|undefined;
               if(guideBoard){
                 const home=guideBoard.getData('viewportHome');

@@ -28,7 +28,21 @@
 >
 > [START-01 开场到第一份委托](#start-01-first-request)已通过技术复核。
 >
+> [ART-03 沧白路高台与下方岸线](#art-03-entry-overlook)已通过技术复核。
+>
 > [ROUTE-01 从导览楼到木作楼的识路提示](#route-01-guide-to-workshop) 已通过技术复核。[STYLE-UI-01 城市插画风格的探索浮层](#style-ui-01-exploration-panels) 已通过技术复核。[LOAD-01 场景载入失败与恢复](#load-01-scene-startup-recovery) 已通过技术复核。[HELP-01 手机横屏操作说明](#help-01-landscape-instructions) 已通过技术复核。[VIEWPORT-01 短横屏地标与路标](#viewport-01-route-legibility) 和 [PHOTO-UI-01 短横屏取景画框](#photo-ui-01-landscape-framing) 已通过技术复核。上一轮 [UI-04 横屏调查对话操作文案](#ui-04-dialogue-touch-labels) 及现行 H5 构建回归通过。[COLLECTION-01](#collection-01-route)、[UI-03](#ui-03-pause-grid)、[SAVE-01](#save-01-archive-protection)、[PAUSE-01](#pause-01-nested-panels)、[RESIZE-01](#resize-01-viewport-rotation)、[UI-02 取景预览](#ui-02-photo-preview-20261126)、[NAV-01](#nav-01-gate-feedback-20261125) 与 [STYLE-02A](#style-02a-20261125) 横屏完成卡补修均已通过技术复核。负责人观感、真机与 6—8 分钟实测仍 NOT RUN。STYLE-02B 首段范围与素材状态见上方。
+
+<a id="art-03-entry-overlook"></a>
+
+## 已实施 ART-03 沧白路高台与下方岸线
+
+基线 `694bf77`。走到沧白路栏杆边，画面从灰色方格和一条平涂横带直接切到水面，缩小的木楼和桥索缺少岸台与支点。东侧门廊入口主要靠浮动标签辨识。这里是玩家第一次从高处读到山城的地方，也是游客对白承诺的视野。[桌面沧白路](../test-results/start-01/run-2026-11-28T03-15-12-815Z/1280-entry-arrival.png) · [横屏东侧门廊](../test-results/start-01/run-2026-11-28T03-15-12-815Z/844-east-porch.png)
+
+依据[空间主文](HONGYADONG_LEVEL_DESIGN.md#prologue-entry-exp02c-20261119)、[现代山城插画手册](assets/style-reset-v1/STYLE_BIBLE.md)和已归档[戴家巷崖线步道结构参考](../reference/chongqing/2026-11-24/README.md)，重画沧白路可走街面、观景栏杆和栏杆下的远景。构图应看出同一岸的高台、挡墙或岩坎、下层有承托的街屋与临水步道，再到江面和桥塔。统一浅暖石、青灰阴影和少量暖窗，现代店面和实体比例以角色脚点为尺度，减少巨砖与重复街屋。用铺地收边和沿街构造连接现行东侧门廊的交互点，画出的障碍服从实际碰撞。沿用既有地图范围、门和安全点、栏杆阻挡、委托及存档。横屏看不见栏杆下层时，仅在沧白路观景点附近做随站位平滑变化的取景，保留人物、提示和触控。
+
+从空档的普通入口用真实键盘及可信触控，走到游客旁、栏杆观景点和东侧门廊。覆盖 1280×760、844×390 和 667×375。保留修前后站位图，确认观景调查能看到与对白一致的桥、水、街屋；持续向栏杆走仍停在可走侧，东侧门廊可进入上街并原路返回，任务状态与刷新一致。开发回填构建、全量单测、Chrome 专项、截图及生产版本指纹，主窗口独立复核。
+
+开发验证及主窗口技术复核 PASS。现代山城色板下，栏杆下方依次可见墙身、街屋脚基、步道和江面，桥塔延续到墩脚；同一观景点局部向下取景。首版桥头和陆地的连接偏突兀，门廊雨棚也过深。复核后补岸上桥台和接路，缩成浅檐并调整观察牌位置。667×375、844×390 Chrome 可信横屏触控与 1280×760 桌面键盘从空档实走。持续向栏杆输入时三档都停在 y=965.5，观景调查无进度写入，东侧门廊双向通行、刷新及再次观景通过。构建、290/290 单测及浏览器 4 项通过。主窗口实看三档截图，核对 204 项输入和 3 项产物的指纹及 4199 实际返回的文件，页面、控制台及网络错误为零。游客脚点可与主角相叠的原问题已复现，真机和负责人观感 NOT RUN。[最终报告](../test-results/art-03/run-2026-11-28T03-31-06-385Z/report.json) · [最终 667](../test-results/art-03/run-2026-11-28T03-31-06-385Z/667-overlook-front.png) · [修前 667](../test-results/art-03/run-2026-11-28T03-24-33-032Z/667-overlook-front.png) · [首版 667](../test-results/art-03/run-2026-11-28T03-27-56-546Z/667-overlook-front.png)
 
 <a id="start-01-first-request"></a>
 

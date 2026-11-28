@@ -310,21 +310,104 @@ export function drawPrologueCity(scene:Phaser.Scene,layer:Phaser.GameObjects.Lay
     for(const b of m.buildings) doorSpill(gl,b.x+b.w/2,b.y+b.h,74,0xffc47a,0.34);
     for(const [lx,ly] of [[570,990],[920,990],[570,790],[930,790],[1180,620],[1510,620],[2200,620],[2820,760]]) pool(gl,lx,ly+5,48,23,0xffd79a,0.2);
   }else{
-    // Drop-facing platform: a blocked river/cliff strip and miniature lower
-    // stilted facades convey height rather than another walkable timber court.
-    rect(base,0,980,2200,320,0x356b78);
-    for(let i=0;i<65;i++)rect(base,(i*137)%2200,1000+(i*41)%290,35+(i%4)*22,2,0x6f9b9f);
-    for(const [x,w] of [[140,220],[450,240],[800,250],[1110,210]]){
-      rect(base,x,1080,w,145,0xa4714c);poly(base,[x-15,1080,x+25,1040,x+w,1040,x+w+28,1075,x+w,1085],0x38575d);poly(base,[x+w,1082,x+w+28,1075,x+w+28,1205,x+w,1225],0x5f4739);
-      for(let p=x+17;p<x+w-20;p+=42){rect(base,p,1100,27,30,0xffd184);rect(base,p,1151,27,30,0xffd184);rect(base,p,1225,8,64,0x624c39);}rect(base,x,1142,w,7,0x5e4537);
+    // The whole lower view is behind the original y=980 rail blocker. Keep a
+    // single dry bank beneath the shops; river begins beyond its masonry edge.
+    rect(base,0,980,m.width,320,0x376570);
+    for(let i=0;i<70;i++)rect(base,(i*131)%2200,1200+(i*29)%100,20+i%5*11,1,i%4===0?0x93b9af:0x5d9095);
+    const bank=[60,1027,2140,1038,2200,1265,1650,1240,1240,1203,850,1190,420,1180,60,1194];
+    poly(base,bank,0x959b87);
+    // The riverside walk is one continuous ledge, with a face down to water.
+    const shore=[60,1194,420,1180,850,1190,1240,1203,1650,1240,2200,1265];
+    poly(base,[60,1160,420,1146,850,1156,1240,1169,1650,1206,2200,1231,2200,1265,1650,1240,1240,1203,850,1190,420,1180,60,1194],0xb6b09d);
+    const waterfront=scene.add.graphics().setDepth(-88);layer.add(waterfront);
+    for(let i=0;i<shore.length-2;i+=2){
+      const [x,y,x2,y2]=shore.slice(i,i+4);
+      poly(waterfront,[x,y,x2,y2,x2,y2+12,x,y+12],0x6e8279);
+      waterfront.lineStyle(3,0xc9bea4).lineBetween(x,y,x2,y2);
+      waterfront.lineStyle(1,0x7c897b,.4).lineBetween(x,y-17,x2,y2-17);
     }
-    base.lineStyle(7,0xb9c4b4);base.lineBetween(1320,1220,2180,1148);for(const x of [1560,2010]){rect(base,x,1010,10,195,0x91aaa7);base.lineStyle(3,0xb9c4b4);base.lineBetween(x,1010,x-190,1210);base.lineBetween(x,1010,x+190,1170);}
-    const b=m.bounds;rect(base,b.x,b.y,b.w,750,0x99aaa5);
-    for(let y=b.y;y<980;y+=38)for(let x=b.x;x<b.x+b.w;x+=80){base.lineStyle(1,0x6f8a89,.55);base.strokeRect(x,y,78,36);}
-    rect(base,60,700,2080,180,0xb5b6a0);m.buildings.forEach(modern);
-    const rail=scene.add.graphics().setDepth(981);layer.add(rail);rect(rail,60,953,2080,7,0xb7ae8d);rect(rail,60,980,2080,8,0x536a69);for(let x=60;x<2140;x+=40)rect(rail,x,956,6,30,0x536a69);
+    // A diagonal bridge leaves a real approach on this bank. Its deck, tower
+    // legs and spread footing continue into the river rather than floating.
+    const bridge=scene.add.graphics().setDepth(-87);layer.add(bridge);
+    // Short stone abutment and paved feeder join the existing waterfront walk.
+    poly(bridge,[1225,1172,1285,1134,1337,1134,1280,1184],0xb6b09d);
+    poly(bridge,[1278,1147,1339,1138,1345,1154,1280,1165],0x6e8279);
+    bridge.lineStyle(2,0xc9bea4).lineBetween(1225,1172,1285,1134);
+    bridge.lineBetween(1285,1134,1337,1134);
+    poly(bridge,[1280,1147,1334,1138,1818,1300,1732,1300],0x82948e);
+    poly(bridge,[1280,1147,1732,1300,1732,1312,1280,1160],0x5c7778);
+    bridge.lineStyle(3,0xb6c2b4).lineBetween(1290,1145,1770,1300);
+    bridge.lineStyle(2,0xa4b5aa).lineBetween(1334,1138,1818,1300);
+    for(const [x,y] of [[1483,1193],[1530,1209]]){
+      rect(bridge,x-7,y-110,14,177,0x829b97);rect(bridge,x+3,y-110,4,177,0x627f80);
+      poly(bridge,[x-15,y+64,x+16,y+64,x+24,y+71,x-21,y+71],0x657f7f);
+      bridge.lineStyle(2,0xb1c1b3).lineBetween(x-7,y-111,x+7,y-111);
+    }
+    rect(bridge,1476,1090,68,9,0xa6b3a5);
+    bridge.lineStyle(1,0xc3c9b6,.8);
+    for(let n=0;n<5;n++){
+      bridge.lineBetween(1483,1083,1330+n*28,1160+n*10);
+      bridge.lineBetween(1530,1099,1610+n*32,1233+n*11);
+    }
+    // Wall and weathered rock are connected across the cliff, not separate piers.
+    rect(base,60,980,2080,73,0x778879);rect(base,60,980,2080,21,0x8c9785);
+    base.lineStyle(1,0x536e64,.45);
+    for(let x=80;x<2140;x+=163)base.lineBetween(x,1002,x+15,1048);
+    poly(base,[60,1038,280,1042,365,1034,620,1049,920,1040,1190,1050,1450,1038,1780,1053,2140,1045,2140,1072,60,1065],0x87937d);
+    // Small, differently sized street buildings sit on this same terrace.
+    const shops=scene.add.graphics().setDepth(-86);layer.add(shops);
+    for(const [x,y,w,h,facade] of [[190,1046,214,94,0xb5aa8e],[640,1052,180,103,0x9eaa96],[990,1047,227,112,0xac9475]]){
+      const foot=y+h,roofY=foot-60;
+      rect(shops,x-8,foot,w+22,12,0x788373);
+      rect(shops,x,roofY,w,foot-roofY,facade);
+      poly(shops,[x+w,roofY,x+w+12,roofY-6,x+w+12,foot+3,x+w,foot],0x657d71);
+      poly(shops,[x-8,roofY,x+8,y,x+w-8,y-3,x+w+13,roofY-3],0x526e65);
+      rect(shops,x-8,roofY-1,w+21,4,0xaeb39a);
+      for(let col=0;col<3;col++){
+        const wx=x+18+col*(w-30)/3;
+        rect(shops,wx,roofY+14,32,29,col===1?0xe1b97f:0x4d6d67);
+        rect(shops,wx+15,roofY+14,2,29,0x7d8b75);
+      }
+      rect(shops,x+12,foot-8,w-23,8,0x6d7b6a);
+      rect(shops,x+w-29,roofY+3,20,10,0xc1bfa8);
+      shops.lineStyle(1,0x788e80).lineBetween(x+w-26,roofY+7,x+w-12,roofY+7);
+    }
+    // Sparse rooted vegetation softens the retaining wall without hiding it.
+    for(const [x,y] of [[100,1050],[460,1052],[875,1057],[1240,1055],[1840,1060],[2110,1054]]){
+      base.fillStyle(0x577c61).fillEllipse(x,y,55,22);base.fillStyle(0x77916a).fillEllipse(x-10,y-6,30,16);
+    }
+    const b=m.bounds;rect(base,b.x,b.y,b.w,750,0xa6aa98);
+    rect(base,60,686,2080,294,0xb8b19d);
+    // Modest slab modules, with broad quiet areas, instead of a giant wall grid.
+    base.lineStyle(1,0x7c8c7e,.16);
+    for(let row=0;row<10;row++){
+      const y=700+row*28;base.lineBetween(60,y,2140,y);
+      for(let x=60+(row%2)*24;x<2140;x+=48){if((x/24+row)%3!==0)base.lineBetween(x,y,x,y+26);}
+    }
+    rect(base,60,944,2080,36,0xc1b69f);rect(base,60,943,2080,2,0xd1c1a2);
+    base.lineStyle(1,0x8e9887,.35);for(let x=60;x<2140;x+=48)base.lineBetween(x,945,x,978);
+    // An open paved approach links the existing facade to the actual portal.
+    poly(base,[1840,540,2048,540,2125,820,1950,820],0xc6b99d);
+    base.lineStyle(2,0x8b9a87,.55).lineBetween(2048,543,2125,820);
+    m.buildings.forEach(modern);
+    const canopy=scene.add.graphics().setDepth(700);layer.add(canopy);
+    canopy.fillStyle(0x234b43,.16).fillPoints([{x:1840,y:608},{x:2070,y:608},{x:2090,y:648},{x:1856,y:648}],true);
+    poly(canopy,[1820,528,2050,528,2070,600,1840,600],0x46665f);
+    poly(canopy,[1840,600,2070,600,2070,610,1840,610],0x728572);
+    canopy.lineStyle(2,0xb5b69a).lineBetween(1840,600,2070,600);
+    for(const x of [1870,1950,2030])canopy.lineStyle(1,0x658577,.7).lineBetween(x-18,532,x,597);
+    // Roof is cantilevered from the existing blocked facade; no new ground posts.
+    const threshold=scene.add.graphics().setDepth(-2);layer.add(threshold);
+    threshold.lineStyle(3,0xd9c392).lineBetween(1990,796,2090,796);
+    threshold.lineStyle(2,0x648577).lineBetween(1990,803,2090,803);
+    const rail=scene.add.graphics().setDepth(981);layer.add(rail);
+    rect(rail,60,980,2080,8,0x546f63);rect(rail,60,953,2080,5,0xbdb69c);
+    for(let x=60;x<2140;x+=48){rect(rail,x,956,4,27,0x637d6d);rect(rail,x,956,1,27,0xb1b39a);}
     const visitor=EXP_TARGETS.find(t=>t.id==='visitor')!;const actor=makeVisitor();actor.setPosition(visitor.x,visitor.y).setDepth(visitor.y);layer.add(actor);label(visitor.x,visitor.y-61,'年轻游客',17,'#ffe4ad',1600);
-    label(1080,670,'沧白路 · 高处入口',24);label(1180,902,'栏杆下是木楼与江桥',17);navigation(140,850,'← 返回解放碑',-1,340,930);navigation(440,810,'年轻游客 · 沿街向东 →',1);link(2040,780,'进入上层街区');
+    label(1080,670,'沧白路 · 高处入口',24);
+    navigation(140,850,'← 返回解放碑',-1,340,930);navigation(440,810,'年轻游客 · 沿街向东 →',1);
+    navigation(2040,780,'东侧门廊 · 进入上街 →',1,1830,828);
+    const overlookPlate=scene.add.text(1420,924,'下方街屋 · 沿岸步道与江桥',{fontFamily:'Microsoft YaHei, sans-serif',fontSize:'16px',color:'#f2e8d5',backgroundColor:'#63776b',padding:{x:8,y:5}}).setOrigin(.5).setDepth(982);layer.add(overlookPlate);
     ambient(scene,layer,m.width,m.height);
   }
 }
